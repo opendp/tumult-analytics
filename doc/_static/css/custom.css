@@ -1,0 +1,6 @@
+caption {
+    padding: 0px;
+    caption-side: top;
+    font-weight: bold;
+    color: rgba(var(--pst-color-paragraph),1);
+}

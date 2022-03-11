@@ -1,0 +1,333 @@
+"""Unit tests for KeySet."""
+
+# <placeholder: boilerplate>
+
+from typing import Dict, List, Union
+
+import pandas as pd
+from parameterized import parameterized
+from pyspark.sql import Column
+
+from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics.keyset import KeySet
+from tmlt.core.utils.testing import PySparkTest
+
+
+class TestKeySet(PySparkTest):
+    """Tests the KeySet class."""
+
+    @parameterized.expand(
+        [
+            (pd.DataFrame({"A": ["a1"]}),),
+            (pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}),),
+        ]
+    )
+    def test_init(self, df_in: pd.DataFrame) -> None:
+        """Test that initialization works."""
+        keyset = KeySet(self.spark.createDataFrame(df_in))
+        self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
+
+    @parameterized.expand(
+        [
+            ({"A": ["a1", "a2"]}, pd.DataFrame({"A": ["a1", "a2"]})),
+            (
+                {"A": ["a1", "a2"], "B": [0, 1, 2, 3], "C": ["c0"]},
+                pd.DataFrame(
+                    [
+                        ["a1", 0, "c0"],
+                        ["a1", 1, "c0"],
+                        ["a1", 2, "c0"],
+                        ["a1", 3, "c0"],
+                        ["a2", 0, "c0"],
+                        ["a2", 1, "c0"],
+                        ["a2", 2, "c0"],
+                        ["a2", 3, "c0"],
+                    ],
+                    columns=["A", "B", "C"],
+                ),
+            ),
+        ]
+    )
+    def test_from_dict(
+        self, d: Dict[str, Union[List[str], List[int]]], expected_df: pd.DataFrame
+    ) -> None:
+        """Test KeySet.from_dict works"""
+        keyset = KeySet.from_dict(d)
+        self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+
+    @parameterized.expand(
+        [
+            ({"A": []},),
+            ({"A": [], "B": ["b1"]},),
+            ({"A": [], "B": [0]},),
+            ({"A": ["a1", "a2"], "B": []},),
+            ({"A": [0, 1, 2, 3], "B": []},),
+        ]
+    )
+    def test_from_dict_empty_list(
+        self, d: Dict[str, Union[List[str], List[int]]]
+    ) -> None:
+        """Test that calls like `KeySet.from_dict({'A': []})` raise a friendly error."""
+        with self.assertRaises(ValueError):
+            KeySet.from_dict(d)
+
+    @parameterized.expand(
+        [
+            (pd.DataFrame({"A": ["a1"]}),),
+            (pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}),),
+        ]
+    )
+    def test_from_dataframe(self, df_in: pd.DataFrame) -> None:
+        """Test KeySet.from_dataframe works"""
+        keyset = KeySet(self.spark.createDataFrame(df_in))
+        self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame([[0, "b0"], [1, "b0"], [2, "b0"]], columns=["A", "B"]),
+                "A > 0",
+                pd.DataFrame([[1, "b0"], [2, "b0"]], columns=["A", "B"]),
+            ),
+            (
+                pd.DataFrame({"A": [10, 9, 8], "B": [-1, -2, -3]}),
+                "B < 0",
+                pd.DataFrame({"A": [10, 9, 8], "B": [-1, -2, -3]}),
+            ),
+            (
+                pd.DataFrame({"A": ["a0", "a1", "a123456"]}),
+                "length(A) > 3",
+                pd.DataFrame({"A": ["a123456"]}),
+            ),
+        ]
+    )
+    def test_filter_str(
+        self,
+        keyset_df: pd.DataFrame,
+        expr: Union[Column, str],
+        expected_df: pd.DataFrame,
+    ) -> None:
+        """Test KeySet.filter works"""
+        keyset = KeySet(self.spark.createDataFrame(keyset_df))
+        filtered_keyset = keyset.filter(expr)
+        self.assert_frame_equal_with_sort(
+            filtered_keyset.dataframe().toPandas(), expected_df
+        )
+
+    # This test is not parameterized because Column parameters are
+    # Python expressions containing the KeySet's DataFrame.
+    # Creating such a parameter would require creating a KeySet before
+    # setUp (since `@parameterized.expand` is executed before setUp).
+    def test_filter_expr(self) -> None:
+        """Test KeySet.filter with Columns expressions."""
+        keyset = KeySet.from_dict({"A": ["abc", "def", "ghi"], "B": [0, 100]})
+        filtered = keyset.filter(keyset.dataframe().B > 0)
+        expected = pd.DataFrame(
+            [["abc", 100], ["def", 100], ["ghi", 100]], columns=["A", "B"]
+        )
+        self.assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expected)
+
+        filtered2 = keyset.filter(keyset.dataframe().A != "string that is not there")
+        self.assert_frame_equal_with_sort(
+            filtered2.dataframe().toPandas(), keyset.dataframe().toPandas()
+        )
+
+    # This test also uses a Column as a filter expression, and is not
+    # parameterized for the same reason as test_filter_expr.
+    def test_filter_to_empty(self) -> None:
+        """Test when KeySet.filter should return an empty dataframe, it does"""
+        keyset = KeySet.from_dict({"A": [-1, -2, -3]})
+        filtered = keyset.filter("A > 0")
+        self.assertTrue(filtered.dataframe().toPandas().empty)
+
+        keyset2 = KeySet.from_dict({"A": ["a1", "a2", "a3"], "B": ["irrelevant"]})
+        filtered2 = keyset2.filter(keyset2.dataframe().A == "string that is not there")
+        self.assertTrue(filtered2.dataframe().toPandas().empty)
+
+    @parameterized.expand(
+        [
+            ("A", pd.DataFrame({"A": ["a1", "a2"]})),
+            ("B", pd.DataFrame({"B": [0, 1, 2, 3]})),
+        ]
+    )
+    def test_getitem_single(self, col: str, expected_df: pd.DataFrame) -> None:
+        """Test KeySet[col] returns a keyset for only the requested column."""
+        keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1, 2, 3]})
+        got = keyset[col]
+        self.assert_frame_equal_with_sort(got.dataframe().toPandas(), expected_df)
+
+    # This test is not parameterized because Python does not accept
+    # `obj[*tuple]` as valid syntax.
+    def test_getitem_multiple(self) -> None:
+        """Test KeySet[col1, col2, ...] returns a keyset for requested columns."""
+        keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": ["b1"], "C": [0, 1]})
+        got_ab = keyset["A", "B"]
+        expected_ab = pd.DataFrame([["a1", "b1"], ["a2", "b1"]], columns=["A", "B"])
+        self.assert_frame_equal_with_sort(got_ab.dataframe().toPandas(), expected_ab)
+
+        got_bc = keyset["B", "C"]
+        expected_bc = pd.DataFrame([["b1", 0], ["b1", 1]], columns=["B", "C"])
+        self.assert_frame_equal_with_sort(got_bc.dataframe().toPandas(), expected_bc)
+
+        got_abc = keyset["A", "B", "C"]
+        self.assert_frame_equal_with_sort(
+            got_abc.dataframe().toPandas(), keyset.dataframe().toPandas()
+        )
+
+    @parameterized.expand(
+        [
+            (
+                ["A", "B"],
+                pd.DataFrame([["a1", "b1"], ["a2", "b1"]], columns=["A", "B"]),
+            ),
+            (["B", "C"], pd.DataFrame([["b1", 0], ["b1", 1]], columns=["B", "C"])),
+        ]
+    )
+    def test_getitem_list(self, l: List[str], expected_df: pd.DataFrame) -> None:
+        """Test KeySet[[col1, col2, ...]] returns a keyset for requested columns."""
+        keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": ["b1"], "C": [0, 1]})
+        got = keyset[l]
+        self.assert_frame_equal_with_sort(got.dataframe().toPandas(), expected_df)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame(
+                    [[0, 0, 0], [0, 1, 0], [0, 1, 1]], columns=["A", "B", "C"]
+                ),
+                ["A", "B"],
+                pd.DataFrame([[0, 0], [0, 1]], columns=["A", "B"]),
+            ),
+            (
+                pd.DataFrame(
+                    [[0, 0, 0], [0, 1, 0], [0, 1, 1]], columns=["A", "B", "C"]
+                ),
+                ["B", "C"],
+                pd.DataFrame([[0, 0], [1, 0], [1, 1]], columns=["B", "C"]),
+            ),
+        ]
+    )
+    def test_getitem_list_noncartesian(
+        self, keys_df: pd.DataFrame, columns: List[str], expected_df: pd.DataFrame
+    ) -> None:
+        """Test that indexing multiple columns works on non-Cartesian KeySets."""
+        keyset = KeySet.from_dataframe(self.spark.createDataFrame(keys_df))
+        actual_df = keyset[columns].dataframe().toPandas()
+        self.assert_frame_equal_with_sort(actual_df, expected_df)
+
+    @parameterized.expand(
+        [
+            (
+                KeySet.from_dict({"C": ["c1", "c2"]}),
+                pd.DataFrame(
+                    [
+                        ["a1", 0, "c1"],
+                        ["a1", 0, "c2"],
+                        ["a1", 1, "c1"],
+                        ["a1", 1, "c2"],
+                        ["a2", 0, "c1"],
+                        ["a2", 0, "c2"],
+                        ["a2", 1, "c1"],
+                        ["a2", 1, "c2"],
+                    ],
+                    columns=["A", "B", "C"],
+                ),
+            ),
+            (
+                KeySet.from_dict({"C": [-1, -2], "D": ["d0"]}),
+                pd.DataFrame(
+                    [
+                        ["a1", 0, -1, "d0"],
+                        ["a1", 0, -2, "d0"],
+                        ["a1", 1, -1, "d0"],
+                        ["a1", 1, -2, "d0"],
+                        ["a2", 0, -1, "d0"],
+                        ["a2", 0, -2, "d0"],
+                        ["a2", 1, -1, "d0"],
+                        ["a2", 1, -2, "d0"],
+                    ],
+                    columns=["A", "B", "C", "D"],
+                ),
+            ),
+            (
+                KeySet.from_dict({"Z": ["zzzzz"]}),
+                pd.DataFrame(
+                    [
+                        ["a1", 0, "zzzzz"],
+                        ["a1", 1, "zzzzz"],
+                        ["a2", 0, "zzzzz"],
+                        ["a2", 1, "zzzzz"],
+                    ],
+                    columns=["A", "B", "Z"],
+                ),
+            ),
+        ]
+    )
+    def test_crossproduct(self, other: KeySet, expected_df: pd.DataFrame) -> None:
+        """Test factored_df * factored_df returns the expected cross-product."""
+        keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1]})
+        product_left = keyset * other
+        product_right = other * keyset
+        self.assert_frame_equal_with_sort(
+            product_left.dataframe().toPandas(), expected_df
+        )
+        self.assert_frame_equal_with_sort(
+            product_right.dataframe().toPandas(), expected_df
+        )
+
+    @parameterized.expand(
+        [
+            (KeySet.from_dict({"A": ["a1", "a2"]}), Schema({"A": ColumnType.VARCHAR})),
+            (
+                KeySet.from_dict({"A": [0, 1, 2], "B": ["abc"]}),
+                Schema({"A": ColumnType.INTEGER, "B": ColumnType.VARCHAR}),
+            ),
+            (
+                KeySet.from_dict(
+                    {"A": ["abc"], "B": [0], "C": ["def"], "D": [-1000000000]}
+                ),
+                Schema(
+                    {
+                        "A": ColumnType.VARCHAR,
+                        "B": ColumnType.INTEGER,
+                        "C": ColumnType.VARCHAR,
+                        "D": ColumnType.INTEGER,
+                    }
+                ),
+            ),
+        ]
+    )
+    def test_schema(self, keyset: KeySet, expected: Schema) -> None:
+        """Test KeySet.schema returns the expected schema."""
+        self.assertEqual(keyset.schema(), expected)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame(
+                    [["a1", 0], ["a1", 1], ["a2", 0], ["a2", 1]], columns=["A", "B"]
+                ),
+                True,
+            ),
+            (
+                pd.DataFrame(
+                    [[1, "a2"], [1, "a1"], [0, "a2"], [0, "a1"]], columns=["B", "A"]
+                ),
+                True,
+            ),
+            (
+                pd.DataFrame(
+                    [[1, "a2"], [1, "a1"], [0, "a2"], [0, "a1"]], columns=["Z", "A"]
+                ),
+                False,
+            ),
+        ]
+    )
+    def test_eq(self, other_df: pd.DataFrame, equal: bool) -> None:
+        """Test the equality operator."""
+        keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1]})
+        other = KeySet(self.spark.createDataFrame(other_df))
+        if equal:
+            self.assertEqual(keyset, other)
+        else:
+            self.assertNotEqual(keyset, other)

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+SOURCE_DIR="tmlt/analytics"
+TAG_PREFIX="tmlt.analytics"
+
+PYDOCSTYLE_ENABLE="true"

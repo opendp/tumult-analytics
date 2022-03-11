@@ -1,0 +1,67 @@
+.analytics:
+  variables:
+    PACKAGE_DIR: "analytics"
+    SOURCE_DIR: "tmlt/analytics"
+    TAG_PREFIX: "tmlt.analytics"
+
+    SPHINX_EXTRA_OPTS: "-n -W --keep-going"
+    SPHINX_LINKCHECK: "true"
+
+
+analytics_lint:
+  extends: [.lint, .analytics]
+analytics_test:
+  extends: [.test, .analytics]
+  needs:
+    - job: analytics_lint
+      artifacts: false
+      optional: true
+  tags: [aws-large]
+analytics_examples:
+  extends: [.examples, .analytics]
+  needs:
+    - job: analytics_lint
+      artifacts: false
+      optional: true
+  tags: [aws-large]
+
+analytics_package:
+  extends: [.package, .analytics]
+  needs:
+    - job: analytics_test
+      artifacts: false
+      optional: true
+analytics_publish:
+  extends: [.publish, .analytics]
+  dependencies: [analytics_package]
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-/'
+
+analytics_docs:
+  extends: [.docs, .analytics]
+  artifacts:
+    paths:
+      - analytics/public/
+    expose_as: 'Tumult Analytics - documentation'
+  needs:
+    - job: common_docs
+    - job: core_docs
+    - job: analytics_test
+      artifacts: false
+      optional: true
+analytics_publish_docs:
+  extends: [.publish_docs, .analytics]
+  dependencies: [analytics_docs]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-/'
+analytics_deploy_docs:
+  extends: [.deploy_docs, .analytics]
+  dependencies: [analytics_publish_docs]
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-\d+\.\d+.\d+(-(beta|rc)\.\d+)?/'
+
+analytics_weekly:
+  extends: [.weekly, .analytics]

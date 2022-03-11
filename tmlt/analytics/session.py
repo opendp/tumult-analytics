@@ -1,0 +1,1351 @@
+"""Interactive query evaluation using a differential privacy framework.
+
+:class:`Session` provides an interface for managing data sources and performing
+differentially private queries on them. A simple session with a single private
+datasource can be created using :meth:`Session.from_csv` or
+:meth:`Session.from_dataframe`, or a more complex one with multiple datasources
+can be constructed using :class:`Session.Builder`.
+"""
+# TODO(#798): Seeded RNGs in privacy framework.
+
+# <placeholder: boilerplate>
+
+from csv import DictReader
+from enum import Enum, auto
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast
+
+import pandas as pd  # pylint: disable=unused-import
+import sympy as sp
+from pyspark.sql import DataFrame, SparkSession
+from smart_open import open  # pylint: disable=redefined-builtin
+from typeguard import check_type, typechecked
+
+from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._coerce_spark_schema import (
+    SUPPORTED_SPARK_TYPES,
+    TYPE_COERCION_MAP,
+    coerce_spark_schema_or_fail,
+)
+from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
+from tmlt.analytics._query_expr_compiler import QueryExprCompiler
+from tmlt.analytics._schema import (
+    Schema,
+    analytics_to_spark_columns_descriptor,
+    analytics_to_spark_schema,
+    spark_dataframe_domain_to_analytics_columns,
+    spark_schema_to_analytics_columns,
+)
+from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+from tmlt.analytics.query_expr import QueryExpr
+from tmlt.core.domains.collections import DictDomain, ListDomain
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.base import Measurement, Queryable
+from tmlt.core.measurements.composition import (
+    AdaptiveCompositionQueryable,
+    MeasurementQuery,
+    ParallelComposition,
+    TransformationQuery,
+    create_adaptive_composition,
+    unpack_parallel_composition_queryable,
+)
+from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.metrics import (
+    DictMetric,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
+from tmlt.core.transformations.cache import Cache
+from tmlt.core.transformations.dictionary import (
+    AugmentDictTransformation,
+    CreateDictFromValue,
+    GetValue,
+    Subset,
+)
+from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
+from tmlt.core.utils.exact_number import ExactNumber
+
+__all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
+
+
+class _PrivateSourceTuple(NamedTuple):
+    """Named tuple of private Dataframe, domain and stability."""
+
+    dataframe: DataFrame
+    """Private DataFrame."""
+
+    stability: int
+    """Stability of private DataFrame."""
+
+    domain: SparkDataFrameDomain
+    """Domain of private DataFrame."""
+
+
+class PrivacyDefinition(Enum):
+    """Supported privacy definitions."""
+
+    PUREDP = auto()
+    """Pure DP."""
+    ZCDP = auto()
+    """Zero-concentrated DP."""
+
+
+class Session:
+    """Class for an allocated DP session.
+
+    Sessions should not be directly constructed. Instead, they should be created
+    using :meth:`from_dataframe` or :meth:`from_csv`, or with a :class:`Builder`.
+    """
+
+    class Builder:
+        """Builder for :class:`Session`."""
+
+        def __init__(self):
+            """Constructor."""
+            self._privacy_budget: Optional[PrivacyBudget] = None
+            self._private_sources: Dict[str, _PrivateSourceTuple] = dict()
+            self._public_sources: Dict[str, DataFrame] = dict()
+
+        def build(self) -> "Session":
+            """Builds Session with specified configuration."""
+            if self._privacy_budget is None:
+                raise ValueError("Privacy budget must be specified.")
+            if not self._private_sources:
+                raise ValueError("At least one private source must be provided.")
+
+            output_measure: Union[PureDP, RhoZCDP]
+            sympy_budget: sp.Expr
+            if isinstance(self._privacy_budget, PureDPBudget):
+                output_measure = PureDP()
+                sympy_budget = ExactNumber.from_float(
+                    self._privacy_budget.epsilon, round_up=False
+                ).expr
+            elif isinstance(self._privacy_budget, RhoZCDPBudget):
+                output_measure = RhoZCDP()
+                sympy_budget = ExactNumber.from_float(
+                    self._privacy_budget.rho, round_up=False
+                ).expr
+            else:
+                raise ValueError(
+                    "Unsupported variant of PrivacyBudget."
+                    f" Found {type(self._privacy_budget)}"
+                )
+
+            compiler = QueryExprCompiler(output_measure=output_measure)
+            input_domain = DictDomain(
+                {
+                    source_id: source_tuple.domain
+                    for source_id, source_tuple in self._private_sources.items()
+                }
+            )
+            dataframes = {
+                source_id: source_tuple.dataframe
+                for source_id, source_tuple in self._private_sources.items()
+            }
+
+            input_metric = DictMetric(
+                {
+                    source_id: SymmetricDifference()
+                    for source_id in self._private_sources
+                }
+            )
+            queryable = create_adaptive_composition(
+                input_domain=input_domain,
+                input_metric=input_metric,
+                d_in={
+                    source_id: sp.Integer(source_tuple.stability)
+                    for source_id, source_tuple in self._private_sources.items()
+                },
+                privacy_budget=sympy_budget,
+                output_measure=output_measure,
+            )(dataframes)
+            return Session(
+                queryable=queryable,
+                public_sources=self._public_sources,
+                compiler=compiler,
+            )
+
+        def with_privacy_budget(
+            self, privacy_budget: PrivacyBudget
+        ) -> "Session.Builder":
+            """Sets the privacy budget for the Session to be built.
+
+            Args:
+                privacy_budget: Privacy Budget to be allocated to Session.
+            """
+            self._privacy_budget = privacy_budget
+            return self
+
+        def with_private_csv(
+            self,
+            source_id: str,
+            path: str,
+            schema: Dict[str, ColumnType],
+            stability: int = 1,
+            delimiter: str = ",",
+            header: bool = True,
+            validate: bool = True,
+        ) -> "Session.Builder":
+            """Adds a CSV file as a private source.
+
+            Args:
+                source_id: The source id for the private source dataframe.
+                path: Path to csv file.
+                schema: The schema of the private data, a dictionary mapping column
+                    names to column types.
+                stability: Maximum number of rows that may be added or removed if
+                    a single individual is added or removed.
+                delimiter: The seperator used in the private source data file.
+                header: The header of the private source data file.
+                validate: If True, csv file is validated against provided schema.
+            """
+            _assert_is_identifier(source_id)
+            if stability < 1:
+                raise ValueError("Stability must be a positive integer.")
+            if source_id in self._private_sources or source_id in self._public_sources:
+                raise ValueError(f"Duplicate source id: '{source_id}'")
+            analytics_schema = Schema(schema)
+            dataframe = _read_csv(
+                source_id=source_id,
+                path=path,
+                schema=analytics_schema,
+                header=header,
+                delimiter=delimiter,
+                validate=validate,
+            )
+            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
+                analytics_schema
+            )
+            domain = SparkDataFrameDomain(spark_columns_descriptor)
+            self._private_sources[source_id] = _PrivateSourceTuple(
+                dataframe, stability, domain
+            )
+            return self
+
+        def with_private_dataframe(
+            self,
+            source_id: str,
+            dataframe: DataFrame,
+            stability: int = 1,
+            validate: bool = True,
+        ) -> "Session.Builder":
+            """Adds a Spark DataFrame as a private source.
+
+            Not all Spark column types are supported in private sources; see
+            :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+            supported.
+
+            Args:
+                source_id: Source id for the private source dataframe.
+                dataframe: Private source dataframe to perform queries on,
+                    corresponding to the `source_id`.
+                stability: Maximum number of rows that may be added or removed if
+                    a single individual is added or removed.
+                validate: If True, an error is raised if dataframe contains nulls
+                    or nans.
+            """
+            _assert_is_identifier(source_id)
+            if stability < 1:
+                raise ValueError("Stability must be a positive integer.")
+            if source_id in self._private_sources or source_id in self._public_sources:
+                raise ValueError(f"Duplicate source id: '{source_id}'")
+            dataframe = coerce_spark_schema_or_fail(dataframe)
+            analytics_schema = Schema(
+                spark_schema_to_analytics_columns(dataframe.schema)
+            )
+            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
+                analytics_schema
+            )
+            domain = SparkDataFrameDomain(spark_columns_descriptor)
+            if validate:
+                domain.validate(dataframe)
+            self._private_sources[source_id] = _PrivateSourceTuple(
+                dataframe, stability, domain
+            )
+            return self
+
+        def with_public_dataframe(
+            self, source_id: str, dataframe: DataFrame, validate: bool = True
+        ) -> "Session.Builder":
+            """Adds a Spark DataFrame as a public source.
+
+            Not all Spark column types are supported in public sources; see
+            :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+            supported.
+
+            Args:
+                source_id: Source id for the public data source.
+                dataframe: Public DataFrame corresponding to the source id.
+                validate: If True, an error is raised if DataFrame contains nulls or
+                    nans.
+            """
+            _assert_is_identifier(source_id)
+            if source_id in self._private_sources or source_id in self._public_sources:
+                raise ValueError(f"Duplicate source id: '{source_id}'")
+            dataframe = coerce_spark_schema_or_fail(dataframe)
+            if validate:
+                analytics_schema = Schema(
+                    spark_schema_to_analytics_columns(dataframe.schema)
+                )
+                spark_columns_descriptor = analytics_to_spark_columns_descriptor(
+                    analytics_schema
+                )
+                domain = SparkDataFrameDomain(spark_columns_descriptor)
+                domain.validate(dataframe)
+            self._public_sources[source_id] = dataframe
+            return self
+
+        def with_public_csv(
+            self,
+            source_id: str,
+            path: str,
+            schema: Dict[str, ColumnType],
+            delimiter: str = ",",
+            header: bool = True,
+            validate: bool = True,
+        ) -> "Session.Builder":
+            """Adds a CSV file as a public source.
+
+            Args:
+                source_id: Source id for the public data source.
+                path: Path to CSV file.
+                schema: The schema of the public data, a dictionary mapping column
+                    names to column types.
+                delimiter: The seperator used in the public source data file.
+                header: The header of the public source data file.
+                validate: If True, the CSV file is validated against provided schema.
+            """
+            _assert_is_identifier(source_id)
+            if source_id in self._private_sources or source_id in self._public_sources:
+                raise ValueError(f"Duplicate source id: '{source_id}'")
+            dataframe = _read_csv(
+                source_id=source_id,
+                path=path,
+                schema=Schema(schema),
+                header=header,
+                delimiter=delimiter,
+                validate=validate,
+            )
+            self._public_sources[source_id] = dataframe
+            return self
+
+    def __init__(self, queryable, public_sources, compiler=None):
+        """Initializes a DP session from a queryable.
+
+        This constructor is not intended to be used directly. Use
+        :class:`~tmlt.analytics.session.Session.Builder` or `from_`
+        constructors instead.
+        """
+        # pylint: disable=pointless-string-statement
+        """
+        Args documented for internal use.
+            queryable: A privacy framework AdaptiveCompositionQueryable.
+            public_sources: The public data for the queries.
+                Provided as a dictionary {source_id: dataframe}
+            compiler: Compiles queries into Measurements,
+                which the queryable uses for evaluation.
+        """
+        check_type("queryable", queryable, Queryable)
+        check_type("public_sources", public_sources, Dict[str, DataFrame])
+        check_type("compiler", compiler, Optional[QueryExprCompiler])
+
+        self._queryable = cast(AdaptiveCompositionQueryable, queryable)
+        if not isinstance(self._queryable.output_measure, (PureDP, RhoZCDP)):
+            raise ValueError("Queryable is not using PureDP or RhoZCDP privacy.")
+        if not isinstance(self._queryable.input_metric, DictMetric):
+            raise ValueError("The input metric to a session must be a DictMetric.")
+        if not isinstance(self._queryable.input_domain, DictDomain):
+            raise ValueError("The input domain to a session must be a DictDomain.")
+        self._public_sources = public_sources
+        if compiler is None:
+            compiler = QueryExprCompiler(output_measure=self._queryable.output_measure)
+        if self._queryable.output_measure != compiler.output_measure:
+            raise ValueError(
+                f"Queryable ouptut measure is {self._queryable.output_measure},"
+                f" but compiler output measure is {compiler.output_measure}."
+            )
+        self._compiler = compiler
+
+    @classmethod
+    @typechecked
+    def from_dataframe(
+        cls,
+        privacy_budget: PrivacyBudget,
+        source_id: str,
+        dataframe: DataFrame,
+        validate: bool = True,
+        stability: int = 1,
+    ) -> "Session":
+        """Initializes a DP session from a Spark dataframe.
+
+        Only one private data source is supported with this initialization
+        method; if you need multiple data sources, use
+        :class:`~tmlt.analytics.session.Session.Builder`.
+
+        Not all Spark column types are supported in private sources; see
+        :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+        supported.
+
+        ..
+            >>> # Set up data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> spark_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+
+        Example:
+            >>> spark_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
+            >>> # Declare budget for the session.
+            >>> session_budget = PureDPBudget(1)
+            >>> # Set up Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=session_budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=spark_data,
+            ... )
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+
+        Args:
+            privacy_budget: The total privacy budget allocated to this session.
+            source_id: The source id for the private source dataframe.
+            dataframe: The private source dataframe to perform queries on,
+                corresponding to the `source_id`.
+            validate: If True, an error is raised if dataframe contains nulls or nans.
+            stability: The maximum number of rows that could be added or removed if
+                a single individual is added or removed.
+        """
+        session_builder = (
+            Session.Builder()
+            .with_privacy_budget(privacy_budget=privacy_budget)
+            .with_private_dataframe(
+                source_id=source_id,
+                dataframe=dataframe,
+                stability=stability,
+                validate=validate,
+            )
+        )
+        return session_builder.build()
+
+    @classmethod
+    @typechecked
+    def from_csv(
+        cls,
+        privacy_budget: PrivacyBudget,
+        source_id: str,
+        path: str,
+        schema: Dict[str, ColumnType],
+        delimiter: str = ",",
+        header: bool = True,
+        validate: bool = True,
+        stability: int = 1,
+    ) -> "Session":
+        r"""Initializes a DP session from a CSV file.
+
+        Only one private data source is supported with this initialization
+        method; if you need multiple data sources, use
+        :class:`~tmlt.analytics.session.Session.Builder`.
+
+        ..
+            >>> import os, tempfile
+            >>> private_csv = "A,B,X\n0,0,0\n0,0,1\n0,1,2\n1,0,3"
+            >>> filename = os.path.join(tempfile.mkdtemp(), "private.csv")
+            >>> with open(filename, "w") as f:
+            ...     x=f.write(private_csv)
+            ...     f.flush()
+
+        Example:
+            >>> with open(filename, 'r') as f:
+            ...     print(f.read())
+            A,B,X
+            0,0,0
+            0,0,1
+            0,1,2
+            1,0,3
+            >>> schema = {
+            ...     "A": ColumnType.VARCHAR,
+            ...     "B": ColumnType.INTEGER,
+            ...     "X": ColumnType.INTEGER,
+            ... }
+            >>> # Set up Session
+            >>> sess = Session.from_csv(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     path=filename,
+            ...     schema=schema,
+            ... )
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+
+        Args:
+            privacy_budget: The total privacy budget allocated to this session.
+            source_id: The source id for the private source dataframe.
+            path: Path to csv file.
+            schema: The schema of the private data, a dictionary mapping column
+                names to column types.
+            delimiter: The seperator used in the private source data file.
+            header: The header of the private source data file.
+            validate: If True, csv file is validated against provided schema.
+            stability: The maximum number of rows that could be added or removed if
+                a single individual is added or removed.
+        """
+        session_builder = (
+            Session.Builder()
+            .with_privacy_budget(privacy_budget=privacy_budget)
+            .with_private_csv(
+                source_id=source_id,
+                path=path,
+                schema=schema,
+                stability=stability,
+                delimiter=delimiter,
+                header=header,
+                validate=validate,
+            )
+        )
+
+        return session_builder.build()
+
+    @property
+    def private_sources(self) -> List[str]:
+        """Returns the ids of the private sources."""
+        return list(self._input_domain.key_to_domain)
+
+    @property
+    def public_sources(self) -> List[str]:
+        """Returns the ids of the public sources."""
+        return list(self._public_sources)
+
+    @property
+    def public_source_dataframes(self) -> Dict[str, DataFrame]:
+        """Returns a dictionary of public source dataframes."""
+        return self._public_sources
+
+    @property
+    def remaining_privacy_budget(self) -> Union[PureDPBudget, RhoZCDPBudget]:
+        """Returns the remaining privacy_budget left in the session.
+
+        The type of the budget (e.g., PureDP or RhoZCDP) will be the same as
+        the type of the budget the Session was initialized with.
+        """
+        sympy_budget = self._queryable.remaining_budget.expr
+        budget_value = ExactNumber(sympy_budget).to_float(round_up=False)
+        output_measure = self._queryable.output_measure
+        if output_measure == PureDP():
+            return PureDPBudget(budget_value)
+        if output_measure == RhoZCDP():
+            return RhoZCDPBudget(budget_value)
+        raise RuntimeError(
+            "Unexpected behavior in remaining_privacy_budget. Please file a bug report."
+        )
+
+    @property
+    def _input_domain(self) -> DictDomain:
+        """Returns the input domain of the underlying queryable."""
+        if not isinstance(self._queryable.input_domain, DictDomain):
+            raise AssertionError(
+                "Queryable's input domain has an incorrect type. This is "
+                "probably a bug; please let us know about it so we can "
+                "fix it!"
+            )
+        return cast(DictDomain, self._queryable.input_domain)
+
+    @property
+    def _input_metric(self) -> DictMetric:
+        """Returns the input metric of the underlying queryable."""
+        if not isinstance(self._queryable.input_metric, DictMetric):
+            raise AssertionError(
+                "Queryable's input metric has an incorrect type. This is "
+                "probably a bug; please let us know about it so we can "
+                "fix it!"
+            )
+        return cast(DictMetric, self._queryable.input_metric)
+
+    @property
+    def _stability(self) -> Dict[str, sp.Expr]:
+        """Returns the unmodified stability of the underlying queryable."""
+        return {
+            source_id: ExactNumber(d_in_i).expr
+            for source_id, d_in_i in self._queryable.d_in.items()
+        }
+
+    @typechecked
+    def get_schema(self, source_id: str) -> Dict[str, ColumnType]:
+        """Returns the column types for any data source.
+
+        Args:
+            source_id: The ID for the data source whose column types
+                are being retrieved.
+        """
+        if source_id in self._input_domain.key_to_domain:
+            return spark_dataframe_domain_to_analytics_columns(
+                self._input_domain[source_id]
+            )
+        return spark_schema_to_analytics_columns(
+            self.public_source_dataframes[source_id].schema
+        )
+
+    @typechecked
+    def get_grouping_column(self, source_id: str) -> Optional[str]:
+        """Returns an optional column that must be grouped by in this query.
+
+        When a groupby aggregation is appended to any query on this table, it
+        must include this column as a groupby column.
+
+        Args:
+            source_id: The ID for the data source whose grouping column
+                is being retrieved.
+        """
+        try:
+            if isinstance(self._input_metric[source_id], IfGroupedBy):
+                inner_metric = cast(IfGroupedBy, self._input_metric[source_id])
+                return inner_metric.column
+            return None
+        except KeyError as e:
+            if source_id in self.public_sources:
+                raise ValueError(
+                    f"'{source_id}' does not have a grouping column, "
+                    "because it is not a private table."
+                )
+            raise e
+
+    @property
+    def _catalog(self) -> Catalog:
+        """Returns the catalog."""
+        catalog = Catalog()
+        primary_source_id = list(self.private_sources)[0]
+        view_source_ids = [
+            source_id
+            for source_id in self.private_sources
+            if source_id != primary_source_id
+        ]
+        catalog.add_private_source(
+            source_id=primary_source_id,
+            col_types=self.get_schema(primary_source_id),
+            # Catalogs require an integral stability. The catalog is only used for query
+            # validation, so using the incorrect stability (if the true stability is
+            # non-integral) is ok.
+            stability=int(self._stability[primary_source_id]),
+            grouping_column=self.get_grouping_column(primary_source_id),
+        )
+        for view_source_id in view_source_ids:
+            catalog.add_private_view(
+                view_source_id,
+                self.get_schema(view_source_id),
+                # Catalogs require integral stability, see note above.
+                int(self._stability[view_source_id]),
+                self.get_grouping_column(view_source_id),
+            )
+
+        for public_source_id in self.public_sources:
+            catalog.add_public_source(
+                public_source_id,
+                spark_schema_to_analytics_columns(
+                    self.public_source_dataframes[public_source_id].schema
+                ),
+            )
+        return catalog
+
+    @typechecked
+    def add_public_csv(
+        self,
+        source_id: str,
+        path: str,
+        schema: Dict[str, ColumnType],
+        delimiter: str = ",",
+        header: bool = True,
+        validate: bool = True,
+    ):
+        r"""Adds a public data source to the session.
+
+        ..
+            >>> import os, tempfile
+            >>> private_csv = "A,B,X\n0,0,0\n0,0,1\n0,1,2\n1,0,3"
+            >>> public_csv = "A,C\n0,0\n0,1\n1,1\n1,2"
+            >>> private_filename = os.path.join(tempfile.mkdtemp(), "private.csv")
+            >>> public_filename = os.path.join(tempfile.mkdtemp(), "public.csv")
+            >>> with open(private_filename, "w") as f:
+            ...     x=f.write(private_csv)
+            ...     f.flush()
+            >>> with open(public_filename, "w") as f:
+            ...     x=f.write(public_csv)
+            ...     f.flush()
+            >>> private_schema = {
+            ...     "A": ColumnType.VARCHAR,
+            ...     "B": ColumnType.INTEGER,
+            ...     "X": ColumnType.INTEGER,
+            ... }
+            >>> sess = Session.from_csv(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     path=private_filename,
+            ...     schema=private_schema,
+            ... )
+
+        Example:
+            >>> with open(public_filename, 'r') as f:
+            ...     print(f.read())
+            A,C
+            0,0
+            0,1
+            1,1
+            1,2
+            >>> # Set up a schema for the public data
+            >>> schema = {
+            ...     "A": ColumnType.VARCHAR,
+            ...     "C": ColumnType.INTEGER,
+            ... }
+            >>> # Add public data
+            >>> sess.add_public_csv(
+            ...     source_id="my_public_data",
+            ...     path=public_filename,
+            ...     schema=schema
+            ... )
+            >>> sess.public_sources
+            ['my_public_data']
+            >>> sess.get_schema('my_public_data')
+            {'A': ColumnType.VARCHAR, 'C': ColumnType.INTEGER}
+
+        Args:
+            source_id: The source id for the public data source.
+            path: Path to csv file.
+            schema: The schema of the public data, a dictionary mapping column
+                names to column types.
+            delimiter: The separator used in the public csv file.
+            header: The header of the public csv file.
+            validate: If True, csv source is validated against schema.
+        """
+        _assert_is_identifier(source_id)
+        dataframe = _read_csv(
+            source_id=source_id,
+            path=path,
+            schema=Schema(schema),
+            header=header,
+            delimiter=delimiter,
+            validate=validate,
+        )
+        self._public_sources[source_id] = dataframe
+
+    @typechecked
+    def add_public_dataframe(
+        self, source_id: str, dataframe: DataFrame, validate: bool = True
+    ):
+        """Adds a public data source to the session.
+
+        Not all Spark column types are supported in public sources; see
+        :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+        supported.
+
+        ..
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> public_spark_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "C"]
+            ...     )
+            ... )
+            >>> # Set up Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=private_data,
+            ... )
+
+        Example:
+            >>> public_spark_data.toPandas()
+               A  C
+            0  0  0
+            1  0  1
+            2  1  1
+            3  1  2
+            >>> # Add public data
+            >>> sess.add_public_dataframe(
+            ...     source_id="my_public_data", dataframe=public_spark_data
+            ... )
+            >>> sess.public_sources
+            ['my_public_data']
+            >>> sess.get_schema('my_public_data')
+            {'A': ColumnType.VARCHAR, 'C': ColumnType.INTEGER}
+
+        Args:
+            source_id: The name of the public data source.
+            dataframe: The public data source corresponding to the `source_id`.
+            validate: If True, an error is raised if dataframe contains nulls or nans.
+        """
+        _assert_is_identifier(source_id)
+        dataframe = coerce_spark_schema_or_fail(dataframe)
+        if validate:
+            analytics_schema = Schema(
+                spark_schema_to_analytics_columns(dataframe.schema)
+            )
+            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
+                analytics_schema
+            )
+            domain = SparkDataFrameDomain(spark_columns_descriptor)
+            domain.validate(dataframe)
+        self._public_sources[source_id] = dataframe
+
+    def evaluate(
+        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
+    ) -> DataFrame:
+        """Answers a query within the given privacy budget and returns a Spark dataframe.
+
+        The type of privacy budget that you use must match the type your Session was
+        initialized with (i.e., you cannot evaluate a query using RhoZCDPBudget if
+        the Session was initialized with a PureDPBudget, and vice versa).
+
+        ..
+            >>> from tmlt.analytics.keyset import KeySet
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> # Create Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=data,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.remaining_privacy_budget
+            PureDPBudget(epsilon=1)
+            >>> # Evaluate Queries
+            >>> filter_query = QueryBuilder("my_private_data").filter("A > 0")
+            >>> count_query = filter_query.groupby(KeySet.from_dict({"X": [0, 1]})).count()
+            >>> count_answer = sess.evaluate(
+            ...     query_expr=count_query,
+            ...     privacy_budget=PureDPBudget(0.5),
+            ... )
+            >>> sum_query = filter_query.sum(column="B", low=0, high=1)
+            >>> sum_answer = sess.evaluate(
+            ...     query_expr=sum_query,
+            ...     privacy_budget=PureDPBudget(0.5),
+            ... )
+            >>> count_answer # TODO(#798): Seed randomness and change to toPandas()
+            DataFrame[X: bigint, count: bigint]
+            >>> sum_answer # TODO(#798): Seed randomness and change to toPandas()
+            DataFrame[B_sum: bigint]
+
+        Args:
+            query_expr: One query expression to answer.
+            privacy_budget: The privacy budget used for the query.
+        """  # pylint: disable=line-too-long
+        check_type("query_expr", query_expr, QueryExpr)
+        check_type("privacy_budget", privacy_budget, PrivacyBudget)
+
+        self._validate_budget_type_matches_session(privacy_budget)
+        if privacy_budget == PureDPBudget(0) or privacy_budget == RhoZCDPBudget(0):
+            raise ValueError("You need a non-zero privacy budget to evaluate a query.")
+
+        adjusted_budget = self._process_requested_budget(privacy_budget)
+
+        measurement = self._compiler(
+            queries=[query_expr],
+            privacy_budget=adjusted_budget.expr,
+            stability=self._stability,
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            public_sources=self._public_sources,
+            catalog=self._catalog,
+        )
+        try:
+            if not measurement.privacy_relation(self._queryable.d_in, adjusted_budget):
+                raise ValueError(
+                    "With these inputs and this privacy budget, "
+                    "similar inputs will *not* produce similar outputs. "
+                )
+            answers = self._queryable(MeasurementQuery(measurement, adjusted_budget))
+            if len(answers) != 1:
+                raise AssertionError(
+                    "Expected exactly one answer, but got "
+                    f"{len(answers)} answers instead. This is "
+                    "probably a bug; please let us know about it so "
+                    "we can fix it!"
+                )
+            return answers[0]
+        except RuntimeError as re:
+            if str(re).startswith("The specified queryable") and str(re).endswith(
+                "is no longer active"
+            ):
+                raise RuntimeError(
+                    "This session is dead because another session has used privacy "
+                    "budget, please use an active session."
+                )
+            raise re
+
+    @typechecked
+    def create_view(
+        self, query_expr: Union[QueryExpr, QueryBuilder], source_id: str, cache: bool
+    ):
+        """Create a new view from a transformation and possibly cache it.
+
+        ..
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> public_spark_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "C"]
+            ...     )
+            ... )
+            >>> # Create Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=private_data,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> public_spark_data.toPandas()
+               A  C
+            0  0  0
+            1  0  1
+            2  1  1
+            3  1  2
+            >>> sess.add_public_dataframe("my_public_data", public_spark_data)
+            >>> # Create a view
+            >>> join_query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .join_public("my_public_data")
+            ...     .select(["A", "B", "C"])
+            ... )
+            >>> sess.create_view(
+            ...     join_query,
+            ...     source_id="private_public_join",
+            ...     cache=True
+            ... )
+            >>> sess.private_sources
+            ['my_private_data', 'private_public_join']
+            >>> sess.get_schema("private_public_join")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'C': ColumnType.INTEGER}
+            >>> # Delete the view
+            >>> sess.delete_view("private_public_join")
+            >>> sess.private_sources
+            ['my_private_data']
+
+        Args:
+            query_expr: A query that performs a transformation.
+            source_id: The name, or unique identifier, of the view.
+            cache: Whether or not to cache the view.
+        """
+        _assert_is_identifier(source_id)
+        if source_id in self._input_domain.key_to_domain:
+            raise ValueError(f"ID {source_id} already exists.")
+
+        if isinstance(query_expr, QueryBuilder):
+            query_expr = query_expr.query_expr
+
+        if not isinstance(query_expr, QueryExpr):
+            raise ValueError("query_expr must be of type QueryBuilder or QueryExpr.")
+        transformation = self._compiler.build_transformation(
+            query=query_expr,
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            public_sources=self._public_sources,
+            catalog=self._catalog,
+        )
+        if cache:
+            transformation = Cache(transformation)
+
+        dict_transformation = Cache(
+            AugmentDictTransformation(
+                transformation
+                | CreateDictFromValue(
+                    input_domain=transformation.output_domain,
+                    input_metric=transformation.output_metric,
+                    key=source_id,
+                )
+            )
+        )
+
+        self._queryable(TransformationQuery(dict_transformation))
+
+    def delete_view(self, source_id: str):
+        """Deletes a view and decaches it if it was cached.
+
+        Args:
+            source_id: The name of the view.
+        """
+        if source_id not in self._input_domain.key_to_domain:
+            raise ValueError(f"ID {source_id} does not exist.")
+        transformation = Cache(
+            Subset(
+                input_domain=self._input_domain,
+                input_metric=self._input_metric,
+                keys=list(set(self._input_domain.key_to_domain.keys()) - {source_id}),
+            )
+        )
+        d_out = {k: v for k, v in self._queryable.d_in.items() if k != source_id}
+        self._queryable(TransformationQuery(transformation, d_out))
+
+    @typechecked
+    def partition_and_create(
+        self,
+        source_id: str,
+        privacy_budget: PrivacyBudget,
+        attr_name: str,
+        splits: Union[Dict[str, str], Dict[str, int]],
+    ) -> Dict[str, "Session"]:
+        """Returns new sessions from a partition mapped to split name/`source_id`.
+
+        The type of privacy budget that you use must match the type your Session was
+        initialized with (i.e., you cannot use a RhoZCDPBudget to partition your
+        Session if the Session was created using a PureDPBudget, and vice versa).
+
+        ..
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> # Create Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=data,
+            ... )
+
+        Example:
+            This example partitions the session into two sessions, one with A = "0" and
+            one with A = "1". Due to parallel composition, each of these sessions are
+            given the same budget, while only one count of that budget is deducted from
+            session.
+
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.remaining_privacy_budget
+            PureDPBudget(epsilon=1)
+            >>> # Partition the Session
+            >>> new_sessions = sess.partition_and_create(
+            ...     "my_private_data",
+            ...     privacy_budget=PureDPBudget(0.75),
+            ...     attr_name="A",
+            ...     splits={"part0":"0", "part1":"1"}
+            ... )
+            >>> sess.remaining_privacy_budget
+            PureDPBudget(epsilon=0.25)
+            >>> new_sessions["part0"].private_sources
+            ['part0']
+            >>> new_sessions["part0"].get_schema("part0")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> new_sessions["part0"].remaining_privacy_budget
+            PureDPBudget(epsilon=0.75)
+            >>> new_sessions["part1"].private_sources
+            ['part1']
+            >>> new_sessions["part1"].get_schema("part1")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> new_sessions["part1"].remaining_privacy_budget
+            PureDPBudget(epsilon=0.75)
+
+        Args:
+            source_id: The private source to partition.
+            privacy_budget: Amount of privacy budget to pass to each new session.
+            attr_name: The name of the column partitioning on.
+            splits: Mapping of split name to value of partition.
+                Split name is `source_id` in new session.
+        """
+        self._validate_budget_type_matches_session(privacy_budget)
+
+        transformation = GetValue(
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            key=source_id,
+        )
+        d_mid = self._queryable.d_in[source_id]
+        if not transformation.stability_relation(self._queryable.d_in, d_mid):
+            raise ValueError(
+                "This partition is unstable: close inputs will not produce "
+                "close outputs."
+            )
+        if not isinstance(
+            transformation.output_metric, (IfGroupedBy, SymmetricDifference)
+        ):
+            raise AssertionError(
+                "Transformation has an unrecognized output metric. This is "
+                "probably a bug; please let us know so we can fix it!"
+            )
+        transformation_domain = cast(SparkDataFrameDomain, transformation.output_domain)
+
+        try:
+            attr_type = transformation_domain.schema[attr_name]
+        except KeyError:
+            raise KeyError(
+                f"'{attr_name}' not present in transformed dataframe's columns; "
+                "schema of transformed dataframe is "
+                f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
+            )
+
+        new_sources = []
+        # Actual type is Union[List[Tuple[str, ...]], List[Tuple[int, ...]]]
+        # but mypy doesn't like that.
+        split_vals: List[Tuple[Union[str, int], ...]] = []
+        for split_name, split_val in splits.items():
+            if not split_name.isidentifier():
+                raise ValueError(
+                    "The string passed as split name must be a valid Python identifier:"
+                    " it can only contain alphanumeric letters (a-z) and (0-9), or"
+                    " underscores (_), and it cannot start with a number, or contain"
+                    " any spaces."
+                )
+            if not attr_type.valid_py_value(split_val):
+                raise TypeError(
+                    f"'{attr_name}' column is of type '{attr_type.data_type}'; "
+                    f"'{attr_type.data_type}' column not compatible with splits "
+                    f"value type '{type(split_val).__name__}'"
+                )
+            new_sources.append(split_name)
+            split_vals.append((split_val,))
+
+        partition_transformation = PartitionByKeys(
+            input_domain=transformation_domain,
+            input_metric=transformation.output_metric,
+            output_metric=(
+                RootSumOfSquared(transformation.output_metric)
+                if isinstance(self._compiler.output_measure, RhoZCDP)
+                else SumOf(transformation.output_metric)
+            ),
+            keys=[attr_name],
+            list_values=split_vals,
+        )
+        chained_partition = transformation | partition_transformation
+        if transformation.stability_function(self._queryable.d_in) != d_mid:
+            raise AssertionError(
+                "Transformation's stability function does not match "
+                "transformed data. This is probably a bug; let us "
+                "know so we can fix it!"
+            )
+
+        adjusted_budget = self._process_requested_budget(privacy_budget)
+
+        adaptive_compositions: List[Measurement] = list()
+        for source in new_sources:
+            dict_transformation_wrapper = CreateDictFromValue(
+                input_domain=transformation_domain,
+                input_metric=transformation.output_metric,
+                key=source,
+            )
+            adaptive_composition = create_adaptive_composition(
+                input_domain=dict_transformation_wrapper.output_domain,
+                input_metric=dict_transformation_wrapper.output_metric,
+                d_in={source: d_mid},
+                privacy_budget=adjusted_budget,
+                output_measure=self._compiler.output_measure,
+            )
+            adaptive_compositions.append(
+                dict_transformation_wrapper | adaptive_composition
+            )
+        parallel_composition = ParallelComposition(
+            input_domain=ListDomain(transformation_domain, len(new_sources)),
+            input_metric=(
+                RootSumOfSquared(transformation.output_metric)
+                if isinstance(self._compiler.output_measure, RhoZCDP)
+                else SumOf(transformation.output_metric)
+            ),
+            output_measure=self._compiler.output_measure,
+            measurements=adaptive_compositions,
+        )
+
+        measurement = chained_partition | parallel_composition
+
+        try:
+            if measurement.privacy_function(self._queryable.d_in) != adjusted_budget:
+                raise AssertionError(
+                    "Measurement privacy function does not match adjusted "
+                    "budget. This is probably a bug; please let us know so we "
+                    "can fix it!"
+                )
+            parallel_composition_queryable = self._queryable(
+                MeasurementQuery(measurement)
+            )
+        except RuntimeError as re:
+            if str(re).startswith("The specified queryable") and str(re).endswith(
+                "is no longer active"
+            ):
+                raise RuntimeError(
+                    "This session is dead because another session has used privacy "
+                    "budget, please use an active session."
+                )
+            raise re
+        new_queryables = unpack_parallel_composition_queryable(
+            parallel_composition_queryable
+        )
+        new_sessions = dict()
+        for new_queryable, source in zip(new_queryables, new_sources):
+            new_sessions[source] = Session(
+                new_queryable, self._public_sources, self._compiler
+            )
+        return new_sessions
+
+    def _process_requested_budget(self, privacy_budget: PrivacyBudget) -> ExactNumber:
+        """Process the requested budget to accommodate floating point imprecision.
+
+        Args:
+            privacy_budget: The requested budget.
+        """
+        remaining_budget = self._queryable.remaining_budget
+        if isinstance(privacy_budget, PureDPBudget):
+            return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)
+        elif isinstance(privacy_budget, RhoZCDPBudget):
+            return get_adjusted_budget(privacy_budget.rho, remaining_budget)
+        else:
+            raise ValueError(
+                f"Unsupported variant of PrivacyBudget. Found {type(privacy_budget)}"
+            )
+
+    def _validate_budget_type_matches_session(
+        self, privacy_budget: PrivacyBudget
+    ) -> None:
+        """Ensure that a budget used during evaluate/partition matches the session.
+
+        Args:
+            privacy_budget: The requested budget.
+        """
+        output_measure = self._queryable.output_measure
+        matches_puredp = isinstance(output_measure, PureDP) and isinstance(
+            privacy_budget, PureDPBudget
+        )
+        matches_zcdp = isinstance(output_measure, RhoZCDP) and isinstance(
+            privacy_budget, RhoZCDPBudget
+        )
+        if not (matches_puredp or matches_zcdp):
+            raise ValueError(
+                "Your requested privacy budget type must match the type of the privacy"
+                " budget your Session was created with."
+            )
+
+
+def _assert_is_identifier(source_id: str):
+    """Checks that the `source_id` is a valid Python identifier.
+
+    Args:
+        source_id: The name of the dataframe or transformation.
+    """
+    if not source_id.isidentifier():
+        raise ValueError(
+            "The string passed as source_id must be a valid Python identifier: it can"
+            " only contain alphanumeric letters (a-z) and (0-9), or underscores (_),"
+            " and it cannot start with a number, or contain any spaces."
+        )
+
+
+def _read_csv(
+    source_id: str,
+    path: str,
+    schema: Schema,
+    header: bool,
+    delimiter: str,
+    validate: bool,
+) -> DataFrame:
+    """Returns DataFrame read from CSV file."""
+    if validate:
+        return coerce_spark_schema_or_fail(
+            _validate_and_read_csv(
+                path=path,
+                schema=schema,
+                source_id=source_id,
+                header=header,
+                delimiter=delimiter,
+            )
+        )
+    spark = SparkSession.builder.getOrCreate()
+    return coerce_spark_schema_or_fail(
+        spark.read.csv(
+            path=path,
+            header=header,
+            sep=delimiter,
+            schema=analytics_to_spark_schema(schema),
+            enforceSchema=False,
+        )
+    )
+
+
+def _validate_and_read_csv(
+    path: str, schema: Schema, source_id: str, header: bool = True, delimiter: str = ","
+) -> DataFrame:
+    """Returns validated DataFrame constructed from csv file.
+
+    If csv source is invalid with respect to `schema`, an error is raised.
+
+    Args:
+        path: Path to csv file.
+        schema: Schema to be checked against. This may contain only a subset of the
+            columns in the csv iff header is provided. Only columns present in the
+            `schema` are validated and read.
+        source_id: Name of csv table.
+        header: If True, use first line as names of columns.
+        delimiter: Delimiter used to separate fields and values in csv. ',' by default.
+    """
+    actual_schema = schema
+    spark = SparkSession.builder.getOrCreate()
+    if header:
+        with open(path, "r") as f:
+            found_columns = DictReader(f, delimiter=delimiter).fieldnames
+        if not found_columns:
+            raise ValueError(f"Empty schema file at {path}")
+
+        if len(set(found_columns)) != len(found_columns):
+            raise ValueError(
+                "Header contains duplicate column names: "
+                f"{found_columns} for source '{source_id}'"
+            )
+        missed_columns = set(schema.column_types) - set(found_columns)
+        if missed_columns:
+            raise ValueError(
+                f"CSV header did not include all columns in schema: {missed_columns}"
+                f" for source '{source_id}'"
+            )
+        schema = Schema(
+            {
+                column: schema.column_types[column]
+                if column in schema.column_types
+                else "VARCHAR"
+                for column in found_columns
+            }
+        )
+    actual_schema_columns = list(actual_schema.column_types.keys())
+    df = spark.read.csv(
+        path,
+        header=header,
+        sep=delimiter,
+        schema=analytics_to_spark_schema(schema),
+        enforceSchema=False,
+    ).select(*actual_schema_columns)
+    domain = SparkDataFrameDomain(analytics_to_spark_columns_descriptor(actual_schema))
+    domain.validate(df)
+    return df

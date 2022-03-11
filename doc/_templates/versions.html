@@ -1,0 +1,40 @@
+{% if versions %}
+  {% if versions.releases %}
+    <h4>{{ _('Releases') }}</h4>
+    <ul>
+    {%- for item in versions.releases %}
+      <li><a href="{{ item.url }}">
+      {%- if item == current_version %}<b>{% endif %}
+      {{ item.name | replace("tmlt.analytics-", "") }}
+      {%- if item == current_version %}</b>{% endif %}
+      </a></li>
+    {%- endfor %}
+    </ul>
+  {% endif %}
+  {% if versions.in_development %}
+    <h4>{{ _('Development Releases') }}</h4>
+    <ul>
+    {%- for item in versions.in_development %}
+      {% if item not in versions.branches %}
+        <li><a href="{{ item.url }}">
+        {%- if item == current_version %}<b>{% endif %}
+        {{ item.name | replace("tmlt.analytics-", "") }}
+        {%- if item == current_version %}</b>{% endif %}
+        </a></li>
+      {% endif %}
+    {%- endfor %}
+    </ul>
+  {% endif %}
+  {% if versions.branches %}
+    <h4>{{ _('Branches') }}</h4>
+    <ul>
+    {%- for item in versions.branches %}
+      <li><a href="{{ item.url }}">
+      {%- if item == current_version %}<b>{% endif %}
+      {{ item.name }}
+      {%- if item == current_version %}</b>{% endif %}
+      </a></li>
+    {%- endfor %}
+    </ul>
+  {% endif %}
+{% endif %}
