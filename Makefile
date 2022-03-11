@@ -12,7 +12,6 @@ test-fast
 test-slow
 test-doctest
 test-examples
-benchmark
 package
 docs-fast
 endef
