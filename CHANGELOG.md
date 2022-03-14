@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - *Backwards-incompatible*: Renamed `query_exprs` parameter in `Session.evaluate` to `query_expr`.
 - *Backwards-incompatible*: `QueryBuilder.join_public` and the `JoinPublic` query expression can now accept public tables specified as Spark dataframes. The existing behavior using public source IDs is still supported, but the `public_id` parameter/property is now called `public_table`.
 - Installation on Python 3.7.1 through 3.7.3 is now allowed.
+- KeySets now do type coercion on creation, matching the type coercion that Sessions do for private sources.
+
 
 ### Fixed
 - Joining with a public table that contains no NaNs, but has a column where NaNs are allowed, previously caused an error when compiling queries. This is now handled correctly.

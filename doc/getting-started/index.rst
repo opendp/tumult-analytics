@@ -134,3 +134,4 @@ The following tutorials will introduce the key pieces of the Analytics API, and 
    tutorials/FirstSteps
    tutorials/PrivacyBudgetBasics
    tutorials/ClampingBounds
+   tutorials/GroupByQueries

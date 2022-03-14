@@ -15,6 +15,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 from pyspark.sql import Column, DataFrame
 
+from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import Schema, spark_schema_to_analytics_columns
 from tmlt.core.transformations.spark_transformations.groupby import (
     compute_full_domain_df,
@@ -30,7 +31,10 @@ class KeySet:
         The :meth:`from_dict` and :meth:`from_dataframe` methods are preferred
         over directly using the constructor to create new KeySets.
         """
-        self._dataframe = dataframe
+        if isinstance(dataframe, DataFrame):
+            self._dataframe = coerce_spark_schema_or_fail(dataframe)
+        else:
+            self._dataframe = dataframe
         # TODO(#1707): Remove this
         self._public_id: Optional[str] = None
 
@@ -41,7 +45,7 @@ class KeySet:
         selected in the KeySet.
         """
         if callable(self._dataframe):
-            self._dataframe = self._dataframe()
+            self._dataframe = coerce_spark_schema_or_fail(self._dataframe())
         return self._dataframe
 
     @classmethod
@@ -85,7 +89,7 @@ class KeySet:
         Spark session is closed, this method or any uses of the resulting
         dataframe may raise exceptions or have other unanticipated effects.
         """
-        return KeySet(dataframe)
+        return KeySet(coerce_spark_schema_or_fail(dataframe))
 
     # TODO(#1707): Remove this
     @classmethod
@@ -100,10 +104,19 @@ class KeySet:
         return keyset
 
     def filter(self, expr: Union[Column, str]) -> KeySet:
-        """Filter this domain using some expression.
+        """Filter this KeySet using some expression.
 
-        The expression should be one accepted by
-        :meth:`~pyspark.sql.DataFrame.filter`.
+        This method accepts the same syntax as
+        :meth:`~pyspark.sql.DataFrame.filter`: valid expressions are those that
+        can be used in a `WHERE clause
+        <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
+        in Spark SQL. Examples of valid predicates include:
+
+        * ``age < 42``
+        * ``age BETWEEN 17 AND 42``
+        * ``age < 42 OR (age < 60 AND gender IS NULL)``
+        * ``LENGTH(name) > 17``
+        * ``favorite_color IN ('blue', 'red')``
 
         Example:
             >>> domains = {

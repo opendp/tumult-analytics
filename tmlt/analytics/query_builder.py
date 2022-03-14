@@ -389,6 +389,18 @@ class QueryBuilder:
     def filter(self, predicate: str) -> "QueryBuilder":
         """Updates the current query to filter for rows matching a predicate.
 
+        The ``predicate`` parameter accepts the same syntax as in PySpark's
+        :meth:`~pyspark.sql.DataFrame.filter` method: valid expressions are
+        those that can be used in a `WHERE clause
+        <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
+        in Spark SQL. Examples of valid predicates include:
+
+        * ``age < 42``
+        * ``age BETWEEN 17 AND 42``
+        * ``age < 42 OR (age < 60 AND gender IS NULL)``
+        * ``LENGTH(name) > 17``
+        * ``favorite_color IN ('blue', 'red')``
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session

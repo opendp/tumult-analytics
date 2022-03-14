@@ -7,6 +7,16 @@ from typing import Dict, List, Union
 import pandas as pd
 from parameterized import parameterized
 from pyspark.sql import Column
+from pyspark.sql.types import (
+    DataType,
+    DoubleType,
+    FloatType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+)
 
 from tmlt.analytics._schema import ColumnType, Schema
 from tmlt.analytics.keyset import KeySet
@@ -113,6 +123,71 @@ class TestKeySet(PySparkTest):
         self.assert_frame_equal_with_sort(
             filtered_keyset.dataframe().toPandas(), expected_df
         )
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame({"A": [0, 1], "B": [0.1, 0.2]}),
+                StructType(
+                    [
+                        StructField("A", IntegerType(), True),
+                        StructField("B", FloatType(), True),
+                    ]
+                ),
+                {"A": LongType(), "B": DoubleType()},
+            ),
+            (
+                pd.DataFrame({"A": ["abc", "def"], "B": [2147483649, -42]}),
+                StructType(
+                    [
+                        StructField("A", StringType(), True),
+                        StructField("B", LongType(), True),
+                    ]
+                ),
+                {"A": StringType(), "B": LongType()},
+            ),
+        ]
+    )
+    def test_type_coercion_from_dataframe(
+        self,
+        df_in: pd.DataFrame,
+        input_schema: StructType,
+        expected_schema: Dict[str, DataType],
+    ) -> None:
+        """Test KeySet correctly coerces types in input DataFrames."""
+        keyset = KeySet(self.spark.createDataFrame(df_in, schema=input_schema))
+        df_out = keyset.dataframe()
+        for col in df_out.schema:
+            self.assertEqual(col.dataType, expected_schema[col.name])
+            self.assertFalse(col.nullable)
+
+    @parameterized.expand(
+        [
+            (
+                {"A": [0, 1, 2], "B": ["abc", "def"]},
+                {"A": LongType(), "B": StringType()},
+            ),
+            (
+                {
+                    "A": [123, 456, 789],
+                    "B": [2147483649, -1000000],
+                    "X": ["abc", "def"],
+                },
+                {"A": LongType(), "B": LongType(), "X": StringType()},
+            ),
+        ]
+    )
+    def test_type_coercion_from_dict(
+        self,
+        d_in: Dict[str, Union[List[str], List[int]]],
+        expected_schema: Dict[str, DataType],
+    ) -> None:
+        """Test KeySet correctly coerces types when created with `from_dict`."""
+        keyset = KeySet.from_dict(d_in)
+        df_out = keyset.dataframe()
+        for col in df_out.schema:
+            self.assertEqual(col.dataType, expected_schema[col.name])
+            self.assertFalse(col.nullable)
 
     # This test is not parameterized because Column parameters are
     # Python expressions containing the KeySet's DataFrame.
