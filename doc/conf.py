@@ -179,14 +179,15 @@ nitpick_ignore = [
     ("py:class", "pyspark.sql.session.SparkSession"),
     # Sphinx can't resolve DataFrame in KeySet.__init__
     ("py:class", "pyspark.sql.dataframe.DataFrame"),
-    # Caused by TypeVar in tmlt.common Marshallable base class
-    ("py:class", "M"),
-    ("py:class", "Item"),
-    ("py:class", "Primitive"),
     # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
     ("py:class", "DF"),
     ("py:class", "Row"),
     ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),
+]
+
+# Remove this after intersphinx can use core
+nitpick_ignore_regex = [
+    (r"py:.*", r"tmlt.core.*"),
 ]
 
 # Theme settings
@@ -210,20 +211,6 @@ html_sidebars = {
 
 # Intersphinx mapping
 
-core_version = ""
-if package_version:
-    try:
-        with open("intersphinx_mapping.json", "r") as f:
-            config = json.load(f)
-            current_package = config[package_version]
-            core_version = current_package["core"]
-    except Exception as e:  # pylint: disable=broad-except
-        _logger.exception(
-            "Error loading intersphinx_mapping.json. Please check"
-            "that this file exists and is formatted correctly."
-        )
-        raise e
-
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/1.18/", None),
@@ -231,24 +218,6 @@ intersphinx_mapping = {
     "sympy": ("https://docs.sympy.org/latest/", None),
     "pyspark": ("https://spark.apache.org/docs/3.0.0/api/python/", None),
 }
-
-candidate_path = project_dir + f"/core/public/{core_version}/objects.inv"
-inventory_path = project_dir + (
-    f"/core/public/{core_version}/objects.inv"
-    if Path(candidate_path).exists()
-    else f"/ektelo/public/{core_version}/objects.inv"
-)
-
-if linkcheck_mode_url_prefix:
-    intersphinx_mapping[f"tmlt.core"] = (
-        f"{linkcheck_mode_url_prefix}/core/public/{core_version}",
-        (inventory_path, None),
-    )
-else:
-    intersphinx_mapping[f"tmlt.core"] = (
-        f"/pkg/core/{core_version}",
-        (inventory_path, None),
-    )
 
 
 def skip_members(app, what, name, obj, skip, options):
