@@ -1,67 +1,193 @@
-.analytics:
-  variables:
-    PACKAGE_DIR: "analytics"
-    SOURCE_DIR: "tmlt/analytics"
-    TAG_PREFIX: "tmlt.analytics"
+# GitLab CI can create duplicate pipelines in certain cases when one event that
+# triggers a pipeline (e.g. a push) causes another such event (e.g. the
+# resulting update to an MR). This block prevents that in common cases.
+workflow:
+  rules:
+    # If pushing to a branch that has an open MR associated with it, don't
+    # launch the on-push pipeline.
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - when: always
 
+# Define the potential stages that can be run in a GitLab CI pipeline job
+stages:
+  - setup
+  - test
+  - lint
+  - docs
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+.base:
+  image: registry.gitlab.com/tumult-labs/tumult/ci-full:latest
+  before_script:
+    - java -version
+    - python --version
+    - poetry --version
+    - poetry config --list
+    - poetry install -v --remove-untracked
+    # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
+    - . .venv/bin/activate
+  cache:
+    - key:
+        files: ["poetry.lock"]
+      paths:
+        - .venv
+        - .cache/pip
+      policy: pull
+  tags: [aws-small]
+  interruptible: true
+
+# "Fake" job to prevent dev pipelines from being interrupted on new commits.
+# See gitlab-org/gitlab#34221
+prevent_dev_interrupt:
+  stage: setup
+  script:
+    - echo "No-op job to prevent dev pipelines from being interrupted"
+  variables:
+    GIT_STRATEGY: none
+  timeout: 1m
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# Install dependencies
+setup:
+  extends: .base
+  stage: setup
+  script:
+    - echo "setup"
+  cache:
+    # As long as poetry.lock remains the same, the virtual environment can
+    # be reused -- even across branches.
+    - key:
+        files: ["poetry.lock"]
+      paths: [".venv"]
+      policy: pull-push
+  timeout: 10m
+  tags: [aws-small]
+  interruptible: true
+
+lint:
+  extends: .base
+  stage: lint
+  needs:
+    - job: setup
+      artifacts: false
+  script:
+    - make lint
+  timeout: 12m
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: always
+
+test:
+  extends: .base
+  stage: test
+  needs:
+    - job: setup
+      artifacts: false
+  script:
+    - make test-fast
+  coverage: '/^TOTAL.+?(\d+\%)$/'
+  artifacts:
+    reports:
+      cobertura: coverage.xml
+      junit: junit.xml
+    expire_in: 1 week
+  timeout: 1h
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: manual
+      allow_failure: true
+  tags: [aws-large]
+
+docs:
+  extends: .base
+  stage: docs
+  variables:
+    # Require the CI executor to fetch all refs in the repo -- this ensures that
+    # sphinx-multiversion can detect all of the versions that might need to be
+    # built.
+    GIT_DEPTH: 0
     SPHINX_EXTRA_OPTS: "-n -W --keep-going"
     SPHINX_LINKCHECK: "true"
-
-
-analytics_lint:
-  extends: [.lint, .analytics]
-analytics_test:
-  extends: [.test, .analytics]
+  script:
+    - git checkout -B head
+    - cd $CI_PROJECT_DIR
+    - if [[ "$(sphinx-multiversion doc public --dump-metadata)" == "{}" ]] ; then
+      echo "Skipping docs build, no docs versions would be built" ;
+      exit 0 ;
+      fi
+    - |
+      echo "Versions to build:"
+      sphinx-multiversion doc public --dump-metadata | jq "[.[].name]"
+    - |
+      # Set up a function for running tests
+      function run_sphinx_tests() {
+        echo "Version options: $SMV_TEST_VERSION_OPTS"
+        if [ "$SPHINX_LINKCHECK" = "true" ]; then
+             python -m http.server --directory $CI_PROJECT_DIR & # Start webserver in background
+             sleep 1 # Wait for the server to start
+             echo "Running linkcheck..."
+             BASE_URL_OVERRIDE="http://localhost:8000" sphinx-multiversion doc/ public/ -b linkcheck $SMV_TEST_VERSION_OPTS
+             kill $! # Kill the server process
+        fi
+        echo "Running test build..."
+        sphinx-multiversion doc/ public/ $SPHINX_EXTRA_OPTS $SMV_TEST_VERSION_OPTS
+        echo "Running doctest..."
+        sphinx-multiversion doc/ public/ -b doctest $SMV_TEST_VERSION_OPTS
+      }
+    - |
+      # When building a tag, run the usual tests.
+      if [[ "$CI_COMMIT_TAG" ]]; then
+        SMV_TEST_VERSION_OPTS="-D smv_branch_whitelist=^\$ -D smv_tag_whitelist=^$CI_COMMIT_TAG\$"
+        run_sphinx_tests
+      # For branches, create a temporary branch called head at the current commit,
+      # and run the usual tests against that. Keep it around for the final build
+      # on feature branches, but on the default branch delete it.
+      else
+        SMV_TEST_VERSION_OPTS="-D smv_branch_whitelist=^head\$ -D smv_tag_whitelist=^\$"
+        run_sphinx_tests
+      fi
+    - rm -rf public/
+    - sphinx-multiversion doc/ public/
+    # Add a page to automatically redirect the base directory of the site to the
+    # latest or most relevant version. sort -V doesn't completely correctly handle
+    # semantic versioning, but it works well enough for this purpose.
+    - |
+      if [ "$CI_COMMIT_TAG" ] ; then
+        # Try to choose a non-prerelease version as the default; if there isn't
+        # one, then use the latest pre-release.
+        DEFAULT_VERSION="$(find public/ -maxdepth 1 -type d | cut -d '/' -f2 | grep -vE '(alpha|beta|rc)' | sort -V | tail -n1)"
+        if [ -z "$DEFAULT_VERSION" ]; then
+          DEFAULT_VERSION="$(find public/ -maxdepth 1 -type d | cut -d '/' -f2 | sort -V | tail -n1)"
+        fi
+      elif [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ] ; then
+        DEFAULT_VERSION="$CI_DEFAULT_BRANCH"
+      else
+        DEFAULT_VERSION="head"
+      fi
+    - echo "<head><meta http-equiv=\"refresh\" content=\"0; url='./$DEFAULT_VERSION/'\" /></head>" > public/index.html
   needs:
-    - job: analytics_lint
+    - job: setup
       artifacts: false
-      optional: true
-  tags: [aws-large]
-analytics_examples:
-  extends: [.examples, .analytics]
-  needs:
-    - job: analytics_lint
-      artifacts: false
-      optional: true
-  tags: [aws-large]
-
-analytics_package:
-  extends: [.package, .analytics]
-  needs:
-    - job: analytics_test
-      artifacts: false
-      optional: true
-analytics_publish:
-  extends: [.publish, .analytics]
-  dependencies: [analytics_package]
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-/'
-
-analytics_docs:
-  extends: [.docs, .analytics]
   artifacts:
     paths:
-      - analytics/public/
+      - public/
+    expire_in: 1 week
     expose_as: 'Tumult Analytics - documentation'
-  needs:
-    - job: common_docs
-    - job: core_docs
-    - job: analytics_test
-      artifacts: false
-      optional: true
-analytics_publish_docs:
-  extends: [.publish_docs, .analytics]
-  dependencies: [analytics_docs]
+  timeout: 15m
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
+    - if: '$CI_COMMIT_TAG'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-/'
-analytics_deploy_docs:
-  extends: [.deploy_docs, .analytics]
-  dependencies: [analytics_publish_docs]
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^tmlt.analytics-\d+\.\d+.\d+(-(beta|rc)\.\d+)?/'
-
-analytics_weekly:
-  extends: [.weekly, .analytics]
+    - when: manual
+      allow_failure: true
