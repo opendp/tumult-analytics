@@ -107,6 +107,17 @@ test:
       allow_failure: true
   tags: [aws-large]
 
+test_nightly:
+  extends: test
+  script:
+    - make test-slow
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      allow_failure: true
+    - when: manual
+      allow_failure: true
+  timeout: 23h
+
 docs:
   extends: .base
   stage: docs
