@@ -12,8 +12,8 @@ workflow:
 # Define the potential stages that can be run in a GitLab CI pipeline job
 stages:
   - setup
-  - test
   - lint
+  - test
   - docs
 
 variables:
@@ -30,6 +30,11 @@ variables:
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
+    - |
+      if [[ ! -z "$CORE_COMMIT_HASH" ]]; then
+        pip install "git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
+      fi
+
   cache:
     - key:
         files: ["poetry.lock"]
@@ -56,6 +61,14 @@ prevent_dev_interrupt:
 setup:
   extends: .base
   stage: setup
+  before_script:
+    - java -version
+    - python --version
+    - poetry --version
+    - poetry config --list
+    - poetry install -v --remove-untracked
+    # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
+    - . .venv/bin/activate
   script:
     - echo "setup"
   cache:
@@ -78,10 +91,6 @@ lint:
   script:
     - make lint
   timeout: 12m
-  rules:
-    - if: '$CI_COMMIT_TAG'
-      when: never
-    - when: always
 
 test:
   extends: .base
@@ -99,7 +108,7 @@ test:
     expire_in: 1 week
   timeout: 1h
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -198,7 +207,6 @@ docs:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
-    - if: '$CI_COMMIT_TAG'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
       allow_failure: true
