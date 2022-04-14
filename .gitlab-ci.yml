@@ -15,10 +15,12 @@ stages:
   - lint
   - test
   - docs
+  - release
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  PACKAGE_NAME: "analytics"
 
 .base:
   image: registry.gitlab.com/tumult-labs/tumult/ci-full:latest
@@ -210,3 +212,49 @@ docs:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
       allow_failure: true
+
+# This job requires the TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_USER and
+# TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_TOKEN variables to be set. They should be
+# the name and token of a project access token from the tumult/tumult-docs
+# project with the read_registry and write_registry permissions.
+publish_docs:
+  stage:  release
+  image:
+    name: gcr.io/kaniko-project/executor:v1.6.0-debug
+    entrypoint: [""]
+  before_script:
+    - if [ "$CI_COMMIT_TAG" ] ; then
+        IMAGE_TAG="release-$(date +%Y%m%d%H%M%S)" ;
+      else
+        IMAGE_TAG="git-$CI_COMMIT_BRANCH" ;
+      fi
+  script:
+    - |
+      cat <<EOF > /kaniko/.docker/config.json
+      {
+        "auths": {
+          "registry.gitlab.com": {
+            "username": "$TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_USER",
+            "password": "$TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_TOKEN"
+          }
+        }
+      }
+      EOF
+    - echo "IMAGE_TAG=$IMAGE_TAG" > .env
+    - /kaniko/executor --cleanup
+        --dockerfile "$CI_PROJECT_DIR/doc/Dockerfile"
+        --context "$CI_PROJECT_DIR/$PACKAGE_DIR"
+        --destination "registry.gitlab.com/tumult-labs/tumult-docs/$PACKAGE_NAME:$IMAGE_TAG"
+        --label "git-version=$CI_COMMIT_REF_NAME"
+        --label "git-commit=$CI_COMMIT_SHORT_SHA"
+  artifacts:
+    reports:
+      dotenv: ".env"
+  timeout: 3m
+  interruptible: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+
