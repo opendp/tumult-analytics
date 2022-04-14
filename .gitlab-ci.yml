@@ -23,7 +23,7 @@ variables:
   PACKAGE_NAME: "analytics"
 
 .base:
-  image: registry.gitlab.com/tumult-labs/ops/ci-full:latest
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   before_script:
     - java -version
     - python --version
