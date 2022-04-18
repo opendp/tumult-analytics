@@ -220,3 +220,50 @@ function _docs-fast () {
 function docs-fast () {
     _docs-fast
 }
+
+# Release ######################################################################
+
+function _prepare-release () {
+    # Sanity check the value of $VERSION against our allowed version format --
+    # this matches a subset of semantic versions, for example:
+    #     0.1.2, 1.2.3-alpha.2, 1.3.0-rc.1
+    if [[ ! "$VERSION" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(alpha|beta|rc)\.(0|[1-9]\d*))?$ ]] ; then
+        echo "Invalid \$VERSION: '$VERSION'"
+        return 1
+    fi
+    echo "=== Preparing release $VERSION ==="
+    DATE="$(date -I)"
+    set -x
+
+    # Once Poetry 1.2[0] and poetry-dynamic-versioning[1] mature, use them for this
+    # instead of editing the pyproject file.
+    # [0] https://github.com/python-poetry/poetry/projects/6
+    # [1] https://github.com/mtkennerly/poetry-dynamic-versioning
+    sed -Ei -e "s/^version = \".*?\"$/version = \"$VERSION\"/" pyproject.toml
+    # Make sure pyproject was actually updated
+    if git diff --exit-code --no-patch -- pyproject.toml ; then
+        set +x
+        echo "Version update to pyproject file failed"
+        echo 'Beginning of pyproject.toml:'
+        head -n5 pyproject.toml
+        return 1
+    fi
+
+    sed -i -e "s/^## Unreleased$/## $VERSION - $DATE/" CHANGELOG.md
+    # Make sure changelog was actually updated
+    if git diff --exit-code --no-patch -- CHANGELOG.md ; then
+        set +x
+        echo 'Renaming of changelog "Unreleased" section failed'
+        echo 'Beginning of CHANGELOG.md:'
+        head -n10 CHANGELOG.md
+        return 1
+    fi
+
+    pandoc -f markdown -t rst --wrap=preserve CHANGELOG.md -o doc/changelog.rst
+    poetry lock --no-update --no-interaction
+    set +x
+}
+
+function prepare-release () {
+    _prepare-release
+}

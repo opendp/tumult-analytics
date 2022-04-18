@@ -62,7 +62,7 @@ pydata-sphinx-theme = "^0.7.2"
 
 [[tool.poetry.source]]
 name = "tumult-core"
-url = "https://gitlab.com/api/v4/projects/17405343/packages/pypi/simple"
+url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
 secondary = true
 
 [build-system]
