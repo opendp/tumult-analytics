@@ -15,6 +15,8 @@ stages:
   - lint
   - test
   - docs
+  - package
+  - test-release
   - release
 
 variables:
@@ -29,14 +31,14 @@ variables:
     - python --version
     - poetry --version
     - poetry config --list
+    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
     - |
       if [[ ! -z "$CORE_COMMIT_HASH" ]]; then
-        pip install "git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
+        pip install "git+https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
       fi
-
   cache:
     - key:
         files: ["poetry.lock"]
@@ -68,6 +70,7 @@ setup:
     - python --version
     - poetry --version
     - poetry config --list
+    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
@@ -93,6 +96,10 @@ lint:
   script:
     - make lint
   timeout: 12m
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: always
 
 test:
   extends: .base
@@ -110,7 +117,7 @@ test:
     expire_in: 1 week
   timeout: 1h
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -122,16 +129,21 @@ test_nightly:
   extends: test
   script:
     - make test-slow
+  timeout: 23h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       allow_failure: true
+    - if: '$CI_COMMIT_TAG'
+      when: never
     - when: manual
       allow_failure: true
-  timeout: 23h
 
 docs:
   extends: .base
   stage: docs
+  needs:
+    - job: setup
+      artifacts: false
   variables:
     # Require the CI executor to fetch all refs in the repo -- this ensures that
     # sphinx-multiversion can detect all of the versions that might need to be
@@ -196,9 +208,6 @@ docs:
         DEFAULT_VERSION="head"
       fi
     - echo "<head><meta http-equiv=\"refresh\" content=\"0; url='./$DEFAULT_VERSION/'\" /></head>" > public/index.html
-  needs:
-    - job: setup
-      artifacts: false
   artifacts:
     paths:
       - public/
@@ -209,16 +218,76 @@ docs:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
+    - if: '$CI_COMMIT_TAG'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
       allow_failure: true
+
+package:
+  stage: package
+  needs: []
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  script:
+    - make package
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  timeout: 3m
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  interruptible: true
+
+test_release:
+  stage: test-release
+  needs:
+    - job: package
+      artifacts: true
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  script:
+    - virtualenv .venv
+    - . .venv/bin/activate
+    - pip install -r test_requirements.txt
+    - pip install dist/*.whl
+          --extra-index-url "https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
+    - pip freeze
+    - make test-fast
+  coverage: '/^TOTAL.+?(\d+\%)$/'
+  artifacts:
+    reports:
+      cobertura: coverage.xml
+      junit: junit.xml
+    expire_in: 1 week
+  timeout: 1h
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  tags: [aws-large]
+
+publish:
+  stage: release
+  dependencies: [package]
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  script:
+    - cd $CI_PROJECT_DIR/$PACKAGE_DIR
+    - export EXPECTED_TAG="$(poetry version -s)"
+    - |
+      if [ "$EXPECTED_TAG" != "$CI_COMMIT_TAG" ]; then
+        echo "Pyproject version $EXPECTED_TAG does not match tag version $CI_COMMIT_TAG"
+        exit 1
+      fi
+    - poetry config repositories.gitlab "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/pypi"
+    - poetry publish -r gitlab -u gitlab-ci-token -p "${CI_JOB_TOKEN}"
+  timeout: 3m
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  interruptible: false
 
 # This job requires the TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_USER and
 # TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_TOKEN variables to be set. They should be
 # the name and token of a project access token from the tumult/tumult-docs
 # project with the read_registry and write_registry permissions.
 publish_docs:
-  stage:  release
+  stage: release
   image:
     name: gcr.io/kaniko-project/executor:v1.6.0-debug
     entrypoint: [""]
@@ -258,3 +327,60 @@ publish_docs:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_TAG'
 
+# For reasons that are somewhat unclear, at the time of writing this job runs
+# out of memory when executed on the aws-small runner type, so it is run on
+# GitLab's shared runners instead.
+trigger_release:
+  stage: release
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  script:
+    - |
+      if [[ -z "$RELEASER_TOKEN_USERNAME" || -z "$RELEASER_TOKEN" ]]; then
+        echo "RELEASER_TOKEN and/or RELEASER_TOKEN_USERNAME is unset, exiting..."
+        exit 1
+      fi
+    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
+    - make prepare-release
+    - git config user.name "gitlab"
+    - git config user.email "gitlab@tmlt.io"
+    - git checkout -B "release/$VERSION"
+    - git add -u
+    - git diff --staged --stat
+    - git commit -m "[auto] Prepare release $VERSION" --author "$CI_COMMIT_AUTHOR"
+    - git tag "$VERSION"
+    - |
+      git remote add origin-https \
+          "https://$RELEASER_TOKEN_USERNAME:$RELEASER_TOKEN@gitlab.com/$CI_PROJECT_PATH.git"
+    - git push origin-https "release/$VERSION" --push-option ci.skip
+    - git push origin-https "$VERSION"
+    - |
+      cat > body.json <<EOF
+      {
+        "source_branch": "release/$VERSION",
+        "target_branch": "dev",
+        "title": "Merge release $VERSION",
+        "assignee_id": $GITLAB_USER_ID,
+        "remove_source_branch": true,
+        "squash": false,
+        "approvals_before_merge": 1
+      }
+      EOF
+    - cat body.json
+    - |
+      http_status=$(
+        curl -XPOST -s -o response.json -w "%{http_code}" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests" \
+            --header "PRIVATE-TOKEN: $RELEASER_TOKEN" \
+            -H "Content-Type: application/json" -d "@body.json"
+      )
+      echo "Response body:"
+      cat response.json | jq
+      if [[ $http_status -ne 201 ]]; then
+        echo "Got unexpected HTTP status $http_status, exiting..."
+        exit 1
+      fi
+  timeout: 40m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  interruptible: false

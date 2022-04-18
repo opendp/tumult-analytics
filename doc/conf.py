@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import sys
-from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ project = "Tumult Analytics"
 author = "Tumult Labs"
 copyright = "Tumult Labs 2022"
 
-package_tag_prefix = "tmlt.analytics"
+package_name = "tmlt.analytics"
 # A list of version numbers whose docs should not be built. These are used as
 # part of a regex, so characters with special meaning in that context (e.g. '.')
 # should be escaped, and regex features can be used to suppress multiple
@@ -40,7 +39,7 @@ project_dir = os.getenv("CI_PROJECT_DIR") or "../.."
 # Tag being built for, if any, when running in CI
 ci_tag = os.getenv("CI_COMMIT_TAG")
 # Name of the version currently being built, e.g. dev, head, or
-# tmlt.core-1.4.0. Not set on the initial evaluation of this file with
+# 1.4.0. Not set on the initial evaluation of this file with
 # sphinx-multiversion, or when using sphinx-build instead.
 package_version = os.getenv("SPHINX_MULTIVERSION_NAME")
 # Path to the temporary source directory for the version currently being built.
@@ -83,14 +82,11 @@ suppressed_versions_regex = (
 
 # Build for matching branches from remotes as well as for local branches.
 smv_remote_whitelist = r"^.*$"
-smv_released_pattern = rf"^refs/tags/{package_tag_prefix}-{semver_base_regex}$"
+smv_released_pattern = rf"^refs/tags/{semver_base_regex}$"
 
 if ci_tag:
-    # Note that this regex matches tags for all packages, not just the current
-    # one. This is important because building the docs for a pre-release of one
-    # package could rely on the docs for a pre-release of a different package.
     version_regex = re.compile(
-        rf"(?P<package>.+-){semver_base_regex}{semver_prerelease_regex}"
+        rf"{semver_base_regex}{semver_prerelease_regex}"
     )
     match = version_regex.fullmatch(ci_tag)
     if match is None:
@@ -101,19 +97,19 @@ if ci_tag:
 
     if match.group("prerelease_type") == "alpha":
         smv_tag_whitelist = (
-            rf"{package_tag_prefix}-{suppressed_versions_regex}"
+            rf"{suppressed_versions_regex}"
             rf"{semver_base_regex}(-(alpha|beta|rc)\.(0|[1-9]\d*))?$"
         )
     else:
         smv_tag_whitelist = (
-            rf"{package_tag_prefix}-{suppressed_versions_regex}"
+            rf"{suppressed_versions_regex}"
             rf"{semver_base_regex}(-(beta|rc)\.(0|[1-9]\d*))?$"
         )
     smv_branch_whitelist = "^$"
 else:
     smv_branch_whitelist = r"^(dev|main|head)$"
     smv_tag_whitelist = (
-        rf"{package_tag_prefix}-{suppressed_versions_regex}"
+        rf"{suppressed_versions_regex}"
         rf"{semver_base_regex}(-(beta|rc)\.(0|[1-9]\d*))?$"
     )
 
@@ -150,7 +146,7 @@ add_module_names = False
 
 
 def autoapi_prepare_jinja_env(jinja_env):
-    jinja_env.globals["package_name"] = package_tag_prefix
+    jinja_env.globals["package_name"] = package_name
 
 
 # Autodoc settings
@@ -207,7 +203,6 @@ html_sidebars = {
         "versions",
     ]
 }
-
 
 # Intersphinx mapping
 

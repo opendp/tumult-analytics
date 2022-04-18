@@ -14,6 +14,7 @@ test-doctest
 test-examples
 package
 docs-fast
+prepare-release
 endef
 
 define make-target
