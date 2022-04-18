@@ -1033,7 +1033,7 @@ typing_extensions = ">=3.10.0.0,<4.0.0.0"
 
 [package.source]
 type = "legacy"
-url = "https://gitlab.com/api/v4/projects/17405343/packages/pypi/simple"
+url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
 reference = "tumult-core"
 
 [[package]]
@@ -1124,7 +1124,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.4"
-content-hash = "292a3359e6824e806c622da935b5a9af23f99b0ec67f54bc0985ce2273a69b64"
+content-hash = "63093577cbd4666d43ee86964f9c15d12f6f1137198867ecae7330537225873e"
 
 [metadata.files]
 alabaster = [
