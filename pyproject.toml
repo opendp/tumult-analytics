@@ -17,8 +17,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-# TODO(REPO): Revert this back to 3.7.1 once Core has a release with that version
-python = "^3.7.4"
+python = "^3.7.1"
 
 # If changing our first-party dependencies, make sure that the docs visibility
 # to users is updated to reflect this before release. See

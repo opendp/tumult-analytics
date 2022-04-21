@@ -18,6 +18,7 @@ stages:
   - package
   - test-release
   - release
+  - handler
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -383,4 +384,45 @@ trigger_release:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual
+  interruptible: false
+
+release_handler:
+  stage: handler
+  script:
+    - |
+      # TODO: Add a link to the docs to this message as well, once we start
+      # automatically publishing them to the public site from this pipeline.
+      cat > body.json <<EOF
+      {
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*Analytics Release $CI_COMMIT_TAG*\n<https://gitlab.com/tumult-labs/analytics/-/packages|:package: Package Registry>    <$CI_PIPELINE_URL|:factory: Pipeline>"
+            }
+          }
+        ]
+      }
+      EOF
+    - |
+      if [[ -z "$SLACK_RELEASE_WEBHOOK_URL" ]]; then
+        echo "SLACK_RELEASE_WEBHOOK_URL unset"
+        exit 1
+      fi
+    - |
+      http_status=$(
+        curl -XPOST -s -o response.json -w "%{http_code}" \
+            "$SLACK_RELEASE_WEBHOOK_URL" \
+            -H "Content-Type: application/json" -d "@body.json"
+      )
+      echo "Response body:"
+      cat response.json
+      if [[ $http_status -ne 200 ]]; then
+        echo "Got unexpected HTTP status $http_status, exiting..."
+        exit 1
+      fi
+  timeout: 2m
+  rules:
+    - if: '$CI_COMMIT_TAG'
   interruptible: false
