@@ -112,8 +112,9 @@ test:
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     reports:
-      cobertura: coverage.xml
-      junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
     expire_in: 1 week
   timeout: 1h
   rules:
@@ -255,8 +256,9 @@ test_release:
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     reports:
-      cobertura: coverage.xml
-      junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
     expire_in: 1 week
   timeout: 1h
   rules:
