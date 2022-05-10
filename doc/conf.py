@@ -46,7 +46,10 @@ package_version = os.getenv("SPHINX_MULTIVERSION_NAME")
 release_sourcedir = os.getenv("SPHINX_MULTIVERSION_SOURCEDIR")
 # In linkcheck mode, prepend the intersphinx URLs with the value of BASE_URL_OVERRIDE.
 linkcheck_mode_url_prefix = os.getenv("BASE_URL_OVERRIDE")
-
+# Linkcheck fails to check anchors in Github
+# See https://github.com/sphinx-doc/sphinx/issues/9016 and also
+# https://sphinx-doc.org/en/master/usage/configuration.html
+linkcheck_ignore = ["https://github.com/fredrik-johansson/python-flint/#"]
 
 # Sphinx configuration
 
