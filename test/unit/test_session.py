@@ -38,23 +38,37 @@ from tmlt.analytics.session import Session, _validate_and_read_csv
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.chaining import ChainTM
-from tmlt.core.measurements.composition import (
-    AdaptiveCompositionQueryable,
-    MeasurementQuery,
-    ParallelCompositionQueryable,
+from tmlt.core.measurements.interactive_measurements import (
+    PrivacyAccountant,
+    PrivacyAccountantState,
+    SequentialComposition,
+    SequentialQueryable,
 )
 from tmlt.core.measures import Measure, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
     RootSumOfSquared,
+    SumOf,
     SymmetricDifference,
 )
 from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.cache import Cache
+from tmlt.core.transformations.chaining import ChainTT
+from tmlt.core.transformations.dictionary import GetValue
+from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.testing import PySparkTest, create_mock_transformation
+
+
+def _privacy_budget_to_exact_number(
+    budget: Union[PureDPBudget, RhoZCDPBudget]
+) -> ExactNumber:
+    """Turn a privacy budget into an Exact Number."""
+    if isinstance(budget, PureDPBudget):
+        return ExactNumber(budget.epsilon)
+    if isinstance(budget, RhoZCDPBudget):
+        return ExactNumber(budget.rho)
+    raise AssertionError("This should be unreachable")
 
 
 class TestSession(PySparkTest):
@@ -122,27 +136,26 @@ class TestSession(PySparkTest):
         ]
     )
     @patch("tmlt.analytics.session.QueryExprCompiler", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_remaining_privacy_budget(
         self,
         budget_value,
         output_measure,
         expected_budget,
-        mock_queryable,
+        mock_accountant,
         mock_compiler,
     ):
         """Test that remaining_privacy_budget returns the right type of budget."""
-        mock_queryable.remaining_budget = budget_value
-        mock_queryable.output_measure = output_measure
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(1)}
+        self._setup_accountant(
+            mock_accountant, privacy_budget=budget_value, d_in=ExactNumber(1)
+        )
+        mock_accountant.output_measure = output_measure
 
         mock_compiler.output_measure = output_measure
 
-        session = Session(mock_queryable, {}, mock_compiler)
-        remaining_budget = session.remaining_privacy_budget
-        self.assertEqual(type(expected_budget), type(remaining_budget))
+        session = Session(mock_accountant, {}, mock_compiler)
+        privacy_budget = session.remaining_privacy_budget
+        self.assertEqual(type(expected_budget), type(privacy_budget))
         if isinstance(expected_budget, PureDPBudget):
             self.assertEqual(budget_value, ExactNumber(expected_budget.epsilon))
         elif isinstance(expected_budget, RhoZCDPBudget):
@@ -173,21 +186,24 @@ class TestSession(PySparkTest):
         self.assertEqual(builder._private_sources["private"].stability, 23)
 
     @parameterized.expand([(PureDPBudget(float("inf")), PureDP())])
-    @patch("tmlt.analytics.session.create_adaptive_composition", autospec=True)
+    @patch("tmlt.analytics.session.SequentialComposition", autospec=True)
     @patch.object(Session, "__init__", autospec=True, return_value=None)
     def test_from_dataframe(
         self,
-        budget: PrivacyBudget,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
         expected_output_measure: Union[PureDP, RhoZCDP],
         mock_session_init,
         mock_composition_init,
     ):
         """Tests that :func:`Session.from_dataframe` works correctly."""
         mock_composition_init.return_value = Mock(
-            spec_set=Measurement,
+            spec_set=SequentialComposition,
             return_value=Mock(
-                spec_set=Measurement, output_measure=expected_output_measure
+                spec_set=SequentialComposition, output_measure=expected_output_measure
             ),
+        )
+        mock_composition_init.return_value.privacy_budget = (
+            _privacy_budget_to_exact_number(budget)
         )
         Session.from_dataframe(
             privacy_budget=budget, source_id="private", dataframe=self.sdf, stability=23
@@ -207,20 +223,20 @@ class TestSession(PySparkTest):
             self.sdf.toPandas(),
         )
         mock_session_init.assert_called_with(
-            self=ANY, queryable=ANY, public_sources=dict(), compiler=ANY
+            self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
         )
 
     @patch("tmlt.analytics.session.QueryExprCompiler", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
-    def test_add_public_csv(self, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_add_public_csv(self, mock_accountant, mock_compiler):
         """Tests that :func:`add_public_csv` works correctly."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = self.sdf_input_domain
+        mock_accountant.d_in = {"private": ExactNumber(1)}
         mock_compiler.output_measure = PureDP()
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
         session.add_public_csv(
             source_id="public", path=self.public_csv_path, schema=self.public_schema
@@ -240,16 +256,16 @@ class TestSession(PySparkTest):
         self.assertEqual(actual_schema, expected_schema)
 
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
-    def test_add_public_dataframe(self, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_add_public_dataframe(self, mock_accountant, mock_compiler):
         """Tests that :func:`add_public_dataframe` works correctly."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = self.sdf_input_domain
+        mock_accountant.d_in = {"private": ExactNumber(1)}
         mock_compiler.output_measure = PureDP()
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
         session.add_public_dataframe(source_id="public", dataframe=self.join_df)
         assert "public" in session.public_source_dataframes
@@ -268,18 +284,21 @@ class TestSession(PySparkTest):
 
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "build_transformation", autospec=True)
-    @patch("tmlt.analytics.session.Queryable", autospec=True)
-    def test_create_view(self, d_in, mock_queryable, mock_compiler_transform):
+    @patch(
+        "tmlt.core.measurements.interactive_measurements.PrivacyAccountant",
+        autospec=True,
+    )
+    def test_create_view(self, d_in, mock_accountant, mock_compiler_transform):
         """Creating views without caching works"""
-        mock_queryable.output_measure = PureDP()
+        mock_accountant.output_measure = PureDP()
         # Use RootSumOfSquared since SymmetricDifference doesn't allow non-ints. Wrap
         # that in IfGroupedBy since RootSumOfSquared on its own is not valid in many
         # places in the framework.
-        mock_queryable.input_metric = DictMetric(
+        mock_accountant.input_metric = DictMetric(
             {"private": IfGroupedBy("A", RootSumOfSquared(SymmetricDifference()))}
         )
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(d_in)}
+        mock_accountant.input_domain = self.sdf_input_domain
+        mock_accountant.d_in = {"private": ExactNumber(d_in)}
         view_transformation = create_mock_transformation(
             input_domain=self.sdf_input_domain,
             input_metric=DictMetric(
@@ -292,7 +311,7 @@ class TestSession(PySparkTest):
         )
         mock_compiler_transform.return_value = view_transformation
 
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
         session.create_view(
             query_expr=PrivateSource("private"),
             source_id="identity_transformation",
@@ -302,64 +321,36 @@ class TestSession(PySparkTest):
         mock_compiler_transform.assert_called_with(
             self=ANY,
             query=PrivateSource("private"),
-            input_domain=mock_queryable.input_domain,
-            input_metric=mock_queryable.input_metric,
+            input_domain=mock_accountant.input_domain,
+            input_metric=mock_accountant.input_metric,
             public_sources={},
             catalog=ANY,
         )
 
-    @patch.object(QueryExprCompiler, "build_transformation", autospec=True)
-    @patch("tmlt.analytics.session.Queryable", autospec=True)
-    def test_caching(self, mock_queryable, mock_compiler_transform):
-        """Creating views with caching works"""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(1)}
-        view_transformation = create_mock_transformation(
-            input_domain=self.sdf_input_domain,
-            input_metric=DictMetric({"private": SymmetricDifference()}),
-            output_domain=self.sdf_input_domain["private"],
-            output_metric=SymmetricDifference(),
-            stability_function_implemented=True,
-            stability_function_return_value=ExactNumber(13),
-        )
-        mock_compiler_transform.return_value = view_transformation
-
-        session = Session(queryable=mock_queryable, public_sources=dict())
-        session.create_view(
-            query_expr=PrivateSource("private"),
-            source_id="identity_transformation",
-            cache=True,
-        )
-
-        query = mock_queryable.mock_calls[-1][1][0]
-        assert isinstance(query.transformation, Cache)
-
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "__call__", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
-    def test_evaluate_puredp_session(self, d_in, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_evaluate_puredp_session(self, d_in, mock_accountant, mock_compiler):
         """Tests that :func:`evaluate` calls the right things given a puredp session."""
-        self._setup_queryable_and_compiler(d_in, mock_queryable, mock_compiler)
-        mock_queryable.remaining_budget = ExactNumber(10)
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        self._setup_accountant_and_compiler(d_in, mock_accountant, mock_compiler)
+        mock_accountant.privacy_budget = ExactNumber(10)
+        session = Session(accountant=mock_accountant, public_sources=dict())
         answer = session.evaluate(
             query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(10)
         )
         self._assert_test_evaluate_correctness(
-            session, mock_queryable, mock_compiler, 10
+            session, mock_accountant, mock_compiler, 10
         )
         check_type("answer", answer, DataFrame)
 
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "__call__", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
-    def test_evaluate_with_zero_budget(self, d_in, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_evaluate_with_zero_budget(self, d_in, mock_accountant, mock_compiler):
         """Confirm that calling evaluate with a 'budget' of 0 fails."""
-        self._setup_queryable_and_compiler(d_in, mock_queryable, mock_compiler)
-        mock_queryable.remaining_budget = ExactNumber(10)
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        self._setup_accountant_and_compiler(d_in, mock_accountant, mock_compiler)
+        mock_accountant.privacy_budget = ExactNumber(10)
+        session = Session(accountant=mock_accountant, public_sources=dict())
         with self.assertRaisesRegex(
             ValueError, "You need a non-zero privacy budget to evaluate a query."
         ):
@@ -368,7 +359,7 @@ class TestSession(PySparkTest):
             )
 
         # set output measures to RhoZCDP
-        mock_queryable.output_measure = RhoZCDP()
+        mock_accountant.output_measure = RhoZCDP()
         mock_compiler.output_measure = RhoZCDP()
         with self.assertRaisesRegex(
             ValueError, "You need a non-zero privacy budget to evaluate a query."
@@ -379,17 +370,17 @@ class TestSession(PySparkTest):
 
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "__call__", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_evaluate_zcdp_session_puredp_query(
-        self, d_in, mock_queryable, mock_compiler
+        self, d_in, mock_accountant, mock_compiler
     ):
-        """Confirm that using a puredp query on a zcdp queryable raises an error."""
-        self._setup_queryable_and_compiler(d_in, mock_queryable, mock_compiler)
-        mock_queryable.remaining_budget = ExactNumber(10)
+        """Confirm that using a puredp query on a zcdp accountant raises an error."""
+        self._setup_accountant_and_compiler(d_in, mock_accountant, mock_compiler)
+        mock_accountant.privacy_budget = ExactNumber(10)
         # Set the output measures manually
-        mock_queryable.output_measure = RhoZCDP()
+        mock_accountant.output_measure = RhoZCDP()
         mock_compiler.output_measure = RhoZCDP()
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
         with self.assertRaisesRegex(
             ValueError,
             "Your requested privacy budget type must match the type of the privacy"
@@ -401,14 +392,14 @@ class TestSession(PySparkTest):
 
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "__call__", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_evaluate_puredp_session_zcdp_query(
-        self, d_in, mock_queryable, mock_compiler
+        self, d_in, mock_accountant, mock_compiler
     ):
-        """Confirm that using a zcdp query on a puredp queryable raises an error."""
-        self._setup_queryable_and_compiler(d_in, mock_queryable, mock_compiler)
-        mock_queryable.remaining_budget = ExactNumber(10)
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        """Confirm that using a zcdp query on a puredp accountant raises an error."""
+        self._setup_accountant_and_compiler(d_in, mock_accountant, mock_compiler)
+        mock_accountant.privacy_budget = ExactNumber(10)
+        session = Session(accountant=mock_accountant, public_sources=dict())
         with self.assertRaisesRegex(
             ValueError,
             "Your requested privacy budget type must match the type of the privacy"
@@ -420,36 +411,53 @@ class TestSession(PySparkTest):
 
     @parameterized.expand([(sp.Integer(1),), (sp.sqrt(sp.Integer(2)),)])
     @patch.object(QueryExprCompiler, "__call__", autospec=True)
-    @patch("tmlt.analytics.session.Queryable")
-    def test_evaluate_zcdp_session(self, d_in, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_evaluate_zcdp_session(self, d_in, mock_accountant, mock_compiler):
         """Tests that :func:`evaluate` calls the right things given a zcdp session."""
-        self._setup_queryable_and_compiler(d_in, mock_queryable, mock_compiler)
-        mock_queryable.remaining_budget = ExactNumber(5)
+        self._setup_accountant_and_compiler(d_in, mock_accountant, mock_compiler)
+        mock_accountant.privacy_budget = ExactNumber(5)
         # Set the output measures manually
-        mock_queryable.output_measure = RhoZCDP()
+        mock_accountant.output_measure = RhoZCDP()
         mock_compiler.output_measure = RhoZCDP()
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
         answer = session.evaluate(
             query_expr=PrivateSource("private"), privacy_budget=RhoZCDPBudget(5)
         )
         self._assert_test_evaluate_correctness(
-            session, mock_queryable, mock_compiler, 5
+            session, mock_accountant, mock_compiler, 5
         )
         check_type("answer", answer, DataFrame)
 
-    def _setup_queryable_and_compiler(self, d_in, mock_queryable, mock_compiler):
+    def _setup_accountant(
+        self, mock_accountant, d_in=None, privacy_budget=None
+    ) -> None:
+        """Initialize only a mock accountant."""
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = self.sdf_input_domain
+        if d_in is not None:
+            mock_accountant.d_in = {"private": d_in}
+        else:
+            mock_accountant.d_in = {"private": ExactNumber(1)}
+        if privacy_budget is not None:
+            mock_accountant.privacy_budget = privacy_budget
+        else:
+            mock_accountant.privacy_budget = ExactNumber(10)
+
+    def _setup_accountant_and_compiler(self, d_in, mock_accountant, mock_compiler):
         """Initialize the mocks for testing :func:`evaluate`."""
-        mock_queryable.output_measure = PureDP()
+        mock_accountant.output_measure = PureDP()
         # Use RootSumOfSquared since SymmetricDifference doesn't allow non-ints. Wrap
         # that in IfGroupedBy since RootSumOFSquared on its own is not valid in many
         # places in the framework.
-        mock_queryable.input_metric = DictMetric(
+        mock_accountant.input_metric = DictMetric(
             {"private": IfGroupedBy("A", RootSumOfSquared(SymmetricDifference()))}
         )
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": d_in}
-        # The queryable will return a list containing 1 empty dataframe
-        mock_queryable.return_value = [
+        mock_accountant.input_domain = self.sdf_input_domain
+        mock_accountant.d_in = {"private": d_in}
+        # The accountant's measure method will return a list
+        # containing 1 empty dataframe
+        mock_accountant.measure.return_value = [
             self.spark.createDataFrame(
                 self.spark.sparkContext.emptyRDD(), StructType([])
             )
@@ -458,7 +466,7 @@ class TestSession(PySparkTest):
         mock_compiler.return_value = Mock(spec_set=Measurement)
 
     def _assert_test_evaluate_correctness(
-        self, session, mock_queryable, mock_compiler, budget
+        self, session, mock_accountant, mock_compiler, budget
     ):
         """Confirm that :func:`evaluate` worked correctly."""
         assert "private" in session.private_sources
@@ -467,30 +475,38 @@ class TestSession(PySparkTest):
         mock_compiler.assert_called_with(
             self=ANY,
             queries=[PrivateSource("private")],
-            stability=mock_queryable.d_in,
-            input_domain=mock_queryable.input_domain,
-            input_metric=mock_queryable.input_metric,
+            stability=mock_accountant.d_in,
+            input_domain=mock_accountant.input_domain,
+            input_metric=mock_accountant.input_metric,
             privacy_budget=sp.Integer(budget),
             public_sources={},
             catalog=ANY,
         )
 
-        mock_queryable.assert_called_with(
-            MeasurementQuery(mock_compiler.return_value, sp.Integer(budget))
+        mock_accountant.measure.assert_called_with(
+            mock_compiler.return_value, d_out=ExactNumber(budget)
         )
 
-    @patch("tmlt.analytics.session.unpack_parallel_composition_queryable")
-    @patch("tmlt.analytics.session.Queryable")
-    def test_partition_and_create(self, mock_queryable, mock_unpack_composition):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_partition_and_create(self, mock_accountant):
         """Tests that :func:`partition_and_create` calls the right things."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = self.sdf_input_domain
-        mock_queryable.d_in = {"private": ExactNumber(1)}
-        mock_queryable.return_value = Mock(spec_set=ParallelCompositionQueryable)
-        mock_queryable.remaining_budget = ExactNumber(10)
+        self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
+        mock_accountant.split.return_value = [
+            Mock(
+                spec_set=PrivacyAccountant,
+                input_metric=DictMetric({"part0": SymmetricDifference()}),
+                input_domain=self.sdf_input_domain,
+                output_measure=PureDP(),
+            ),
+            Mock(
+                spec_set=PrivacyAccountant,
+                input_metric=DictMetric({"part1": SymmetricDifference()}),
+                input_domain=self.sdf_input_domain,
+                output_measure=PureDP(),
+            ),
+        ]
 
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
 
         new_sessions = session.partition_and_create(
             source_id="private",
@@ -499,14 +515,35 @@ class TestSession(PySparkTest):
             splits={"part0": "0", "part1": "1"},
         )
 
-        measurement_query = mock_queryable.mock_calls[-1][1][0]
-        assert isinstance(measurement_query, MeasurementQuery)
-        self.assertEqual(
-            measurement_query.measurement.privacy_function(mock_queryable.d_in), 10
-        )
-        assert isinstance(measurement_query.measurement, ChainTM)
+        partition_query = mock_accountant.mock_calls[-1][1][0]
+        assert isinstance(partition_query, Transformation)
+        assert isinstance(partition_query, ChainTT)
 
-        mock_unpack_composition.assert_called_with(mock_queryable.return_value)
+        assert isinstance(partition_query.transformation1, GetValue)
+        self.assertEqual(
+            partition_query.transformation1.input_domain, mock_accountant.input_domain
+        )
+        self.assertEqual(
+            partition_query.transformation1.input_metric, mock_accountant.input_metric
+        )
+        self.assertEqual(partition_query.transformation1.key, "private")
+        assert isinstance(partition_query.transformation2, PartitionByKeys)
+        self.assertEqual(
+            partition_query.transformation2.input_domain,
+            self.sdf_input_domain["private"],
+        )
+        self.assertEqual(
+            partition_query.transformation2.input_metric, SymmetricDifference()
+        )
+        self.assertEqual(
+            partition_query.transformation2.output_metric, SumOf(SymmetricDifference())
+        )
+        self.assertEqual(partition_query.transformation2.keys, ["A"])
+        self.assertEqual(partition_query.transformation2.list_values, [("0",), ("1",)])
+
+        mock_accountant.split.assert_called_with(
+            partition_query, privacy_budget=ExactNumber(10)
+        )
 
         assert isinstance(new_sessions, dict)
         for new_session_name, new_session in new_sessions.items():
@@ -536,6 +573,52 @@ class TestSession(PySparkTest):
 
         sum_a_query = QueryBuilder("private").sum("A", low=0, high=2)
         session.evaluate(sum_a_query, privacy_budget=PureDPBudget(1))
+
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_stop(self, mock_accountant):
+        """Test that after session.stop(), session returns the right error"""
+        self._setup_accountant(mock_accountant)
+
+        def retire_side_effect():
+            mock_accountant.state = PrivacyAccountantState.RETIRED
+
+        mock_accountant.retire.side_effect = retire_side_effect
+        session = Session(accountant=mock_accountant, public_sources=dict())
+
+        session.stop()
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session.evaluate(PrivateSource(source_id="private"), PureDPBudget(1))
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session.create_view(
+                query_expr=PrivateSource(source_id="private"),
+                source_id="new_view",
+                cache=False,
+            )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session.delete_view("private")
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session.partition_and_create(
+                "private",
+                privacy_budget=PureDPBudget(1),
+                attr_name="A",
+                splits={"part0": 0, "part1": 1},
+            )
 
 
 class TestInvalidSession(PySparkTest):
@@ -576,22 +659,25 @@ class TestInvalidSession(PySparkTest):
         """Clean up temporary directories."""
         shutil.rmtree(self.data_dir)
 
-    @patch("tmlt.analytics.session.Queryable")
-    def test_invalid_compiler_initialization(self, mock_queryable):
+    def _setup_accountant(self, mock_accountant) -> None:
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
+
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_compiler_initialization(self, mock_accountant):
         """session errors if compiler is not a QueryExprCompiler."""
         with self.assertRaisesRegex(
             TypeError,
             r"type of compiler must be one of "
             r"\(QueryExprCompiler, NoneType\); got list instead",
         ):
-            mock_queryable.output_measure = PureDP()
-            mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-            mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-            mock_queryable.d_in = {"private": sp.Integer(1)}
-            Session(queryable=mock_queryable, public_sources=dict(), compiler=[])
+            self._setup_accountant(mock_accountant)
+            Session(accountant=mock_accountant, public_sources=dict(), compiler=[])
 
-    @patch("tmlt.analytics.session.Queryable")
-    def test_invalid_dataframe_initialization(self, mock_queryable):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_dataframe_initialization(self, mock_accountant):
         """session raises error on invalid dataframe type"""
         # Private
         with self.assertRaisesRegex(
@@ -603,12 +689,9 @@ class TestInvalidSession(PySparkTest):
                 privacy_budget=PureDPBudget(1), source_id="private", dataframe=self.pdf
             )
         # Public
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        self._setup_accountant(mock_accountant)
 
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
         with self.assertRaisesRegex(
             TypeError,
             'type of argument "dataframe" must be pyspark.sql.dataframe.DataFrame; '
@@ -616,15 +699,12 @@ class TestInvalidSession(PySparkTest):
         ):
             session.add_public_dataframe(source_id="public", dataframe=self.pdf)
 
-    @patch("tmlt.analytics.session.Queryable")
-    def test_invalid_data_properties(self, mock_queryable):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_data_properties(self, mock_accountant):
         """session raises error on invalid data properties"""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        self._setup_accountant(mock_accountant)
         session = Session(
-            queryable=mock_queryable,
+            accountant=mock_accountant,
             public_sources={
                 "public": self.spark.createDataFrame(
                     pd.DataFrame({"A": ["a1", "a2"], "B": [1, 2]})
@@ -653,34 +733,22 @@ class TestInvalidSession(PySparkTest):
             ("@str", ValueError, "source_id must be a valid Python identifier."),
         ]
     )
-    @patch("tmlt.analytics.session.create_adaptive_composition", autospec=True)
     @patch("tmlt.analytics._query_expr_compiler.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_invalid_source_id(
         self,
         source_id: str,
         exception_type: Type[Exception],
         expected_error_msg: str,
-        mock_queryable,
+        mock_accountant,
         mock_compiler,
-        mock_composition_init,
     ):
         """session raises error on invalid source_id."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
-
-        mock_composition_init.return_value = Mock(
-            spec_set=Measurement,
-            return_value=Mock(
-                spec_set=AdaptiveCompositionQueryable,
-                output_measure=PureDP(),
-                input_metric=DictMetric({"private": SymmetricDifference()}),
-                input_domain=DictDomain({"private": self.sdf_input_domain}),
-            ),
-        )
 
         #### from spark dataframe ####
         # Private
@@ -690,7 +758,7 @@ class TestInvalidSession(PySparkTest):
             )
         # Public
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
         with self.assertRaisesRegex(exception_type, expected_error_msg):
             session.add_public_dataframe(source_id, dataframe=self.sdf)
@@ -714,19 +782,19 @@ class TestInvalidSession(PySparkTest):
 
     @parameterized.expand([(["filter private A == 0"],), ([PrivateSource("private")],)])
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_invalid_queries_evaluate(
-        self, query_expr: Any, mock_queryable, mock_compiler
+        self, query_expr: Any, mock_accountant, mock_compiler
     ):
         """evaluate raises error on invalid queries."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
 
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
         with self.assertRaisesRegex(
             TypeError,
@@ -746,36 +814,36 @@ class TestInvalidSession(PySparkTest):
         ]
     )
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_invalid_queries_create(
         self,
         query_expr: QueryExpr,
         exception_type: Type[Exception],
         expected_error_msg: str,
-        mock_queryable,
+        mock_accountant,
         mock_compiler,
     ):
         """create functions raise error on invalid input queries."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
 
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
         with self.assertRaisesRegex(exception_type, expected_error_msg):
             session.create_view(query_expr, source_id="view", cache=True)
 
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
-    def test_invalid_attr_name(self, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_attr_name(self, mock_accountant, mock_compiler):
         """Tests that invalid column name for attr_name errors."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
 
         mock_compiler.build_transformation.return_value = (
@@ -788,7 +856,7 @@ class TestInvalidSession(PySparkTest):
         )
 
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
 
         with self.assertRaisesRegex(
@@ -805,13 +873,13 @@ class TestInvalidSession(PySparkTest):
             )
 
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
-    def test_invalid_splits_name(self, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_splits_name(self, mock_accountant, mock_compiler):
         """Tests that invalid splits name errors."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
 
         mock_compiler.build_transformation.return_value = (
@@ -824,7 +892,7 @@ class TestInvalidSession(PySparkTest):
         )
 
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
 
         with self.assertRaisesRegex(
@@ -839,13 +907,13 @@ class TestInvalidSession(PySparkTest):
             )
 
     @patch("tmlt.analytics.session.QueryExprCompiler")
-    @patch("tmlt.analytics.session.Queryable")
-    def test_splits_value_type(self, mock_queryable, mock_compiler):
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_splits_value_type(self, mock_accountant, mock_compiler):
         """Tests error when given invalid splits value type on partition."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": sp.Integer(1)}
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": sp.Integer(1)}
         mock_compiler.output_measure = PureDP()
 
         mock_compiler.build_transformation.return_value = (
@@ -858,7 +926,7 @@ class TestInvalidSession(PySparkTest):
         )
 
         session = Session(
-            queryable=mock_queryable, public_sources=dict(), compiler=mock_compiler
+            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
 
         with self.assertRaisesRegex(
@@ -1104,24 +1172,26 @@ K,2"""
         session_init_kwargs = mock_session_init.call_args[1]
         assert all(
             key in session_init_kwargs
-            for key in ["queryable", "public_sources", "compiler"]
+            for key in ["accountant", "public_sources", "compiler"]
         )
-        queryable = session_init_kwargs["queryable"]
-        assert isinstance(queryable, AdaptiveCompositionQueryable)
+        accountant = session_init_kwargs["accountant"]
+        assert isinstance(accountant, PrivacyAccountant)
         self.assertTrue(
-            queryable.privacy_budget
+            accountant.privacy_budget
             == expected_sympy_budget
-            == queryable.remaining_budget
+            == accountant.privacy_budget
         )
-        self.assertEqual(queryable.output_measure, expected_output_measure)
+        self.assertEqual(accountant.output_measure, expected_output_measure)
         for source_id in expected_private_sources:
+            # pylint: disable=protected-access
+            assert accountant._queryable is not None
+            assert isinstance(accountant._queryable, SequentialQueryable)
             self.assert_frame_equal_with_sort(
-                queryable._queryable._state.data[  # pylint: disable=protected-access
-                    source_id
-                ].toPandas(),
+                accountant._queryable._data[source_id].toPandas(),
                 expected_private_sources[source_id].toPandas(),
             )
-        self.assertEqual(queryable.d_in, expected_stabilities)
+            # pylint: enable=protected-access
+        self.assertEqual(accountant.d_in, expected_stabilities)
 
         public_sources = session_init_kwargs["public_sources"]
         self.assertEqual(public_sources.keys(), expected_public_sources.keys())

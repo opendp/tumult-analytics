@@ -25,12 +25,14 @@ differentially private results to the query.
 
 # <placeholder: boilerplate>
 
+import datetime
 import warnings
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -127,14 +129,23 @@ class QueryBuilder:
     ) -> "QueryBuilder":
         """Updates the current query to join with a dataframe or public source.
 
-        This operation performs a natural join between two tables. By default,
-        the tables are joined on all common columns (i.e., columns whose names and
-        data types match). The resulting table will contain all columns unique to
-        each input table, along with one copy of each common column.
+        This operation performs a natural join between two tables. This means
+        that the resulting table will contain all columns unique to each input
+        table, along with one copy of each common column. In most cases, the
+        columns have the same names they did in the input tables.
 
-        If ``join_columns`` is present and contains a subset of common columns, the
+        By default, the input tables are joined on all common columns (i.e.,
+        columns whose names and data types match). However if ``join_columns``
+        is given, the tables will be joined only on the given columns, and the
         remaining common columns will be disambiguated in the resulting table by
-        the addition of a ``_left`` or ``_right`` suffix to their names.
+        the addition of a ``_left`` or ``_right`` suffix to their names. If
+        given, ``join_columns`` must contain a non-empty subset of the tables'
+        common columns. For example, two tables with columns ``A,B,C`` and ``A,B,D``
+        would by default be joined on columns ``A`` and ``B``, resulting in a
+        table with columns ``A,B,C,D``; if ``join_columns=["B"]`` were given
+        when performing this join, the resulting table would have columns
+        ``A_left,A_right,B,C,D``. The order of columns in the resulting table is
+        not guaranteed.
 
         Note that columns must share both names and data types for them to be used in
         joining. If this condition is not met, one of the data sources must be
@@ -241,9 +252,10 @@ class QueryBuilder:
         # pylint: disable=protected-access
         """Updates the current query to join with another :class:`QueryBuilder`.
 
-        This operation is a natural join, similar to :func:`join_public`, but
-        with a key difference: before the join is performed, each table is
-        *truncated* based on the corresponding
+        This operation is a natural join, with the same behavior and
+        requirements as :func:`join_public`. However, there is a key difference:
+        before the join is performed, each table is *truncated* based on the
+        corresponding
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.
 
         ..
@@ -400,6 +412,8 @@ class QueryBuilder:
         * ``age < 42 OR (age < 60 AND gender IS NULL)``
         * ``LENGTH(name) > 17``
         * ``favorite_color IN ('blue', 'red')``
+        * ``date = '2022-03-14'``
+        * ``time < '2022-01-01T12:45:00'``
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -630,7 +644,8 @@ class QueryBuilder:
             grouping: Whether this produces a new column that we want to groupby.
                 If True, this requires that any groupby aggregations following this
                 query include the new column as a groupby column. Only one new column
-                is allowed.
+                is supported, and the new column must have distinct values for each
+                input row.
         """
         grouping_column: Optional[str]
         if grouping:
@@ -653,6 +668,83 @@ class QueryBuilder:
             augment=augment,
         )
         return self
+
+    def bin_column(
+        self, column: str, spec: BinningSpec, name: Optional[str] = None
+    ) -> "QueryBuilder":
+        """Create a new column by assigning the values in a given column to bins.
+
+        ..
+            >>> from tmlt.analytics.binning_spec import BinningSpec
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> from tmlt.analytics.session import Session
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.keyset import KeySet
+            >>> from pyspark.sql import SparkSession
+            >>> import pandas as pd
+            >>> spark = SparkSession.builder.getOrCreate()
+
+        Example:
+            >>> private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         {
+            ...             "age": [11, 17, 30, 18, 59, 48, 76, 91, 48, 53],
+            ...             "income": [0, 6, 54, 14, 126, 163, 151, 18, 97, 85],
+            ...         }
+            ...     )
+            ... )
+            >>> sess = Session.from_dataframe(
+            ...     PureDPBudget(float("inf")), "private_data", private_data
+            ... )
+            >>> age_binspec = BinningSpec(
+            ...     [0, 18, 65, 100], include_both_endpoints=False
+            ... )
+            >>> income_tax_rate_binspec = BinningSpec(
+            ...     [0, 10, 40, 86, 165], names=[10, 12, 22, 24]
+            ... )
+            >>> keys = KeySet.from_dict(
+            ...     {
+            ...         "age_binned": age_binspec.bins(),
+            ...         "marginal_tax_rate": income_tax_rate_binspec.bins()
+            ...     }
+            ... )
+            >>> query = (
+            ...     QueryBuilder("private_data")
+            ...     .bin_column("age", age_binspec)
+            ...     .bin_column(
+            ...         "income", income_tax_rate_binspec, name="marginal_tax_rate"
+            ...     )
+            ...     .groupby(keys).count()
+            ... )
+            >>> answer = sess.evaluate(query, PureDPBudget(float("inf")))
+            >>> answer.sort("age_binned", "marginal_tax_rate").toPandas()
+               age_binned  marginal_tax_rate  count
+            0     (0, 18]                 10      2
+            1     (0, 18]                 12      1
+            2     (0, 18]                 22      0
+            3     (0, 18]                 24      0
+            4    (18, 65]                 10      0
+            5    (18, 65]                 12      0
+            6    (18, 65]                 22      2
+            7    (18, 65]                 24      3
+            8   (65, 100]                 10      0
+            9   (65, 100]                 12      1
+            10  (65, 100]                 22      0
+            11  (65, 100]                 24      1
+
+        Args:
+            column: Name of the column used to assign bins.
+            spec: A :class:`~tmlt.analytics.binning_spec.BinningSpec` that defines the
+                binning operation to be performed.
+            name: The name of the column that will be created. If None (the default),
+                the input column name with ``_binned`` appended to it.
+        """
+        if name is None:
+            name = f"{column}_binned"
+        binning_fn = lambda row: {name: spec(row[column])}
+        return self.map(
+            binning_fn, new_column_types={name: spec.output_type}, augment=True
+        )
 
     def groupby(self, keys: KeySet) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
@@ -785,7 +877,7 @@ class QueryBuilder:
 
     # TODO(#1707): Remove this method
     def groupby_domains(
-        self, domains: Dict[str, Union[List[str], List[int]]]
+        self, domains: Mapping[str, Union[List[str], List[int], List[datetime.date]]]
     ) -> "GroupedQueryBuilder":
         """Returns a GroupedQueryBuilder that stores the query grouped by given columns.
 
@@ -886,7 +978,7 @@ class QueryBuilder:
             "and .groupby() instead.",
             DeprecationWarning,
         )
-        return self.groupby(KeySet.from_dict(domains))
+        return self.groupby(KeySet.from_dict(dict(domains)))
 
     # TODO(#1707): Remove this method
     def groupby_public_source(self, public_id: str) -> "GroupedQueryBuilder":

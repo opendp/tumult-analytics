@@ -292,6 +292,28 @@ class Map(QueryExpr):
         """Visit this QueryExpr with visitor."""
         return visitor.visit_map(self)
 
+    def __eq__(self, other: object) -> bool:
+        """Returns true iff self == other.
+
+        This uses the bytecode of self.f and other.f to determine if the two
+        functions are equal.
+        """
+        if not isinstance(other, Map):
+            return False
+        # This line will incorrectly produce a typing error;
+        # see https://github.com/python/mypy/issues/5485
+        # Also, mypy will only ignore lines if you have a # type: ignore comment
+        # on the end of the line, which makes this line too long.
+        # pylint: disable=line-too-long
+        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:  # type: ignore
+            return False
+        # pylint: enable=line-too-long
+        return (
+            self.schema_new_columns == other.schema_new_columns
+            and self.augment == other.augment
+            and self.child == other.child
+        )
+
 
 @dataclass
 class FlatMap(QueryExpr):
@@ -342,6 +364,29 @@ class FlatMap(QueryExpr):
         """Visit this QueryExpr with visitor."""
         return visitor.visit_flat_map(self)
 
+    def __eq__(self, other: object) -> bool:
+        """Returns true iff self == other.
+
+        This uses the bytecode of self.f and other.f to determine if the two
+        functions are equal.
+        """
+        if not isinstance(other, FlatMap):
+            return False
+        # This line will incorrectly produce a typing error;
+        # see https://github.com/python/mypy/issues/5485
+        # Also, mypy will only ignore lines if you have a # type: ignore comment
+        # on the end of the line, which makes this line too long.
+        # pylint: disable=line-too-long
+        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:  # type: ignore
+            return False
+        # pylint: enable=line-too-long
+        return (
+            self.max_num_rows == other.max_num_rows
+            and self.schema_new_columns == other.schema_new_columns
+            and self.augment == other.augment
+            and self.child == other.child
+        )
+
 
 @dataclass
 class JoinPrivate(QueryExpr):
@@ -362,7 +407,7 @@ class JoinPrivate(QueryExpr):
     truncation_strategy_right: TruncationStrategy.Type
     """Truncation strategy to be used for the right table."""
     join_columns: Optional[List[str]] = None
-    """The columns used for joining the two DataFrames."""
+    """The columns used for joining the tables, or None to use all common columns."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -380,6 +425,12 @@ class JoinPrivate(QueryExpr):
         )
         check_type("join_columns", self.join_columns, Optional[List[str]])
 
+        if self.join_columns is not None:
+            if len(self.join_columns) == 0:
+                raise ValueError("Provided join columns must not be empty")
+            if len(self.join_columns) != len(set(self.join_columns)):
+                raise ValueError("Join columns must be distinct")
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_join_private(self)
@@ -394,7 +445,7 @@ class JoinPublic(QueryExpr):
     public_table: Union[DataFrame, str]
     """A DataFrame or public source to join with."""
     join_columns: Optional[List[str]] = None
-    """The columns used for joining the two tables."""
+    """The columns used for joining the tables, or None to use all common columns."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -402,12 +453,54 @@ class JoinPublic(QueryExpr):
         check_type("public_table", self.public_table, Union[DataFrame, str])
         check_type("join_columns", self.join_columns, Optional[List[str]])
 
+        if self.join_columns is not None:
+            if len(self.join_columns) == 0:
+                raise ValueError("Provided join columns must not be empty")
+            if len(self.join_columns) != len(set(self.join_columns)):
+                raise ValueError("Join columns must be distinct")
+
         if isinstance(self.public_table, DataFrame):
             self.public_table = coerce_spark_schema_or_fail(self.public_table)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_join_public(self)
+
+    def __eq__(self, other: object) -> bool:
+        """Returns true iff self == other.
+
+        For the purposes of this equality operation, two dataframes are equal
+        if they contain the same data, in any order.
+
+        Calling this on a JoinPublic that includes a very large dataframe
+        could take a long time or consume a lot of resources, and is not
+        recommended.
+        """
+        if not isinstance(other, JoinPublic):
+            return False
+        if isinstance(self.public_table, str):
+            if self.public_table != other.public_table:
+                return False
+        else:
+            # public_table is a dataframe
+            if not isinstance(other.public_table, DataFrame):
+                return False
+            # Make sure both dataframes contain the same data, in any order
+            self_table = self.public_table.toPandas()
+            other_table = other.public_table.toPandas()
+            if sorted(self_table.columns) != sorted(other_table.columns):
+                return False
+            if not self_table.empty and not other_table.empty:
+                sort_columns = list(self_table.columns)
+                self_table = (
+                    self_table.set_index(sort_columns).sort_index().reset_index()
+                )
+                other_table = (
+                    other_table.set_index(sort_columns).sort_index().reset_index()
+                )
+                if not self_table.equals(other_table):
+                    return False
+        return self.join_columns == other.join_columns and self.child == other.child
 
 
 @dataclass

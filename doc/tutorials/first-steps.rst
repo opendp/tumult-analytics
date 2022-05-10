@@ -6,8 +6,8 @@ Tutorial 1: First steps with Tumult Analytics
 In this first tutorial, we will demonstrate how to load data, run a simple
 aggregation query, and get our first differentially private results. You can run
 this tutorial (as well as the next ones) as you go: simply follow the
-instructions in :ref:`Getting Started`, and use the copy/paste button of each
-code block to reproduce it.
+:ref:`installation instructions`, and use the copy/paste button of each code
+block to reproduce it.
 
 Throughout these tutorials, we'll imagine we are the data protection officer for
 a fictional institution, the Pierre-Simon Laplace Public Library. We want to
@@ -39,6 +39,28 @@ First, let's import some Python packages.
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
+Next, we initialize the Spark session.
+
+.. _Java 11 configuration example:
+
+.. testcode::
+
+   spark = SparkSession.builder.getOrCreate()
+
+
+.. note::
+
+   When using Java 11, some additional configuration must be passed to Spark, so the previous code block would instead be:
+
+   .. code-block::
+
+      spark = (
+          SparkSession.builder
+          .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+          .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+          .getOrCreate()
+      )
+
 Then, we need to download our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``
 repository, and load in a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
@@ -50,7 +72,6 @@ repository, and load in a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
    )
    with open("members.csv", "w") as f:
        f.write(r.text)
-   spark = SparkSession.builder.getOrCreate()
    members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
 
 Creating a Session

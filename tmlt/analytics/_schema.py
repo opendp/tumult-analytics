@@ -6,6 +6,7 @@ for seamless transitions of the data representation type.
 
 # <placeholder: boilerplate>
 
+import datetime
 from collections.abc import Mapping
 from enum import Enum
 from typing import Dict, Iterator
@@ -13,6 +14,7 @@ from typing import Mapping as MappingType
 from typing import Optional, Union, cast
 
 from pyspark.sql.types import (
+    DateType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -20,15 +22,18 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
+    TimestampType,
 )
 
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.spark_domains import (
     SparkColumnsDescriptor,
     SparkDataFrameDomain,
+    SparkDateColumnDescriptor,
     SparkFloatColumnDescriptor,
     SparkIntegerColumnDescriptor,
     SparkStringColumnDescriptor,
+    SparkTimestampColumnDescriptor,
 )
 
 
@@ -37,12 +42,14 @@ class ColumnType(Enum):
 
     INTEGER = int
     """Integer column type."""
-    BIT = bool
-    """Boolean column type."""
     DECIMAL = float
     """Floating-point column type."""
     VARCHAR = str
     """String column type."""
+    DATE = datetime.date
+    """Date column type."""
+    TIMESTAMP = datetime.datetime
+    """Timestamp column type."""
 
     def __str__(self) -> str:
         """Return a printable version of a ColumnType."""
@@ -59,7 +66,8 @@ class Schema(Mapping):
     Note:
         nulls and nans are disallowed.
 
-    The following SQL92 types are currently supported: INTEGER, BIT, DECIMAL, VARCHAR.
+    The following SQL92 types are currently supported:
+      INTEGER, DECIMAL, VARCHAR, DATE, TIMESTAMP
     """
 
     def __init__(
@@ -147,6 +155,8 @@ _SPARK_TO_ANALYTICS = {
     DoubleType(): ColumnType.DECIMAL,
     FloatType(): ColumnType.DECIMAL,
     StringType(): ColumnType.VARCHAR,
+    DateType(): ColumnType.DATE,
+    TimestampType(): ColumnType.TIMESTAMP,
 }
 """Mapping from Spark type to supported Analytics column types."""
 
@@ -154,6 +164,8 @@ _ANALYTICS_TO_SPARK = {
     "INTEGER": LongType(),
     "DECIMAL": DoubleType(),
     "VARCHAR": StringType(),
+    "DATE": DateType(),
+    "TIMESTAMP": TimestampType(),
 }
 """Mapping from Analytics column types to Spark types."""
 
@@ -161,6 +173,8 @@ _ANALYTICS_TYPE_TO_COLUMN_DESCRIPTOR = {
     ColumnType.INTEGER: SparkIntegerColumnDescriptor,
     ColumnType.DECIMAL: SparkFloatColumnDescriptor,
     ColumnType.VARCHAR: SparkStringColumnDescriptor,
+    ColumnType.DATE: SparkDateColumnDescriptor,
+    ColumnType.TIMESTAMP: SparkTimestampColumnDescriptor,
 }
 """Mapping from Analytics column types to Spark columns descriptor.
 

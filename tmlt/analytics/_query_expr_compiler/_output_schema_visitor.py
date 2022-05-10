@@ -46,6 +46,16 @@ def _output_schema_for_join(
         )
     common_columns = set(left_schema) & set(right_schema)
 
+    if join_columns is None and not common_columns:
+        raise ValueError("Tables have no common columns to join on.")
+    if join_columns is not None and not join_columns:
+        # This error case should be caught when constructing the query
+        # expression, so it should never get here.
+        raise ValueError(
+            "Empty list of join columns provided. This is probably a bug; "
+            "please let us know about it so we can fix it!"
+        )
+
     join_columns = (
         join_columns
         if join_columns
@@ -53,13 +63,13 @@ def _output_schema_for_join(
     )
 
     if not set(join_columns) <= common_columns:
-        raise ValueError("Join columns must be common to both DataFrames.")
+        raise ValueError("Join columns must be common to both tables.")
 
     for column in join_columns:
         if left_schema[column] != right_schema[column]:
             raise ValueError(
                 "Join columns must have identical types on both "
-                f"DataFrames. {left_schema[column]} and "
+                f"tables. {left_schema[column]} and "
                 f"{right_schema[column]} are incompatible."
             )
 

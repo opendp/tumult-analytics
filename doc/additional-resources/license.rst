@@ -1,5 +1,7 @@
-LICENSE
-========
+.. _License:
+
+License
+=======
 
 Each of the documentation, the software code and components and other works of authorship that constitute the software accompanying this file (the “Software”) are Copyright (C) 2019-2021 Tumult Labs. Tumult Labs reserves all rights the Software. If you do not have an express written license to the Software and you wish to copy, use, modify, distribute, display, perform, or otherwise obtain permission in regard to the Software, or any part thereof, please contact [support@tumult.io]. No implied licenses are granted.
 

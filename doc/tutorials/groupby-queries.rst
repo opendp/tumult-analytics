@@ -24,7 +24,7 @@ this query.
 
 The result of such a query could be plotted as a bar chart looking like this.
 
-.. image:: ../../images/chart_senior_counts_1.png
+.. image:: ../images/chart_senior_counts_1.png
     :scale: 100%
     :alt: A bar chart counting the number of senior library members for each age 80 or over. The bars get progressively lower from 80 to 95.
     :align: center
@@ -34,7 +34,7 @@ library. Assume that this person is aged 104, and that they are the only person
 that age in the area. Computing the same query might get us
 results that look like this.
 
-.. image:: ../../images/chart_senior_counts_2.png
+.. image:: ../images/chart_senior_counts_2.png
     :scale: 100%
     :alt: The same chart as before, except there is now a new value on the x-axis: after 95, a small bar associated with age 104 is visible.
     :align: center
@@ -178,7 +178,7 @@ if you want to run it locally, you can install it with ``pip install seaborn``.
    plt.tight_layout()
    plt.show()
 
-.. image:: ../../images/chart_average_age_by_edu.png
+.. image:: ../images/chart_average_age_by_edu.png
     :scale: 100%
     :alt: A bar chart plotting the average age of library members, by education level. The first bar is small, at about 18 for "up-to-high-school", then the bars increase from approximately 43 to approximately 52 as education level increases.
     :align: center
@@ -216,7 +216,7 @@ for age values between *5* and 17?
     plt.ylabel("Count")
     plt.show()
 
-.. image:: ../../images/chart_younger_age_counts.png
+.. image:: ../images/chart_younger_age_counts.png
     :scale: 100%
     :alt: A bar chart plotting the count of library members for ages 5 to 17. All the values are about 100, except for age 5, where it is about 20.
     :align: center
@@ -405,7 +405,7 @@ Once we have our KeySet, we can use it in the desired aggregation…
    plt.legend(loc="upper left")
    plt.show()
 
-.. image:: ../../images/chart_teen_edu_counts.png
+.. image:: ../images/chart_teen_edu_counts.png
     :scale: 100%
     :alt: A bar chart plotting the count of library members, by age (for ages 13 to 21) and education level. There is only the "up-to-high-school" bar for ages 13 to 16, then "high-school-diploma" starts at 17 and becomes prominent at age 18, and "bachelors-associate" starts rising starting at age 20.
     :align: center

@@ -5,6 +5,7 @@
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as sf
 from pyspark.sql.types import (
+    DateType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -12,6 +13,7 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
+    TimestampType,
 )
 
 SUPPORTED_SPARK_TYPES = {
@@ -20,6 +22,8 @@ SUPPORTED_SPARK_TYPES = {
     FloatType(),
     DoubleType(),
     StringType(),
+    DateType(),
+    TimestampType(),
 }
 """Set of Spark data types supported by Tumult Analytics.
 
@@ -40,13 +44,15 @@ Support for Spark data types in Analytics is currently as follows:
      - yes, by coercion to :class:`~pyspark.sql.types.DoubleType`
    * - :class:`~pyspark.sql.types.StringType`
      - yes
+   * - :class:`~pyspark.sql.types.DateType`
+     - yes
+   * - :class:`~pyspark.sql.types.TimestampType`
+     - yes
    * - Other Spark types
      - no
 
 Columns with unsupported types must be dropped or converted to supported ones
-before loading the data into Analytics, for example by replacing columns of
-:class:`~pyspark.sql.types.TimestampType` with the number of seconds since epoch
-represented as :class:`~pyspark.sql.types.DoubleType`.
+before loading the data into Analytics.
 """
 
 TYPE_COERCION_MAP = {IntegerType(): LongType(), FloatType(): DoubleType()}

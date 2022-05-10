@@ -2,10 +2,11 @@
 
 # <placeholder: boilerplate>
 
+import datetime
 import os
 import shutil
 import tempfile
-from typing import Type, Union
+from typing import Optional, Type, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -17,8 +18,10 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
+from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     CountDistinctMechanism,
     CountMechanism,
@@ -42,14 +45,20 @@ from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.interactive_measurements import PrivacyAccountantState
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.testing import PySparkTest
 
+# Shorthands for some values used in tests
+_DATE1 = datetime.date.fromisoformat("2022-01-01")
+_DATE2 = datetime.date.fromisoformat("2022-01-02")
+
 EVALUATE_TESTS = [
     (  # Total with DEFAULT mechanism
         # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP)
+        QueryBuilder("private").count(name="total"),
         GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
@@ -59,6 +68,7 @@ EVALUATE_TESTS = [
     ),
     (  # Total with DEFAULT mechanism
         # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP)
+        QueryBuilder("private").count_distinct(name="total"),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
@@ -67,6 +77,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"total": [4]}),
     ),
     (  # Total with LAPLACE (Geometric noise gets applied)
+        QueryBuilder("private").count(name="total", mechanism=CountMechanism.LAPLACE),
         GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
@@ -76,6 +87,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"total": [4]}),
     ),
     (  # Total with LAPLACE (Geometric noise gets applied)
+        QueryBuilder("private").count_distinct(
+            name="total", mechanism=CountDistinctMechanism.LAPLACE
+        ),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
@@ -85,6 +99,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"total": [4]}),
     ),
     (  # Full marginal from domain description (Geometric noise gets applied)
+        QueryBuilder("private")
+        .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
+        .count(),
         GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
@@ -94,6 +111,9 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # Full marginal from domain description (Geometric noise gets applied)
+        QueryBuilder("private")
+        .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
+        .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
@@ -107,6 +127,7 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # Incomplete two-column marginal with a dataframe
+        QueryBuilder("private").groupby_public_source("groupby_two_columns").count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -115,6 +136,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
     ),
     (  # Incomplete two-column marginal with a dataframe
+        QueryBuilder("private")
+        .groupby_public_source("groupby_two_columns")
+        .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -125,6 +149,7 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # One-column marginal with additional value
+        QueryBuilder("private").groupby_public_source("groupby_one_column").count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -133,6 +158,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with additional value
+        QueryBuilder("private")
+        .groupby_public_source("groupby_one_column")
+        .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -141,6 +169,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
+        QueryBuilder("private")
+        .groupby_public_source("groupby_with_duplicates")
+        .count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -149,6 +180,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
+        QueryBuilder("private")
+        .groupby_public_source("groupby_with_duplicates")
+        .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -157,6 +191,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # empty public source
+        QueryBuilder("private").groupby_public_source("groupby_empty").count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -165,6 +200,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count": [4]}),
     ),
     (  # empty public source
+        QueryBuilder("private").groupby_public_source("groupby_empty").count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
@@ -173,6 +209,9 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count_distinct": [4]}),
     ),
     (  # BoundedSum
+        QueryBuilder("private")
+        .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+        .sum(column="X", low=0, high=1, name="sum"),
         GroupByBoundedSum(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
@@ -184,6 +223,11 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A": ["0", "1"], "sum": [2, 1]}),
     ),
     (  # FlatMap
+        QueryBuilder("private")
+        .flat_map(
+            f=lambda _: [{}, {}], max_num_rows=2, new_column_types={}, augment=True
+        )
+        .sum(column="X", low=0, high=3),
         GroupByBoundedSum(
             child=FlatMap(
                 child=PrivateSource("private"),
@@ -194,13 +238,28 @@ EVALUATE_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({}),
             measure_column="X",
+            output_column="X_sum",
             low=0,
             high=3,
         ),
-        pd.DataFrame({"sum": [12]}),
+        pd.DataFrame({"X_sum": [12]}),
     ),
     (  # Multiple flat maps on integer-valued measure_column
-        # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP)
+        # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP
+        QueryBuilder("private")
+        .flat_map(
+            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+            max_num_rows=1,
+            new_column_types={"Repeat": ColumnType.INTEGER},
+            augment=True,
+        )
+        .flat_map(
+            f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+            max_num_rows=2,
+            new_column_types={"i": ColumnType.INTEGER},
+            augment=False,
+        )
+        .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
             child=FlatMap(
                 child=FlatMap(
@@ -217,13 +276,31 @@ EVALUATE_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({}),
             measure_column="i",
+            output_column="i_sum",
             low=0,
             high=3,
+            mechanism=SumMechanism.DEFAULT,
         ),
-        pd.DataFrame({"sum": [9]}),
+        pd.DataFrame({"i_sum": [9]}),
     ),
     (  # Grouping flat map with DEFAULT mechanism and integer-valued measure column
         # (Geometric noise gets applied)
+        QueryBuilder("private")
+        .flat_map(
+            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+            max_num_rows=1,
+            new_column_types={"Repeat": ColumnType.INTEGER},
+            augment=True,
+            grouping=True,
+        )
+        .flat_map(
+            f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+            max_num_rows=2,
+            new_column_types={"i": ColumnType.INTEGER},
+            augment=True,
+        )
+        .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
+        .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
             child=FlatMap(
                 child=FlatMap(
@@ -242,12 +319,29 @@ EVALUATE_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
             measure_column="i",
+            output_column="i_sum",
             low=0,
             high=3,
         ),
-        pd.DataFrame({"Repeat": [1, 2], "sum": [3, 6]}),
+        pd.DataFrame({"Repeat": [1, 2], "i_sum": [3, 6]}),
     ),
     (  # Grouping flat map with LAPLACE mechanism (Geometric noise gets applied)
+        QueryBuilder("private")
+        .flat_map(
+            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+            max_num_rows=1,
+            new_column_types={"Repeat": ColumnType.INTEGER},
+            grouping=True,
+            augment=True,
+        )
+        .flat_map(
+            f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+            max_num_rows=2,
+            new_column_types={"i": ColumnType.INTEGER},
+            augment=True,
+        )
+        .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
+        .sum(column="i", low=0, high=3, mechanism=SumMechanism.LAPLACE),
         GroupByBoundedSum(
             child=FlatMap(
                 child=FlatMap(
@@ -266,13 +360,23 @@ EVALUATE_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
             measure_column="i",
+            output_column="i_sum",
             low=0,
             high=3,
             mechanism=SumMechanism.LAPLACE,
         ),
-        pd.DataFrame({"Repeat": [1, 2], "sum": [3, 6]}),
+        pd.DataFrame({"Repeat": [1, 2], "i_sum": [3, 6]}),
+    ),
+    (  # Binning
+        QueryBuilder("private")
+        .bin_column("X", BinningSpec([0, 2, 4], names=["0,1", "2,3"], right=False))
+        .groupby(KeySet.from_dict({"X_binned": ["0,1", "2,3"]}))
+        .count(),
+        None,
+        pd.DataFrame({"X_binned": ["0,1", "2,3"], "count": [2, 2]}),
     ),
     (  # GroupByCount Filter
+        QueryBuilder("private").filter("A == '0'").count(),
         GroupByCount(
             child=Filter(child=PrivateSource("private"), predicate="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
@@ -280,6 +384,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count": [3]}),
     ),
     (  # GroupByCountDistinct Filter
+        QueryBuilder("private").filter("A == '0'").count_distinct(),
         GroupByCountDistinct(
             child=Filter(child=PrivateSource("private"), predicate="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
@@ -287,6 +392,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count_distinct": [3]}),
     ),
     (  # GroupByCount Select
+        QueryBuilder("private").select(["A"]).count(),
         GroupByCount(
             child=Select(child=PrivateSource("private"), columns=["A"]),
             groupby_keys=KeySet.from_dict({}),
@@ -294,6 +400,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count": [4]}),
     ),
     (  # GroupByCountDistinct Select
+        QueryBuilder("private").select(["A"]).count_distinct(),
         GroupByCountDistinct(
             child=Select(child=PrivateSource("private"), columns=["A"]),
             groupby_keys=KeySet.from_dict({}),
@@ -301,6 +408,14 @@ EVALUATE_TESTS = [
         pd.DataFrame({"count_distinct": [2]}),
     ),
     (  # GroupByCount Map
+        QueryBuilder("private")
+        .map(
+            f=lambda row: {"C": 2 * str(row["B"])},
+            new_column_types={"C": ColumnType.VARCHAR},
+            augment=True,
+        )
+        .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
+        .count(),
         GroupByCount(
             child=Map(
                 child=PrivateSource("private"),
@@ -316,6 +431,14 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # GroupByCountDistinct Map
+        QueryBuilder("private")
+        .map(
+            f=lambda row: {"C": 2 * str(row["B"])},
+            new_column_types={"C": ColumnType.VARCHAR},
+            augment=True,
+        )
+        .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
+        .count_distinct(),
         GroupByCountDistinct(
             child=Map(
                 child=PrivateSource("private"),
@@ -331,6 +454,10 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # GroupByCount JoinPublic
+        QueryBuilder("private")
+        .join_public("public")
+        .groupby(KeySet.from_dict({"A+B": [0, 1, 2]}))
+        .count(),
         GroupByCount(
             child=JoinPublic(child=PrivateSource("private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
@@ -338,17 +465,48 @@ EVALUATE_TESTS = [
         pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]}),
     ),
     (  # GroupByCountDistinct JoinPublic
+        QueryBuilder("private")
+        .join_public("public")
+        .groupby(KeySet.from_dict({"A+B": [0, 1, 2]}))
+        .count_distinct(),
         GroupByCountDistinct(
             child=JoinPublic(child=PrivateSource("private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count_distinct": [3, 4, 1]}),
     ),
+    (  # GroupByCount with dates as groupby keys
+        QueryBuilder("private")
+        .join_public("join_dtypes")
+        .groupby(KeySet.from_dict({"DATE": [_DATE1, _DATE2]}))
+        .count(),
+        GroupByCount(
+            child=JoinPublic(
+                child=PrivateSource("private"), public_table="join_dtypes"
+            ),
+            groupby_keys=KeySet.from_dict({"DATE": [_DATE1, _DATE2]}),
+        ),
+        pd.DataFrame({"DATE": [_DATE1, _DATE2], "count": [3, 1]}),
+    ),
+    (  # GroupByCountDistinct checking distinctness of dates
+        QueryBuilder("private")
+        .join_public("join_dtypes")
+        .count_distinct(cols=["DATE"]),
+        GroupByCountDistinct(
+            child=JoinPublic(
+                child=PrivateSource("private"), public_table="join_dtypes"
+            ),
+            columns_to_count=["DATE"],
+            output_column="count_distinct(DATE)",
+            groupby_keys=KeySet.from_dict({}),
+        ),
+        pd.DataFrame({"count_distinct(DATE)": [2]}),
+    ),
 ]
 
 
 class TestEvaluate(PySparkTest):
-    """Unit tests for evaluate."""
+    """Tests for evaluate."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -360,6 +518,12 @@ class TestEvaluate(PySparkTest):
         )
         self.join_df = self.spark.createDataFrame(
             pd.DataFrame([["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "A+B"])
+        )
+        self.join_dtypes_df = self.spark.createDataFrame(
+            pd.DataFrame(
+                [[0, _DATE1], [1, _DATE1], [2, _DATE1], [3, _DATE2]],
+                columns=["X", "DATE"],
+            )
         )
         self.groupby_two_columns_df = self.spark.createDataFrame(
             pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
@@ -402,20 +566,29 @@ class TestEvaluate(PySparkTest):
 
     @parameterized.expand(EVALUATE_TESTS)
     def test_queries_privacy_budget_infinity_puredp(
-        self, query_expr: QueryExpr, expected_df: pd.DataFrame
+        self,
+        query_expr: QueryExpr,
+        expected_expr: Optional[QueryExpr],
+        expected_df: pd.DataFrame,
     ):
         """Session :func:`evaluate` returns the correct results for eps=inf and PureDP.
 
         Args:
             query_expr: The query to evaluate.
+            expected_expr: Expected value for query_expr.
             expected_df: The expected answer.
         """
+        if expected_expr is not None:
+            self.assertEqual(query_expr, expected_expr)
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
         )
         session.add_public_dataframe(source_id="public", dataframe=self.join_df)
+        session.add_public_dataframe(
+            source_id="join_dtypes", dataframe=self.join_dtypes_df
+        )
         session.add_public_dataframe(
             source_id="groupby_two_columns", dataframe=self.groupby_two_columns_df
         )
@@ -438,6 +611,9 @@ class TestEvaluate(PySparkTest):
         EVALUATE_TESTS
         + [
             (  # Total with GAUSSIAN
+                QueryBuilder("private").count(
+                    name="total", mechanism=CountMechanism.GAUSSIAN
+                ),
                 GroupByCount(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
@@ -447,6 +623,9 @@ class TestEvaluate(PySparkTest):
                 pd.DataFrame({"total": [4]}),
             ),
             (  # BoundedSTDEV on integer valued measure column with GAUSSIAN
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+                .stdev(column="B", low=0, high=1, mechanism=StdevMechanism.GAUSSIAN),
                 GroupByBoundedSTDEV(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
@@ -454,26 +633,36 @@ class TestEvaluate(PySparkTest):
                     low=0,
                     high=1,
                     mechanism=StdevMechanism.GAUSSIAN,
+                    output_column="B_stdev",
                 ),
-                pd.DataFrame({"A": ["0", "1"], "stdev": [0.471405, 0.0]}),
+                pd.DataFrame({"A": ["0", "1"], "B_stdev": [0.471405, 0.0]}),
             ),
         ]
     )
     def test_queries_privacy_budget_infinity_rhozcdp(
-        self, query_expr: QueryExpr, expected_df: pd.DataFrame
+        self,
+        query_expr: QueryExpr,
+        expected_expr: Optional[QueryExpr],
+        expected_df: pd.DataFrame,
     ):
         """Session :func:`evaluate` returns the correct results for eps=inf and RhoZCDP.
 
         Args:
             query_expr: The query to evaluate.
+            expected_expr: What to expect query_expr to be.
             expected_df: The expected answer.
         """
+        if expected_expr is not None:
+            self.assertEqual(query_expr, expected_expr)
         session = Session.from_dataframe(
             privacy_budget=RhoZCDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
         )
         session.add_public_dataframe(source_id="public", dataframe=self.join_df)
+        session.add_public_dataframe(
+            source_id="join_dtypes", dataframe=self.join_dtypes_df
+        )
         session.add_public_dataframe(
             source_id="groupby_two_columns", dataframe=self.groupby_two_columns_df
         )
@@ -837,6 +1026,124 @@ class TestEvaluate(PySparkTest):
         )
         session4.evaluate(query_expr=query, privacy_budget=final_evaluate_budget)
 
+    @parameterized.expand(
+        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))]
+    )
+    def test_partition_execution_order(
+        self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
+    ):
+        """Tests behavior using :func:`partition_and_create` sessions out of order."""
+        session1 = Session.from_dataframe(
+            privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
+        )
+
+        sessions = session1.partition_and_create(
+            source_id="private",
+            privacy_budget=partition_budget,
+            attr_name="A",
+            splits={"private0": "0", "private1": "1"},
+        )
+        session2 = sessions["private0"]
+        session3 = sessions["private1"]
+        self.assertEqual(session1.remaining_privacy_budget, partition_budget)
+        self.assertEqual(session2.remaining_privacy_budget, partition_budget)
+        self.assertEqual(session2.private_sources, ["private0"])
+        self.assertEqual(
+            session2.get_schema("private0"),
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+        )
+        self.assertEqual(session3.remaining_privacy_budget, partition_budget)
+        self.assertEqual(session3.private_sources, ["private1"])
+        self.assertEqual(
+            session3.get_schema("private1"),
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+        )
+
+        # pylint: disable=protected-access
+        self.assertEqual(
+            session1._accountant.state, PrivacyAccountantState.WAITING_FOR_CHILDREN
+        )
+        self.assertEqual(session2._accountant.state, PrivacyAccountantState.ACTIVE)
+        self.assertEqual(
+            session3._accountant.state, PrivacyAccountantState.WAITING_FOR_SIBLING
+        )
+
+        # This should work, but it should also retire session2
+        select_query3 = Select(columns=["A"], child=PrivateSource(source_id="private1"))
+        session3.create_view(select_query3, "select_view", cache=False)
+        self.assertEqual(session2._accountant.state, PrivacyAccountantState.RETIRED)
+
+        # Now trying to do operations on session2 should raise an error
+        select_query2 = Select(columns=["A"], child=PrivateSource(source_id="private0"))
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session2.create_view(select_query2, "select_view", cache=False)
+
+        # This should work, but it should also retire session3
+        select_query1 = Select(columns=["A"], child=PrivateSource(source_id="private"))
+        session1.create_view(select_query1, "select_view", cache=False)
+        self.assertEqual(session3._accountant.state, PrivacyAccountantState.RETIRED)
+
+        # Now trying to do operations on session3 should raise an error
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "This session is no longer active, and no new queries can be performed",
+        ):
+            session3.create_view(select_query3, "select_view_again", cache=False)
+
+        # pylint: enable=protected-access
+
+    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    def test_partition_on_grouping_column(self, budget: PrivacyBudget):
+        """Tests that you can partition on columns created by grouping flat maps."""
+        session = Session.from_dataframe(
+            privacy_budget=budget, source_id="private", dataframe=self.sdf
+        )
+        grouping_flat_map = QueryBuilder("private").flat_map(
+            f=lambda row: [{"new": 1}, {"new": 2}],
+            max_num_rows=2,
+            new_column_types={"new": ColumnType.INTEGER},
+            augment=True,
+            grouping=True,
+        )
+        session.create_view(grouping_flat_map, "duplicated", cache=False)
+        new_sessions = session.partition_and_create(
+            source_id="duplicated",
+            privacy_budget=budget,
+            attr_name="new",
+            splits={"new1": 1, "new2": 2},
+        )
+        new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
+        new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
+
+    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    def test_partition_on_nongrouping_column(self, budget: PrivacyBudget):
+        """Tests that you can partition on other columns after grouping flat maps."""
+        session = Session.from_dataframe(
+            privacy_budget=budget, source_id="private", dataframe=self.sdf
+        )
+        grouping_flat_map = QueryBuilder("private").flat_map(
+            f=lambda row: [{"new": 1}, {"new": 2}],
+            max_num_rows=2,
+            new_column_types={"new": ColumnType.INTEGER},
+            augment=True,
+            grouping=True,
+        )
+        session.create_view(grouping_flat_map, "duplicated", cache=False)
+        new_sessions = session.partition_and_create(
+            source_id="duplicated",
+            privacy_budget=budget,
+            attr_name="A",
+            splits={"zero": "0", "one": "1"},
+        )
+        keys = KeySet.from_dict({"new": [1, 2]})
+        new_sessions["zero"].evaluate(
+            QueryBuilder("zero").groupby(keys).count(), budget
+        )
+        new_sessions["one"].evaluate(QueryBuilder("one").groupby(keys).count(), budget)
+
     @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
     def test_create_view_composed(self, budget: PrivacyBudget):
         """Composing views with :func:`create_view` works."""
@@ -947,9 +1254,50 @@ class TestEvaluate(PySparkTest):
         expected = pd.DataFrame({"sum": [9]})
         self.assert_frame_equal_with_sort(answer, expected)
 
+    def test_caching(self):
+        """Tests that caching works as expected."""
+        # pylint: disable=protected-access
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(float("inf")),
+            source_id="private",
+            dataframe=self.sdf,
+        )
+        view1_query = QueryBuilder("private").filter("B = 0")
+        view2_query = QueryBuilder("private").join_public(self.join_df)
+        session.create_view(view1_query, "view1", cache=True)
+        session.create_view(view2_query, "view2", cache=True)
+        # Views have been created, but are lazy - nothing in cache yet
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 0
+        )
+        # Evaluate a query on view1
+        session.evaluate(QueryBuilder("view1").count(), privacy_budget=PureDPBudget(1))
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
+        )
+        # Evaluate another query on view1
+        session.evaluate(QueryBuilder("view1").count(), privacy_budget=PureDPBudget(1))
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
+        )
+        # Evaluate a query on view2
+        session.evaluate(QueryBuilder("view2").count(), privacy_budget=PureDPBudget(1))
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 2
+        )
+        # Delete views
+        session.delete_view("view1")
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
+        )
+        session.delete_view("view2")
+        self.assertEqual(
+            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 0
+        )
+
 
 class TestInvalidSession(PySparkTest):
-    """Unit tests for invalid session."""
+    """Tests for invalid session."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -994,22 +1342,22 @@ class TestInvalidSession(PySparkTest):
             )
         ]
     )
-    @patch("tmlt.analytics.session.AdaptiveCompositionQueryable")
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_invalid_queries_evaluate(
         self,
         query_expr: QueryExpr,
         error_type: Type[Exception],
         expected_error_msg: str,
-        mock_queryable,
+        mock_accountant,
     ):
         """evaluate raises error on invalid queries."""
-        mock_queryable.output_measure = PureDP()
-        mock_queryable.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_queryable.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_queryable.d_in = {"private": ExactNumber(1)}
-        mock_queryable.remaining_budget = ExactNumber(float("inf"))
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
+        mock_accountant.d_in = {"private": ExactNumber(1)}
+        mock_accountant.privacy_budget = ExactNumber(float("inf"))
 
-        session = Session(queryable=mock_queryable, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources=dict())
         session.create_view(PrivateSource("private"), "view", cache=False)
         with self.assertRaisesRegex(error_type, expected_error_msg):
             session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
@@ -1039,14 +1387,16 @@ class TestInvalidSession(PySparkTest):
         )
         with self.assertRaisesRegex(
             RuntimeError,
-            "Cannot answer measurement without exceeding maximum privacy loss: "
-            "it needs 2, but the remaining budget is 1",
+            "Cannot answer query without exceeding privacy budget: "
+            "it needs approximately 2.000, but the remaining budget is "
+            r"approximately 1.000 \(difference: 1.000e\+00\)",
         ):
             session.evaluate(query_expr, privacy_budget=two_budget)
         with self.assertRaisesRegex(
             RuntimeError,
-            "Cannot answer measurement without exceeding maximum privacy loss: "
-            "it needs 2, but the remaining budget is 1",
+            "Cannot perform this partition without exceeding privacy budget: "
+            "it needs approximately 2.000, but the remaining budget is approximately "
+            r"1.000 \(difference: 1.000e\+00\)",
         ):
             session.partition_and_create(
                 "private",

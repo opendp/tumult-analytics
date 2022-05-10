@@ -12,11 +12,13 @@
    {{ obj.docstring|prepare_docstring|indent(3) }}
    {% endif %}
 
+   {% set is_exception = obj.type is equalto ("exception") %}
    {% set visible_classes = obj.classes|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set visible_attributes = obj.attributes|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set visible_methods = obj.methods|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set num_visible_items = visible_classes|length + visible_attributes|length + visible_methods|length %}
 
+   {% if not is_exception %}
    {% if num_visible_items > 10 %}
    {% if visible_classes %}
    .. list-table:: Classes
@@ -61,4 +63,5 @@
    {% for method in visible_methods %}
    {{ method.rendered|indent(3) }}
    {% endfor %}
+{% endif %}
 {% endif %}

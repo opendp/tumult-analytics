@@ -9,8 +9,9 @@ from parameterized import parameterized
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import Schema
+from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics.query_builder import ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import (
     Filter,
     FlatMap,
@@ -347,6 +348,44 @@ class TestTransformations(PySparkTest):
             flat_map_expr.schema_new_columns,
             Schema({"C": "VARCHAR"}, grouping_column="C"),
         )
+
+    def test_bin_column(self):
+        """QueryBuilder.bin_column works as expected."""
+        spec = BinningSpec([0, 5, 10])
+        query = self.root_builder.bin_column("A", spec).count()
+        assert isinstance(query, GroupByCount)
+        map_expr = query.child
+        assert isinstance(map_expr, Map)
+        self.assertEqual(
+            map_expr.schema_new_columns, Schema({"A_binned": ColumnType.VARCHAR})
+        )
+        self.assertTrue(map_expr.augment)
+        root_expr = map_expr.child
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        # Verify the behavior of the map function, since there's no direct way
+        # to check if it's the right one.
+        self.assertEqual(getattr(map_expr, "f")({"A": 3}), {"A_binned": "[0, 5]"})
+        self.assertEqual(getattr(map_expr, "f")({"A": 7}), {"A_binned": "(5, 10]"})
+
+    def test_bin_column_options(self):
+        """QueryBuilder.bin_column works as expected with options."""
+        spec = BinningSpec([0.0, 1.0, 2.0], names=[0, 1])
+        query = self.root_builder.bin_column("A", spec, name="rounded").count()
+        assert isinstance(query, GroupByCount)
+        map_expr = query.child
+        assert isinstance(map_expr, Map)
+        self.assertEqual(
+            map_expr.schema_new_columns, Schema({"rounded": ColumnType.INTEGER})
+        )
+        self.assertTrue(map_expr.augment)
+        root_expr = map_expr.child
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        self.assertEqual(getattr(map_expr, "f")({"A": 0.5}), {"rounded": 0})
+        self.assertEqual(getattr(map_expr, "f")({"A": 1.5}), {"rounded": 1})
 
 
 class _TestAggregationsData:

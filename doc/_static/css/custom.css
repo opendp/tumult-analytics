@@ -4,3 +4,23 @@ caption {
     font-weight: bold;
     color: rgba(var(--pst-color-paragraph),1);
 }
+
+/* Makes the image on each card in the intro smaller. */
+.intro-card .card-img-top {
+    max-width: 50%;
+    padding: 20px;
+    margin: auto;
+}
+
+/* Removes some of the empty space at the bottom of each intro card. */
+.intro-card .card-body {
+    padding-bottom: 0;
+}
+.intro-card .card-body .card-text {
+    margin-bottom: 0;
+}
+
+/* Reduces the space around tab labels. */
+.tabbed-set > label {
+    padding: 0.5em 0.8em;
+}

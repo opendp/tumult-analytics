@@ -62,6 +62,8 @@ Modules
 {% set visible_data = visible_children|selectattr("type", "equalto", "data")|list %}
 {% set visible_functions = visible_children|selectattr("type", "equalto", "function")|list %}
 {% set visible_classes = visible_children|selectattr("type", "equalto", "class")|list %}
+{% set visible_exceptions = visible_children|selectattr("type", "equalto", "exception")|list %}
+
 
 
 {% if visible_data %}
@@ -120,5 +122,24 @@ Classes
 {% endfor %}
 {% endif %}
 
+{% if visible_exceptions %}
+Exceptions
+==========
+
+{% if visible_exceptions|length >= 3 %}
+.. list-table::
+
+   {% for obj_item in visible_exceptions %}
+   * - :exc:`.{{ obj_item.short_name }}`
+     - {{ obj_item.summary }}
+   {% endfor %}
 {% endif %}
+
+{% for obj_item in visible_exceptions %}
+   {{ obj_item.rendered|indent(0) }}
+{% endfor %}
+{% endif %}
+
+{% endif %}
+
 {% endblock %}

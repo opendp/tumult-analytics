@@ -2,25 +2,95 @@
 
 # <placeholder: boilerplate>
 
+import datetime
 from typing import Dict, List, Union
+from unittest import TestCase
 
 import pandas as pd
 from parameterized import parameterized
 from pyspark.sql import Column
 from pyspark.sql.types import (
     DataType,
-    DoubleType,
+    DateType,
     FloatType,
     IntegerType,
     LongType,
     StringType,
     StructField,
     StructType,
+    TimestampType,
 )
 
 from tmlt.analytics._schema import ColumnType, Schema
-from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
 from tmlt.core.utils.testing import PySparkTest
+
+
+class TestCheckSchema(TestCase):
+    """Tests for functions that check KeySet schemas."""
+
+    @parameterized.expand(
+        [
+            (StructType([StructField("A", LongType(), False)]),),
+            (
+                StructType(
+                    [
+                        StructField("A", LongType(), False),
+                        StructField("B", DateType(), False),
+                        StructField("C", StringType(), False),
+                    ]
+                ),
+            ),
+        ]
+    )
+    def test_check_df_schema_valid(self, types: StructType):
+        """_check_df_schema does not raise an exception on valid inputs."""
+        # pylint: disable=no-self-use
+        _check_df_schema(types)
+
+    @parameterized.expand(
+        [
+            (
+                StructType([StructField("A", FloatType(), False)]),
+                "Column A has type FloatType, which is not allowed in KeySets",
+            ),
+            (
+                StructType(
+                    [
+                        StructField("A", LongType(), False),
+                        StructField("B", TimestampType(), False),
+                    ]
+                ),
+                "Column B has type TimestampType, which is not allowed in KeySets",
+            ),
+        ]
+    )
+    def test_check_df_schema_invalid(self, types: StructType, expected_err_msg: str):
+        """_check_df_schema raises an appropriate exception on invalid inputs."""
+        with self.assertRaisesRegex(ValueError, expected_err_msg):
+            _check_df_schema(types)
+
+    @parameterized.expand([({"A": int},), ({"A": int, "B": str, "C": datetime.date},)])
+    def test_check_dict_schema_valid(self, types: Dict[str, type]):
+        """_check_dict_schema does not raise an exception on valid inputs."""
+        # pylint: disable=no-self-use
+        _check_dict_schema(types)
+
+    @parameterized.expand(
+        [
+            ({"A": float}, "Column A has type float, which is not allowed in KeySets"),
+            (
+                {"A": int, "B": datetime.datetime},
+                "Column B has type datetime, which is not allowed in KeySets",
+            ),
+        ]
+    )
+    def test_check_dict_schema_invalid(
+        self, types: Dict[str, type], expected_err_msg: str
+    ):
+        """_check_dict_schema raises an appropriate exception on invalid inputs."""
+        with self.assertRaisesRegex(ValueError, expected_err_msg):
+            _check_dict_schema(types)
 
 
 class TestKeySet(PySparkTest):
@@ -41,25 +111,37 @@ class TestKeySet(PySparkTest):
         [
             ({"A": ["a1", "a2"]}, pd.DataFrame({"A": ["a1", "a2"]})),
             (
-                {"A": ["a1", "a2"], "B": [0, 1, 2, 3], "C": ["c0"]},
+                {
+                    "A": ["a1", "a2"],
+                    "B": [0, 1, 2, 3],
+                    "C": ["c0"],
+                    "D": [datetime.date.fromordinal(1)],
+                },
                 pd.DataFrame(
                     [
-                        ["a1", 0, "c0"],
-                        ["a1", 1, "c0"],
-                        ["a1", 2, "c0"],
-                        ["a1", 3, "c0"],
-                        ["a2", 0, "c0"],
-                        ["a2", 1, "c0"],
-                        ["a2", 2, "c0"],
-                        ["a2", 3, "c0"],
+                        ["a1", 0, "c0", datetime.date.fromordinal(1)],
+                        ["a1", 1, "c0", datetime.date.fromordinal(1)],
+                        ["a1", 2, "c0", datetime.date.fromordinal(1)],
+                        ["a1", 3, "c0", datetime.date.fromordinal(1)],
+                        ["a2", 0, "c0", datetime.date.fromordinal(1)],
+                        ["a2", 1, "c0", datetime.date.fromordinal(1)],
+                        ["a2", 2, "c0", datetime.date.fromordinal(1)],
+                        ["a2", 3, "c0", datetime.date.fromordinal(1)],
                     ],
-                    columns=["A", "B", "C"],
+                    columns=["A", "B", "C", "D"],
                 ),
+            ),
+            ({"A": [0, 1, 2, 0]}, pd.DataFrame({"A": [0, 1, 2]})),
+            (
+                {"A": [0, 1], "B": [7, 8, 9, 7]},
+                pd.DataFrame({"A": [0, 0, 0, 1, 1, 1], "B": [7, 8, 9, 7, 8, 9]}),
             ),
         ]
     )
     def test_from_dict(
-        self, d: Dict[str, Union[List[str], List[int]]], expected_df: pd.DataFrame
+        self,
+        d: Dict[str, Union[List[str], List[int], List[datetime.date]]],
+        expected_df: pd.DataFrame,
     ) -> None:
         """Test KeySet.from_dict works"""
         keyset = KeySet.from_dict(d)
@@ -75,10 +157,28 @@ class TestKeySet(PySparkTest):
         ]
     )
     def test_from_dict_empty_list(
-        self, d: Dict[str, Union[List[str], List[int]]]
+        self, d: Dict[str, Union[List[str], List[int], List[datetime.date]]]
     ) -> None:
         """Test that calls like `KeySet.from_dict({'A': []})` raise a friendly error."""
         with self.assertRaises(ValueError):
+            KeySet.from_dict(d)
+
+    @parameterized.expand(
+        [
+            ({"A": [3.1]}, "Column A has type float, which is not allowed in KeySets"),
+            (
+                {"A": [3.1], "B": [datetime.datetime.now()]},
+                "Column A has type float, which is not allowed in KeySets",
+            ),
+            (
+                {"A": [3], "B": [datetime.datetime.now()]},
+                "Column B has type datetime, which is not allowed in KeySets",
+            ),
+        ]
+    )
+    def test_from_dict_invalid_types(self, d: Dict[str, List], expected_err_msg: str):
+        """KeySet.from_dict raises an appropriate exception on invalid inputs."""
+        with self.assertRaisesRegex(ValueError, expected_err_msg):
             KeySet.from_dict(d)
 
     @parameterized.expand(
@@ -88,9 +188,49 @@ class TestKeySet(PySparkTest):
         ]
     )
     def test_from_dataframe(self, df_in: pd.DataFrame) -> None:
-        """Test KeySet.from_dataframe works"""
-        keyset = KeySet(self.spark.createDataFrame(df_in))
+        """Test KeySet.from_dataframe works."""
+        keyset = KeySet.from_dataframe(self.spark.createDataFrame(df_in))
         self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
+
+    @parameterized.expand(
+        [
+            (pd.DataFrame({"A": [0, 1, 2, 3, 0]}), pd.DataFrame({"A": [0, 1, 2, 3]})),
+            (
+                pd.DataFrame({"A": [0, 1, 0, 1, 0], "B": [0, 0, 1, 1, 1]}),
+                pd.DataFrame({"A": [0, 1, 0, 1], "B": [0, 0, 1, 1]}),
+            ),
+        ]
+    )
+    def test_from_dataframe_nonunique(
+        self, df: pd.DataFrame, expected_df: pd.DataFrame
+    ):
+        """Test KeySet.from_dataframe works on a dataframe with duplicate rows."""
+        keyset = KeySet.from_dataframe(self.spark.createDataFrame(df))
+        self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame({"A": [3.1]}),
+                "Column A has type DoubleType, which is not allowed in KeySets",
+            ),
+            (
+                pd.DataFrame({"A": [3.1], "B": [datetime.datetime.now()]}),
+                "Column A has type DoubleType, which is not allowed in KeySets",
+            ),
+            (
+                pd.DataFrame({"A": [3], "B": [datetime.datetime.now()]}),
+                "Column B has type TimestampType, which is not allowed in KeySets",
+            ),
+        ]
+    )
+    def test_from_dataframe_invalid_types(
+        self, df: pd.DataFrame, expected_err_msg: str
+    ):
+        """KeySet.from_dataframe raises an appropriate exception on invalid inputs."""
+        sdf = self.spark.createDataFrame(df)
+        with self.assertRaisesRegex(ValueError, expected_err_msg):
+            KeySet.from_dataframe(sdf)
 
     @parameterized.expand(
         [
@@ -127,14 +267,9 @@ class TestKeySet(PySparkTest):
     @parameterized.expand(
         [
             (
-                pd.DataFrame({"A": [0, 1], "B": [0.1, 0.2]}),
-                StructType(
-                    [
-                        StructField("A", IntegerType(), True),
-                        StructField("B", FloatType(), True),
-                    ]
-                ),
-                {"A": LongType(), "B": DoubleType()},
+                pd.DataFrame({"A": [0, 1]}),
+                StructType([StructField("A", IntegerType(), True)]),
+                {"A": LongType()},
             ),
             (
                 pd.DataFrame({"A": ["abc", "def"], "B": [2147483649, -42]}),
@@ -172,14 +307,15 @@ class TestKeySet(PySparkTest):
                     "A": [123, 456, 789],
                     "B": [2147483649, -1000000],
                     "X": ["abc", "def"],
+                    "Y": [datetime.date.fromordinal(1)],
                 },
-                {"A": LongType(), "B": LongType(), "X": StringType()},
+                {"A": LongType(), "B": LongType(), "X": StringType(), "Y": DateType()},
             ),
         ]
     )
     def test_type_coercion_from_dict(
         self,
-        d_in: Dict[str, Union[List[str], List[int]]],
+        d_in: Dict[str, Union[List[str], List[int], List[datetime.date]]],
         expected_schema: Dict[str, DataType],
     ) -> None:
         """Test KeySet correctly coerces types when created with `from_dict`."""

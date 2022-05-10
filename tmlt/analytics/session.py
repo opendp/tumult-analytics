@@ -13,6 +13,7 @@ can be constructed using :class:`Session.Builder`.
 from csv import DictReader
 from enum import Enum, auto
 from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
@@ -38,33 +39,26 @@ from tmlt.analytics._schema import (
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
-from tmlt.core.domains.collections import DictDomain, ListDomain
+from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.measurements.base import Measurement, Queryable
-from tmlt.core.measurements.composition import (
-    AdaptiveCompositionQueryable,
-    MeasurementQuery,
-    ParallelComposition,
-    TransformationQuery,
-    create_adaptive_composition,
-    unpack_parallel_composition_queryable,
+from tmlt.core.measurements.interactive_measurements import (
+    InactiveAccountantError,
+    InsufficientBudgetError,
+    PrivacyAccountant,
+    PrivacyAccountantState,
+    SequentialComposition,
 )
 from tmlt.core.measures import PureDP, RhoZCDP
-from tmlt.core.metrics import (
-    DictMetric,
-    IfGroupedBy,
-    RootSumOfSquared,
-    SumOf,
-    SymmetricDifference,
-)
-from tmlt.core.transformations.cache import Cache
+from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
 from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
     CreateDictFromValue,
     GetValue,
     Subset,
+    create_transform_value,
 )
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
+from tmlt.core.transformations.spark_transformations.persist import Persist, Unpersist
 from tmlt.core.utils.exact_number import ExactNumber
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
@@ -151,7 +145,7 @@ class Session:
                     for source_id in self._private_sources
                 }
             )
-            queryable = create_adaptive_composition(
+            measurement = SequentialComposition(
                 input_domain=input_domain,
                 input_metric=input_metric,
                 d_in={
@@ -160,9 +154,10 @@ class Session:
                 },
                 privacy_budget=sympy_budget,
                 output_measure=output_measure,
-            )(dataframes)
+            )
+            accountant = PrivacyAccountant.launch(measurement, dataframes)
             return Session(
-                queryable=queryable,
+                accountant=accountant,
                 public_sources=self._public_sources,
                 compiler=compiler,
             )
@@ -331,7 +326,12 @@ class Session:
             self._public_sources[source_id] = dataframe
             return self
 
-    def __init__(self, queryable, public_sources, compiler=None):
+    def __init__(
+        self,
+        accountant: PrivacyAccountant,
+        public_sources: Dict[str, DataFrame],
+        compiler: Optional[QueryExprCompiler] = None,
+    ) -> None:
         """Initializes a DP session from a queryable.
 
         This constructor is not intended to be used directly. Use
@@ -341,30 +341,31 @@ class Session:
         # pylint: disable=pointless-string-statement
         """
         Args documented for internal use.
-            queryable: A privacy framework AdaptiveCompositionQueryable.
+            accountant: A PrivacyAccountant.
             public_sources: The public data for the queries.
                 Provided as a dictionary {source_id: dataframe}
             compiler: Compiles queries into Measurements,
                 which the queryable uses for evaluation.
         """
-        check_type("queryable", queryable, Queryable)
+        check_type("accountant", accountant, PrivacyAccountant)
         check_type("public_sources", public_sources, Dict[str, DataFrame])
         check_type("compiler", compiler, Optional[QueryExprCompiler])
 
-        self._queryable = cast(AdaptiveCompositionQueryable, queryable)
-        if not isinstance(self._queryable.output_measure, (PureDP, RhoZCDP)):
-            raise ValueError("Queryable is not using PureDP or RhoZCDP privacy.")
-        if not isinstance(self._queryable.input_metric, DictMetric):
+        self._accountant = accountant
+        if not isinstance(self._accountant.output_measure, (PureDP, RhoZCDP)):
+            raise ValueError("Accountant is not using PureDP or RhoZCDP privacy.")
+        if not isinstance(self._accountant.input_metric, DictMetric):
             raise ValueError("The input metric to a session must be a DictMetric.")
-        if not isinstance(self._queryable.input_domain, DictDomain):
+        if not isinstance(self._accountant.input_domain, DictDomain):
             raise ValueError("The input domain to a session must be a DictDomain.")
         self._public_sources = public_sources
         if compiler is None:
-            compiler = QueryExprCompiler(output_measure=self._queryable.output_measure)
-        if self._queryable.output_measure != compiler.output_measure:
+            compiler = QueryExprCompiler(output_measure=self._accountant.output_measure)
+        if self._accountant.output_measure != compiler.output_measure:
             raise ValueError(
-                f"Queryable ouptut measure is {self._queryable.output_measure},"
-                f" but compiler output measure is {compiler.output_measure}."
+                "PrivacyAccountant's output measure is"
+                f" {self._accountant.output_measure}, but compiler output measure is"
+                f" {compiler.output_measure}."
             )
         self._compiler = compiler
 
@@ -539,9 +540,9 @@ class Session:
         The type of the budget (e.g., PureDP or RhoZCDP) will be the same as
         the type of the budget the Session was initialized with.
         """
-        sympy_budget = self._queryable.remaining_budget.expr
+        sympy_budget = self._accountant.privacy_budget
         budget_value = ExactNumber(sympy_budget).to_float(round_up=False)
-        output_measure = self._queryable.output_measure
+        output_measure = self._accountant.output_measure
         if output_measure == PureDP():
             return PureDPBudget(budget_value)
         if output_measure == RhoZCDP():
@@ -553,31 +554,31 @@ class Session:
     @property
     def _input_domain(self) -> DictDomain:
         """Returns the input domain of the underlying queryable."""
-        if not isinstance(self._queryable.input_domain, DictDomain):
+        if not isinstance(self._accountant.input_domain, DictDomain):
             raise AssertionError(
-                "Queryable's input domain has an incorrect type. This is "
+                "Session accountant's input domain has an incorrect type. This is "
                 "probably a bug; please let us know about it so we can "
                 "fix it!"
             )
-        return cast(DictDomain, self._queryable.input_domain)
+        return cast(DictDomain, self._accountant.input_domain)
 
     @property
     def _input_metric(self) -> DictMetric:
-        """Returns the input metric of the underlying queryable."""
-        if not isinstance(self._queryable.input_metric, DictMetric):
+        """Returns the input metric of the underlying accountant."""
+        if not isinstance(self._accountant.input_metric, DictMetric):
             raise AssertionError(
-                "Queryable's input metric has an incorrect type. This is "
+                "Session accountant's input metric has an incorrect type. This is "
                 "probably a bug; please let us know about it so we can "
                 "fix it!"
             )
-        return cast(DictMetric, self._queryable.input_metric)
+        return cast(DictMetric, self._accountant.input_metric)
 
     @property
     def _stability(self) -> Dict[str, sp.Expr]:
-        """Returns the unmodified stability of the underlying queryable."""
+        """Returns the unmodified stability of the underlying PrivacyAccountant."""
         return {
             source_id: ExactNumber(d_in_i).expr
-            for source_id, d_in_i in self._queryable.d_in.items()
+            for source_id, d_in_i in self._accountant.d_in.items()
         }
 
     @typechecked
@@ -856,6 +857,7 @@ class Session:
         """  # pylint: disable=line-too-long
         check_type("query_expr", query_expr, QueryExpr)
         check_type("privacy_budget", privacy_budget, PrivacyBudget)
+        self._activate_accountant()
 
         self._validate_budget_type_matches_session(privacy_budget)
         if privacy_budget == PureDPBudget(0) or privacy_budget == RhoZCDPBudget(0):
@@ -873,12 +875,29 @@ class Session:
             catalog=self._catalog,
         )
         try:
-            if not measurement.privacy_relation(self._queryable.d_in, adjusted_budget):
+            if not measurement.privacy_relation(self._accountant.d_in, adjusted_budget):
                 raise ValueError(
                     "With these inputs and this privacy budget, "
                     "similar inputs will *not* produce similar outputs. "
                 )
-            answers = self._queryable(MeasurementQuery(measurement, adjusted_budget))
+            try:
+                answers = self._accountant.measure(measurement, d_out=adjusted_budget)
+            except InsufficientBudgetError:
+                approx_budget_needed = adjusted_budget.to_float(round_up=True)
+                approx_budget_left = self._accountant.privacy_budget.to_float(
+                    round_up=False
+                )
+                approx_diff = abs(
+                    (self._accountant.privacy_budget - adjusted_budget).to_float(
+                        round_up=True
+                    )
+                )
+                raise RuntimeError(
+                    "Cannot answer query without exceeding privacy budget: it needs"
+                    f" approximately {approx_budget_needed:.3f}, but the remaining"
+                    f" budget is approximately {approx_budget_left:.3f} (difference:"
+                    f" {approx_diff:.3e})"
+                )
             if len(answers) != 1:
                 raise AssertionError(
                     "Expected exactly one answer, but got "
@@ -887,15 +906,13 @@ class Session:
                     "we can fix it!"
                 )
             return answers[0]
-        except RuntimeError as re:
-            if str(re).startswith("The specified queryable") and str(re).endswith(
-                "is no longer active"
-            ):
-                raise RuntimeError(
-                    "This session is dead because another session has used privacy "
-                    "budget, please use an active session."
-                )
-            raise re
+        except InactiveAccountantError:
+            raise RuntimeError(
+                "This session is no longer active. Either it was manually stopped"
+                "with session.stop(), or it was stopped indirectly by the "
+                "activity of other sessions. See partition_and_create "
+                "for more information."
+            )
 
     @typechecked
     def create_view(
@@ -961,6 +978,7 @@ class Session:
             cache: Whether or not to cache the view.
         """
         _assert_is_identifier(source_id)
+        self._activate_accountant()
         if source_id in self._input_domain.key_to_domain:
             raise ValueError(f"ID {source_id} already exists.")
 
@@ -977,20 +995,22 @@ class Session:
             catalog=self._catalog,
         )
         if cache:
-            transformation = Cache(transformation)
+            transformation = transformation | Persist(
+                domain=cast(SparkDataFrameDomain, transformation.output_domain),
+                metric=transformation.output_metric,
+            )
 
-        dict_transformation = Cache(
-            AugmentDictTransformation(
-                transformation
-                | CreateDictFromValue(
-                    input_domain=transformation.output_domain,
-                    input_metric=transformation.output_metric,
-                    key=source_id,
-                )
+        dict_transformation = AugmentDictTransformation(
+            transformation
+            | CreateDictFromValue(
+                input_domain=transformation.output_domain,
+                input_metric=transformation.output_metric,
+                key=source_id,
             )
         )
 
-        self._queryable(TransformationQuery(dict_transformation))
+        # This is a transform-in-place against the privacy accountant
+        self._accountant.transform_in_place(dict_transformation)
 
     def delete_view(self, source_id: str):
         """Deletes a view and decaches it if it was cached.
@@ -1000,15 +1020,29 @@ class Session:
         """
         if source_id not in self._input_domain.key_to_domain:
             raise ValueError(f"ID {source_id} does not exist.")
-        transformation = Cache(
-            Subset(
-                input_domain=self._input_domain,
-                input_metric=self._input_metric,
-                keys=list(set(self._input_domain.key_to_domain.keys()) - {source_id}),
-            )
+        self._activate_accountant()
+
+        # Unpersist does nothing if the DataFrame isn't persisted
+        domain = cast(SparkDataFrameDomain, self._input_domain.key_to_domain[source_id])
+        metric = self._input_metric.key_to_metric[source_id]
+        unpersist_source = create_transform_value(
+            input_domain=cast(DictDomain, self._accountant.input_domain),
+            input_metric=cast(DictMetric, self._accountant.input_metric),
+            key=source_id,
+            transformation=Unpersist(domain, metric),
+            hint=lambda d_in, _: d_in,
         )
-        d_out = {k: v for k, v in self._queryable.d_in.items() if k != source_id}
-        self._queryable(TransformationQuery(transformation, d_out))
+        self._accountant.transform_in_place(
+            unpersist_source, d_out=self._accountant.d_in
+        )
+
+        transformation = Subset(
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            keys=list(set(self._input_domain.key_to_domain.keys()) - {source_id}),
+        )
+        d_out = {k: v for k, v in self._accountant.d_in.items() if k != source_id}
+        self._accountant.transform_in_place(transformation, d_out)
 
     @typechecked
     def partition_and_create(
@@ -1024,6 +1058,9 @@ class Session:
         initialized with (i.e., you cannot use a RhoZCDPBudget to partition your
         Session if the Session was created using a PureDPBudget, and vice versa).
 
+        The sessions returned must be used in the order that they were created.
+        Using this session again or calling stop() will stop all partition sessions.
+
         ..
             >>> # Get data
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1038,6 +1075,8 @@ class Session:
             ...     source_id="my_private_data",
             ...     dataframe=data,
             ... )
+            >>> import doctest
+            >>> doctest.ELLIPSIS_MARKER = '...'
 
         Example:
             This example partitions the session into two sessions, one with A = "0" and
@@ -1073,6 +1112,21 @@ class Session:
             >>> new_sessions["part1"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
 
+            When you are done with a new session, you can use the
+            :meth:`~Session.stop` method to allow the next one to become active:
+
+            >>> new_sessions["part0"].stop()
+            >>> new_sessions["part1"].private_sources
+            ['part1']
+            >>> count_query = QueryBuilder("part1").count()
+            >>> count_answer = new_sessions["part1"].evaluate(
+            ...     count_query,
+            ...     PureDPBudget(0.75),
+            ... )
+            >>> count_answer.toPandas() # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+               count
+            0    ...
+
         Args:
             source_id: The private source to partition.
             privacy_budget: Amount of privacy budget to pass to each new session.
@@ -1081,14 +1135,15 @@ class Session:
                 Split name is `source_id` in new session.
         """
         self._validate_budget_type_matches_session(privacy_budget)
+        self._activate_accountant()
 
         transformation = GetValue(
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             key=source_id,
         )
-        d_mid = self._queryable.d_in[source_id]
-        if not transformation.stability_relation(self._queryable.d_in, d_mid):
+        d_mid = self._accountant.d_in[source_id]
+        if not transformation.stability_relation(self._accountant.d_in, d_mid):
             raise ValueError(
                 "This partition is unstable: close inputs will not produce "
                 "close outputs."
@@ -1131,20 +1186,23 @@ class Session:
                 )
             new_sources.append(split_name)
             split_vals.append((split_val,))
-
+        element_metric: Union[IfGroupedBy, SymmetricDifference]
+        if (
+            isinstance(transformation.output_metric, IfGroupedBy)
+            and attr_name != transformation.output_metric.column
+        ):
+            element_metric = transformation.output_metric
+        else:
+            element_metric = SymmetricDifference()
         partition_transformation = PartitionByKeys(
             input_domain=transformation_domain,
             input_metric=transformation.output_metric,
-            output_metric=(
-                RootSumOfSquared(transformation.output_metric)
-                if isinstance(self._compiler.output_measure, RhoZCDP)
-                else SumOf(transformation.output_metric)
-            ),
+            use_l2=isinstance(self._compiler.output_measure, RhoZCDP),
             keys=[attr_name],
             list_values=split_vals,
         )
         chained_partition = transformation | partition_transformation
-        if transformation.stability_function(self._queryable.d_in) != d_mid:
+        if transformation.stability_function(self._accountant.d_in) != d_mid:
             raise AssertionError(
                 "Transformation's stability function does not match "
                 "transformed data. This is probably a bug; let us "
@@ -1153,62 +1211,48 @@ class Session:
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
-        adaptive_compositions: List[Measurement] = list()
-        for source in new_sources:
+        try:
+            new_accountants = self._accountant.split(
+                chained_partition, privacy_budget=adjusted_budget
+            )
+        except InactiveAccountantError:
+            raise RuntimeError(
+                "This session is no longer active. Either it was manually stopped"
+                "with session.stop(), or it was stopped indirectly by the "
+                "activity of other sessions. See partition_and_create "
+                "for more information."
+            )
+        except InsufficientBudgetError:
+            approx_budget_needed = adjusted_budget.to_float(round_up=True)
+            approx_budget_left = self._accountant.privacy_budget.to_float(
+                round_up=False
+            )
+            approx_diff = abs(
+                (self._accountant.privacy_budget - adjusted_budget).to_float(
+                    round_up=True
+                )
+            )
+            raise RuntimeError(
+                "Cannot perform this partition without exceeding privacy budget: it"
+                f" needs approximately {approx_budget_needed:.3f}, but the remaining"
+                f" budget is approximately {approx_budget_left:.3f} (difference:"
+                f" {approx_diff:.3e})"
+            )
+
+        for i, source in enumerate(new_sources):
             dict_transformation_wrapper = CreateDictFromValue(
                 input_domain=transformation_domain,
-                input_metric=transformation.output_metric,
+                input_metric=element_metric,
                 key=source,
             )
-            adaptive_composition = create_adaptive_composition(
-                input_domain=dict_transformation_wrapper.output_domain,
-                input_metric=dict_transformation_wrapper.output_metric,
-                d_in={source: d_mid},
-                privacy_budget=adjusted_budget,
-                output_measure=self._compiler.output_measure,
+            new_accountants[i].queue_transformation(
+                transformation=dict_transformation_wrapper
             )
-            adaptive_compositions.append(
-                dict_transformation_wrapper | adaptive_composition
-            )
-        parallel_composition = ParallelComposition(
-            input_domain=ListDomain(transformation_domain, len(new_sources)),
-            input_metric=(
-                RootSumOfSquared(transformation.output_metric)
-                if isinstance(self._compiler.output_measure, RhoZCDP)
-                else SumOf(transformation.output_metric)
-            ),
-            output_measure=self._compiler.output_measure,
-            measurements=adaptive_compositions,
-        )
 
-        measurement = chained_partition | parallel_composition
-
-        try:
-            if measurement.privacy_function(self._queryable.d_in) != adjusted_budget:
-                raise AssertionError(
-                    "Measurement privacy function does not match adjusted "
-                    "budget. This is probably a bug; please let us know so we "
-                    "can fix it!"
-                )
-            parallel_composition_queryable = self._queryable(
-                MeasurementQuery(measurement)
-            )
-        except RuntimeError as re:
-            if str(re).startswith("The specified queryable") and str(re).endswith(
-                "is no longer active"
-            ):
-                raise RuntimeError(
-                    "This session is dead because another session has used privacy "
-                    "budget, please use an active session."
-                )
-            raise re
-        new_queryables = unpack_parallel_composition_queryable(
-            parallel_composition_queryable
-        )
         new_sessions = dict()
-        for new_queryable, source in zip(new_queryables, new_sources):
+        for new_accountant, source in zip(new_accountants, new_sources):
             new_sessions[source] = Session(
-                new_queryable, self._public_sources, self._compiler
+                new_accountant, self._public_sources, self._compiler
             )
         return new_sessions
 
@@ -1218,7 +1262,7 @@ class Session:
         Args:
             privacy_budget: The requested budget.
         """
-        remaining_budget = self._queryable.remaining_budget
+        remaining_budget = self._accountant.privacy_budget
         if isinstance(privacy_budget, PureDPBudget):
             return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)
         elif isinstance(privacy_budget, RhoZCDPBudget):
@@ -1236,7 +1280,7 @@ class Session:
         Args:
             privacy_budget: The requested budget.
         """
-        output_measure = self._queryable.output_measure
+        output_measure = self._accountant.output_measure
         matches_puredp = isinstance(output_measure, PureDP) and isinstance(
             privacy_budget, PureDPBudget
         )
@@ -1248,6 +1292,30 @@ class Session:
                 "Your requested privacy budget type must match the type of the privacy"
                 " budget your Session was created with."
             )
+
+    def _activate_accountant(self) -> None:
+        if self._accountant.state == PrivacyAccountantState.ACTIVE:
+            return
+        if self._accountant.state == PrivacyAccountantState.RETIRED:
+            raise RuntimeError(
+                "This session is no longer active, and no new queries can be performed"
+            )
+        if self._accountant.state == PrivacyAccountantState.WAITING_FOR_SIBLING:
+            warn(
+                "Activating a session that is waiting for one of its siblings "
+                "to finish may cause unexpected behavior."
+            )
+        if self._accountant.state == PrivacyAccountantState.WAITING_FOR_CHILDREN:
+            warn(
+                "Activating a session that is waiting for its children "
+                "(created with partition_and_create) to finish "
+                "may cause unexpected behavior."
+            )
+        self._accountant.force_activate()
+
+    def stop(self) -> None:
+        """Close out this session, allowing other sessions to become active."""
+        self._accountant.retire()
 
 
 def _assert_is_identifier(source_id: str):

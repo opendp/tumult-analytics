@@ -11,15 +11,46 @@ transformations.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+import datetime
+from typing import Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union
 
 from pyspark.sql import Column, DataFrame
+from pyspark.sql import types as spark_types
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import Schema, spark_schema_to_analytics_columns
 from tmlt.core.transformations.spark_transformations.groupby import (
     compute_full_domain_df,
 )
+from tmlt.core.utils.type_utils import get_element_type
+
+
+def _check_df_schema(types: spark_types.StructType):
+    """Raise an exception if any of the given types are not allowed in a KeySet."""
+    allowed_types = {
+        spark_types.LongType(),
+        spark_types.StringType(),
+        spark_types.DateType(),
+    }
+    for field in types.fields:
+        if field.dataType not in allowed_types:
+            raise ValueError(
+                f"Column {field.name} has type {field.dataType}, which is "
+                "not allowed in KeySets. Allowed column types are: "
+                f"{','.join(str(t) for t in allowed_types)}"
+            )
+
+
+def _check_dict_schema(types: Dict[str, type]):
+    """Raise an exception if any of the given types are not allowed in a KeySet."""
+    allowed_types = {int, str, datetime.date}
+    for (col, dtype) in types.items():
+        if dtype not in allowed_types:
+            raise ValueError(
+                f"Column {col} has type {dtype.__qualname__}, which is "
+                "not allowed in KeySets. Allowed column types are: "
+                f"{','.join(t.__qualname__ for t in allowed_types)}"
+            )
 
 
 class KeySet:
@@ -29,10 +60,13 @@ class KeySet:
         """Construct a new keyset.
 
         The :meth:`from_dict` and :meth:`from_dataframe` methods are preferred
-        over directly using the constructor to create new KeySets.
+        over directly using the constructor to create new KeySets. Directly
+        constructing KeySets skips checks that guarantee the uniqueness of
+        output rows.
         """
         if isinstance(dataframe, DataFrame):
             self._dataframe = coerce_spark_schema_or_fail(dataframe)
+            _check_df_schema(self._dataframe.schema)
         else:
             self._dataframe = dataframe
         # TODO(#1707): Remove this
@@ -41,21 +75,31 @@ class KeySet:
     def dataframe(self) -> DataFrame:
         """Return the dataframe associated with this KeySet.
 
-        This dataframe contains every unique combination of values being
-        selected in the KeySet.
+        This dataframe contains every combination of values being selected in
+        the KeySet, and its rows are guaranteed to be unique as long as the
+        KeySet was constructed safely.
         """
         if callable(self._dataframe):
             self._dataframe = coerce_spark_schema_or_fail(self._dataframe())
+            # Invalid column types should get caught before this, as it keeps
+            # the exception closer to the user code that caused it, but in case
+            # that is missed we check again here.
+            _check_df_schema(self._dataframe.schema)
         return self._dataframe
 
     @classmethod
     def from_dict(
-        cls: Type[KeySet], domains: Dict[str, Union[List[str], List[int]]]
+        cls: Type[KeySet],
+        domains: Mapping[
+            str, Union[Iterable[str], Iterable[int], Iterable[datetime.date]]
+        ],
     ) -> KeySet:
         """Create a KeySet from a dictionary.
 
-        The dictionary should map column names to the desired values for those columns.
-        The KeySet returned is the cross-product of those columns.
+        The ``domains`` dictionary should map column names to the desired values
+        for those columns. The KeySet returned is the cross-product of those
+        columns. Duplicate values in the column domains are allowed, but only
+        one of the duplicates is kept.
 
         Example:
             >>> domains = {
@@ -70,18 +114,25 @@ class KeySet:
             2  a2  b1
             3  a2  b2
         """
+        # Mypy can't propagate the value type through this operation for some
+        # reason -- it thinks the resulting type is Dict[str, List[object]].
+        list_domains: Dict[str, Union[List[str], List[int], List[datetime.date]]] = {
+            c: list(set(d)) for c, d in domains.items()  # type: ignore
+        }
         # compute_full_domain_df throws an IndexError if any list has length 0
-        for v in domains.values():
+        for v in list_domains.values():
             if len(v) == 0:
                 raise ValueError("Every column should have a non-empty list of values.")
-        return KeySet(lambda: compute_full_domain_df(domains))
+        _check_dict_schema({c: get_element_type(d) for c, d in list_domains.items()})
+        return KeySet(lambda: compute_full_domain_df(list_domains))
 
     @classmethod
     def from_dataframe(cls: Type[KeySet], dataframe: DataFrame) -> KeySet:
         """Create a KeySet from a dataframe.
 
-        This DataFrame should contain every unique combination of values being
-        selected in the KeySet.
+        This DataFrame should contain every combination of values being selected
+        in the KeySet. If there are duplicate rows in the dataframe, only one
+        copy of each will be kept.
 
         When creating KeySets with this method, it is the responsibility of the
         caller to ensure that the given dataframe remains valid for the lifetime
@@ -89,7 +140,7 @@ class KeySet:
         Spark session is closed, this method or any uses of the resulting
         dataframe may raise exceptions or have other unanticipated effects.
         """
-        return KeySet(coerce_spark_schema_or_fail(dataframe))
+        return KeySet(coerce_spark_schema_or_fail(dataframe).dropDuplicates())
 
     # TODO(#1707): Remove this
     @classmethod

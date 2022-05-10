@@ -116,7 +116,7 @@ converted to the lower clamping bound. And if a value is too large, it will be
 converted to the upper clamping bound. The following schema illustrates this
 operation.
 
-.. image:: ../../images/clamping_bounds_schema.png
+.. image:: ../images/clamping_bounds_schema.png
     :scale: 100%
     :alt: A schema representing the clamping operation visually: the interval [0, 120] is plotted on a number line, -8 is clamped to 0, while 152 is clamped to 120. The legend reads: "Initial input: [-8, 35, 152], clamped input: [0, 35, 120].
     :align: center
@@ -142,7 +142,7 @@ add more noise to the data.
 
 The following graph illustrates this phenomenon.
 
-.. image:: ../../images/clamping_bounds_averages.png
+.. image:: ../images/clamping_bounds_averages.png
     :scale: 100%
     :alt: A graph plotting many trials of the average computation, with an upper clamping bound of 120, 1200, and 12000. It shows that the results are further away from each other as the clamping bound grows.
     :align: center
@@ -163,7 +163,7 @@ A common first step to make this decision is to look at the most common values
 for this column. The following histogram gives us an idea of the data
 distribution.
 
-.. image:: ../../images/histogram_books_borrowed.png
+.. image:: ../images/histogram_books_borrowed.png
     :scale: 100%
     :alt: A histogram showing the most common values for this column. The x-axis has a log scale, and it shows that most records have a value of 200, but that there are outliers for which the value is more than a thousand.
     :align: center

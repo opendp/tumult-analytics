@@ -6,12 +6,12 @@
 
 import re
 import unittest
-from datetime import datetime
-from typing import Callable, Dict, List, Type
+from typing import Callable, Dict, List, Optional, Type
 
 import pandas as pd
 from parameterized import parameterized
 from pyspark.sql.types import (
+    BinaryType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -19,7 +19,6 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
-    TimestampType,
 )
 
 from tmlt.analytics._schema import Schema
@@ -33,6 +32,7 @@ from tmlt.analytics.query_expr import (
     GroupByBoundedVariance,
     GroupByCount,
     GroupByQuantile,
+    JoinPrivate,
     JoinPublic,
     Map,
     PrivateSource,
@@ -40,6 +40,7 @@ from tmlt.analytics.query_expr import (
     Rename,
     Select,
 )
+from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.utils.testing import PySparkTest
 
 
@@ -185,6 +186,27 @@ class TestInvalidAttributes(unittest.TestCase):
         """Tests that invalid FlatMap errors on post-init."""
         with self.assertRaisesRegex((TypeError, ValueError), expected_error_msg):
             FlatMap(child, func, max_num_rows, schema_new_columns, augment)
+
+    @parameterized.expand(
+        [
+            ([], "Provided join columns must not be empty"),
+            (["A", "A"], "Join columns must be distinct"),
+        ]
+    )
+    def test_invalid_join_columns(
+        self, join_columns: Optional[List[str]], expected_error_msg: str
+    ):
+        """Tests that JoinPrivate, JoinPublic error with invalid join columns."""
+        with self.assertRaisesRegex(ValueError, expected_error_msg):
+            JoinPrivate(
+                PrivateSource("private"),
+                PrivateSource("private2"),
+                TruncationStrategy.DropExcess(1),
+                TruncationStrategy.DropExcess(1),
+                join_columns,
+            )
+        with self.assertRaisesRegex(ValueError, expected_error_msg):
+            JoinPublic(PrivateSource("private"), "public", join_columns)
 
     @parameterized.expand(
         [
@@ -396,14 +418,14 @@ class TestJoinPublicDataframe(PySparkTest):
 
     def test_join_public_dataframe_validation_column_type(self):
         """Unsupported column types are rejected in JoinPublic."""
-        data = [{"date": datetime.now()}]
-        schema = StructType([StructField("date", TimestampType(), False)])
+        data = [{"bytes": b"some bytes"}]
+        schema = StructType([StructField("bytes", BinaryType(), False)])
         df = self.spark.createDataFrame(data, schema)
 
         with self.assertRaisesRegex(ValueError, "^Unsupported Spark data type.*"):
             JoinPublic(PrivateSource("a"), df)
 
-    def test_public_join_dataframe_validation_nullable(self):
+    def test_join_public_dataframe_validation_nullable(self):
         """Columns with null values are rejected in JoinPublic."""
         data = [{"string": None}]
         schema = StructType([StructField("string", StringType(), True)])

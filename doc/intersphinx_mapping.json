@@ -1,0 +1,32 @@
+{
+    "dev": {
+        "core": "dev"
+    },
+    "head": {
+        "core": "head"
+    },
+    "main": {
+        "core": "main"
+    },
+    "tmlt.analytics-0.2.1": {
+        "core": "tmlt.core-0.2.0"
+    },
+    "tmlt.analytics-0.2.1-alpha.1": {
+        "core": "tmlt.core-0.2.0-alpha.1"
+    },
+    "tmlt.analytics-0.2.0": {
+        "core": "tmlt.core-0.1.1"
+    },
+    "tmlt.analytics-0.2.0-alpha.1": {
+        "core": "tmlt.core-0.1.1"
+    },
+    "tmlt.analytics-0.1.1": {
+        "core": "tmlt.core-0.1.1"
+    },
+    "tmlt.analytics-0.1.1-alpha.2": {
+        "core": "tmlt.core-0.1.1"
+    },
+    "tmlt.analytics-0.1.0": {
+        "core": "tmlt.core-0.1.1"
+    }
+}

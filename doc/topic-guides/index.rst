@@ -1,6 +1,6 @@
-.. _Topic Guides:
+.. _Topic guides:
 
-Topic Guides
+Topic guides
 ============
 
 The following topic guides cover a variety of concepts that are fundamental
@@ -9,7 +9,7 @@ to the Tumult Analytics library.
 .. toctree::
     :maxdepth: 1
 
-    PrivacyPromise
-    WorkingWithSessions
-    PrivacyBudgets
-    Spark
+    privacy-promise
+    working-with-sessions
+    privacy-budgets
+    spark

@@ -15,14 +15,20 @@ class TestSchema(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"Column types \{'BADTYPE'\} not supported; "
-            r"use supported types \['INTEGER', 'BIT', 'DECIMAL', 'VARCHAR'\].",
+            r"use supported types \['[A-Z', ]+'\].",
         ):
             columns = {"Col1": "VARCHAR", "Col2": "BADTYPE", "Col3": "INTEGER"}
             Schema(columns)
 
     def test_valid_column_types(self) -> None:
         """Schema construction and py type translation succeeds with valid columns."""
-        columns = {"1": "INTEGER", "2": "BIT", "3": "DECIMAL", "4": "VARCHAR"}
+        columns = {
+            "1": "INTEGER",
+            "2": "DECIMAL",
+            "3": "VARCHAR",
+            "4": "DATE",
+            "5": "TIMESTAMP",
+        }
         schema = Schema(columns)
         self.assertEqual(columns, schema.column_types)
 

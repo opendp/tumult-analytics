@@ -2,6 +2,7 @@
 
 # <placeholder: boilerplate>
 
+import datetime
 import unittest
 from typing import List, Type, Union
 from unittest.mock import patch
@@ -10,7 +11,15 @@ import pandas as pd
 import sympy as sp
 from parameterized import parameterized
 from pyspark.sql.functions import col  # pylint: disable=no-name-in-module
-from pyspark.sql.types import DoubleType, LongType, StringType, StructField, StructType
+from pyspark.sql.types import (
+    DateType,
+    DoubleType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
@@ -315,7 +324,105 @@ QUERY_EXPR_COMPILER_TESTS = [
         ],
         [pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]})],
     ),
+    # Tests on less-common data types
+    (
+        [
+            GroupByCount(
+                JoinPublic(PrivateSource("private"), "dtypes"),
+                KeySet.from_dict({"A": ["0", "1"]}),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})],
+    ),
+    (
+        [
+            GroupByCount(
+                Filter(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    "date < '2022-01-02'",
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [3, 0]})],
+    ),
+    (
+        [
+            GroupByCount(
+                Filter(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    "date = '2022-01-02'",
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [0, 1]})],
+    ),
+    (
+        [
+            GroupByCount(
+                Filter(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    "timestamp < '2022-01-01T12:40:00'",
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [3, 0]})],
+    ),
+    (
+        [
+            GroupByCount(
+                Filter(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    "timestamp >= '2022-01-01T12:45:00'",
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [0, 1]})],
+    ),
+    (
+        [
+            GroupByBoundedSum(
+                Map(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    lambda row: {"day": row["date"].day},
+                    Schema({"day": ColumnType.INTEGER}),
+                    augment=True,
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+                "day",
+                0,
+                2,
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "sum": [3, 2]})],
+    ),
+    (
+        [
+            GroupByBoundedSum(
+                Map(
+                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    lambda row: {"minute": row["timestamp"].minute},
+                    Schema({"minute": ColumnType.INTEGER}),
+                    augment=True,
+                ),
+                KeySet.from_dict({"A": ["0", "1"]}),
+                "minute",
+                0,
+                59,
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "sum": [90, 45]})],
+    ),
 ]
+
+# Shorthands for some values used in tests
+_DATE1 = datetime.date.fromisoformat("2022-01-01")
+_DATE2 = datetime.date.fromisoformat("2022-01-02")
+_TIMESTAMP1 = datetime.datetime.fromisoformat("2022-01-01T12:30:00")
+_TIMESTAMP2 = datetime.datetime.fromisoformat("2022-01-01T12:45:00")
 
 
 class TestQueryExprCompiler(PySparkTest):
@@ -349,6 +456,20 @@ class TestQueryExprCompiler(PySparkTest):
                     StructField("A", StringType(), False),
                     StructField("B", LongType(), False),
                     StructField("A+B", LongType(), False),
+                ]
+            ),
+        )
+        self.dtypes_df = self.spark.createDataFrame(
+            pd.DataFrame(
+                [["0", 0, 0.1, _DATE1, _TIMESTAMP1], ["1", 1, 0.2, _DATE2, _TIMESTAMP2]]
+            ),
+            schema=StructType(
+                [
+                    StructField("A", StringType(), False),
+                    StructField("int", LongType(), False),
+                    StructField("float", DoubleType(), False),
+                    StructField("date", DateType(), False),
+                    StructField("timestamp", TimestampType(), False),
                 ]
             ),
         )
@@ -398,6 +519,16 @@ class TestQueryExprCompiler(PySparkTest):
                 "A": ColumnType.VARCHAR,
                 "B": ColumnType.INTEGER,
                 "A+B": ColumnType.INTEGER,
+            },
+        )
+        self.catalog.add_public_source(
+            "dtypes",
+            {
+                "A": ColumnType.VARCHAR,
+                "int": ColumnType.INTEGER,
+                "float": ColumnType.DECIMAL,
+                "date": ColumnType.DATE,
+                "timestamp": ColumnType.TIMESTAMP,
             },
         )
         self.catalog.add_public_source(
@@ -514,6 +645,7 @@ class TestQueryExprCompiler(PySparkTest):
             input_metric=self.input_metric,
             public_sources={
                 "public": self.join_df,
+                "dtypes": self.dtypes_df,
                 "groupby_two_columns": self.groupby_two_columns_df,
                 "groupby_one_column": self.groupby_one_column_df,
             },
@@ -1403,15 +1535,30 @@ class TestComponentIsUsed(unittest.TestCase):
             ]
         ]
     )
-    @patch("tmlt.analytics._query_expr_compiler._compiler.create_quantile_measurement")
     @patch(
-        "tmlt.analytics._query_expr_compiler._compiler."
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
+        "create_quantile_measurement"
+    )
+    @patch(
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
         "create_standard_deviation_measurement"
     )
-    @patch("tmlt.analytics._query_expr_compiler._compiler.create_variance_measurement")
-    @patch("tmlt.analytics._query_expr_compiler._compiler.create_average_measurement")
-    @patch("tmlt.analytics._query_expr_compiler._compiler.create_sum_measurement")
-    @patch("tmlt.analytics._query_expr_compiler._compiler.create_count_measurement")
+    @patch(
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
+        "create_variance_measurement"
+    )
+    @patch(
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
+        "create_average_measurement"
+    )
+    @patch(
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
+        "create_sum_measurement"
+    )
+    @patch(
+        "tmlt.analytics._query_expr_compiler._measurement_visitor."
+        "create_count_measurement"
+    )
     def test_used_create_measurement(
         self,
         output_measure: Union[PureDP, RhoZCDP],
@@ -1473,40 +1620,65 @@ class TestComponentIsUsed(unittest.TestCase):
 
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
-        GroupByCount(
-            child=PrivateSource("public"),
-            groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
-        ),
+        PrivateSource("public"),
         "Attempted query on 'public'. 'public' is not a private table.",
     ),
     (  # JoinPublic has invalid public_id
-        GroupByCount(
-            child=JoinPublic(child=PrivateSource("private"), public_table="private"),
-            groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
-        ),
+        JoinPublic(child=PrivateSource("private"), public_table="private"),
         "Attempted JoinPublic on 'private' table. 'private' is not a public table.",
     ),
     (  # JoinPublic references invalid private source
-        GroupByCount(
-            child=JoinPublic(
-                child=PrivateSource("private_source_not_in_catalog"),
-                public_table="public",
-            ),
-            groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
+        JoinPublic(
+            child=PrivateSource("private_source_not_in_catalog"), public_table="public"
         ),
         "Query references invalid source 'private_source_not_in_catalog'.",
     ),
-    (
+    (  # JoinPublic on columns not common to both tables
         JoinPublic(
             child=PrivateSource("private"), public_table="public", join_columns=["B"]
         ),
-        "Join columns must be common to both DataFrames.",
+        "Join columns must be common to both tables.",
     ),
-    (
+    (  # JoinPrivate on columns not common to both tables
+        JoinPrivate(
+            PrivateSource("private"),
+            Rename(PrivateSource("private"), {"B": "Q"}),
+            TruncationStrategy.DropExcess(1),
+            TruncationStrategy.DropExcess(1),
+            join_columns=["B"],
+        ),
+        "Join columns must be common to both tables.",
+    ),
+    (  # JoinPublic on tables with no common columns
+        JoinPublic(
+            child=Rename(PrivateSource("private"), {"A": "Q"}), public_table="public"
+        ),
+        "Tables have no common columns to join on.",
+    ),
+    (  # JoinPrivate on tables with no common columns
+        JoinPrivate(
+            PrivateSource("private"),
+            Rename(PrivateSource("private"), {"A": "Q", "B": "R", "X": "S"}),
+            TruncationStrategy.DropExcess(1),
+            TruncationStrategy.DropExcess(1),
+        ),
+        "Tables have no common columns to join on.",
+    ),
+    (  # JoinPublic on column with mismatched types
         JoinPublic(
             child=PrivateSource("private"), public_table="public", join_columns=["A"]
         ),
-        "Join columns must have identical types on both DataFrames.",
+        "Join columns must have identical types on both tables.",
+    ),
+    (  # JoinPrivate on column with mismatched types
+        JoinPrivate(
+            PrivateSource("private"),
+            Rename(Rename(PrivateSource("private"), {"A": "Q"}), {"B": "A"}),
+            TruncationStrategy.DropExcess(1),
+            TruncationStrategy.DropExcess(1),
+            join_columns=["A"],
+        ),
+        "Join columns must have identical types on both tables.",
     ),
     (  # Filter on invalid column
         Filter(child=PrivateSource("private"), predicate="NONEXISTENT>1"),

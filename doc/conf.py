@@ -60,11 +60,23 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx_multiversion",
-    "sphinx_tabs.tabs",
     "sphinxcontrib.bibtex",
     "sphinx_autodoc_typehints",
+    "sphinx_panels",
 ]
 
+# Prevent sphinx_panels from loading bootstrap a second time
+panels_add_bootstrap_css = False
+# Change colors & contrast to inactive tab labels so they pass WCAG AA; all
+# other colors are the same as the defaults:
+#   https://sphinx-panels.readthedocs.io/en/latest/#tabbed-content
+panels_css_variables = {
+    "tabs-color-label-active": "hsla(231, 99%, 66%, 1)",
+    "tabs-color-label-inactive": "rgba(135, 138, 150, 1)",
+    "tabs-color-overline": "rgb(207, 236, 238)",
+    "tabs-color-underline": "rgb(207, 236, 238)",
+    "tabs-size-label": "1rem",
+}
 
 # sphinx-multiversion configuration
 
@@ -175,9 +187,16 @@ nitpick_ignore = [
     ("py:class", "pyspark.sql.session.SparkSession"),
     # Sphinx can't resolve DataFrame in KeySet.__init__
     ("py:class", "pyspark.sql.dataframe.DataFrame"),
+    # Caused by TypeVar in tmlt.common Marshallable base class
+    ("py:class", "M"),
+    ("py:class", "Item"),
+    ("py:class", "Primitive"),
     # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
     ("py:class", "DF"),
     ("py:class", "Row"),
+    ("py:class", "BinT"),
+    ("py:class", "BinNameT"),
+    ("py:class", "Generic[BinT, BinNameT]"),
     ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),
 ]
 

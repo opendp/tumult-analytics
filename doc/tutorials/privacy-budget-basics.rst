@@ -52,7 +52,7 @@ Just like earlier, we import Python packages...
 .. testcode::
 
    r = requests.get(
-       'https://tumult-public.s3.amazonaws.com/members.csv',
+       'https://tumult-public.s3.amazonaws.com/library-members.csv',
    )
    with open("members.csv", "w") as f:
        f.write(r.text)
