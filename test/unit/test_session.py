@@ -3,6 +3,7 @@
 # <placeholder: boilerplate>
 
 import os
+import re
 import shutil
 import tempfile
 from typing import Any, List, Tuple, Type, Union
@@ -26,6 +27,7 @@ from typeguard import check_type
 
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
@@ -82,10 +84,17 @@ class TestSession(PySparkTest):
                 columns=["A", "B", "X"],
             )
         )
-        self.sdf_col_types = {
-            "A": ColumnType.VARCHAR,
-            "B": ColumnType.INTEGER,
-            "X": ColumnType.INTEGER,
+        self.sdf_col_types = Schema(
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "X": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            }
+        )
+        self.validated_col_types = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
+            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            "X": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
         }
         self.sdf_input_domain = DictDomain(
             {
@@ -94,16 +103,29 @@ class TestSession(PySparkTest):
                 )
             }
         )
+        self.validated_input_domain = DictDomain(
+            {
+                "private": SparkDataFrameDomain(
+                    analytics_to_spark_columns_descriptor(
+                        Schema(self.validated_col_types)
+                    )
+                )
+            }
+        )
+
         self.join_df = self.spark.createDataFrame(
             pd.DataFrame([["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "A+B"])
         )
 
         self.private_schema = {
-            "A": ColumnType.VARCHAR,
-            "B": ColumnType.INTEGER,
-            "X": ColumnType.INTEGER,
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
         }
-        self.public_schema = {"A": ColumnType.VARCHAR, "A+B": ColumnType.INTEGER}
+        self.public_schema = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
         self.data_dir = tempfile.mkdtemp()
         self.private_csv_path = os.path.join(self.data_dir, "private.csv")
@@ -185,13 +207,19 @@ class TestSession(PySparkTest):
         )
         self.assertEqual(builder._private_sources["private"].stability, 23)
 
-    @parameterized.expand([(PureDPBudget(float("inf")), PureDP())])
+    @parameterized.expand(
+        [
+            (PureDPBudget(float("inf")), PureDP(), True),
+            (PureDPBudget(float("inf")), PureDP(), False),
+        ]
+    )
     @patch("tmlt.analytics.session.SequentialComposition", autospec=True)
     @patch.object(Session, "__init__", autospec=True, return_value=None)
     def test_from_dataframe(
         self,
         budget: Union[PureDPBudget, RhoZCDPBudget],
         expected_output_measure: Union[PureDP, RhoZCDP],
+        validate: bool,
         mock_session_init,
         mock_composition_init,
     ):
@@ -205,11 +233,20 @@ class TestSession(PySparkTest):
         mock_composition_init.return_value.privacy_budget = (
             _privacy_budget_to_exact_number(budget)
         )
+        expected_input_domain = self.sdf_input_domain
+        if validate:
+            expected_input_domain = self.validated_input_domain
+
         Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf, stability=23
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            stability=23,
+            validate=validate,
         )
+
         mock_composition_init.assert_called_with(
-            input_domain=self.sdf_input_domain,
+            input_domain=expected_input_domain,
             input_metric=DictMetric({"private": SymmetricDifference()}),
             d_in={"private": 23},
             privacy_budget=sp.oo,
@@ -469,8 +506,8 @@ class TestSession(PySparkTest):
         self, session, mock_accountant, mock_compiler, budget
     ):
         """Confirm that :func:`evaluate` worked correctly."""
-        assert "private" in session.private_sources
-        assert session.get_schema("private") == self.sdf_col_types
+        self.assertIn("private", session.private_sources)
+        self.assertEqual(session.get_schema("private"), self.sdf_col_types)
 
         mock_compiler.assert_called_with(
             self=ANY,
@@ -516,9 +553,12 @@ class TestSession(PySparkTest):
         )
 
         partition_query = mock_accountant.mock_calls[-1][1][0]
+        self.assertIsInstance(partition_query, Transformation)
         assert isinstance(partition_query, Transformation)
+        self.assertIsInstance(partition_query, ChainTT)
         assert isinstance(partition_query, ChainTT)
 
+        self.assertIsInstance(partition_query.transformation1, GetValue)
         assert isinstance(partition_query.transformation1, GetValue)
         self.assertEqual(
             partition_query.transformation1.input_domain, mock_accountant.input_domain
@@ -527,6 +567,7 @@ class TestSession(PySparkTest):
             partition_query.transformation1.input_metric, mock_accountant.input_metric
         )
         self.assertEqual(partition_query.transformation1.key, "private")
+        self.assertIsInstance(partition_query.transformation2, PartitionByKeys)
         assert isinstance(partition_query.transformation2, PartitionByKeys)
         self.assertEqual(
             partition_query.transformation2.input_domain,
@@ -545,10 +586,11 @@ class TestSession(PySparkTest):
             partition_query, privacy_budget=ExactNumber(10)
         )
 
+        self.assertIsInstance(new_sessions, dict)
         assert isinstance(new_sessions, dict)
         for new_session_name, new_session in new_sessions.items():
-            assert isinstance(new_session_name, str)
-            assert isinstance(new_session, Session)
+            self.assertIsInstance(new_session_name, str)
+            self.assertIsInstance(new_session, Session)
 
     def test_supported_spark_types(self):
         """Session works with supported Spark data types."""
@@ -633,15 +675,19 @@ class TestInvalidSession(PySparkTest):
             columns=["A", "B", "X"],
         )
         self.sdf = self.spark.createDataFrame(self.pdf)
-        self.sdf_col_types = {"A": "VARCHAR", "B": "INTEGER", "X": "DECIMAL"}
+        self.sdf_col_types = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+        }
         self.sdf_input_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
         )
 
         self.schema = {
-            "A": ColumnType.VARCHAR,
-            "B": ColumnType.INTEGER,
-            "C": ColumnType.INTEGER,
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "C": ColumnDescriptor(ColumnType.DECIMAL),
         }
 
         self.data_dir = tempfile.mkdtemp()
@@ -861,9 +907,11 @@ class TestInvalidSession(PySparkTest):
 
         with self.assertRaisesRegex(
             KeyError,
-            "'T' not present in transformed dataframe's columns; "
-            "schema of transformed dataframe is "
-            f"{spark_schema_to_analytics_columns(self.sdf.schema)}",
+            re.escape(
+                "'T' not present in transformed dataframe's columns; "
+                "schema of transformed dataframe is "
+                f"{spark_schema_to_analytics_columns(self.sdf.schema)}"
+            ),
         ):
             session.partition_and_create(
                 "private",
@@ -962,9 +1010,7 @@ class TestInvalidSession(PySparkTest):
             [(value,)], schema=StructType([StructField("A", DoubleType())])
         )
         with self.assertRaisesRegex(
-            ValueError,
-            "Tumult Analytics does not yet handle DataFrames containing null or nan"
-            " values",
+            ValueError, "This DataFrame contains a null or nan value"
         ):
             Session.from_dataframe(
                 privacy_budget=PureDPBudget(1), source_id="private", dataframe=sdf
@@ -986,11 +1032,14 @@ class TestSessionBuilder(PySparkTest):
         self.dataframes = {"df1": df1, "df2": df2}
 
         self.csv1_schema = {
-            "A": ColumnType.VARCHAR,
-            "B": ColumnType.INTEGER,
-            "X": ColumnType.INTEGER,
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
         }
-        self.csv2_schema = {"A": ColumnType.VARCHAR, "A+B": ColumnType.INTEGER}
+        self.csv2_schema = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
         self.data_dir = tempfile.mkdtemp()
         csv1_path = os.path.join(self.data_dir, "csv1.csv")

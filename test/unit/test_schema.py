@@ -4,7 +4,7 @@
 
 import unittest
 
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 
 class TestSchema(unittest.TestCase):
@@ -30,7 +30,14 @@ class TestSchema(unittest.TestCase):
             "5": "TIMESTAMP",
         }
         schema = Schema(columns)
-        self.assertEqual(columns, schema.column_types)
+        expected = {
+            "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+            "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
+            "4": ColumnDescriptor(ColumnType.DATE, allow_null=False),
+            "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=False),
+        }
+        self.assertEqual(expected, schema.column_descs)
 
     def test_schema_equality(self) -> None:
         """Make sure schema equality check works properly."""

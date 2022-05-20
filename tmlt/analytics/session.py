@@ -12,7 +12,7 @@ can be constructed using :class:`Session.Builder`.
 
 from csv import DictReader
 from enum import Enum, auto
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Dict, List, Mapping, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
@@ -30,6 +30,7 @@ from tmlt.analytics._coerce_spark_schema import (
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     Schema,
     analytics_to_spark_columns_descriptor,
     analytics_to_spark_schema,
@@ -177,7 +178,7 @@ class Session:
             self,
             source_id: str,
             path: str,
-            schema: Dict[str, ColumnType],
+            schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
             stability: int = 1,
             delimiter: str = ",",
             header: bool = True,
@@ -246,7 +247,9 @@ class Session:
                 raise ValueError("Stability must be a positive integer.")
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = coerce_spark_schema_or_fail(dataframe)
+            dataframe = coerce_spark_schema_or_fail(
+                dataframe, allow_nan_and_null=(not validate)
+            )
             analytics_schema = Schema(
                 spark_schema_to_analytics_columns(dataframe.schema)
             )
@@ -279,7 +282,9 @@ class Session:
             _assert_is_identifier(source_id)
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = coerce_spark_schema_or_fail(dataframe)
+            dataframe = coerce_spark_schema_or_fail(
+                dataframe, allow_nan_and_null=(not validate)
+            )
             if validate:
                 analytics_schema = Schema(
                     spark_schema_to_analytics_columns(dataframe.schema)
@@ -296,7 +301,7 @@ class Session:
             self,
             source_id: str,
             path: str,
-            schema: Dict[str, ColumnType],
+            schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
             delimiter: str = ",",
             header: bool = True,
             validate: bool = True,
@@ -369,6 +374,7 @@ class Session:
             )
         self._compiler = compiler
 
+    # pylint: disable=line-too-long
     @classmethod
     @typechecked
     def from_dataframe(
@@ -414,8 +420,10 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
 
         Args:
             privacy_budget: The total privacy budget allocated to this session.
@@ -426,6 +434,7 @@ class Session:
             stability: The maximum number of rows that could be added or removed if
                 a single individual is added or removed.
         """
+        # pylint: enable=line-too-long
         session_builder = (
             Session.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
@@ -438,6 +447,7 @@ class Session:
         )
         return session_builder.build()
 
+    # pylint: disable=line-too-long
     @classmethod
     @typechecked
     def from_csv(
@@ -445,7 +455,7 @@ class Session:
         privacy_budget: PrivacyBudget,
         source_id: str,
         path: str,
-        schema: Dict[str, ColumnType],
+        schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
         delimiter: str = ",",
         header: bool = True,
         validate: bool = True,
@@ -487,8 +497,10 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
 
         Args:
             privacy_budget: The total privacy budget allocated to this session.
@@ -502,6 +514,7 @@ class Session:
             stability: The maximum number of rows that could be added or removed if
                 a single individual is added or removed.
         """
+        # pylint: enable=line-too-long
         session_builder = (
             Session.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
@@ -582,20 +595,38 @@ class Session:
         }
 
     @typechecked
-    def get_schema(self, source_id: str) -> Dict[str, ColumnType]:
-        """Returns the column types for any data source.
+    def get_schema(self, source_id: str) -> Schema:
+        """Returns the schema for any data source.
+
+        This includes information on whether the columns are nullable.
 
         Args:
             source_id: The ID for the data source whose column types
                 are being retrieved.
         """
         if source_id in self._input_domain.key_to_domain:
-            return spark_dataframe_domain_to_analytics_columns(
-                self._input_domain[source_id]
+            return Schema(
+                spark_dataframe_domain_to_analytics_columns(
+                    self._input_domain[source_id]
+                )
             )
-        return spark_schema_to_analytics_columns(
-            self.public_source_dataframes[source_id].schema
-        )
+        else:
+            return Schema(
+                spark_schema_to_analytics_columns(
+                    self.public_source_dataframes[source_id].schema
+                )
+            )
+
+    @typechecked
+    def get_column_types(self, source_id: str) -> Dict[str, ColumnType]:
+        """Returns the column types for any data source.
+
+        This does *not* include information on whether the columns are nullable.
+        """
+        return {
+            key: val.column_type
+            for key, val in self.get_schema(source_id).column_descs.items()
+        }
 
     @typechecked
     def get_grouping_column(self, source_id: str) -> Optional[str]:
@@ -658,12 +689,13 @@ class Session:
             )
         return catalog
 
+    # pylint: disable=line-too-long
     @typechecked
     def add_public_csv(
         self,
         source_id: str,
         path: str,
-        schema: Dict[str, ColumnType],
+        schema: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         delimiter: str = ",",
         header: bool = True,
         validate: bool = True,
@@ -715,8 +747,9 @@ class Session:
             ... )
             >>> sess.public_sources
             ['my_public_data']
-            >>> sess.get_schema('my_public_data')
-            {'A': ColumnType.VARCHAR, 'C': ColumnType.INTEGER}
+            >>> sess.get_schema('my_public_data') # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
 
         Args:
             source_id: The source id for the public data source.
@@ -727,6 +760,7 @@ class Session:
             header: The header of the public csv file.
             validate: If True, csv source is validated against schema.
         """
+        # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
         dataframe = _read_csv(
             source_id=source_id,
@@ -738,6 +772,7 @@ class Session:
         )
         self._public_sources[source_id] = dataframe
 
+    # pylint: disable=line-too-long
     @typechecked
     def add_public_dataframe(
         self, source_id: str, dataframe: DataFrame, validate: bool = True
@@ -781,16 +816,20 @@ class Session:
             ... )
             >>> sess.public_sources
             ['my_public_data']
-            >>> sess.get_schema('my_public_data')
-            {'A': ColumnType.VARCHAR, 'C': ColumnType.INTEGER}
+            >>> sess.get_schema('my_public_data') # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
 
         Args:
             source_id: The name of the public data source.
             dataframe: The public data source corresponding to the `source_id`.
             validate: If True, an error is raised if dataframe contains nulls or nans.
         """
+        # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
-        dataframe = coerce_spark_schema_or_fail(dataframe)
+        dataframe = coerce_spark_schema_or_fail(
+            dataframe, allow_nan_and_null=not validate
+        )
         if validate:
             analytics_schema = Schema(
                 spark_schema_to_analytics_columns(dataframe.schema)
@@ -802,6 +841,7 @@ class Session:
             domain.validate(dataframe)
         self._public_sources[source_id] = dataframe
 
+    # pylint: disable=line-too-long
     def evaluate(
         self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
     ) -> DataFrame:
@@ -830,8 +870,10 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Evaluate Queries
@@ -854,7 +896,8 @@ class Session:
         Args:
             query_expr: One query expression to answer.
             privacy_budget: The privacy budget used for the query.
-        """  # pylint: disable=line-too-long
+        """
+        # pylint: enable=line-too-long
         check_type("query_expr", query_expr, QueryExpr)
         check_type("privacy_budget", privacy_budget, PrivacyBudget)
         self._activate_accountant()
@@ -865,15 +908,24 @@ class Session:
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
-        measurement = self._compiler(
-            queries=[query_expr],
-            privacy_budget=adjusted_budget.expr,
-            stability=self._stability,
-            input_domain=self._input_domain,
-            input_metric=self._input_metric,
-            public_sources=self._public_sources,
-            catalog=self._catalog,
-        )
+        try:
+            measurement = self._compiler(
+                queries=[query_expr],
+                privacy_budget=adjusted_budget.expr,
+                stability=self._stability,
+                input_domain=self._input_domain,
+                input_metric=self._input_metric,
+                public_sources=self._public_sources,
+                catalog=self._catalog,
+            )
+        except RuntimeError as e:
+            if str(e) == "Nullable column does not have corresponding NumPy domain.":
+                raise RuntimeError(
+                    "You cannot aggregate a nullable column. Try performing a"
+                    " `ReplaceNullAndNan` query first - you can create one with"
+                    " `QueryBuilder.replace_null_and_nan`."
+                )
+            raise e
         try:
             if not measurement.privacy_relation(self._accountant.d_in, adjusted_budget):
                 raise ValueError(
@@ -914,6 +966,7 @@ class Session:
                 "for more information."
             )
 
+    # pylint: disable=line-too-long
     @typechecked
     def create_view(
         self, query_expr: Union[QueryExpr, QueryBuilder], source_id: str, cache: bool
@@ -943,8 +996,10 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> public_spark_data.toPandas()
                A  C
             0  0  0
@@ -965,8 +1020,10 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data', 'private_public_join']
-            >>> sess.get_schema("private_public_join")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'C': ColumnType.INTEGER}
+            >>> sess.get_schema("private_public_join") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> # Delete the view
             >>> sess.delete_view("private_public_join")
             >>> sess.private_sources
@@ -977,6 +1034,7 @@ class Session:
             source_id: The name, or unique identifier, of the view.
             cache: Whether or not to cache the view.
         """
+        # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
         self._activate_accountant()
         if source_id in self._input_domain.key_to_domain:
@@ -1044,6 +1102,7 @@ class Session:
         d_out = {k: v for k, v in self._accountant.d_in.items() if k != source_id}
         self._accountant.transform_in_place(transformation, d_out)
 
+    # pylint: disable=line-too-long
     @typechecked
     def partition_and_create(
         self,
@@ -1086,8 +1145,10 @@ class Session:
 
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Partition the Session
@@ -1101,14 +1162,18 @@ class Session:
             PureDPBudget(epsilon=0.25)
             >>> new_sessions["part0"].private_sources
             ['part0']
-            >>> new_sessions["part0"].get_schema("part0")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> new_sessions["part0"].get_schema("part0") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> new_sessions["part0"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
             >>> new_sessions["part1"].private_sources
             ['part1']
-            >>> new_sessions["part1"].get_schema("part1")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
+            >>> new_sessions["part1"].get_schema("part1") # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False)})
             >>> new_sessions["part1"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
 
@@ -1134,6 +1199,7 @@ class Session:
             splits: Mapping of split name to value of partition.
                 Split name is `source_id` in new session.
         """
+        # pylint: enable=line-too-long
         self._validate_budget_type_matches_session(privacy_budget)
         self._activate_accountant()
 
@@ -1349,7 +1415,8 @@ def _read_csv(
                 source_id=source_id,
                 header=header,
                 delimiter=delimiter,
-            )
+            ),
+            allow_nan_and_null=False,
         )
     spark = SparkSession.builder.getOrCreate()
     return coerce_spark_schema_or_fail(
@@ -1359,7 +1426,8 @@ def _read_csv(
             sep=delimiter,
             schema=analytics_to_spark_schema(schema),
             enforceSchema=False,
-        )
+        ),
+        allow_nan_and_null=True,
     )
 
 

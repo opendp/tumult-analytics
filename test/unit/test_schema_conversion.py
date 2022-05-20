@@ -7,6 +7,7 @@ import datetime
 from pyspark.sql import types as spark_types
 
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_py_types,
@@ -70,6 +71,31 @@ class TestSchemaConversions(PySparkTest):
         actual_spark_schema = analytics_to_spark_schema(analytics_schema)
         self.assertEqual(actual_spark_schema, expected_spark_schema)
 
+    def test_analytics_to_spark_schema_with_null(self):
+        """Test conversion to Spark schema with allow_null=True."""
+        analytics_schema = Schema(
+            {
+                "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            }
+        )
+        expected_spark_schema = spark_types.StructType(
+            [
+                spark_types.StructField("1", spark_types.LongType(), nullable=True),
+                spark_types.StructField("2", spark_types.DoubleType(), nullable=True),
+                spark_types.StructField("3", spark_types.StringType(), nullable=True),
+                spark_types.StructField("4", spark_types.DateType(), nullable=True),
+                spark_types.StructField(
+                    "5", spark_types.TimestampType(), nullable=True
+                ),
+            ]
+        )
+        actual_spark_schema = analytics_to_spark_schema(analytics_schema)
+        self.assertEqual(actual_spark_schema, expected_spark_schema)
+
     def test_analytics_to_spark_columns_descriptor_schema(self) -> None:
         """Make sure conversion to Spark columns descriptor works properly."""
 
@@ -102,29 +128,101 @@ class TestSchemaConversions(PySparkTest):
             spark_columns_descriptor["5"], SparkTimestampColumnDescriptor
         )
 
+    def test_analytics_to_spark_columns_descriptor_schema_with_null(self) -> None:
+        """Test conversion to Spark columns descriptor works with allow_null=True."""
+
+        # strings aren't yet supported by domains.py -> convert_spark_schema
+        analytics_schema = Schema(
+            {
+                "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            }
+        )
+        spark_columns_descriptor = analytics_to_spark_columns_descriptor(
+            analytics_schema
+        )
+        self.assertEqual(5, len(spark_columns_descriptor))
+        for k in (str(i) for i in range(1, 6)):
+            self.assertTrue(k in spark_columns_descriptor)
+
+        self.assertIsInstance(
+            spark_columns_descriptor["1"], SparkIntegerColumnDescriptor
+        )
+        self.assertIsInstance(spark_columns_descriptor["2"], SparkFloatColumnDescriptor)
+        self.assertIsInstance(
+            spark_columns_descriptor["3"], SparkStringColumnDescriptor
+        )
+        self.assertIsInstance(spark_columns_descriptor["4"], SparkDateColumnDescriptor)
+        self.assertIsInstance(
+            spark_columns_descriptor["5"], SparkTimestampColumnDescriptor
+        )
+        self.assertTrue(spark_columns_descriptor["1"].allow_null)
+        self.assertTrue(spark_columns_descriptor["2"].allow_null)
+        self.assertTrue(spark_columns_descriptor["3"].allow_null)
+        self.assertTrue(spark_columns_descriptor["4"].allow_null)
+        self.assertTrue(spark_columns_descriptor["5"].allow_null)
+
     def test_spark_conversions(self) -> None:
         """Make sure conversion from Spark schema/domain to Analytics works."""
         spark_schema = spark_types.StructType(
             [
-                spark_types.StructField("A", spark_types.StringType()),
-                spark_types.StructField("B", spark_types.IntegerType()),
-                spark_types.StructField("C", spark_types.LongType()),
-                spark_types.StructField("D", spark_types.FloatType()),
-                spark_types.StructField("E", spark_types.DoubleType()),
-                spark_types.StructField("F", spark_types.DateType()),
-                spark_types.StructField("G", spark_types.TimestampType()),
+                spark_types.StructField("A", spark_types.StringType(), nullable=False),
+                spark_types.StructField("B", spark_types.IntegerType(), nullable=False),
+                spark_types.StructField("C", spark_types.LongType(), nullable=False),
+                spark_types.StructField("D", spark_types.FloatType(), nullable=False),
+                spark_types.StructField("E", spark_types.DoubleType(), nullable=False),
+                spark_types.StructField("F", spark_types.DateType(), nullable=False),
+                spark_types.StructField(
+                    "G", spark_types.TimestampType(), nullable=False
+                ),
             ]
         )
         expected = {
-            "A": ColumnType.VARCHAR,
-            "B": ColumnType.INTEGER,
-            "C": ColumnType.INTEGER,
-            "D": ColumnType.DECIMAL,
-            "E": ColumnType.DECIMAL,
-            "F": ColumnType.DATE,
-            "G": ColumnType.TIMESTAMP,
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "C": ColumnDescriptor(ColumnType.INTEGER),
+            "D": ColumnDescriptor(ColumnType.DECIMAL),
+            "E": ColumnDescriptor(ColumnType.DECIMAL),
+            "F": ColumnDescriptor(ColumnType.DATE),
+            "G": ColumnDescriptor(ColumnType.TIMESTAMP),
         }
 
+        # First test the schema --> columns conversion
+        analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
+        self.assertEqual(expected, analytics_columns_1)
+
+        # Now test the domain --> columns conversion
+        domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
+        analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
+        self.assertEqual(expected, analytics_columns_2)
+
+    def test_spark_conversions_with_null(self) -> None:
+        """Test that conversion from Spark to Analytics works with allow_null=True."""
+        spark_schema = spark_types.StructType(
+            [
+                spark_types.StructField("A", spark_types.StringType(), nullable=True),
+                spark_types.StructField("B", spark_types.IntegerType(), nullable=True),
+                spark_types.StructField("C", spark_types.LongType(), nullable=True),
+                spark_types.StructField("D", spark_types.FloatType(), nullable=True),
+                spark_types.StructField("E", spark_types.DoubleType(), nullable=True),
+                spark_types.StructField("F", spark_types.DateType(), nullable=True),
+                spark_types.StructField(
+                    "G", spark_types.TimestampType(), nullable=True
+                ),
+            ]
+        )
+        expected = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+            "F": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+            "G": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+        }
         # First test the schema --> columns conversion
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
         self.assertEqual(expected, analytics_columns_1)

@@ -8,7 +8,7 @@ from typing import Optional
 from parameterized import parameterized
 
 from tmlt.analytics._catalog import Catalog, PrivateTable
-from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 
 class TestCatalog(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestCatalog(unittest.TestCase):
         catalog = Catalog()
         catalog.add_private_source(
             source_id="private",
-            col_types={"A": ColumnType.VARCHAR},
+            col_types={"A": ColumnDescriptor(ColumnType.VARCHAR)},
             stability=3,
             grouping_column=grouping_column,
         )

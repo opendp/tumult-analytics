@@ -2,9 +2,11 @@
 
 # <placeholder: boilerplate>
 
+import datetime
 from typing import Any, Dict, Union
 
 from pyspark.sql import DataFrame
+from pyspark.sql.types import Row as SparkRow
 from pyspark.sql.types import StructType
 
 from tmlt.analytics._catalog import Catalog
@@ -12,10 +14,14 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
+    spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import Filter as FilterExpr
 from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
 from tmlt.analytics.query_expr import (
@@ -32,6 +38,7 @@ from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
 from tmlt.analytics.query_expr import Map as MapExpr
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr, QueryExprVisitor
 from tmlt.analytics.query_expr import Rename as RenameExpr
+from tmlt.analytics.query_expr import ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain, ListDomain
@@ -104,16 +111,6 @@ class TransformationVisitor(QueryExprVisitor):
         self.input_domain = input_domain
         self.input_metric = input_metric
         self.mechanism = mechanism
-
-        # Ensure that no public source has nullable columns
-        for source_id, dataframe in public_sources.items():
-            if any(
-                dataframe.schema[column_name].nullable
-                for column_name in dataframe.columns
-            ):
-                raise ValueError(
-                    f"Public source ({source_id}) contains nullable columns."
-                )
         self.public_sources = public_sources
 
     def validate_transformation(
@@ -507,6 +504,18 @@ class TransformationVisitor(QueryExprVisitor):
                     "is not supported."
                 )
 
+        join_on_nulls: bool = any(
+            [v.allow_null for v in dict(left_domain.schema).values()]
+            + [v.allow_null for v in dict(right_domain.schema).values()]
+        )
+        if query.join_columns is not None:
+            join_on_nulls = any(
+                [
+                    (left_domain[col].allow_null and right_domain[col].allow_null)
+                    for col in query.join_columns
+                ]
+            )
+
         transformation = PrivateJoinTransformation(
             input_domain=previous_domain,
             left_key=left_output_key,
@@ -524,6 +533,7 @@ class TransformationVisitor(QueryExprVisitor):
                 query.truncation_strategy_right
             ),
             join_cols=query.join_columns,
+            join_on_nulls=join_on_nulls,
         )
         return previous_transformation | transformation
 
@@ -554,6 +564,88 @@ class TransformationVisitor(QueryExprVisitor):
             ),
             join_cols=list(query.join_columns) if query.join_columns else None,
             metric=child.output_metric,
+        )
+        return child | transformation
+
+    def visit_replace_null_and_nan(self, query: ReplaceNullAndNan) -> Transformation:
+        """Create a transformation from a ReplaceNullAndNan query expression."""
+        child = self._visit_child(query.child)
+        assert isinstance(child.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            child.output_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
+        )
+        transformer_input_domain = SparkRowDomain(child.output_domain.schema)
+        analytics_schema = spark_dataframe_domain_to_analytics_columns(
+            transformer_input_domain
+        )
+
+        replace_with: Dict[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ] = dict(query.replace_with).copy()
+        if len(replace_with) == 0:
+            for col in list(Schema(analytics_schema).column_descs.keys()):
+                if analytics_schema[col].column_type == ColumnType.INTEGER:
+                    replace_with[col] = int(AnalyticsDefault.INTEGER)
+                elif analytics_schema[col].column_type == ColumnType.DECIMAL:
+                    replace_with[col] = float(AnalyticsDefault.DECIMAL)
+                elif analytics_schema[col].column_type == ColumnType.VARCHAR:
+                    replace_with[col] = str(AnalyticsDefault.VARCHAR)
+                elif analytics_schema[col].column_type == ColumnType.DATE:
+                    date: datetime.date = AnalyticsDefault.DATE
+                    replace_with[col] = date
+                elif analytics_schema[col].column_type == ColumnType.TIMESTAMP:
+                    dt: datetime.datetime = AnalyticsDefault.TIMESTAMP
+                    replace_with[col] = dt
+                else:
+                    raise RuntimeError(
+                        f"Analytics does not have a default value for column {col} of"
+                        f" type {analytics_schema[col].column_type}, and no default"
+                        " value was provided"
+                    )
+
+        new_column_descs = Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    # Allow nulls ONLY for columns that are NOT being replaced,
+                    # and only if the original column allowed nulls to begin with
+                    allow_null=(cd.allow_null and not name in replace_with),
+                )
+                for name, cd in Schema(analytics_schema).column_descs.items()
+            }
+        )
+
+        def transform_row(row: Dict[str, Any]) -> Dict[str, Any]:
+            out = {}
+            # Did you know: a pyspark.sql.Row will typecheck as a Dict[str, Any],
+            # but `for x in row` will iterate over the row *values*,
+            # not the column names
+            # to get around that, we do this
+            as_dict: Dict[str, Any] = {}
+            if isinstance(row, SparkRow):
+                as_dict = row.asDict()
+            else:
+                as_dict = dict(row)
+            for col, val in as_dict.items():
+                val = row[col]
+                if (
+                    val is None or val == float("nan") or val == -float("nan")
+                ) and col in replace_with:
+                    out[col] = replace_with[col]
+                else:
+                    out[col] = val
+            return out
+
+        transformation = MapTransformation(
+            metric=child.output_metric,
+            row_transformer=RowToRowTransformation(
+                input_domain=transformer_input_domain,
+                output_domain=SparkRowDomain(
+                    analytics_to_spark_columns_descriptor(new_column_descs)
+                ),
+                trusted_f=transform_row,
+                augment=False,
+            ),
         )
         return child | transformation
 

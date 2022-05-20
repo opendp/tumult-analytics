@@ -25,6 +25,7 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     QueryExprVisitor,
     Rename,
+    ReplaceNullAndNan,
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -56,6 +57,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
 
     def visit_join_public(self, expr):
         return "JoinPublic"
+
+    def visit_replace_null_and_nan(self, expr):
+        return "ReplaceNullAndNan"
 
     def visit_groupby_count(self, expr):
         return "GroupByCount"
@@ -108,6 +112,10 @@ class TestQueryExprVisitor(unittest.TestCase):
                 "JoinPrivate",
             ),
             (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
+            (
+                ReplaceNullAndNan(PrivateSource("P"), {"column": "default"}),
+                "ReplaceNullAndNan",
+            ),
             (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
             (
                 GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),

@@ -2,7 +2,8 @@
 
 # <placeholder: boilerplate>
 
-from typing import Dict, List, Optional, cast
+import datetime
+from typing import Dict, List, Mapping, Optional, Union, cast
 
 import pandas as pd
 from parameterized import parameterized
@@ -16,6 +17,7 @@ from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
@@ -37,15 +39,18 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceNullAndNan,
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
+    SparkDateColumnDescriptor,
     SparkFloatColumnDescriptor,
     SparkIntegerColumnDescriptor,
     SparkStringColumnDescriptor,
+    SparkTimestampColumnDescriptor,
 )
 from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
@@ -86,15 +91,17 @@ class TestTransformationVisitor(PySparkTest):
             {
                 "private": SparkDataFrameDomain(
                     {
-                        "A": SparkStringColumnDescriptor(),
-                        "B": SparkIntegerColumnDescriptor(),
-                        "X": SparkFloatColumnDescriptor(),
+                        "A": SparkStringColumnDescriptor(allow_null=True),
+                        "B": SparkIntegerColumnDescriptor(allow_null=True),
+                        "X": SparkFloatColumnDescriptor(allow_null=True),
+                        "D": SparkDateColumnDescriptor(allow_null=True),
+                        "T": SparkTimestampColumnDescriptor(allow_null=True),
                     }
                 ),
                 "private_2": SparkDataFrameDomain(
                     {
-                        "A": SparkStringColumnDescriptor(),
-                        "C": SparkIntegerColumnDescriptor(),
+                        "A": SparkStringColumnDescriptor(allow_null=True),
+                        "C": SparkIntegerColumnDescriptor(allow_null=True),
                     }
                 ),
             }
@@ -108,7 +115,7 @@ class TestTransformationVisitor(PySparkTest):
                 schema=StructType(
                     [
                         StructField("A", StringType(), False),
-                        StructField("B", LongType(), False),
+                        StructField("B", LongType(), True),
                     ]
                 ),
             )
@@ -124,14 +131,29 @@ class TestTransformationVisitor(PySparkTest):
         self.catalog = Catalog()
         self.catalog.add_private_source(
             "private",
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.DECIMAL},
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            },
             stability=3,
         )
         self.catalog.add_private_view(
-            "private_2", {"A": ColumnType.VARCHAR, "C": ColumnType.INTEGER}, stability=3
+            "private_2",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            },
+            stability=3,
         )
         self.catalog.add_public_source(
-            "public", {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER}
+            "public",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            },
         )
 
     def _validate_transform_basics(self, t: Transformation, query: QueryExpr) -> None:
@@ -300,7 +322,8 @@ class TestTransformationVisitor(PySparkTest):
                     f=lambda row: [{"Group": 0 if row["X"] == 0 else 17}],
                     max_num_rows=2,
                     schema_new_columns=Schema(
-                        {"Group": "INTEGER"}, grouping_column="Group"
+                        {"Group": ColumnDescriptor(ColumnType.INTEGER)},
+                        grouping_column="Group",
                     ),
                     augment=True,
                 ),
@@ -473,6 +496,53 @@ class TestTransformationVisitor(PySparkTest):
         self.assertEqual(public_join_transform.join_cols, ["A", "B"])
         got_df = public_join_transform.public_df
         self.assert_frame_equal_with_sort(got_df.toPandas(), public_df.toPandas())
+
+    @parameterized.expand(
+        [
+            (
+                {},
+                {
+                    "A": "",
+                    "B": 0,
+                    "X": 0.0,
+                    "D": datetime.date.fromtimestamp(0),
+                    "T": datetime.datetime.fromtimestamp(0),
+                },
+            )
+        ]
+    )
+    def test_visit_replace_null_and_nan(
+        self,
+        replace_with: Mapping[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ],
+        expected_replace_with: Mapping[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ],
+    ):
+        """Test visit_replace_null_and_nan."""
+        query = ReplaceNullAndNan(child=self.base_query, replace_with=replace_with)
+        transformation = self.visitor.visit_replace_null_and_nan(query)
+        self._validate_transform_basics(transformation, query)
+        assert isinstance(transformation, ChainTT)
+        self.assertIsInstance(transformation.transformation2, MapTransformation)
+        assert isinstance(transformation.transformation2, MapTransformation)
+        replace_transform = transformation.transformation2
+
+        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_domain = SparkDataFrameDomain(
+            schema=analytics_to_spark_columns_descriptor(expected_output_schema)
+        )
+        self.assertEqual(expected_output_domain, replace_transform.output_domain)
+        self.assertFalse(replace_transform.row_transformer.augment)
+        all_none: Dict[
+            str, Optional[Union[int, float, str, datetime.date, datetime.datetime]]
+        ] = {"A": None, "B": None, "X": None, "D": None, "T": None}
+        expected_result = all_none.copy()
+        for key in expected_replace_with:
+            expected_result[key] = expected_replace_with[key]
+        actual_result = replace_transform.row_transformer.trusted_f(all_none)
+        self.assertEqual(expected_result, actual_result)
 
     def test_measurement_visits(self):
         """Test that visiting measurement queries raises an error."""

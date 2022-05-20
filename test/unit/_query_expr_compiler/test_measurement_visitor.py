@@ -17,7 +17,7 @@ from tmlt.analytics._query_expr_compiler._measurement_visitor import (
     MeasurementVisitor,
     _get_query_bounds,
 )
-from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -272,14 +272,27 @@ class TestMeasurementVisitor(PySparkTest):
         self.catalog = Catalog()
         self.catalog.add_private_source(
             "private",
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.DECIMAL},
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+                "X": ColumnDescriptor(ColumnType.DECIMAL),
+            },
             stability=3,
         )
         self.catalog.add_private_view(
-            "private_2", {"A": ColumnType.VARCHAR, "C": ColumnType.INTEGER}, stability=3
+            "private_2",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "C": ColumnDescriptor(ColumnType.INTEGER),
+            },
+            stability=3,
         )
         self.catalog.add_public_source(
-            "public", {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER}
+            "public",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+            },
         )
 
         budget = ExactNumber(10).expr
@@ -1330,7 +1343,6 @@ class TestMeasurementVisitor(PySparkTest):
         )
 
         measurement = self.visitor.visit_groupby_count_distinct(query)
-        self.assertEqual(query.child, expected_child_query)
 
         self.check_measurement(
             measurement,
@@ -1964,7 +1976,7 @@ class TestMeasurementVisitor(PySparkTest):
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 ),
             ),
-            (JoinPublic(child=PrivateSource("private"), public_table="public")),
+            (JoinPublic(child=PrivateSource("private"), public_table="public"),),
         ]
     )
     def test_visit_transformations(self, query: QueryExpr):

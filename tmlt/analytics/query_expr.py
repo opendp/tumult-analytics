@@ -11,10 +11,11 @@ user-friendly features.
 
 # <placeholder: boilerplate>
 
+import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 from pyspark.sql import DataFrame
 from typeguard import check_type
@@ -503,6 +504,58 @@ class JoinPublic(QueryExpr):
         return self.join_columns == other.join_columns and self.child == other.child
 
 
+class AnalyticsDefault:
+    """Default values for each type of column in Analytics."""
+
+    INTEGER = 0
+    """The default value used for integers (0)."""
+    DECIMAL = 0.0
+    """The default value used for floats (0)."""
+    VARCHAR = ""
+    """The default value used for VARCHARs (the empty string)."""
+    DATE = datetime.date.fromtimestamp(0)
+    """The default value used for dates (`datetime.date.fromtimestamp(0)`).
+
+    See :meth:`~.datetime.date.fromtimestamp`.
+    """
+    TIMESTAMP = datetime.datetime.fromtimestamp(0)
+    """The defauLt value used for timestamps (`datetime.datetime.fromtimestamp(0)`).
+
+    See :meth:`~.datetime.datetime.fromtimestamp`.
+    """
+
+
+@dataclass
+class ReplaceNullAndNan(QueryExpr):
+    """Returns data with null and NaN expressions replaced by a default."""
+
+    child: QueryExpr
+    """The QueryExpr to replace null/NaN values in."""
+
+    replace_with: Mapping[
+        str, Union[int, float, str, datetime.date, datetime.datetime]
+    ] = field(default_factory=dict)
+    """New values to replace with, by column.
+
+    If this dictionary is empty, *all* columns will be changed, with values
+    replaced by a default value for each column's type (see the `AnalyticsDefault`
+    class variables).
+    """
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type(
+            "replace_with",
+            self.replace_with,
+            Mapping[str, Union[int, float, str, datetime.date, datetime.datetime]],
+        )
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_replace_null_and_nan(self)
+
+
 @dataclass
 class GroupByCount(QueryExpr):
     """Returns the count of each combination of the groupby domains."""
@@ -848,6 +901,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_join_public(self, expr: JoinPublic) -> Any:
         """Visit a :class:`JoinPublic`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Any:
+        """Visit a :class:`ReplaceNullAndNan`."""
         raise NotImplementedError
 
     @abstractmethod
