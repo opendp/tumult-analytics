@@ -675,7 +675,6 @@ class QueryBuilder:
         """Create a new column by assigning the values in a given column to bins.
 
         ..
-            >>> from tmlt.analytics.binning_spec import BinningSpec
             >>> from tmlt.analytics.query_builder import QueryBuilder
             >>> from tmlt.analytics.session import Session
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -685,6 +684,7 @@ class QueryBuilder:
             >>> spark = SparkSession.builder.getOrCreate()
 
         Example:
+            >>> from tmlt.analytics.binning_spec import BinningSpec
             >>> private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         {
@@ -768,6 +768,7 @@ class QueryBuilder:
             ... )
 
         Examples:
+            >>> from tmlt.analytics.keyset import KeySet
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data")
