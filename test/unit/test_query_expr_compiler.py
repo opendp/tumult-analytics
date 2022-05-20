@@ -4,7 +4,7 @@
 
 import datetime
 import unittest
-from typing import List, Type, Union
+from typing import List, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -23,10 +23,8 @@ from pyspark.sql.types import (
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
@@ -388,7 +386,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"day": row["date"].day},
-                    Schema({"day": ColumnType.INTEGER}),
+                    Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
                 ),
                 KeySet.from_dict({"A": ["0", "1"]}),
@@ -405,7 +403,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"minute": row["timestamp"].minute},
-                    Schema({"minute": ColumnType.INTEGER}),
+                    Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
                 ),
                 KeySet.from_dict({"A": ["0", "1"]}),
@@ -507,34 +505,49 @@ class TestQueryExprCompiler(PySparkTest):
         self.catalog = Catalog()
         self.catalog.add_private_source(
             "private",
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.DECIMAL},
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+                "X": ColumnDescriptor(ColumnType.DECIMAL),
+            },
             stability=3,
         )
         self.catalog.add_private_view(
-            "private_2", {"A": ColumnType.VARCHAR, "C": ColumnType.INTEGER}, stability=3
+            "private_2",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "C": ColumnDescriptor(ColumnType.INTEGER),
+            },
+            stability=3,
         )
         self.catalog.add_public_source(
             "public",
             {
-                "A": ColumnType.VARCHAR,
-                "B": ColumnType.INTEGER,
-                "A+B": ColumnType.INTEGER,
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+                "A+B": ColumnDescriptor(ColumnType.INTEGER),
             },
         )
         self.catalog.add_public_source(
             "dtypes",
             {
-                "A": ColumnType.VARCHAR,
-                "int": ColumnType.INTEGER,
-                "float": ColumnType.DECIMAL,
-                "date": ColumnType.DATE,
-                "timestamp": ColumnType.TIMESTAMP,
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "int": ColumnDescriptor(ColumnType.INTEGER),
+                "float": ColumnDescriptor(ColumnType.DECIMAL),
+                "date": ColumnDescriptor(ColumnType.DATE),
+                "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
             },
         )
         self.catalog.add_public_source(
-            "groupby_two_columns", {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER}
+            "groupby_two_columns",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+            },
         )
-        self.catalog.add_public_source("groupby_one_column", {"A": ColumnType.VARCHAR})
+        self.catalog.add_public_source(
+            "groupby_one_column", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+        )
         self.input_metric = DictMetric(
             {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
         )
@@ -1292,24 +1305,6 @@ class TestQueryExprCompiler(PySparkTest):
         )
         self.assertTrue(measurement.privacy_relation(stability, sp.Integer(10)))
 
-    def test_build_transformation_public_source(self):
-        """`build_transformation` raises error if public source has nullable column."""
-        query = GroupByCount(
-            child=PrivateSource("private"), groupby_keys=KeySet.from_dict({})
-        )
-        with self.assertRaisesRegex(
-            ValueError, r"Public source \(public\) contains nullable columns"
-        ):
-            self.compiler.build_transformation(
-                query=query,
-                input_domain=self.input_domain,
-                input_metric=self.input_metric,
-                public_sources={
-                    "public": self.spark.createDataFrame([(1, 2)], schema=["A", "B"])
-                },
-                catalog=self.catalog,
-            )
-
     def test_call_invalid_public_source(self):
         """`__call__` raises error if public source has nullable column."""
         query_exprs = [
@@ -1377,7 +1372,10 @@ class TestCompileGroupByQuantile(PySparkTest):
         catalog = Catalog()
         catalog.add_private_source(
             "private",
-            {"Gender": ColumnType.VARCHAR, "Age": ColumnType.INTEGER},
+            {
+                "Gender": ColumnDescriptor(ColumnType.VARCHAR),
+                "Age": ColumnDescriptor(ColumnType.INTEGER),
+            },
             stability=1,
         )
         stability = {"private": sp.Integer(1)}
@@ -1616,332 +1614,3 @@ class TestComponentIsUsed(unittest.TestCase):
         _, kwargs = mock_create_measurement.call_args_list[-1]
         for kwarg, value in expected_arguments.items():
             self.assertEqual(kwargs[kwarg], value)
-
-
-OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
-    (  # Query references public source instead of private source
-        PrivateSource("public"),
-        "Attempted query on 'public'. 'public' is not a private table.",
-    ),
-    (  # JoinPublic has invalid public_id
-        JoinPublic(child=PrivateSource("private"), public_table="private"),
-        "Attempted JoinPublic on 'private' table. 'private' is not a public table.",
-    ),
-    (  # JoinPublic references invalid private source
-        JoinPublic(
-            child=PrivateSource("private_source_not_in_catalog"), public_table="public"
-        ),
-        "Query references invalid source 'private_source_not_in_catalog'.",
-    ),
-    (  # JoinPublic on columns not common to both tables
-        JoinPublic(
-            child=PrivateSource("private"), public_table="public", join_columns=["B"]
-        ),
-        "Join columns must be common to both tables.",
-    ),
-    (  # JoinPrivate on columns not common to both tables
-        JoinPrivate(
-            PrivateSource("private"),
-            Rename(PrivateSource("private"), {"B": "Q"}),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
-            join_columns=["B"],
-        ),
-        "Join columns must be common to both tables.",
-    ),
-    (  # JoinPublic on tables with no common columns
-        JoinPublic(
-            child=Rename(PrivateSource("private"), {"A": "Q"}), public_table="public"
-        ),
-        "Tables have no common columns to join on.",
-    ),
-    (  # JoinPrivate on tables with no common columns
-        JoinPrivate(
-            PrivateSource("private"),
-            Rename(PrivateSource("private"), {"A": "Q", "B": "R", "X": "S"}),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
-        ),
-        "Tables have no common columns to join on.",
-    ),
-    (  # JoinPublic on column with mismatched types
-        JoinPublic(
-            child=PrivateSource("private"), public_table="public", join_columns=["A"]
-        ),
-        "Join columns must have identical types on both tables.",
-    ),
-    (  # JoinPrivate on column with mismatched types
-        JoinPrivate(
-            PrivateSource("private"),
-            Rename(Rename(PrivateSource("private"), {"A": "Q"}), {"B": "A"}),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
-            join_columns=["A"],
-        ),
-        "Join columns must have identical types on both tables.",
-    ),
-    (  # Filter on invalid column
-        Filter(child=PrivateSource("private"), predicate="NONEXISTENT>1"),
-        "Invalid filter expression: 'NONEXISTENT>1' in Filter query.",
-    ),
-    (  # Rename on non-existent column
-        Rename(child=PrivateSource("private"), column_mapper={"NONEXISTENT": "Z"}),
-        "Non existent columns {'NONEXISTENT'} in Rename query.",
-    ),
-    (  # Rename when column exists
-        Rename(child=PrivateSource("private"), column_mapper={"A": "B"}),
-        "Cannot rename 'A' to 'B'. Column 'B' already exists.",
-    ),
-    (  # Select non-existent column
-        Select(child=PrivateSource("private"), columns=["NONEXISTENT"]),
-        "Non existent columns {'NONEXISTENT'} in Select query.",
-    ),
-    (  # Nested grouping FlatMap
-        FlatMap(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
-                augment=True,
-            ),
-            f=lambda row: [{"j": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
-            schema_new_columns=Schema({"j": "INTEGER"}, grouping_column="j"),
-            augment=True,
-        ),
-        "Multiple grouping transformations are used in this query. "
-        "Only one grouping transformation is allowed.",
-    ),
-    (  # FlatMap with inner grouping FlatMap but outer augment=False
-        FlatMap(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
-                augment=True,
-            ),
-            f=lambda row: [{"j": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
-            schema_new_columns=Schema({"j": "INTEGER"}),
-            augment=False,
-        ),
-        "Need to set augment=True to ensure that the grouping column is available for "
-        "groupby.",
-    ),
-    (  # Map with inner grouping FlatMap but outer augment=False
-        Map(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
-                augment=True,
-            ),
-            f=lambda row: {"C": 2 * str(row["B"])},
-            schema_new_columns=Schema({"C": "VARCHAR"}),
-            augment=False,
-        ),
-        "Need to set augment=True to ensure that the grouping column is available for "
-        "groupby.",
-    ),
-    (  # Type mismatch for the measure column of GroupByQuantile
-        GroupByQuantile(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({"X": [0, 1, 2]}),
-            measure_column="A",
-            quantile=0.5,
-            low=10,
-            high=20,
-            output_column="out",
-        ),
-        "Quantile query's measure column 'A' has invalid type "
-        "'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'.",
-    ),
-    (  # Type mismatch for the measure column of GroupByBoundedAverage
-        GroupByBoundedAverage(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="A",
-            low=0.0,
-            high=1.0,
-        ),
-        "measure column 'A' has invalid type 'VARCHAR'. "
-        "Expected types: 'INTEGER' or 'DECIMAL'",
-    ),
-    (  # Grouping column is set in a FlatMap but not used in a later GroupBy
-        GroupByCount(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
-                augment=True,
-            ),
-            groupby_keys=KeySet.from_dict({"X": [0, 1, 2]}),
-        ),
-        "Column produced by grouping transformation 'i' is not in groupby columns",
-    ),
-    (  # Grouping column is set but not used in a later groupby_public_source
-        GroupByCount(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
-                augment=True,
-            ),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_column_a"),
-        ),
-        "Column produced by grouping transformation 'i' is not in groupby columns",
-    ),
-]
-
-
-class TestOutputSchemaVisitor(PySparkTest):
-    """Unit tests for query validation."""
-
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
-            stability=1,
-        )
-        self.catalog.add_public_source(
-            "public", {"A": ColumnType.INTEGER, "A+B": ColumnType.INTEGER}
-        )
-        self.catalog.add_public_source("groupby_column_a", {"A": ColumnType.VARCHAR})
-        self.catalog.add_public_source("groupby_column_b", {"B": ColumnType.INTEGER})
-        self.catalog.add_public_source(
-            "groupby_non_existing_column", {"yay": ColumnType.INTEGER}
-        )
-        self.catalog.add_public_source(
-            "groupby_column_wrong_type", {"A": ColumnType.INTEGER}
-        )
-        self.catalog.add_private_view(
-            "groupby_one_column_private", {"A": ColumnType.VARCHAR}, stability=1
-        )
-        self.visitor = OutputSchemaVisitor(self.catalog)
-
-    @parameterized.expand(OUTPUT_SCHEMA_INVALID_QUERY_TESTS)
-    def test_invalid_query_expr(self, query_expr: QueryExpr, expected_error_msg: str):
-        """Check that appropriate exceptions are raised on invalid queries."""
-        with self.assertRaisesRegex(ValueError, expected_error_msg):
-            query_expr.accept(self.visitor)
-
-    @parameterized.expand(
-        [
-            (
-                KeySet.from_dict({"A": [0, 1]}),
-                ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                KeySet.from_dict({"Y": ["0"]}),
-                KeyError,
-                "Groupby column 'Y' is not in the input schema.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
-                KeyError,
-                "Groupby column 'yay' is not in the input schema.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
-                ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
-            ),
-        ]
-    )
-    def test_invalid_group_by_count(
-        self,
-        groupby_keys: KeySet,
-        exception_type: Type[Exception],
-        expected_error_msg: str,
-    ):
-        """Test invalid measurement QueryExpr."""
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
-            GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
-
-    @parameterized.expand(
-        [
-            (
-                KeySet.from_dict({"B": [0, 1]}),
-                ValueError,
-                "Column to aggregate must be a non-grouped column, not 'B'",
-            ),
-            (
-                KeySet.from_dict({"A": [0, 1]}),
-                ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                KeySet.from_dict({"Y": ["0"]}),
-                KeyError,
-                "Groupby column 'Y' is not in the input schema.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_b"),
-                ValueError,
-                "Column to aggregate must be a non-grouped column, not 'B'",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
-                KeyError,
-                "Groupby column 'yay' is not in the input schema.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
-                ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
-            ),
-        ]
-    )
-    def test_invalid_group_by_aggregations(
-        self,
-        groupby_keys: KeySet,
-        exception_type: Type[Exception],
-        expected_error_msg: str,
-    ):
-        """Test invalid measurement QueryExpr."""
-        for DataClass in [
-            GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
-            GroupByBoundedSum,
-            GroupByBoundedVariance,
-        ]:
-            with self.assertRaisesRegex(exception_type, expected_error_msg):
-                DataClass(  # type: ignore
-                    PrivateSource("private"), groupby_keys, "B", 1.0, 5.0
-                ).accept(self.visitor)
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
-            GroupByQuantile(
-                PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
-            ).accept(self.visitor)

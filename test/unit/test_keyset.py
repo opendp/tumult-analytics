@@ -3,7 +3,7 @@
 # <placeholder: boilerplate>
 
 import datetime
-from typing import Dict, List, Union
+from typing import Dict, List, Mapping, Optional, Union
 from unittest import TestCase
 
 import pandas as pd
@@ -21,7 +21,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
 from tmlt.core.utils.testing import PySparkTest
 
@@ -140,7 +140,17 @@ class TestKeySet(PySparkTest):
     )
     def test_from_dict(
         self,
-        d: Dict[str, Union[List[str], List[int], List[datetime.date]]],
+        d: Mapping[
+            str,
+            Union[
+                List[str],
+                List[Optional[str]],
+                List[int],
+                List[Optional[int]],
+                List[datetime.date],
+                List[Optional[datetime.date]],
+            ],
+        ],
         expected_df: pd.DataFrame,
     ) -> None:
         """Test KeySet.from_dict works"""
@@ -157,7 +167,18 @@ class TestKeySet(PySparkTest):
         ]
     )
     def test_from_dict_empty_list(
-        self, d: Dict[str, Union[List[str], List[int], List[datetime.date]]]
+        self,
+        d: Mapping[
+            str,
+            Union[
+                List[str],
+                List[Optional[str]],
+                List[int],
+                List[Optional[int]],
+                List[datetime.date],
+                List[Optional[datetime.date]],
+            ],
+        ],
     ) -> None:
         """Test that calls like `KeySet.from_dict({'A': []})` raise a friendly error."""
         with self.assertRaises(ValueError):
@@ -207,6 +228,34 @@ class TestKeySet(PySparkTest):
         """Test KeySet.from_dataframe works on a dataframe with duplicate rows."""
         keyset = KeySet.from_dataframe(self.spark.createDataFrame(df))
         self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame({"A": [1, 2, None]}),
+                StructType([StructField("A", LongType(), nullable=True)]),
+            ),
+            (
+                pd.DataFrame({"B": [None, "b2", "b3"]}),
+                StructType([StructField("B", StringType(), nullable=True)]),
+            ),
+            (
+                pd.DataFrame({"A": [1, 2, None], "B": [None, "b2", "b3"]}),
+                StructType(
+                    [
+                        StructField("A", LongType(), nullable=True),
+                        StructField("B", StringType(), nullable=True),
+                    ]
+                ),
+            ),
+        ]
+    )
+    def test_from_dataframe_with_null(
+        self, df_in: pd.DataFrame, schema: StructType
+    ) -> None:
+        """Test KeySet.from_dataframe allows nulls."""
+        keyset = KeySet(self.spark.createDataFrame(df_in, schema=schema))
+        self.assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
 
     @parameterized.expand(
         [
@@ -294,7 +343,6 @@ class TestKeySet(PySparkTest):
         df_out = keyset.dataframe()
         for col in df_out.schema:
             self.assertEqual(col.dataType, expected_schema[col.name])
-            self.assertFalse(col.nullable)
 
     @parameterized.expand(
         [
@@ -315,7 +363,17 @@ class TestKeySet(PySparkTest):
     )
     def test_type_coercion_from_dict(
         self,
-        d_in: Dict[str, Union[List[str], List[int], List[datetime.date]]],
+        d_in: Mapping[
+            str,
+            Union[
+                List[str],
+                List[Optional[str]],
+                List[int],
+                List[Optional[int]],
+                List[datetime.date],
+                List[Optional[datetime.date]],
+            ],
+        ],
         expected_schema: Dict[str, DataType],
     ) -> None:
         """Test KeySet correctly coerces types when created with `from_dict`."""
@@ -323,7 +381,6 @@ class TestKeySet(PySparkTest):
         df_out = keyset.dataframe()
         for col in df_out.schema:
             self.assertEqual(col.dataType, expected_schema[col.name])
-            self.assertFalse(col.nullable)
 
     # This test is not parameterized because Column parameters are
     # Python expressions containing the KeySet's DataFrame.
@@ -472,6 +529,26 @@ class TestKeySet(PySparkTest):
                     columns=["A", "B", "Z"],
                 ),
             ),
+            (
+                KeySet.from_dict({"Z": [None, "z1", "z2"]}),
+                pd.DataFrame(
+                    [
+                        ["a1", 0, None],
+                        ["a1", 0, "z1"],
+                        ["a1", 0, "z2"],
+                        ["a1", 1, None],
+                        ["a1", 1, "z1"],
+                        ["a1", 1, "z2"],
+                        ["a2", 0, None],
+                        ["a2", 0, "z1"],
+                        ["a2", 0, "z2"],
+                        ["a2", 1, None],
+                        ["a2", 1, "z1"],
+                        ["a2", 1, "z2"],
+                    ],
+                    columns=["A", "B", "Z"],
+                ),
+            ),
         ]
     )
     def test_crossproduct(self, other: KeySet, expected_df: pd.DataFrame) -> None:
@@ -488,10 +565,18 @@ class TestKeySet(PySparkTest):
 
     @parameterized.expand(
         [
-            (KeySet.from_dict({"A": ["a1", "a2"]}), Schema({"A": ColumnType.VARCHAR})),
+            (
+                KeySet.from_dict({"A": ["a1", "a2"]}),
+                Schema({"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}),
+            ),
             (
                 KeySet.from_dict({"A": [0, 1, 2], "B": ["abc"]}),
-                Schema({"A": ColumnType.INTEGER, "B": ColumnType.VARCHAR}),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                    }
+                ),
             ),
             (
                 KeySet.from_dict(
@@ -499,10 +584,10 @@ class TestKeySet(PySparkTest):
                 ),
                 Schema(
                     {
-                        "A": ColumnType.VARCHAR,
-                        "B": ColumnType.INTEGER,
-                        "C": ColumnType.VARCHAR,
-                        "D": ColumnType.INTEGER,
+                        "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "C": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                        "D": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
                     }
                 ),
             ),

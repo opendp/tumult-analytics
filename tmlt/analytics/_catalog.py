@@ -4,9 +4,9 @@
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional, Union
 
-from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 
 @dataclass
@@ -97,7 +97,7 @@ class Catalog:
     def add_private_source(
         self,
         source_id: str,
-        col_types: Dict[str, ColumnType],
+        col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         stability: int,
         grouping_column: Optional[str] = None,
     ):
@@ -128,7 +128,7 @@ class Catalog:
     def add_private_view(
         self,
         source_id: str,
-        col_types: Dict[str, ColumnType],
+        col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         stability: int,
         grouping_column: Optional[str] = None,
     ):
@@ -150,7 +150,11 @@ class Catalog:
             )
         )
 
-    def add_public_source(self, source_id: str, col_types: Dict[str, ColumnType]):
+    def add_public_source(
+        self,
+        source_id: str,
+        col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+    ):
         """Adds public table to catalog.
 
         Args:

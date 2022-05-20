@@ -274,9 +274,9 @@ individual data sources, through
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    {'name': ColumnType.VARCHAR,
-    'age': ColumnType.INTEGER,
-    'grade': ColumnType.DECIMAL}
+    Schema({'name': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False),
+        'age': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False),
+        'grade': ColumnDescriptor(column_type=ColumnType.DECIMAL, allow_null=False)})
 
 You can access the underlying DataFrames of public sources directly using
 :meth:`public_source_dataframes <tmlt.analytics.session.Session.public_source_dataframes>`.

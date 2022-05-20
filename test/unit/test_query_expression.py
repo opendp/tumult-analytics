@@ -4,9 +4,10 @@
 
 # pylint: disable=too-many-arguments
 
+import datetime
 import re
 import unittest
-from typing import Callable, Dict, List, Optional, Type
+from typing import Callable, Dict, List, Mapping, Optional, Type, Union
 
 import pandas as pd
 from parameterized import parameterized
@@ -38,6 +39,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceNullAndNan,
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -369,6 +371,33 @@ class TestValidAttributes(unittest.TestCase):
             )
             self.assertEqual(type(query.low), type(query.high))
 
+    @parameterized.expand(
+        [
+            (PrivateSource("private"), {"col": "value", "col2": "value2"}),
+            (PrivateSource("private"), {}),
+            (
+                PrivateSource("private"),
+                {
+                    "A": 1,
+                    "B": 2.0,
+                    "C": "c1",
+                    "D": datetime.date(2020, 1, 1),
+                    "E": datetime.datetime(2020, 1, 1),
+                },
+            ),
+        ]
+    )
+    def test_valid_replace_null_and_nan(
+        self,
+        child: QueryExpr,
+        replace_with: Mapping[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ],
+    ):  # pylint: disable=no-self-use
+        """Test ReplaceNullAndNan creation with valid values."""
+        # this should not raise an error
+        ReplaceNullAndNan(child, replace_with)
+
 
 class TestJoinPublicDataframe(PySparkTest):
     """Tests for JoinPublic with a Spark DataFrame as the public table."""
@@ -432,7 +461,6 @@ class TestJoinPublicDataframe(PySparkTest):
         df = self.spark.createDataFrame(data, schema)
 
         with self.assertRaisesRegex(
-            ValueError,
-            "^Tumult Analytics does not yet handle DataFrames containing null or nan.*",
+            ValueError, "This DataFrame contains a null or nan value"
         ):
             JoinPublic(PrivateSource("a"), df)

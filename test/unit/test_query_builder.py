@@ -2,7 +2,8 @@
 
 # <placeholder: boilerplate>
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+import datetime
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 from parameterized import parameterized
@@ -28,6 +29,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceNullAndNan,
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -386,6 +388,53 @@ class TestTransformations(PySparkTest):
 
         self.assertEqual(getattr(map_expr, "f")({"A": 0.5}), {"rounded": 0})
         self.assertEqual(getattr(map_expr, "f")({"A": 1.5}), {"rounded": 1})
+
+    @parameterized.expand(
+        [
+            ({},),
+            (None,),
+            ({"A": datetime.date.today()},),
+            ({"A": "new_string"},),
+            (
+                {
+                    "A": "new_string",
+                    "B": 999,
+                    "C": -123.45,
+                    "D": datetime.date(1999, 1, 1),
+                    "E": datetime.datetime(2020, 1, 1),
+                },
+            ),
+        ]
+    )
+    def test_replace_null_and_nan(
+        self,
+        replace_with: Optional[
+            Mapping[str, Union[int, float, str, datetime.date, datetime.datetime]]
+        ],
+    ) -> None:
+        """QueryBuilder.replace_null_and_nan works as expected."""
+        query = self.root_builder.replace_null_and_nan(replace_with).count()
+        # You want to use both of these assert statements:
+        # - `self.assertIsInstance` will print a helpful error message if it isn't true
+        # - `assert isinstance` helps mypy
+        self.assertIsInstance(query, GroupByCount)
+        assert isinstance(query, GroupByCount)
+        replace_expr = query.child
+        self.assertIsInstance(replace_expr, ReplaceNullAndNan)
+        assert isinstance(replace_expr, ReplaceNullAndNan)
+
+        root_expr = replace_expr.child
+        self.assertIsInstance(root_expr, PrivateSource)
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        expected_replace_with: Mapping[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ] = {}
+        if replace_with is not None:
+            expected_replace_with = replace_with
+
+        self.assertEqual(replace_expr.replace_with, expected_replace_with)
 
 
 class _TestAggregationsData:

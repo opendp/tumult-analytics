@@ -8,11 +8,16 @@ from pyspark.sql import SparkSession
 
 from tmlt.analytics._catalog import Catalog, PrivateTable, PrivateView, PublicTable
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
     Schema,
+    analytics_to_py_types,
     analytics_to_spark_schema,
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.query_expr import (
+    Filter,
+    FlatMap,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -20,7 +25,14 @@ from tmlt.analytics.query_expr import (
     GroupByCount,
     GroupByCountDistinct,
     GroupByQuantile,
+    JoinPrivate,
+    JoinPublic,
+    Map,
+    PrivateSource,
     QueryExprVisitor,
+    Rename,
+    ReplaceNullAndNan,
+    Select,
 )
 
 
@@ -66,7 +78,7 @@ def _output_schema_for_join(
         raise ValueError("Join columns must be common to both tables.")
 
     for column in join_columns:
-        if left_schema[column] != right_schema[column]:
+        if left_schema[column].column_type != right_schema[column].column_type:
             raise ValueError(
                 "Join columns must have identical types on both "
                 f"tables. {left_schema[column]} and "
@@ -135,18 +147,19 @@ def _validate_groupby(
         groupby_columns = cast(KeysView[str], query.groupby_keys.schema().keys())
         schema = query.groupby_keys.schema()
 
-    for column_name, column_type in schema.items():
+    for column_name, column_desc in schema.items():
         try:
-            input_column_type = input_schema[column_name]
+            input_column_desc = input_schema[column_name]
         except KeyError:
             raise KeyError(
                 f"Groupby column '{column_name}' is not in the input schema."
             )
-        if column_type != input_column_type:
+        if column_desc.column_type != input_column_desc.column_type:
             raise ValueError(
-                f"Groupby column '{column_name}' has type '{column_type}', but "
-                "the column with the same name in the input data has type "
-                f"'{input_column_type}' instead."
+                f"Groupby column '{column_name}' has type"
+                f" '{column_desc.column_type.name}', but the column with the same name"
+                f" in the input data has type '{input_column_desc.column_type.name}'"
+                " instead."
             )
 
     grouping_column = input_schema.grouping_column
@@ -165,15 +178,18 @@ def _validate_groupby(
         )
 
     if isinstance(query, (GroupByCount, GroupByCountDistinct)):
-        output_column_type = "INTEGER"
+        output_column_type = ColumnType.INTEGER
     elif isinstance(query, GroupByQuantile):
-        if input_schema[query.measure_column] not in ["INTEGER", "DECIMAL"]:
+        if input_schema[query.measure_column].column_type not in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+        ]:
             raise ValueError(
-                f"Quantile query's measure column '{query.measure_column}' has "
-                f"invalid type '{input_schema[query.measure_column]}'. "
-                "Expected types: 'INTEGER' or 'DECIMAL'."
+                f"Quantile query's measure column '{query.measure_column}' has invalid"
+                f" type '{input_schema[query.measure_column].column_type.name}'."
+                " Expected types: 'INTEGER' or 'DECIMAL'."
             )
-        output_column_type = "DECIMAL"
+        output_column_type = ColumnType.DECIMAL
     elif isinstance(
         query,
         (
@@ -183,17 +199,20 @@ def _validate_groupby(
             GroupByBoundedVariance,
         ),
     ):
-        if input_schema[query.measure_column] not in ["INTEGER", "DECIMAL"]:
+        if input_schema[query.measure_column].column_type not in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+        ]:
             raise ValueError(
                 f"{type(query).__name__} query's measure column "
                 f"'{query.measure_column}' has invalid type "
-                f"'{input_schema[query.measure_column]}'. "
+                f"'{input_schema[query.measure_column].column_type.name}'. "
                 "Expected types: 'INTEGER' or 'DECIMAL'."
             )
         output_column_type = (
-            input_schema[query.measure_column]
+            input_schema[query.measure_column].column_type
             if isinstance(query, GroupByBoundedSum)
-            else "DECIMAL"
+            else ColumnType.DECIMAL
         )
     else:
         raise AssertionError(
@@ -203,7 +222,11 @@ def _validate_groupby(
     output_schema = Schema(
         {
             **{column: input_schema[column] for column in groupby_columns},
-            **{query.output_column: output_column_type},
+            **{
+                query.output_column: ColumnDescriptor(
+                    output_column_type, allow_null=False
+                )
+            },
         },
         grouping_column=None,
     )
@@ -221,7 +244,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         self._catalog = catalog
 
-    def visit_private_source(self, expr):
+    def visit_private_source(self, expr: PrivateSource) -> Schema:
         """Return the resulting schema from evaluating a PrivateSource.
 
         ..
@@ -250,7 +273,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             )
         return table.schema
 
-    def visit_rename(self, expr):
+    def visit_rename(self, expr: Rename) -> Schema:
         """Returns the resulting schema from evaluating a Rename.
 
         ..
@@ -291,7 +314,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             grouping_column=grouping_column,
         )
 
-    def visit_filter(self, expr):
+    def visit_filter(self, expr: Filter) -> Schema:
         """Returns the resulting schema from evaluating a Filter.
 
         ..
@@ -323,7 +346,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             )
         return input_schema
 
-    def visit_select(self, expr):
+    def visit_select(self, expr: Select) -> Schema:
         """Returns the resulting schema from evaluating a Select.
 
         ..
@@ -358,7 +381,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             grouping_column=grouping_column,
         )
 
-    def visit_map(self, expr):
+    def visit_map(self, expr: Map) -> Schema:
         """Returns the resulting schema from evaluating a Map.
 
         ..
@@ -369,7 +392,10 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> catalog = Catalog()
             >>> catalog.add_private_source(
             ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
+            ...     col_types={
+            ...         "A": ColumnType.VARCHAR,
+            ...         "B": ColumnType.INTEGER,
+            ...     },
             ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
@@ -407,7 +433,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             )
         return expr.schema_new_columns
 
-    def visit_flat_map(self, expr):
+    def visit_flat_map(self, expr: FlatMap) -> Schema:
         # pylint: disable=line-too-long
         """Returns the resulting schema from evaluating a FlatMap.
 
@@ -476,7 +502,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             )
         return expr.schema_new_columns
 
-    def visit_join_private(self, expr):
+    def visit_join_private(self, expr: JoinPrivate) -> Schema:
         # pylint: disable=line-too-long
         """Returns the resulting schema from evaluating a JoinPrivate.
 
@@ -543,7 +569,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             join_columns=expr.join_columns,
         )
 
-    def visit_join_public(self, expr):
+    def visit_join_public(self, expr: JoinPublic) -> Schema:
         """Returns the resulting schema from evaluating a JoinPublic.
 
         Has analogous behavior to :meth:`OutputSchemaVisitor.visit_join_private`,
@@ -589,7 +615,44 @@ class OutputSchemaVisitor(QueryExprVisitor):
             join_columns=expr.join_columns,
         )
 
-    def visit_groupby_count(self, expr):
+    def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
+        """Returns the resulting schema from evaluating a ReplaceNullAndNan."""
+        input_schema = expr.child.accept(self)
+        if input_schema.grouping_column:
+            raise ValueError(
+                "ReplaceNanAndNull queries must occur *before* any groupby queries"
+            )
+        if len(expr.replace_with) != 0:
+            pytypes = analytics_to_py_types(input_schema)
+            for col, val in expr.replace_with.items():
+                if col not in input_schema.keys():
+                    raise ValueError(
+                        "ReplaceNullAndNan.replace_with contains a replacement value"
+                        f" for the column {col}, but data has no column named {col}"
+                    )
+                if not isinstance(val, pytypes[col]):
+                    # it's ok to use an int as a float
+                    # so don't raise an error in that case
+                    if not (isinstance(val, int) and pytypes[col] == float):
+                        raise ValueError(
+                            f"ReplaceNullAndNan.replace_with has column {col}'s default"
+                            f" value as {val}, which does not match the column type"
+                            f" {input_schema[col].column_type.name}"
+                        )
+        columns_to_change = list(dict(expr.replace_with).keys())
+        if len(columns_to_change) == 0:
+            columns_to_change = list(input_schema.column_descs.keys())
+        return Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    allow_null=(cd.allow_null and not name in columns_to_change),
+                )
+                for name, cd in input_schema.column_descs.items()
+            }
+        )
+
+    def visit_groupby_count(self, expr: GroupByCount) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCount.
 
         ..
@@ -615,7 +678,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_count_distinct(self, expr):
+    def visit_groupby_count_distinct(self, expr: GroupByCountDistinct) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCountDistinct.
 
         ..
@@ -641,7 +704,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_quantile(self, expr):
+    def visit_groupby_quantile(self, expr: GroupByQuantile) -> Schema:
         """Returns the resulting schema from evaluating a GroupByQuantile.
 
         ..
@@ -671,7 +734,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_bounded_sum(self, expr):
+    def visit_groupby_bounded_sum(self, expr: GroupByBoundedSum) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedSum.
 
         ..
@@ -700,7 +763,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_bounded_average(self, expr):
+    def visit_groupby_bounded_average(self, expr: GroupByBoundedAverage) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedAverage.
 
         ..
@@ -729,7 +792,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_bounded_variance(self, expr):
+    def visit_groupby_bounded_variance(self, expr: GroupByBoundedVariance) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedVariance.
 
         ..
@@ -758,7 +821,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         return _validate_groupby(expr, self._catalog, self)
 
-    def visit_groupby_bounded_stdev(self, expr):
+    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedSTDEV.
 
         ..

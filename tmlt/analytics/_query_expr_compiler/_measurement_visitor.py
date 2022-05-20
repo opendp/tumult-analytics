@@ -37,6 +37,7 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     QueryExprVisitor,
     Rename,
+    ReplaceNullAndNan,
     Select,
     StdevMechanism,
     SumMechanism,
@@ -654,4 +655,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_join_public(self, expr: JoinPublic) -> Any:
         """Visit a JoinPublic query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Any:
+        """Visit a ReplaceNullAndNan query expression (raises an error)."""
         raise NotImplementedError

@@ -87,29 +87,24 @@ def _fail_if_dataframe_contains_nulls_or_nans(dataframe: DataFrame):
                 sf.isnull(sf.col(column))  # pylint: disable=no-member
                 | sf.isnan(sf.col(column))  # pylint: disable=no-member
             ).first():
-                raise ValueError(
-                    "Tumult Analytics does not yet handle DataFrames containing null or"
-                    " nan values. Consider dropping rows containing nulls/nans or"
-                    " converting all nulls/nans to non-null/non-nan values."
-                )
+                raise ValueError("This DataFrame contains a null or nan value")
         else:
             if dataframe.where(
                 sf.isnull(sf.col(column))  # pylint: disable=no-member
             ).first():
-                raise ValueError(
-                    "Tumult Analytics does not yet handle DataFrames containing null or"
-                    " nan values. Consider dropping rows containing nulls/nans or"
-                    " converting all nulls/nans to non-null/non-nan values."
-                )
+                raise ValueError("This DataFrame contains a null or nan value")
 
 
-def coerce_spark_schema_or_fail(dataframe: DataFrame) -> DataFrame:
+def coerce_spark_schema_or_fail(
+    dataframe: DataFrame, allow_nan_and_null: bool = False
+) -> DataFrame:
     """Returns a new DataFrame where all column data types are supported.
 
     In particular, this function raises an error:
         * if `dataframe` contains a column type not listed in
             SUPPORTED_SPARK_TYPES
         * if `dataframe` contains nulls or nans in any column
+          (if allow_nan_and_null is not True)
 
     This function returns a DataFrame where all column types
         * are coerced according to TYPE_COERCION_MAP if necessary
@@ -117,13 +112,16 @@ def coerce_spark_schema_or_fail(dataframe: DataFrame) -> DataFrame:
     """
     _fail_if_dataframe_contains_unsupported_types(dataframe)
 
-    _fail_if_dataframe_contains_nulls_or_nans(dataframe)
+    if not allow_nan_and_null:
+        _fail_if_dataframe_contains_nulls_or_nans(dataframe)
 
     contains_nullable_fields = any(field.nullable for field in dataframe.schema)
     requires_coercion = any(
         field.dataType in TYPE_COERCION_MAP for field in dataframe.schema
     )
     if not (requires_coercion or contains_nullable_fields):
+        return dataframe
+    if not (requires_coercion) and allow_nan_and_null:
         return dataframe
     spark = SparkSession.builder.getOrCreate()
     coerced_fields = []
@@ -132,7 +130,7 @@ def coerce_spark_schema_or_fail(dataframe: DataFrame) -> DataFrame:
             StructField(
                 field.name,
                 TYPE_COERCION_MAP.get(field.dataType, field.dataType),
-                nullable=False,
+                nullable=allow_nan_and_null,
             )
         )
 

@@ -8,8 +8,9 @@ for seamless transitions of the data representation type.
 
 import datetime
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Iterator
+from typing import Dict, Iterator, List
 from typing import Mapping as MappingType
 from typing import Optional, Union, cast
 
@@ -60,11 +61,19 @@ class ColumnType(Enum):
         return "ColumnType." + self.name
 
 
-class Schema(Mapping):
-    """Schema class describing the column types of the data.
+@dataclass
+class ColumnDescriptor:
+    """Information about a column.
 
-    Note:
-        nulls and nans are disallowed.
+    Currently contains the column's type and whether the column is nullable.
+    """
+
+    column_type: ColumnType
+    allow_null: bool = False
+
+
+class Schema(Mapping):
+    """Schema class describing the column information of the data.
 
     The following SQL92 types are currently supported:
       INTEGER, DECIMAL, VARCHAR, DATE, TIMESTAMP
@@ -72,39 +81,64 @@ class Schema(Mapping):
 
     def __init__(
         self,
-        column_types: MappingType[str, Union[str, ColumnType]],
+        column_descs: MappingType[str, Union[str, ColumnType, ColumnDescriptor]],
         grouping_column: Optional[str] = None,
+        default_allow_null: bool = False,
     ):
         """Constructor.
 
         Args:
-            column_types: Mapping from column names to supported types.
+            column_descs: Mapping from column names to supported types.
             grouping_column: Optional column that must be grouped by in this query.
+            default_allow_null: When a ColumnType or string is used as the value
+                in the ColumnDescriptors mapping, the column will allow_null if
+                default_allow_null is True.
         """
-        # TODO(#1539): Refactor Schema internal representation to use ColumnTypes
-        # instead of strings, and update its interface to use them everywhere.
-        self._column_types = {
-            col: (ty.name if isinstance(ty, ColumnType) else ty)
-            for col, ty in column_types.items()
-        }
+        # TODO(#1539): update Schema interface to use ColumnDescriptor everywhere.
         self._grouping_column = grouping_column
 
-        supported_types = [ty.name for ty in list(ColumnType)]
-        invalid_types = set(self._column_types.values()) - set(supported_types)
+        supported_types: List[str] = [t.name for t in list(ColumnType)]
+        column_types: List[str] = []
+        for cd in column_descs.values():
+            if isinstance(cd, ColumnDescriptor):
+                column_types.append(cd.column_type.name)
+            elif isinstance(cd, ColumnType):
+                column_types.append(cd.name)
+            else:
+                column_types.append(cd)
+        invalid_types = set(column_types) - set(supported_types)
         if invalid_types:
             raise ValueError(
                 f"Column types {invalid_types} not supported; "
                 f"use supported types {supported_types}."
             )
-        if grouping_column is not None and grouping_column not in column_types:
+        if grouping_column is not None and grouping_column not in column_descs:
             raise KeyError(
-                f"grouping_column ({grouping_column}) is not in column_types"
+                f"grouping_column ({grouping_column}) is not in column_descs"
             )
+        self._column_descs: Dict[str, ColumnDescriptor] = {}
+        for col, ty in column_descs.items():
+            if isinstance(ty, ColumnDescriptor):
+                self._column_descs[col] = ty
+            elif isinstance(ty, ColumnType):
+                self._column_descs[col] = ColumnDescriptor(
+                    ty, allow_null=default_allow_null
+                )
+            else:
+                self._column_descs[col] = ColumnDescriptor(
+                    column_type=ColumnType[ty], allow_null=default_allow_null
+                )
+
+    @property
+    def column_descs(self) -> Dict[str, ColumnDescriptor]:
+        """Returns a mapping from column name to column descriptor."""
+        return dict(self._column_descs)
 
     @property
     def column_types(self) -> Dict[str, str]:
-        """Returns the mapping from column names to supported types."""
-        return dict(self._column_types)
+        """Returns a mapping from column name to column type."""
+        # TODO(#1539): Remove this
+        return {col: desc.column_type.name for col, desc in self.column_descs.items()}
 
     @property
     def grouping_column(self) -> Optional[str]:
@@ -119,34 +153,34 @@ class Schema(Mapping):
         """
         if isinstance(other, Schema):
             return (
-                self.column_types == other.column_types
+                self.column_descs == other.column_descs
                 and self.grouping_column == other.grouping_column
             )
         return False
 
-    def __getitem__(self, column: str) -> str:
+    def __getitem__(self, column: str) -> ColumnDescriptor:
         """Returns the data type for the given column.
 
         Args:
             column: The column to get the data type for.
         """
-        return self.column_types[column]
+        return self.column_descs[column]
 
     def __iter__(self) -> Iterator[str]:
         """Return an iterator over the columns in the schema."""
-        return iter(self.column_types)
+        return iter(self.column_descs)
 
     def __len__(self) -> int:
         """Return the number of columns in the schema."""
-        return len(self.column_types)
+        return len(self.column_descs)
 
     def __repr__(self) -> str:
         """Return a string representation of self."""
         if self.grouping_column:
             return (
-                f"Schema({self.column_types}, grouping_column='{self.grouping_column}')"
+                f"Schema({self.column_descs}, grouping_column='{self.grouping_column}')"
             )
-        return f"Schema({self.column_types})"
+        return f"Schema({self.column_descs})"
 
 
 _SPARK_TO_ANALYTICS = {
@@ -185,8 +219,8 @@ More information regarding Spark columns descriptor can be found in
 def analytics_to_py_types(analytics_schema: Schema) -> Dict[str, type]:
     """Returns the mapping from column names to supported python types."""
     return {
-        column_name: ColumnType[column_type].value
-        for column_name, column_type in analytics_schema.column_types.items()
+        column_name: ColumnType[column_desc.column_type.name].value
+        for column_name, column_desc in analytics_schema.column_descs.items()
     }
 
 
@@ -194,8 +228,12 @@ def analytics_to_spark_schema(analytics_schema: Schema) -> StructType:
     """Convert an Analytics schema to a Spark schema."""
     return StructType(
         [
-            StructField(column_name, _ANALYTICS_TO_SPARK[column_type], nullable=False)
-            for column_name, column_type in analytics_schema.column_types.items()
+            StructField(
+                column_name,
+                _ANALYTICS_TO_SPARK[column_desc.column_type.name],
+                nullable=column_desc.allow_null,
+            )
+            for column_name, column_desc in analytics_schema.column_descs.items()
         ]
     )
 
@@ -205,27 +243,35 @@ def analytics_to_spark_columns_descriptor(
 ) -> SparkColumnsDescriptor:
     """Convert a schema in Analytics representation to a Spark columns descriptor."""
     return {
-        column_name: _ANALYTICS_TYPE_TO_COLUMN_DESCRIPTOR[ColumnType[column_type]]()
-        for column_name, column_type in analytics_schema.column_types.items()
+        column_name: _ANALYTICS_TYPE_TO_COLUMN_DESCRIPTOR[
+            ColumnType[column_desc.column_type.name]
+        ](allow_null=column_desc.allow_null)
+        for column_name, column_desc in analytics_schema.column_descs.items()
     }
 
 
 def spark_schema_to_analytics_columns(
     spark_schema: StructType,
-) -> Dict[str, ColumnType]:
+) -> Dict[str, ColumnDescriptor]:
     """Convert Spark schema to Analytics columns."""
-    column_types = {
-        field.name: _SPARK_TO_ANALYTICS[field.dataType] for field in spark_schema
+    column_descs = {
+        field.name: ColumnDescriptor(
+            column_type=_SPARK_TO_ANALYTICS[field.dataType], allow_null=field.nullable
+        )
+        for field in spark_schema
     }
-    return column_types
+    return column_descs
 
 
 def spark_dataframe_domain_to_analytics_columns(
     domain: Domain,
-) -> Dict[str, ColumnType]:
+) -> Dict[str, ColumnDescriptor]:
     """Convert a Spark dataframe domain to Analytics columns."""
-    column_types = {
-        column_name: _SPARK_TO_ANALYTICS[descriptor.data_type]
+    column_descs = {
+        column_name: ColumnDescriptor(
+            column_type=_SPARK_TO_ANALYTICS[descriptor.data_type],
+            allow_null=descriptor.allow_null,
+        )
         for column_name, descriptor in cast(SparkDataFrameDomain, domain).schema.items()
     }
-    return column_types
+    return column_descs

@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
 - Dates may now be used in `KeySet`s.
+- Added support for DataFrames containing NaN and null values.
+- Added `QueryBuilder.replace_null_and_nan` function, which replaces null and NaN values with specified defaults.
 
 ### Fixed
 - `KeySet`s now explicitly check for and disallow the use of floats and timestamps as keys.

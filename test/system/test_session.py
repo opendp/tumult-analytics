@@ -6,17 +6,20 @@ import datetime
 import os
 import shutil
 import tempfile
-from typing import Optional, Type, Union
+from typing import Any, List, Mapping, Optional, Type, Union
 from unittest.mock import patch
 
 import pandas as pd
 from parameterized import parameterized
+from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 
 from tmlt.analytics._schema import (
+    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
+    analytics_to_spark_schema,
 )
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
@@ -45,7 +48,10 @@ from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.measurements.interactive_measurements import PrivacyAccountantState
+from tmlt.core.measurements.interactive_measurements import (
+    PrivacyAccountantState,
+    SequentialQueryable,
+)
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
@@ -250,13 +256,13 @@ EVALUATE_TESTS = [
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             max_num_rows=1,
-            new_column_types={"Repeat": ColumnType.INTEGER},
+            new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             max_num_rows=2,
-            new_column_types={"i": ColumnType.INTEGER},
+            new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=False,
         )
         .sum(column="i", low=0, high=3),
@@ -289,14 +295,14 @@ EVALUATE_TESTS = [
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             max_num_rows=1,
-            new_column_types={"Repeat": ColumnType.INTEGER},
+            new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
             grouping=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             max_num_rows=2,
-            new_column_types={"i": ColumnType.INTEGER},
+            new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
@@ -330,14 +336,14 @@ EVALUATE_TESTS = [
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             max_num_rows=1,
-            new_column_types={"Repeat": ColumnType.INTEGER},
+            new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             grouping=True,
             augment=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             max_num_rows=2,
-            new_column_types={"i": ColumnType.INTEGER},
+            new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
@@ -411,7 +417,7 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .map(
             f=lambda row: {"C": 2 * str(row["B"])},
-            new_column_types={"C": ColumnType.VARCHAR},
+            new_column_types={"C": ColumnDescriptor(ColumnType.VARCHAR)},
             augment=True,
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
@@ -434,7 +440,7 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .map(
             f=lambda row: {"C": 2 * str(row["B"])},
-            new_column_types={"C": ColumnType.VARCHAR},
+            new_column_types={"C": ColumnDescriptor(ColumnType.VARCHAR)},
             augment=True,
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
@@ -841,13 +847,25 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(session2.private_sources, ["private0"])
         self.assertEqual(
             session2.get_schema("private0"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         self.assertEqual(session3.remaining_privacy_budget, partition_budget)
         self.assertEqual(session3.private_sources, ["private1"])
         self.assertEqual(
             session3.get_schema("private1"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
 
     @parameterized.expand(
@@ -880,13 +898,25 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(session2.private_sources, ["private0"])
         self.assertEqual(
             session2.get_schema("private0"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         self.assertEqual(session3.remaining_privacy_budget, partition_budget)
         self.assertEqual(session3.private_sources, ["private1"])
         self.assertEqual(
             session3.get_schema("private1"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         query = GroupByCount(
             child=PrivateSource("private0"), groupby_keys=KeySet.from_dict({})
@@ -981,13 +1011,25 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(session2.private_sources, ["private0"])
         self.assertEqual(
             session2.get_schema("private0"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         self.assertEqual(session3.remaining_privacy_budget, partition_budget)
         self.assertEqual(session3.private_sources, ["private1"])
         self.assertEqual(
             session3.get_schema("private1"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
 
         transformation_query2 = FlatMap(
@@ -1012,13 +1054,25 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(session4.private_sources, ["private0"])
         self.assertEqual(
             session4.get_schema("private0"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         self.assertEqual(session5.remaining_privacy_budget, second_partition_budget)
         self.assertEqual(session5.private_sources, ["private1"])
         self.assertEqual(
             session5.get_schema("private1"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
 
         query = GroupByCount(
@@ -1050,13 +1104,25 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(session2.private_sources, ["private0"])
         self.assertEqual(
             session2.get_schema("private0"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
         self.assertEqual(session3.remaining_privacy_budget, partition_budget)
         self.assertEqual(session3.private_sources, ["private1"])
         self.assertEqual(
             session3.get_schema("private1"),
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER},
+            Schema(
+                {
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.INTEGER,
+                }
+            ),
         )
 
         # pylint: disable=protected-access
@@ -1320,9 +1386,7 @@ class TestInvalidSession(PySparkTest):
             ["A", "B", "X"],
         )
         with self.assertRaisesRegex(
-            ValueError,
-            "Tumult Analytics does not yet handle DataFrames containing null or nan"
-            " values",
+            ValueError, "This DataFrame contains a null or nan value"
         ):
             Session.from_dataframe(
                 source_id="private_nan",
@@ -1473,3 +1537,179 @@ class TestInvalidSession(PySparkTest):
             "Only one grouping transformation is allowed.",
         ):
             session.create_view(grouping_flatmap_2, "grouping_flatmap_2", cache=False)
+
+
+class TestSessionWithNull(PySparkTest):
+    """Test Sessions that allow null values."""
+
+    def setUp(self) -> None:
+        """Set up tests"""
+        self.pdf = pd.DataFrame(
+            [
+                [
+                    "a0",
+                    0,
+                    0.0,
+                    datetime.date(2000, 1, 1),
+                    datetime.datetime(2020, 1, 1),
+                ],
+                [
+                    None,
+                    1,
+                    1.0,
+                    datetime.date(2001, 1, 1),
+                    datetime.datetime(2021, 1, 1),
+                ],
+                [
+                    "a2",
+                    None,
+                    2.0,
+                    datetime.date(2002, 1, 1),
+                    datetime.datetime(2022, 1, 1),
+                ],
+                [
+                    "a3",
+                    3,
+                    None,
+                    datetime.date(2003, 1, 1),
+                    datetime.datetime(2023, 1, 1),
+                ],
+                ["a4", 4, 4.0, None, datetime.datetime(2024, 1, 1)],
+                ["a5", 5, 5.0, datetime.date(2005, 1, 1), None],
+            ],
+            columns=["A", "I", "X", "D", "T"],
+        )
+
+        self.sdf_col_types = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+            "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+            "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+        }
+        self.sdf = self.spark.createDataFrame(
+            self.pdf, schema=analytics_to_spark_schema(Schema(self.sdf_col_types))
+        )
+        self.sdf_input_domain = SparkDataFrameDomain(
+            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
+        )
+
+    def _expected_replace(self, d: Mapping[str, Any]) -> pd.DataFrame:
+        """The expected value if you replace None with default values in d."""
+        new_cols: List[pd.DataFrame] = []
+        for col in list(self.pdf.columns):
+            if col in dict(d):
+                # make sure I becomes an integer here
+                if col == "I":
+                    new_cols.append(self.pdf[col].fillna(dict(d)[col]).astype(int))
+                else:
+                    new_cols.append(self.pdf[col].fillna(dict(d)[col]))
+            else:
+                new_cols.append(self.pdf[col])
+        # `axis=1` means that you want to "concatenate" by columns
+        # i.e., you want your new table to look like this:
+        # df1 | df2 | df3 | ...
+        # df1 | df2 | df3 | ...
+        return pd.concat(new_cols, axis=1)
+
+    def test_expected_replace(self) -> None:
+        """Test the test method _expected_replace."""
+        d = {
+            "A": "a999",
+            "I": -999,
+            "X": 99.9,
+            "D": datetime.date(1999, 1, 1),
+            "T": datetime.datetime(2019, 1, 1),
+        }
+        expected = pd.DataFrame(
+            [
+                [
+                    "a0",
+                    0,
+                    0.0,
+                    datetime.date(2000, 1, 1),
+                    datetime.datetime(2020, 1, 1),
+                ],
+                [
+                    "a999",
+                    1,
+                    1.0,
+                    datetime.date(2001, 1, 1),
+                    datetime.datetime(2021, 1, 1),
+                ],
+                [
+                    "a2",
+                    -999,
+                    2.0,
+                    datetime.date(2002, 1, 1),
+                    datetime.datetime(2022, 1, 1),
+                ],
+                [
+                    "a3",
+                    3,
+                    99.9,
+                    datetime.date(2003, 1, 1),
+                    datetime.datetime(2023, 1, 1),
+                ],
+                [
+                    "a4",
+                    4,
+                    4.0,
+                    datetime.date(1999, 1, 1),
+                    datetime.datetime(2024, 1, 1),
+                ],
+                [
+                    "a5",
+                    5,
+                    5.0,
+                    datetime.date(2005, 1, 1),
+                    datetime.datetime(2019, 1, 1),
+                ],
+            ],
+            columns=["A", "I", "X", "D", "T"],
+        )
+        self.assert_frame_equal_with_sort(self.pdf, self._expected_replace({}))
+        self.assert_frame_equal_with_sort(expected, self._expected_replace(d))
+
+    @parameterized.expand(
+        [
+            ({"A": "aaaaaaa"},),
+            ({"I": 999},),
+            (
+                {
+                    "A": "aaa",
+                    "I": 999,
+                    "X": -99.9,
+                    "D": datetime.date.fromtimestamp(0),
+                    "T": datetime.datetime.fromtimestamp(0),
+                },
+            ),
+        ]
+    )
+    def test_replace_null_and_nan(
+        self,
+        cols_to_defaults: Mapping[
+            str, Union[int, float, str, datetime.date, datetime.datetime]
+        ],
+    ):
+        """Test Session.replace_null_and_nan."""
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+        )
+        session.create_view(
+            QueryBuilder("private").replace_null_and_nan(cols_to_defaults),
+            "replaced",
+            cache=False,
+        )
+        # pylint: disable=protected-access
+        queryable = session._accountant._queryable
+        assert isinstance(queryable, SequentialQueryable)
+        data = queryable._data
+        self.assertIsInstance(data, dict)
+        assert isinstance(data, dict)
+        self.assertIsInstance(data["replaced"], DataFrame)
+        assert isinstance(data["replaced"], DataFrame)
+        # pylint: enable=protected-access
+        self.assert_frame_equal_with_sort(
+            data["replaced"].toPandas(), self._expected_replace(cols_to_defaults)
+        )
