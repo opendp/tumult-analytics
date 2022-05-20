@@ -883,39 +883,6 @@ class TestMeasurementVisitor(PySparkTest):
         )
         self.assertEqual(got.output_metric, expected_output_metric)
 
-    def test_build_groupby_with_public_id(self):
-        """Test _build_groupby with a keyset that has a _public_id."""
-        input_domain = SparkDataFrameDomain(
-            schema={
-                "A": SparkStringColumnDescriptor(),
-                "B": SparkIntegerColumnDescriptor(),
-            }
-        )
-        input_metric = SymmetricDifference()
-        # pylint: disable=protected-access
-        got = self.visitor._build_groupby(
-            input_domain=input_domain,
-            input_metric=input_metric,
-            groupby_keys=KeySet._from_public_source("public"),
-            mechanism=NoiseMechanism.LAPLACE,
-        )
-        # pylint: enable=protected-access
-        self.assertEqual(got.input_domain, input_domain)
-        self.assertEqual(got.input_metric, input_metric)
-
-        expected_df = self.visitor.public_sources["public"]
-        expected_output_domain = SparkGroupedDataFrameDomain(
-            schema=input_domain.schema, group_keys=expected_df
-        )
-        self.assertIsInstance(got.output_domain, SparkGroupedDataFrameDomain)
-        assert isinstance(got.output_domain, SparkGroupedDataFrameDomain)
-        self.assertEqual(got.output_domain.schema, expected_output_domain.schema)
-        self.assert_frame_equal_with_sort(
-            got.output_domain.group_keys.toPandas(),
-            expected_output_domain.group_keys.toPandas(),
-        )
-        self.assertEqual(got.output_metric, SumOf(SymmetricDifference()))
-
     @parameterized.expand(
         [
             (
@@ -1077,30 +1044,19 @@ class TestMeasurementVisitor(PySparkTest):
             measurement.measurement.input_metric,
         )
 
+    @staticmethod
     def check_mock_groupby_call(
-        self,
         mock_groupby,
         transformation: Transformation,
         keys: KeySet,
         expected_mechanism: NoiseMechanism,
     ) -> None:
         """Check that the mock groupby was called with the right arguments."""
-        expected_groupby_metric = (
-            RootSumOfSquared(SymmetricDifference())
-            if expected_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN
-            else SumOf(SymmetricDifference())
-        )
-        groupby_df: DataFrame
-        # pylint: disable=protected-access
-        if keys._public_id is not None:
-            groupby_df = self.visitor.public_sources[keys._public_id]
-        else:
-            groupby_df = keys.dataframe()
-        # pylint: enable=protected-access
+        groupby_df: DataFrame = keys.dataframe()
         mock_groupby.assert_called_with(
             input_domain=transformation.output_domain,
             input_metric=transformation.output_metric,
-            output_metric=expected_groupby_metric,
+            use_l2=(expected_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN),
             group_keys=groupby_df,
         )
 
@@ -1323,15 +1279,7 @@ class TestMeasurementVisitor(PySparkTest):
         # (since the function modifies the query)
         if query_needs_columns_selected:
             # Build the list of columns that we're expecting to group by
-            groupby_columns: List[str]
-            # pylint: disable=protected-access
-            if query.groupby_keys._public_id is not None:
-                groupby_columns = list(
-                    self.visitor.public_sources[query.groupby_keys._public_id].columns
-                )
-            # pylint: enable=protected-access
-            else:
-                groupby_columns = list(query.groupby_keys.schema().keys())
+            groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
             # There is literally no way this cannot be true,
             # but if you leave this out then MyPy will complain.
             assert query.columns_to_count is not None

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from parameterized import parameterized
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
 
 from tmlt.analytics._schema import (
@@ -60,6 +60,28 @@ from tmlt.core.utils.testing import PySparkTest
 # Shorthands for some values used in tests
 _DATE1 = datetime.date.fromisoformat("2022-01-01")
 _DATE2 = datetime.date.fromisoformat("2022-01-02")
+
+# Dataframes for public data,
+# placed here so that test case KeySets can use them
+GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
+GET_GROUPBY_TWO_COLUMNS = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    GROUPBY_TWO_COLUMNS
+)
+GROUPBY_ONE_COLUMN = pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
+GET_GROUPBY_ONE_COLUMN = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    GROUPBY_ONE_COLUMN
+)
+GROUPBY_WITH_DUPLICATES = pd.DataFrame(
+    [["0"], ["0"], ["1"], ["1"], ["2"], ["2"]], columns=["A"]
+)
+GET_GROUPBY_WITH_DUPLICATES = (
+    lambda: SparkSession.builder.getOrCreate().createDataFrame(GROUPBY_WITH_DUPLICATES)
+)
+GROUPBY_EMPTY: List[Any] = []
+GROUPBY_EMPTY_SCHEMA = StructType()
+GET_GROUPBY_EMPTY = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    GROUPBY_EMPTY, schema=GROUPBY_EMPTY_SCHEMA
+)
 
 EVALUATE_TESTS = [
     (  # Total with DEFAULT mechanism
@@ -133,84 +155,85 @@ EVALUATE_TESTS = [
         ),
     ),
     (  # Incomplete two-column marginal with a dataframe
-        QueryBuilder("private").groupby_public_source("groupby_two_columns").count(),
+        QueryBuilder("private")
+        .groupby(KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
+        .count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_two_columns"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
     ),
     (  # Incomplete two-column marginal with a dataframe
         QueryBuilder("private")
-        .groupby_public_source("groupby_two_columns")
+        .groupby(KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_two_columns"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame(
             {"A": ["0", "0", "1"], "B": [0, 1, 1], "count_distinct": [2, 1, 0]}
         ),
     ),
     (  # One-column marginal with additional value
-        QueryBuilder("private").groupby_public_source("groupby_one_column").count(),
+        QueryBuilder("private")
+        .groupby(KeySet(dataframe=GET_GROUPBY_ONE_COLUMN))
+        .count(),
         GroupByCount(
             child=PrivateSource("private"),
             # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_one_column"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE_COLUMN),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with additional value
         QueryBuilder("private")
-        .groupby_public_source("groupby_one_column")
+        .groupby(KeySet(dataframe=GET_GROUPBY_ONE_COLUMN))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_one_column"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE_COLUMN),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
         QueryBuilder("private")
-        .groupby_public_source("groupby_with_duplicates")
+        .groupby(KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_with_duplicates"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
         QueryBuilder("private")
-        .groupby_public_source("groupby_with_duplicates")
+        .groupby(KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_with_duplicates"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # empty public source
-        QueryBuilder("private").groupby_public_source("groupby_empty").count(),
+        QueryBuilder("private").groupby(KeySet(dataframe=GET_GROUPBY_EMPTY)).count(),
         GroupByCount(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_empty"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_EMPTY),
         ),
         pd.DataFrame({"count": [4]}),
     ),
     (  # empty public source
-        QueryBuilder("private").groupby_public_source("groupby_empty").count_distinct(),
+        QueryBuilder("private")
+        .groupby(KeySet(dataframe=GET_GROUPBY_EMPTY))
+        .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_empty"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_EMPTY),
         ),
         pd.DataFrame({"count_distinct": [4]}),
     ),
