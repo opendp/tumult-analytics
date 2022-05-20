@@ -112,14 +112,12 @@ def _validate_groupby(
         GroupByCountDistinct,
         GroupByQuantile,
     ],
-    catalog: Catalog,
     output_schema_visitor: "OutputSchemaVisitor",
 ) -> Schema:
     """Validate groupby aggregate query.
 
     Args:
         query: Query expression to be validated.
-        catalog: The catalog of the output schema visitor.
         output_schema_visitor: A visitor to get the output schema of an expression.
 
     Returns:
@@ -127,25 +125,10 @@ def _validate_groupby(
     """
     input_schema = query.child.accept(output_schema_visitor)
 
-    groupby_columns: KeysView[str]
-    schema: Schema
-    # TODO(#1707): remove _public_id handling
-    if query.groupby_keys._public_id is not None:  # pylint: disable=protected-access
-        public_id = query.groupby_keys._public_id  # pylint: disable=protected-access
-        try:
-            public_table = catalog.tables[public_id]
-        except KeyError:
-            raise KeyError(f"Could not find source with ID '{public_id}'")
-        if not isinstance(public_table, PublicTable):
-            raise ValueError(
-                f"Attempted a groupby on table '{public_id}', but it is "
-                "not a public table."
-            )
-        groupby_columns = cast(KeysView[str], public_table.schema.keys())
-        schema = public_table.schema
-    else:
-        groupby_columns = cast(KeysView[str], query.groupby_keys.schema().keys())
-        schema = query.groupby_keys.schema()
+    groupby_columns: KeysView[str] = cast(
+        KeysView[str], query.groupby_keys.schema().keys()
+    )
+    schema: Schema = query.groupby_keys.schema()
 
     for column_name, column_desc in schema.items():
         try:
@@ -676,7 +659,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'count': 'INTEGER'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_count_distinct(self, expr: GroupByCountDistinct) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCountDistinct.
@@ -702,7 +685,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'count_distinct': 'INTEGER'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_quantile(self, expr: GroupByQuantile) -> Schema:
         """Returns the resulting schema from evaluating a GroupByQuantile.
@@ -732,7 +715,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'quantile': 'DECIMAL'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_sum(self, expr: GroupByBoundedSum) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedSum.
@@ -761,7 +744,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'sum': 'INTEGER'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_average(self, expr: GroupByBoundedAverage) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedAverage.
@@ -790,7 +773,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'average': 'DECIMAL'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_variance(self, expr: GroupByBoundedVariance) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedVariance.
@@ -819,7 +802,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'variance': 'DECIMAL'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Schema:
         """Returns the resulting schema from evaluating a GroupByBoundedSTDEV.
@@ -848,4 +831,4 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query.accept(output_schema_visitor)
             Schema({'A': 'VARCHAR', 'stdev': 'DECIMAL'})
         """
-        return _validate_groupby(expr, self._catalog, self)
+        return _validate_groupby(expr, self)

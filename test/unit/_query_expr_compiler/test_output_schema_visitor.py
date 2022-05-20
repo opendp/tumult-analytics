@@ -3,12 +3,19 @@ import datetime
 from typing import Dict, List, Type
 
 from parameterized import parameterized
+from pyspark.sql import SparkSession
+from pyspark.sql.types import LongType, StringType, StructField, StructType
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    spark_schema_to_analytics_columns,
+)
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     Filter,
@@ -31,6 +38,30 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.utils.testing import PySparkTest
+
+# Convenience lambda functions to create dataframes for KeySets
+GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    [],
+    schema=StructType(
+        [StructField("A", LongType(), False), StructField("A+B", LongType(), False)]
+    ),
+)
+GET_GROUPBY_COLUMN_A = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    [], schema=StructType([StructField("A", StringType(), False)])
+)
+GET_GROUPBY_COLUMN_B = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    [], schema=StructType([StructField("B", LongType(), False)])
+)
+GET_GROUPBY_NON_EXISTING_COLUMN = (
+    lambda: SparkSession.builder.getOrCreate().createDataFrame(
+        [], schema=StructType([StructField("yay", LongType(), False)])
+    )
+)
+GET_GROUPBY_COLUMN_WRONG_TYPE = (
+    lambda: SparkSession.builder.getOrCreate().createDataFrame(
+        [], schema=StructType([StructField("A", LongType(), False)])
+    )
+)
 
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
@@ -210,7 +241,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
                 augment=True,
             ),
             # pylint: disable=protected-access
-            groupby_keys=KeySet._from_public_source("groupby_column_a"),
+            groupby_keys=KeySet(dataframe=GET_GROUPBY_COLUMN_A),
         ),
         "Column produced by grouping transformation 'i' is not in groupby columns",
     ),
@@ -235,23 +266,23 @@ class TestOutputSchemaVisitor(PySparkTest):
             stability=1,
         )
         self.catalog.add_public_source(
-            "public",
-            {
-                "A": ColumnDescriptor(ColumnType.INTEGER),
-                "A+B": ColumnDescriptor(ColumnType.INTEGER),
-            },
+            "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema)
         )
         self.catalog.add_public_source(
-            "groupby_column_a", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+            "groupby_column_a",
+            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_A().schema),
         )
         self.catalog.add_public_source(
-            "groupby_column_b", {"B": ColumnDescriptor(ColumnType.INTEGER)}
+            "groupby_column_b",
+            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_B().schema),
         )
         self.catalog.add_public_source(
-            "groupby_non_existing_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
+            "groupby_non_existing_column",
+            spark_schema_to_analytics_columns(GET_GROUPBY_NON_EXISTING_COLUMN().schema),
         )
         self.catalog.add_public_source(
-            "groupby_column_wrong_type", {"A": ColumnDescriptor(ColumnType.INTEGER)}
+            "groupby_column_wrong_type",
+            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
         )
         self.catalog.add_private_view(
             "groupby_one_column_private",
@@ -288,24 +319,15 @@ class TestOutputSchemaVisitor(PySparkTest):
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
+                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
             ),
         ]
     )
@@ -338,30 +360,20 @@ class TestOutputSchemaVisitor(PySparkTest):
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_b"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_B),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
+                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
             ),
         ]
     )
@@ -471,24 +483,15 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
+                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
             ),
         ]
     )
@@ -521,30 +524,20 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_b"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_B),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_non_existing_column"),
+                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_column_wrong_type"),
+                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
-            ),
-            (
-                # pylint: disable=protected-access
-                KeySet._from_public_source("groupby_one_column_private"),
-                ValueError,
-                "Attempted a groupby on table 'groupby_one_column_private', but it is "
-                "not a public table.",
             ),
         ]
     )

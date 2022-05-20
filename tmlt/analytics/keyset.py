@@ -74,8 +74,6 @@ class KeySet:
             _check_df_schema(self._dataframe.schema)
         else:
             self._dataframe = dataframe
-        # TODO(#1707): Remove this
-        self._public_id: Optional[str] = None
 
     def dataframe(self) -> DataFrame:
         """Return the dataframe associated with this KeySet.
@@ -170,18 +168,6 @@ class KeySet:
                 dataframe, allow_nan_and_null=True
             ).dropDuplicates()
         )
-
-    # TODO(#1707): Remove this
-    @classmethod
-    def _from_public_source(cls, source_id: str) -> KeySet:
-        """Create a KeySet based on a public source.
-
-        Do not use this method in any new code. KeySets created with this method
-        are not safe, and calling other methods on them will probably cause errors.
-        """
-        keyset = KeySet(None)
-        keyset._public_id = source_id  # pylint: disable=protected-access
-        return keyset
 
     def filter(self, expr: Union[Column, str]) -> KeySet:
         """Filter this KeySet using some expression.
@@ -295,9 +281,6 @@ class KeySet:
         """
         if not isinstance(other, KeySet):
             return False
-        # TODO(#1707): Remove this check
-        if self._public_id is not None or other._public_id is not None:
-            return self._public_id == other._public_id
         self_df = self.dataframe().toPandas()
         other_df = other.dataframe().toPandas()
         if sorted(self_df.columns) != sorted(other_df.columns):

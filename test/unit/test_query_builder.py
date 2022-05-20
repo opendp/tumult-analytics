@@ -57,7 +57,7 @@ class TestTransformations(PySparkTest):
         join_table = "public"
         query = (
             self.root_builder.join_public(join_table, join_columns)
-            .groupby_domains({"A + B": ["0", "1", "2"]})
+            .groupby(KeySet.from_dict({"A + B": ["0", "1", "2"]}))
             .count()
         )
 
@@ -84,7 +84,7 @@ class TestTransformations(PySparkTest):
         join_table = self.spark.createDataFrame(pd.DataFrame({"A": [1, 2]}))
         query = (
             self.root_builder.join_public(join_table, join_columns)
-            .groupby_domains({"A + B": ["0", "1", "2"]})
+            .groupby(KeySet.from_dict({"A + B": ["0", "1", "2"]}))
             .count()
         )
 
@@ -118,7 +118,7 @@ class TestTransformations(PySparkTest):
                 truncation_strategy_right=TruncationStrategy.DropExcess(2),
                 join_columns=join_columns,
             )
-            .groupby_domains({"A": ["1", "2"]})
+            .groupby(KeySet.from_dict({"A": ["1", "2"]}))
             .count()
         )
         assert isinstance(query, GroupByCount)
@@ -143,7 +143,7 @@ class TestTransformations(PySparkTest):
         column_mapper = {"A": "Z"}
         query = (
             self.root_builder.rename(column_mapper)
-            .groupby_domains({"Z": ["1", "2"]})
+            .groupby(KeySet.from_dict({"Z": ["1", "2"]}))
             .count()
         )
 
@@ -178,7 +178,9 @@ class TestTransformations(PySparkTest):
         """QueryBuilder select works as expected."""
         columns = ["A"]
         query = (
-            self.root_builder.select(columns).groupby_domains({"Z": ["1", "2"]}).count()
+            self.root_builder.select(columns)
+            .groupby(KeySet.from_dict({"Z": ["1", "2"]}))
+            .count()
         )
 
         # Check query expression
@@ -207,7 +209,7 @@ class TestTransformations(PySparkTest):
             self.root_builder.map(
                 double_row, new_column_types={"C": "VARCHAR"}, augment=False
             )
-            .groupby_domains({"C": ["0", "1"]})
+            .groupby(KeySet.from_dict({"C": ["0", "1"]}))
             .count()
         )
 
@@ -239,7 +241,7 @@ class TestTransformations(PySparkTest):
             self.root_builder.map(
                 double_row, new_column_types={"C": "VARCHAR"}, augment=True
             )
-            .groupby_domains({"A": ["0", "1"], "C": ["0", "1"]})
+            .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
             .count()
         )
 
@@ -271,7 +273,7 @@ class TestTransformations(PySparkTest):
             self.root_builder.flat_map(
                 duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, augment=False
             )
-            .groupby_domains({"C": ["0", "1"]})
+            .groupby(KeySet.from_dict({"C": ["0", "1"]}))
             .count()
         )
 
@@ -304,7 +306,7 @@ class TestTransformations(PySparkTest):
             self.root_builder.flat_map(
                 duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, augment=True
             )
-            .groupby_domains({"A": ["0", "1"], "C": ["0", "1"]})
+            .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
             .count()
         )
 
@@ -337,7 +339,7 @@ class TestTransformations(PySparkTest):
             self.root_builder.flat_map(
                 duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, grouping=True
             )
-            .groupby_domains({"A": ["0", "1"], "C": ["0", "1"]})
+            .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
             .count()
         )
 
@@ -522,37 +524,6 @@ class TestAggregations(PySparkTest):
         query = self.root_builder.groupby(keys).count(name)
         self._assert_count_query_correct(query, keys, expected_name)
 
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "count"), ("total", "total"))
-    )
-    def test_count_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and count is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).count(name)
-        self._assert_count_query_correct(query, keys, expected_name)
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options) for options in ((None, "count"), ("total", "total"))
-    )
-    def test_count_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and count is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).count(name)
-        self._assert_count_query_correct(query, keys, expected_name)
-
     def _assert_count_distinct_query_correct(
         self,
         query: QueryExpr,
@@ -605,56 +576,6 @@ class TestAggregations(PySparkTest):
         query = self.root_builder.groupby(keys).count_distinct(cols=columns, name=name)
         self._assert_count_distinct_query_correct(query, keys, columns, expected_name)
 
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in (
-            (None, "count_distinct", None),
-            ("total", "total", ["Col1", "Col2"]),
-            (None, "count_distinct(X, Y)", ["X", "Y"]),
-        )
-    )
-    def test_count_distinct_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-        columns: List[str],
-    ):
-        """Query returned by groupby_domains and count_distinct is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).count_distinct(
-            cols=columns, name=name
-        )
-        self._assert_count_distinct_query_correct(query, keys, columns, expected_name)
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in (
-            (None, "count_distinct", None),
-            ("total", "total", ["Col1", "Col2"]),
-            (None, "count_distinct(X, Y)", ["X", "Y"]),
-        )
-    )
-    def test_count_distinct_groupby_public_id(
-        self,
-        groupby_public_id: str,
-        name: Optional[str],
-        expected_name: str,
-        columns: List[str],
-    ):
-        """Query returned by groupby_public_source and count_distinct is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(
-            groupby_public_id
-        ).count_distinct(cols=columns, name=name)
-        self._assert_count_distinct_query_correct(query, keys, columns, expected_name)
-
-    # TODO(#1707): Remove handling of public IDs
     def _assert_common_query_fields_correct(
         self,
         query: Union[
@@ -812,187 +733,6 @@ class TestAggregations(PySparkTest):
             query, keys, "B", 0.0, 1.0, expected_name
         )
 
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_quantile(0.5)", 0.5), ("Q1", "Q1", 0.25))
-    )
-    def test_quantile_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-        quantile: float,
-    ):
-        """Query returned by groupby_domains and quantile is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).quantile(
-            column="B", quantile=quantile, low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, quantile)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_min"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_min_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and min is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).min(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 0.0)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_max"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_max_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and max is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).max(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 1.0)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_median"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_median_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and median is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).median(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 0.5)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_quantile(0.5)", 0.5), ("Q1", "Q1", 0.25))
-    )
-    def test_quantile_groupby_public_id(
-        self,
-        groupby_public_id: str,
-        name: Optional[str],
-        expected_name: str,
-        quantile: float,
-    ):
-        """Query returned by groupby_public_source and quantile is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).quantile(
-            column="B", quantile=quantile, low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, quantile)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_min"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_min_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and min is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).min(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 0.0)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_max"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_max_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and max is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).max(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 1.0)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_median"), ("custom_name", "custom_name"))
-    )
-    def test_quantile_median_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and median is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).median(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        self.assertEqual(query.quantile, 0.5)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
     @parameterized.expand([(None, "B_sum"), ("total", "total")])
     def test_sum_ungrouped(self, name: Optional[str], expected_name: str):
         """Query returned by ungrouped sum is correct."""
@@ -1014,48 +754,6 @@ class TestAggregations(PySparkTest):
         """Query returned by groupby with KeySet and sum is correct."""
         keys = self._keys_from_pandas(keys_df)
         query = self.root_builder.groupby(keys).sum(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedSum)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_sum"), ("total", "total"))
-    )
-    def test_sum_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: Optional[pd.DataFrame],
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and sum is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).sum(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedSum)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_sum"), ("custom_name", "custom_name"))
-    )
-    def test_sum_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and sum is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).sum(
             column="B", low=0.0, high=1.0, name=name
         )
         assert isinstance(query, GroupByBoundedSum)
@@ -1091,48 +789,6 @@ class TestAggregations(PySparkTest):
             query, keys, "B", 0.0, 1.0, expected_name
         )
 
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_average"), ("M", "M"))
-    )
-    def test_average_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and average is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).average(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedAverage)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_average"), ("custom_name", "custom_name"))
-    )
-    def test_average_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and average is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).average(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedAverage)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
     @parameterized.expand([(None, "B_variance"), ("var", "var")])
     def test_variance_ungrouped(self, name: Optional[str], expected_name: str):
         """Query returned by ungrouped variance is correct."""
@@ -1161,48 +817,6 @@ class TestAggregations(PySparkTest):
             query, keys, "B", 0.0, 1.0, expected_name
         )
 
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_variance"), ("M", "M"))
-    )
-    def test_variance_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and variance is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).variance(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedVariance)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options)
-        for options in ((None, "B_variance"), ("custom_name", "custom_name"))
-    )
-    def test_variance_groupby_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and variance is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).variance(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedVariance)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
     @parameterized.expand([(None, "B_stdev"), ("std", "std")])
     def test_stdev_ungrouped(self, name: Optional[str], expected_name: str):
         """Query returned by ungrouped stdev is correct."""
@@ -1224,47 +838,6 @@ class TestAggregations(PySparkTest):
         """Query returned by groupby with KeySet and stdev is correct."""
         keys = self._keys_from_pandas(keys_df)
         query = self.root_builder.groupby(keys).stdev(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedSTDEV)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        (domains, keys_df, *options)
-        for domains, keys_df in _TestAggregationsData.domains_test_cases
-        for options in ((None, "B_stdev"), ("std", "std"))
-    )
-    def test_stdev_groupby_domains(
-        self,
-        groupby_domains: Dict[str, Union[List[str], List[int]]],
-        keys_df: pd.DataFrame,
-        name: Optional[str],
-        expected_name: str,
-    ):
-        """Query returned by groupby_domains and stdev is correct."""
-        keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby_domains(groupby_domains).stdev(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedSTDEV)
-        self._assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
-        )
-
-    # TODO(#1707): Remove these tests
-    @parameterized.expand(
-        ("public_id", *options) for options in ((None, "B_stdev"), ("std", "std"))
-    )
-    def test_stdev_public_id(
-        self, groupby_public_id: str, name: Optional[str], expected_name: str
-    ):
-        """Query returned by groupby_public_source and stdev is correct."""
-        # pylint: disable=protected-access
-        keys = KeySet._from_public_source(groupby_public_id)
-        query = self.root_builder.groupby_public_source(groupby_public_id).stdev(
             column="B", low=0.0, high=1.0, name=name
         )
         assert isinstance(query, GroupByBoundedSTDEV)

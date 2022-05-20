@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pandas as pd
 import sympy as sp
 from parameterized import parameterized
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import col  # pylint: disable=no-name-in-module
 from pyspark.sql.types import (
     DateType,
@@ -66,6 +67,20 @@ from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.testing import PySparkTest, create_mock_measurement
 
+GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
+GROUPBY_TWO_SCHEMA = StructType(
+    [StructField("A", StringType(), False), StructField("B", LongType(), False)]
+)
+GET_GROUPBY_TWO = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    GROUPBY_TWO_COLUMNS, schema=GROUPBY_TWO_SCHEMA
+)
+GROUPBY_ONE_COLUMN = pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
+GROUPBY_ONE_SCHEMA = StructType([StructField("A", StringType(), False)])
+GET_GROUPBY_ONE = lambda: SparkSession.builder.getOrCreate().createDataFrame(
+    GROUPBY_ONE_COLUMN, schema=GROUPBY_ONE_SCHEMA
+)
+
+
 QUERY_EXPR_COMPILER_TESTS = [
     (  # Total
         [
@@ -105,7 +120,7 @@ QUERY_EXPR_COMPILER_TESTS = [
             GroupByCount(
                 child=PrivateSource("private"),
                 # pylint: disable=protected-access
-                groupby_keys=KeySet._from_public_source("groupby_two_columns"),
+                groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO),
             )
         ],
         [pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]})],
@@ -115,7 +130,7 @@ QUERY_EXPR_COMPILER_TESTS = [
             GroupByCount(
                 child=PrivateSource("private"),
                 # pylint: disable=protected-access
-                groupby_keys=KeySet._from_public_source("groupby_one_column"),
+                groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
             )
         ],
         [pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]})],
@@ -591,7 +606,7 @@ class TestQueryExprCompiler(PySparkTest):
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
                     # pylint: disable=protected-access
-                    groupby_keys=KeySet._from_public_source("groupby_one_column"),
+                    groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
             ),
@@ -599,7 +614,7 @@ class TestQueryExprCompiler(PySparkTest):
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
                     # pylint: disable=protected-access
-                    groupby_keys=KeySet._from_public_source("groupby_one_column"),
+                    groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
                     columns_to_count=["B"],
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [2, 1, 0]}),

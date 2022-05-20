@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   This no longer occurs.
 - It is now possible to partition on a column created by a grouping flat map (used to raise exception from Core)
 
+### Removed
+- Removed `groupby_public_source` and `groupby_domains` from `QueryBuilder`.
+
 ## 0.2.1 - 2022-04-14
 ### Added
 - Added support for basic operations (filter, map, etc.) on Spark date and timestamp columns. `ColumnType` has two new variants, `DATE` and `TIMESTAMP`, to support these.

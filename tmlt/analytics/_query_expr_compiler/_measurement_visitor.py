@@ -265,8 +265,8 @@ class MeasurementVisitor(QueryExprVisitor):
                 " This is probably a bug; please let us know about it so we can fix it!"
             )
 
+    @staticmethod
     def _build_groupby(
-        self,
         input_domain: SparkDataFrameDomain,
         input_metric: Union[HammingDistance, SymmetricDifference, IfGroupedBy],
         groupby_keys: KeySet,
@@ -280,14 +280,7 @@ class MeasurementVisitor(QueryExprVisitor):
         # isinstance(self._output_measure, RhoZCDP)
         use_l2 = mechanism == NoiseMechanism.DISCRETE_GAUSSIAN
 
-        # TODO(#1707): Remove _public_id handling
-        groupby_df: DataFrame
-        # pylint: disable=protected-access
-        if groupby_keys._public_id is not None:
-            groupby_df = self.public_sources[groupby_keys._public_id]
-        else:
-            groupby_df = groupby_keys.dataframe()
-        # pylint: enable=protected-access
+        groupby_df: DataFrame = groupby_keys.dataframe()
 
         return GroupBy(
             input_domain=input_domain,
@@ -407,17 +400,7 @@ class MeasurementVisitor(QueryExprVisitor):
         # columns_to_count=None
         if query.columns_to_count is not None and len(query.columns_to_count) > 0:
             # select all relevant columns
-            # TODO(#1707): Remove _public_id handling
-            groupby_columns: List[str]
-
-            # pylint: disable=protected-access
-            if query.groupby_keys._public_id is not None:
-                groupby_columns = list(
-                    self.public_sources[query.groupby_keys._public_id].columns
-                )
-            else:
-                groupby_columns = list(query.groupby_keys.schema().keys())
-            # pylint: enable=protected-access
+            groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
             # select_cols = all columns to count + groupby_columns
             select_query = Select(
                 child=query.child, columns=query.columns_to_count + groupby_columns
