@@ -683,7 +683,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                         "NOTNULL": ColumnDescriptor(
                             ColumnType.INTEGER, allow_null=False
                         ),
-                        "NEW": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                        "NEW": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
                     }
                 ),
             ),
@@ -746,7 +746,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                         "_D_": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "_T_": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "_NOTNULL_": ColumnDescriptor(
-                            ColumnType.INTEGER, allow_null=False
+                            ColumnType.INTEGER, allow_null=True
                         ),
                     }
                 ),
@@ -757,6 +757,19 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     f=lambda row: {"ABC": "abc"},
                     schema_new_columns=Schema(
                         {"ABC": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                    ),
+                    augment=False,
+                ),
+                Schema({"ABC": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}),
+            ),
+            (
+                Map(
+                    child=PrivateSource("private"),
+                    f=lambda row: {"ABC": "abc"},
+                    schema_new_columns=Schema(
+                        # This has allow_null=False, but  the output schema
+                        # should have allow_null=True
+                        {"ABC": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
                     ),
                     augment=False,
                 ),
@@ -791,10 +804,22 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                         "NOTNULL": ColumnDescriptor(
                             ColumnType.INTEGER, allow_null=False
                         ),
-                        "i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                        "i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
                     }
                 ),
-            )
+            ),
+            (
+                FlatMap(
+                    child=PrivateSource("private"),
+                    f=lambda row: [{"i": i} for i in range(len(row["A"] + 1))],
+                    max_num_rows=10,
+                    schema_new_columns=Schema(
+                        {"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
+                    ),
+                    augment=False,
+                ),
+                Schema({"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}),
+            ),
         ]
     )
     def test_visit_flat_map(self, query: FlatMap, expected_schema: Schema) -> None:

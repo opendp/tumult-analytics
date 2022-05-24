@@ -2,6 +2,7 @@
 
 # <placeholder: boilerplate>
 
+from copy import deepcopy
 from typing import KeysView, List, Optional, Union, cast
 
 from pyspark.sql import SparkSession
@@ -404,9 +405,15 @@ class OutputSchemaVisitor(QueryExprVisitor):
             Schema({'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER', 'D': 'VARCHAR'})
         """
         input_schema = expr.child.accept(self)
+        # Make a deep copy -  that way we don't modify the schema that the
+        # user provided
+        new_columns = deepcopy(expr.schema_new_columns)
+        # Any column created by Map could contain a null value
+        for name in list(new_columns.keys()):
+            new_columns[name].allow_null = True
         if expr.augment:
             return Schema(
-                {**input_schema, **expr.schema_new_columns},
+                {**input_schema, **new_columns},
                 grouping_column=input_schema.grouping_column,
             )
         elif input_schema.grouping_column:
@@ -414,7 +421,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 "Need to set augment=True to ensure that the grouping column "
                 "is available for groupby."
             )
-        return expr.schema_new_columns
+        return new_columns
 
     def visit_flat_map(self, expr: FlatMap) -> Schema:
         # pylint: disable=line-too-long
@@ -473,17 +480,22 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 )
             (grouping_column,) = expr.schema_new_columns
 
+        # Make a deep copy - that way we don't modify the schema
+        # that the user provided
+        new_columns = deepcopy(expr.schema_new_columns)
+        # Any column created by the FlatMap could contain a null value
+        for name in list(new_columns.keys()):
+            new_columns[name].allow_null = True
         if expr.augment:
             return Schema(
-                {**input_schema, **expr.schema_new_columns},
-                grouping_column=grouping_column,
+                {**input_schema, **new_columns}, grouping_column=grouping_column
             )
         elif input_schema.grouping_column is not None:
             raise ValueError(
                 "Need to set augment=True to ensure that the grouping column "
                 "is available for groupby."
             )
-        return expr.schema_new_columns
+        return new_columns
 
     def visit_join_private(self, expr: JoinPrivate) -> Schema:
         # pylint: disable=line-too-long
@@ -601,10 +613,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a ReplaceNullAndNan."""
         input_schema = expr.child.accept(self)
-        if input_schema.grouping_column:
-            raise ValueError(
-                "ReplaceNanAndNull queries must occur *before* any groupby queries"
-            )
         if len(expr.replace_with) != 0:
             pytypes = analytics_to_py_types(input_schema)
             for col, val in expr.replace_with.items():
@@ -632,7 +640,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     allow_null=(cd.allow_null and not name in columns_to_change),
                 )
                 for name, cd in input_schema.column_descs.items()
-            }
+            },
+            grouping_column=input_schema.grouping_column,
         )
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:

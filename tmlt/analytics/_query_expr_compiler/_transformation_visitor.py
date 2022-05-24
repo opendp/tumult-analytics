@@ -2,6 +2,7 @@
 
 # <placeholder: boilerplate>
 
+import dataclasses
 import datetime
 from typing import Any, Dict, Union
 
@@ -238,9 +239,13 @@ class TransformationVisitor(QueryExprVisitor):
             child.output_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
         )
         transformer_input_domain = SparkRowDomain(child.output_domain.schema)
-        spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-            query.schema_new_columns
-        )
+        # Any new column created by Map could contain a null value
+        spark_columns_descriptor = {
+            k: dataclasses.replace(v, allow_null=True)
+            for k, v in analytics_to_spark_columns_descriptor(
+                query.schema_new_columns
+            ).items()
+        }
         output_schema: StructType
         if query.augment:
             output_schema = {
@@ -288,9 +293,13 @@ class TransformationVisitor(QueryExprVisitor):
         )
 
         transformer_input_domain = SparkRowDomain(child.output_domain.schema)
-        spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-            query.schema_new_columns
-        )
+        # Any new column created by FlatMap could contain a null value
+        spark_columns_descriptor = {
+            k: dataclasses.replace(v, allow_null=True)
+            for k, v in analytics_to_spark_columns_descriptor(
+                query.schema_new_columns
+            ).items()
+        }
         output_schema: StructType
         if query.augment:
             output_schema = {
