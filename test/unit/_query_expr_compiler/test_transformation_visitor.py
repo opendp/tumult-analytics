@@ -3,7 +3,7 @@
 # <placeholder: boilerplate>
 
 import datetime
-from typing import Dict, List, Mapping, Optional, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Union, cast
 
 import pandas as pd
 from parameterized import parameterized
@@ -74,6 +74,10 @@ from tmlt.core.transformations.spark_transformations.map import (
 )
 from tmlt.core.transformations.spark_transformations.map import GroupingFlatMap
 from tmlt.core.transformations.spark_transformations.map import Map as MapTransformation
+from tmlt.core.transformations.spark_transformations.nan import (
+    ReplaceNaNs,
+    ReplaceNulls,
+)
 from tmlt.core.transformations.spark_transformations.rename import (
     Rename as RenameTransformation,
 )
@@ -176,6 +180,19 @@ class TestTransformationVisitor(PySparkTest):
         )
         self.assertEqual(t.output_domain, expected_output_domain)
         self.assertEqual(t.output_metric, expected_output_metric)
+
+    def _assert_dict_equal_without_ordering(
+        self, d1: Mapping[Any, Any], d2: Mapping[Any, Any]
+    ) -> None:
+        """Assert that two dictionaries map the same keys to the same values.
+
+        In Python, two dictionaries are equal if they contain the same key-value
+        pairs *and* those pairs were created in the same order:
+        `{'A': 'a1', 'B': 'b1'} != {'B': 'b1', 'A': 'a1'}`.
+        """
+        self.assertEqual(sorted(list(d1.keys())), sorted(list(d2.keys())))
+        for k in list(d1.keys()):
+            self.assertEqual(d1[k], d2[k])
 
     @parameterized.expand([("private",), ("private_2",)])
     def test_visit_private_source(self, source_id: "str") -> None:
@@ -508,7 +525,10 @@ class TestTransformationVisitor(PySparkTest):
                     "D": datetime.date.fromtimestamp(0),
                     "T": datetime.datetime.fromtimestamp(0),
                 },
-            )
+                True,
+            ),
+            ({"X": 0}, {"X": 0.0}, True),
+            ({"A": "replacement_str"}, {"A": "replacement_str"}, False),
         ]
     )
     def test_visit_replace_null_and_nan(
@@ -519,30 +539,54 @@ class TestTransformationVisitor(PySparkTest):
         expected_replace_with: Mapping[
             str, Union[int, float, str, datetime.date, datetime.datetime]
         ],
+        expect_nan_replacement: bool,
     ):
         """Test visit_replace_null_and_nan."""
         query = ReplaceNullAndNan(child=self.base_query, replace_with=replace_with)
         transformation = self.visitor.visit_replace_null_and_nan(query)
         self._validate_transform_basics(transformation, query)
         assert isinstance(transformation, ChainTT)
-        self.assertIsInstance(transformation.transformation2, MapTransformation)
-        assert isinstance(transformation.transformation2, MapTransformation)
-        replace_transform = transformation.transformation2
+        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_domain = SparkDataFrameDomain(
+            schema=analytics_to_spark_columns_descriptor(expected_output_schema)
+        )
+
+        replace_transform: ReplaceNulls
+        if expect_nan_replacement:
+            self.assertIsInstance(transformation.transformation2, ChainTT)
+            assert isinstance(transformation.transformation2, ChainTT)
+            self.assertIsInstance(
+                transformation.transformation2.transformation1, ReplaceNulls
+            )
+            assert isinstance(
+                transformation.transformation2.transformation1, ReplaceNulls
+            )
+            replace_transform = transformation.transformation2.transformation1
+
+            nan_transform = transformation.transformation2.transformation2
+            self.assertIsInstance(nan_transform, ReplaceNaNs)
+            assert isinstance(nan_transform, ReplaceNaNs)
+            expected_nan_replace = {
+                k: v
+                for k, v in expected_replace_with.items()
+                if expected_output_schema[k].column_type == ColumnType.DECIMAL
+            }
+            self._assert_dict_equal_without_ordering(
+                expected_nan_replace, nan_transform.replace_map
+            )
+        else:
+            self.assertIsInstance(transformation.transformation2, ReplaceNulls)
+            assert isinstance(transformation.transformation2, ReplaceNulls)
+            replace_transform = transformation.transformation2
 
         expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
         self.assertEqual(expected_output_domain, replace_transform.output_domain)
-        self.assertFalse(replace_transform.row_transformer.augment)
-        all_none: Dict[
-            str, Optional[Union[int, float, str, datetime.date, datetime.datetime]]
-        ] = {"A": None, "B": None, "X": None, "D": None, "T": None}
-        expected_result = all_none.copy()
-        for key in expected_replace_with:
-            expected_result[key] = expected_replace_with[key]
-        actual_result = replace_transform.row_transformer.trusted_f(all_none)
-        self.assertEqual(expected_result, actual_result)
+        self._assert_dict_equal_without_ordering(
+            expected_replace_with, replace_transform.replace_map
+        )
 
     def test_measurement_visits(self):
         """Test that visiting measurement queries raises an error."""

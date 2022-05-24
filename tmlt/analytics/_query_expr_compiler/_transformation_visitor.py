@@ -6,7 +6,6 @@ import datetime
 from typing import Any, Dict, Union
 
 from pyspark.sql import DataFrame
-from pyspark.sql.types import Row as SparkRow
 from pyspark.sql.types import StructType
 
 from tmlt.analytics._catalog import Catalog
@@ -14,7 +13,6 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
 from tmlt.analytics._schema import (
-    ColumnDescriptor,
     ColumnType,
     Schema,
     analytics_to_spark_columns_descriptor,
@@ -80,6 +78,10 @@ from tmlt.core.transformations.spark_transformations.map import Map as MapTransf
 from tmlt.core.transformations.spark_transformations.map import (
     RowToRowsTransformation,
     RowToRowTransformation,
+)
+from tmlt.core.transformations.spark_transformations.nan import (
+    ReplaceNaNs,
+    ReplaceNulls,
 )
 from tmlt.core.transformations.spark_transformations.rename import (
     Rename as RenameTransformation,
@@ -574,14 +576,11 @@ class TransformationVisitor(QueryExprVisitor):
         assert isinstance(
             child.output_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
         )
-        transformer_input_domain = SparkRowDomain(child.output_domain.schema)
         analytics_schema = spark_dataframe_domain_to_analytics_columns(
-            transformer_input_domain
+            child.output_domain
         )
 
-        replace_with: Dict[
-            str, Union[int, float, str, datetime.date, datetime.datetime]
-        ] = dict(query.replace_with).copy()
+        replace_with: Dict[str, Any] = dict(query.replace_with).copy()
         if len(replace_with) == 0:
             for col in list(Schema(analytics_schema).column_descs.keys()):
                 if analytics_schema[col].column_type == ColumnType.INTEGER:
@@ -602,51 +601,42 @@ class TransformationVisitor(QueryExprVisitor):
                         f" type {analytics_schema[col].column_type}, and no default"
                         " value was provided"
                     )
+        else:
+            # Make sure all DECIMAL replacement values are floats
+            for col in list(replace_with.keys()):
+                if analytics_schema[col].column_type == ColumnType.DECIMAL:
+                    replace_with[col] = float(replace_with[col])
 
-        new_column_descs = Schema(
-            {
-                name: ColumnDescriptor(
-                    column_type=cd.column_type,
-                    # Allow nulls ONLY for columns that are NOT being replaced,
-                    # and only if the original column allowed nulls to begin with
-                    allow_null=(cd.allow_null and not name in replace_with),
-                )
-                for name, cd in Schema(analytics_schema).column_descs.items()
-            }
+        also_replace_nan = any(
+            [
+                analytics_schema[col].column_type == ColumnType.DECIMAL
+                for col in list(replace_with.keys())
+            ]
         )
 
-        def transform_row(row: Dict[str, Any]) -> Dict[str, Any]:
-            out = {}
-            # Did you know: a pyspark.sql.Row will typecheck as a Dict[str, Any],
-            # but `for x in row` will iterate over the row *values*,
-            # not the column names
-            # to get around that, we do this
-            as_dict: Dict[str, Any] = {}
-            if isinstance(row, SparkRow):
-                as_dict = row.asDict()
-            else:
-                as_dict = dict(row)
-            for col, val in as_dict.items():
-                val = row[col]
-                if (
-                    val is None or val == float("nan") or val == -float("nan")
-                ) and col in replace_with:
-                    out[col] = replace_with[col]
-                else:
-                    out[col] = val
-            return out
-
-        transformation = MapTransformation(
+        transformation: Transformation = ReplaceNulls(
+            input_domain=child.output_domain,
             metric=child.output_metric,
-            row_transformer=RowToRowTransformation(
-                input_domain=transformer_input_domain,
-                output_domain=SparkRowDomain(
-                    analytics_to_spark_columns_descriptor(new_column_descs)
-                ),
-                trusted_f=transform_row,
-                augment=False,
-            ),
+            replace_map=replace_with,
         )
+        if also_replace_nan:
+            # These assertions are here to make MyPy happy
+            # If they fail, something is very wrong in Core
+            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+            assert isinstance(
+                transformation.output_metric,
+                (IfGroupedBy, HammingDistance, SymmetricDifference),
+            )
+            replace_nan = ReplaceNaNs(
+                input_domain=transformation.output_domain,
+                metric=transformation.output_metric,
+                replace_map={
+                    col: replace_with[col]
+                    for col in list(replace_with.keys())
+                    if analytics_schema[col].column_type == ColumnType.DECIMAL
+                },
+            )
+            transformation = transformation | replace_nan
         return child | transformation
 
     # None of the queries that produce measurements are implemented
