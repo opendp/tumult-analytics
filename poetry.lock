@@ -966,7 +966,7 @@ python-versions = "*"
 
 [package.source]
 type = "legacy"
-url = "http://tumult-packages.s3-website-us-east-1.amazonaws.com"
+url = "https://d3p0voevd56kj6.cloudfront.net"
 reference = "flint"
 
 [[package]]
@@ -1673,7 +1673,7 @@ reference = "tumult-core"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "cb401fdb1e8f1fd71192c93e994ce90887fccb6b5ab18aaf1003f09cb93f38ea"
+content-hash = "b003604f7925a4c7958172d990a0b7b41e50eab9460da4bcbf0bc87931b81aa2"
 
 [metadata.files]
 alabaster = [

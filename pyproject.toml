@@ -75,7 +75,7 @@ secondary = true
 
 [[tool.poetry.source]]
 name = "flint"
-url = "http://tumult-packages.s3-website-us-east-1.amazonaws.com"
+url = "https://d3p0voevd56kj6.cloudfront.net"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

