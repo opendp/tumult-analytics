@@ -49,6 +49,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceNullAndNan,
     Select,
     StdevMechanism,
     SumMechanism,
@@ -204,12 +205,15 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # FlatMap
         [
             GroupByBoundedSum(
-                child=FlatMap(
-                    child=PrivateSource("private"),
-                    f=lambda row: [{}, {}],
-                    max_num_rows=2,
-                    schema_new_columns=Schema({}),
-                    augment=True,
+                child=ReplaceNullAndNan(
+                    replace_with={},
+                    child=FlatMap(
+                        child=PrivateSource("private"),
+                        f=lambda row: [{}, {}],
+                        max_num_rows=2,
+                        schema_new_columns=Schema({}),
+                        augment=True,
+                    ),
                 ),
                 groupby_keys=KeySet.from_dict({}),
                 measure_column="X",
@@ -222,18 +226,21 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Multiple flat maps
         [
             GroupByBoundedSum(
-                child=FlatMap(
+                child=ReplaceNullAndNan(
+                    replace_with={},
                     child=FlatMap(
-                        child=PrivateSource("private"),
-                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
-                        schema_new_columns=Schema({"Repeat": "INTEGER"}),
-                        augment=True,
+                        child=FlatMap(
+                            child=PrivateSource("private"),
+                            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                            max_num_rows=1,
+                            schema_new_columns=Schema({"Repeat": "INTEGER"}),
+                            augment=True,
+                        ),
+                        f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                        max_num_rows=2,
+                        schema_new_columns=Schema({"i": "DECIMAL"}),
+                        augment=False,
                     ),
-                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
-                    schema_new_columns=Schema({"i": "DECIMAL"}),
-                    augment=False,
                 ),
                 groupby_keys=KeySet.from_dict({}),
                 measure_column="i",
@@ -246,20 +253,23 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Grouping flat map
         [
             GroupByBoundedSum(
-                child=FlatMap(
+                child=ReplaceNullAndNan(
+                    replace_with={},
                     child=FlatMap(
-                        child=PrivateSource("private"),
-                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
-                        schema_new_columns=Schema(
-                            {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                        child=FlatMap(
+                            child=PrivateSource("private"),
+                            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                            max_num_rows=1,
+                            schema_new_columns=Schema(
+                                {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                            ),
+                            augment=True,
                         ),
+                        f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                        max_num_rows=2,
+                        schema_new_columns=Schema({"i": "DECIMAL"}),
                         augment=True,
                     ),
-                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
-                    schema_new_columns=Schema({"i": "DECIMAL"}),
-                    augment=True,
                 ),
                 groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
                 measure_column="i",
@@ -299,11 +309,14 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Map
         [
             GroupByCount(
-                child=Map(
-                    child=PrivateSource("private"),
-                    f=lambda row: {"C": 2 * str(row["B"])},
-                    schema_new_columns=Schema({"C": "VARCHAR"}),
-                    augment=True,
+                child=ReplaceNullAndNan(
+                    replace_with={},
+                    child=Map(
+                        child=PrivateSource("private"),
+                        f=lambda row: {"C": 2 * str(row["B"])},
+                        schema_new_columns=Schema({"C": "VARCHAR"}),
+                        augment=True,
+                    ),
                 ),
                 groupby_keys=KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}),
             )
@@ -398,11 +411,14 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         [
             GroupByBoundedSum(
-                Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    lambda row: {"day": row["date"].day},
-                    Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
-                    augment=True,
+                ReplaceNullAndNan(
+                    replace_with={},
+                    child=Map(
+                        JoinPublic(PrivateSource("private"), "dtypes"),
+                        lambda row: {"day": row["date"].day},
+                        Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
+                        augment=True,
+                    ),
                 ),
                 KeySet.from_dict({"A": ["0", "1"]}),
                 "day",
@@ -415,11 +431,14 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         [
             GroupByBoundedSum(
-                Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    lambda row: {"minute": row["timestamp"].minute},
-                    Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
-                    augment=True,
+                ReplaceNullAndNan(
+                    replace_with={},
+                    child=Map(
+                        JoinPublic(PrivateSource("private"), "dtypes"),
+                        lambda row: {"minute": row["timestamp"].minute},
+                        Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
+                        augment=True,
+                    ),
                 ),
                 KeySet.from_dict({"A": ["0", "1"]}),
                 "minute",
@@ -858,20 +877,25 @@ class TestQueryExprCompiler(PySparkTest):
             ),
             (  # Grouping flat map with LAPLACE
                 GroupByBoundedSum(
-                    child=FlatMap(
+                    child=ReplaceNullAndNan(
+                        replace_with={},
                         child=FlatMap(
-                            child=PrivateSource("private"),
-                            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                            max_num_rows=1,
-                            schema_new_columns=Schema(
-                                {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                            child=FlatMap(
+                                child=PrivateSource("private"),
+                                f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                                max_num_rows=1,
+                                schema_new_columns=Schema(
+                                    {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                                ),
+                                augment=True,
                             ),
+                            f=lambda row: [
+                                {"i": row["X"]} for i in range(row["Repeat"])
+                            ],
+                            max_num_rows=2,
+                            schema_new_columns=Schema({"i": "DECIMAL"}),
                             augment=True,
                         ),
-                        f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                        max_num_rows=2,
-                        schema_new_columns=Schema({"i": "DECIMAL"}),
-                        augment=True,
                     ),
                     groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
                     measure_column="i",
@@ -961,22 +985,27 @@ class TestQueryExprCompiler(PySparkTest):
             (  # Grouping flat map with GAUSSIAN
                 [
                     GroupByBoundedSum(
-                        child=FlatMap(
+                        child=ReplaceNullAndNan(
+                            replace_with={},
                             child=FlatMap(
-                                child=PrivateSource("private"),
-                                f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                                max_num_rows=1,
-                                schema_new_columns=Schema(
-                                    {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                                child=FlatMap(
+                                    child=PrivateSource("private"),
+                                    f=lambda row: [
+                                        {"Repeat": 1 if row["A"] == "0" else 2}
+                                    ],
+                                    max_num_rows=1,
+                                    schema_new_columns=Schema(
+                                        {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                                    ),
+                                    augment=True,
                                 ),
+                                f=lambda row: [
+                                    {"i": row["X"]} for i in range(row["Repeat"])
+                                ],
+                                max_num_rows=2,
+                                schema_new_columns=Schema({"i": "DECIMAL"}),
                                 augment=True,
                             ),
-                            f=lambda row: [
-                                {"i": row["X"]} for i in range(row["Repeat"])
-                            ],
-                            max_num_rows=2,
-                            schema_new_columns=Schema({"i": "DECIMAL"}),
-                            augment=True,
                         ),
                         groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
                         measure_column="i",
@@ -1470,12 +1499,15 @@ class TestComponentIsUsed(unittest.TestCase):
             for output_measure in [PureDP(), RhoZCDP()]
             for preprocessing_expr, preprocessing_stability in [
                 (
-                    FlatMap(
-                        child=PrivateSource(source_id="test"),
-                        f=lambda row: [{}, {}],
-                        max_num_rows=2,
-                        schema_new_columns=Schema({}),
-                        augment=True,
+                    ReplaceNullAndNan(
+                        replace_with={},
+                        child=FlatMap(
+                            child=PrivateSource(source_id="test"),
+                            f=lambda row: [{}, {}],
+                            max_num_rows=2,
+                            schema_new_columns=Schema({}),
+                            augment=True,
+                        ),
                     ),
                     2,
                 ),

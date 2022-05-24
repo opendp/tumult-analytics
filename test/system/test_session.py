@@ -40,6 +40,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceNullAndNan,
     Select,
     StdevMechanism,
     SumMechanism,
@@ -256,14 +257,18 @@ EVALUATE_TESTS = [
         .flat_map(
             f=lambda _: [{}, {}], max_num_rows=2, new_column_types={}, augment=True
         )
+        .replace_null_and_nan()
         .sum(column="X", low=0, high=3),
         GroupByBoundedSum(
-            child=FlatMap(
-                child=PrivateSource("private"),
-                f=lambda _: [{}, {}],
-                max_num_rows=2,
-                schema_new_columns=Schema({}),
-                augment=True,
+            child=ReplaceNullAndNan(
+                replace_with={},
+                child=FlatMap(
+                    child=PrivateSource("private"),
+                    f=lambda _: [{}, {}],
+                    max_num_rows=2,
+                    schema_new_columns=Schema({}),
+                    augment=True,
+                ),
             ),
             groupby_keys=KeySet.from_dict({}),
             measure_column="X",
@@ -288,20 +293,24 @@ EVALUATE_TESTS = [
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=False,
         )
+        .replace_null_and_nan()
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
-            child=FlatMap(
+            child=ReplaceNullAndNan(
+                replace_with={},
                 child=FlatMap(
-                    child=PrivateSource("private"),
-                    f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                    max_num_rows=1,
-                    schema_new_columns=Schema({"Repeat": "INTEGER"}),
-                    augment=True,
+                    child=FlatMap(
+                        child=PrivateSource("private"),
+                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                        max_num_rows=1,
+                        schema_new_columns=Schema({"Repeat": "INTEGER"}),
+                        augment=True,
+                    ),
+                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                    max_num_rows=2,
+                    schema_new_columns=Schema({"i": "INTEGER"}),
+                    augment=False,
                 ),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}),
-                augment=False,
             ),
             groupby_keys=KeySet.from_dict({}),
             measure_column="i",
@@ -328,23 +337,27 @@ EVALUATE_TESTS = [
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
+        .replace_null_and_nan()
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
-            child=FlatMap(
+            child=ReplaceNullAndNan(
+                replace_with={},
                 child=FlatMap(
-                    child=PrivateSource("private"),
-                    f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                    max_num_rows=1,
-                    schema_new_columns=Schema(
-                        {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                    child=FlatMap(
+                        child=PrivateSource("private"),
+                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                        max_num_rows=1,
+                        schema_new_columns=Schema(
+                            {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                        ),
+                        augment=True,
                     ),
+                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                    max_num_rows=2,
+                    schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
                 ),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}),
-                augment=True,
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
             measure_column="i",
@@ -369,23 +382,27 @@ EVALUATE_TESTS = [
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
+        .replace_null_and_nan()
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
         .sum(column="i", low=0, high=3, mechanism=SumMechanism.LAPLACE),
         GroupByBoundedSum(
-            child=FlatMap(
+            child=ReplaceNullAndNan(
+                replace_with={},
                 child=FlatMap(
-                    child=PrivateSource("private"),
-                    f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                    max_num_rows=1,
-                    schema_new_columns=Schema(
-                        {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                    child=FlatMap(
+                        child=PrivateSource("private"),
+                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                        max_num_rows=1,
+                        schema_new_columns=Schema(
+                            {"Repeat": "INTEGER"}, grouping_column="Repeat"
+                        ),
+                        augment=True,
                     ),
+                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                    max_num_rows=2,
+                    schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
                 ),
-                f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
-                schema_new_columns=Schema({"i": "INTEGER"}),
-                augment=True,
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
             measure_column="i",
@@ -443,14 +460,18 @@ EVALUATE_TESTS = [
             new_column_types={"C": ColumnDescriptor(ColumnType.VARCHAR)},
             augment=True,
         )
+        .replace_null_and_nan()
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
         .count(),
         GroupByCount(
-            child=Map(
-                child=PrivateSource("private"),
-                f=lambda row: {"C": 2 * str(row["B"])},
-                schema_new_columns=Schema({"C": "VARCHAR"}),
-                augment=True,
+            child=ReplaceNullAndNan(
+                replace_with={},
+                child=Map(
+                    child=PrivateSource("private"),
+                    f=lambda row: {"C": 2 * str(row["B"])},
+                    schema_new_columns=Schema({"C": "VARCHAR"}),
+                    augment=True,
+                ),
             ),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}),
         ),
@@ -466,14 +487,18 @@ EVALUATE_TESTS = [
             new_column_types={"C": ColumnDescriptor(ColumnType.VARCHAR)},
             augment=True,
         )
+        .replace_null_and_nan()
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
         .count_distinct(),
         GroupByCountDistinct(
-            child=Map(
-                child=PrivateSource("private"),
-                f=lambda row: {"C": 2 * str(row["B"])},
-                schema_new_columns=Schema({"C": "VARCHAR"}),
-                augment=True,
+            child=ReplaceNullAndNan(
+                replace_with={},
+                child=Map(
+                    child=PrivateSource("private"),
+                    f=lambda row: {"C": 2 * str(row["B"])},
+                    schema_new_columns=Schema({"C": "VARCHAR"}),
+                    augment=True,
+                ),
             ),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}),
         ),
@@ -716,11 +741,14 @@ class TestEvaluate(PySparkTest):
     def test_private_join_privacy_budget_infinity(self, privacy_budget: PrivacyBudget):
         """Session :func:`evaluate` returns correct result for private join, eps=inf."""
         query_expr = GroupByCount(
-            child=JoinPrivate(
-                child=PrivateSource("private"),
-                right_operand_expr=PrivateSource("private_2"),
-                truncation_strategy_left=TruncationStrategy.DropExcess(3),
-                truncation_strategy_right=TruncationStrategy.DropExcess(3),
+            child=ReplaceNullAndNan(
+                replace_with={},
+                child=JoinPrivate(
+                    child=PrivateSource("private"),
+                    right_operand_expr=PrivateSource("private_2"),
+                    truncation_strategy_left=TruncationStrategy.DropExcess(3),
+                    truncation_strategy_right=TruncationStrategy.DropExcess(3),
+                ),
             ),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         )
@@ -837,7 +865,9 @@ class TestEvaluate(PySparkTest):
         session.create_view(transformation_query, "flatmap_transformation", cache=False)
 
         sum_query = GroupByBoundedSum(
-            child=PrivateSource("flatmap_transformation"),
+            child=ReplaceNullAndNan(
+                replace_with={}, child=PrivateSource("flatmap_transformation")
+            ),
             groupby_keys=KeySet.from_dict({}),
             measure_column="X",
             low=0,
@@ -902,12 +932,15 @@ class TestEvaluate(PySparkTest):
             privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
         )
 
-        transformation_query = FlatMap(
-            child=PrivateSource("private"),
-            f=lambda _: [{}, {}],
-            max_num_rows=2,
-            schema_new_columns=Schema({}),
-            augment=True,
+        transformation_query = ReplaceNullAndNan(
+            replace_with={},
+            child=FlatMap(
+                child=PrivateSource("private"),
+                f=lambda _: [{}, {}],
+                max_num_rows=2,
+                schema_new_columns=Schema({}),
+                augment=True,
+            ),
         )
         session1.create_view(transformation_query, "flatmap", True)
 
@@ -1012,12 +1045,15 @@ class TestEvaluate(PySparkTest):
             privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
         )
 
-        transformation_query1 = FlatMap(
-            child=PrivateSource("private"),
-            f=lambda row: [{}, {}],
-            max_num_rows=2,
-            schema_new_columns=Schema({}),
-            augment=True,
+        transformation_query1 = ReplaceNullAndNan(
+            replace_with={},
+            child=FlatMap(
+                child=PrivateSource("private"),
+                f=lambda row: [{}, {}],
+                max_num_rows=2,
+                schema_new_columns=Schema({}),
+                augment=True,
+            ),
         )
         session1.create_view(transformation_query1, "transform1", cache=False)
 
@@ -1055,12 +1091,15 @@ class TestEvaluate(PySparkTest):
             ),
         )
 
-        transformation_query2 = FlatMap(
-            child=PrivateSource("private0"),
-            f=lambda row: [{}, {}, {}],
-            max_num_rows=3,
-            schema_new_columns=Schema({}),
-            augment=True,
+        transformation_query2 = ReplaceNullAndNan(
+            replace_with={},
+            child=FlatMap(
+                child=PrivateSource("private0"),
+                f=lambda row: [{}, {}, {}],
+                max_num_rows=3,
+                schema_new_columns=Schema({}),
+                augment=True,
+            ),
         )
         session2.create_view(transformation_query2, "transform2", cache=False)
 
@@ -1290,7 +1329,7 @@ class TestEvaluate(PySparkTest):
 
         # Check that we can query on the view.
         sum_query = GroupByBoundedSum(
-            child=PrivateSource("flatmap2"),
+            child=ReplaceNullAndNan(replace_with={}, child=PrivateSource("flatmap2")),
             groupby_keys=KeySet.from_dict({}),
             measure_column="X",
             low=0,
@@ -1332,7 +1371,7 @@ class TestEvaluate(PySparkTest):
 
         # Check that we can query on the view.
         sum_query = GroupByBoundedSum(
-            child=PrivateSource("flatmap2"),
+            child=ReplaceNullAndNan(replace_with={}, child=PrivateSource("flatmap2")),
             groupby_keys=KeySet.from_dict({}),
             measure_column="i",
             low=0,
@@ -1520,7 +1559,9 @@ class TestInvalidSession(PySparkTest):
         ):
             session.evaluate(
                 query_expr=GroupByBoundedSum(
-                    child=PrivateSource("grouping_flatmap_renamed"),
+                    child=ReplaceNullAndNan(
+                        replace_with={}, child=PrivateSource("grouping_flatmap_renamed")
+                    ),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
                     low=0,
