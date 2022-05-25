@@ -567,7 +567,7 @@ class TestQueryExprCompiler(PySparkTest):
             {
                 "A": ColumnDescriptor(ColumnType.VARCHAR),
                 "int": ColumnDescriptor(ColumnType.INTEGER),
-                "float": ColumnDescriptor(ColumnType.DECIMAL),
+                "float": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
                 "date": ColumnDescriptor(ColumnType.DATE),
                 "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
             },

@@ -304,7 +304,7 @@ class KeySet:
             >>> keyset = KeySet.from_dict(domains)
             >>> schema = keyset.schema()
             >>> schema
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True), 'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True)})
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False), 'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False)})
         """
         # pylint: enable=line-too-long
         return Schema(spark_schema_to_analytics_columns(self.dataframe().schema))

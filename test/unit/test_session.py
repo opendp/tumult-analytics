@@ -905,12 +905,16 @@ class TestInvalidSession(PySparkTest):
             accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
         )
 
+        expected_schema = spark_schema_to_analytics_columns(self.sdf.schema)
+        # We expect a transformation that will disallow NaNs on floats
+        expected_schema["X"].allow_nan = False
+
         with self.assertRaisesRegex(
             KeyError,
             re.escape(
                 "'T' not present in transformed dataframe's columns; "
                 "schema of transformed dataframe is "
-                f"{spark_schema_to_analytics_columns(self.sdf.schema)}"
+                f"{expected_schema}"
             ),
         ):
             session.partition_and_create(

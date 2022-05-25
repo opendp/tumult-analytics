@@ -4,6 +4,7 @@
 
 import datetime
 
+from parameterized import parameterized
 from pyspark.sql import types as spark_types
 
 from tmlt.analytics._schema import (
@@ -17,6 +18,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.core.domains.spark_domains import (
+    SparkColumnsDescriptor,
     SparkDataFrameDomain,
     SparkDateColumnDescriptor,
     SparkFloatColumnDescriptor,
@@ -96,74 +98,89 @@ class TestSchemaConversions(PySparkTest):
         actual_spark_schema = analytics_to_spark_schema(analytics_schema)
         self.assertEqual(actual_spark_schema, expected_spark_schema)
 
-    def test_analytics_to_spark_columns_descriptor_schema(self) -> None:
-        """Make sure conversion to Spark columns descriptor works properly."""
-
-        # strings aren't yet supported by domains.py -> convert_spark_schema
-        analytics_schema = Schema(
-            {
-                "1": "INTEGER",
-                "2": "DECIMAL",
-                "3": "VARCHAR",
-                "4": "DATE",
-                "5": "TIMESTAMP",
-            }
-        )
+    @parameterized.expand(
+        [
+            (
+                Schema(
+                    {
+                        "1": "INTEGER",
+                        "2": "DECIMAL",
+                        "3": "VARCHAR",
+                        "4": "DATE",
+                        "5": "TIMESTAMP",
+                    }
+                ),
+                {
+                    "1": SparkIntegerColumnDescriptor(),
+                    "2": SparkFloatColumnDescriptor(),
+                    "3": SparkStringColumnDescriptor(),
+                    "4": SparkDateColumnDescriptor(),
+                    "5": SparkTimestampColumnDescriptor(),
+                },
+            ),
+            (
+                Schema(
+                    {
+                        "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                        "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+                    }
+                ),
+                {
+                    "1": SparkIntegerColumnDescriptor(allow_null=True),
+                    "2": SparkFloatColumnDescriptor(allow_null=True),
+                    "3": SparkStringColumnDescriptor(allow_null=True),
+                    "4": SparkDateColumnDescriptor(allow_null=True),
+                    "5": SparkTimestampColumnDescriptor(allow_null=True),
+                },
+            ),
+            (
+                Schema(
+                    {
+                        "i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "i2": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                        "d1": ColumnDescriptor(
+                            ColumnType.DECIMAL, allow_null=True, allow_nan=False
+                        ),
+                        "d2": ColumnDescriptor(
+                            ColumnType.DECIMAL, allow_null=True, allow_nan=True
+                        ),
+                        "d3": ColumnDescriptor(
+                            ColumnType.DECIMAL, allow_null=False, allow_nan=True
+                        ),
+                    }
+                ),
+                {
+                    "i": SparkIntegerColumnDescriptor(allow_null=True),
+                    "i2": SparkIntegerColumnDescriptor(allow_null=False),
+                    "d1": SparkFloatColumnDescriptor(
+                        allow_null=True, allow_nan=False, allow_inf=False
+                    ),
+                    "d2": SparkFloatColumnDescriptor(
+                        allow_null=True, allow_nan=True, allow_inf=False
+                    ),
+                    "d3": SparkFloatColumnDescriptor(
+                        allow_null=False, allow_nan=True, allow_inf=False
+                    ),
+                },
+            ),
+        ]
+    )
+    def test_analytics_to_spark_columns_descriptor_schema(
+        self, analytics_schema: Schema, expected: SparkColumnsDescriptor
+    ) -> None:
+        """Test conversion to Spark columns descriptor works correctly."""
         spark_columns_descriptor = analytics_to_spark_columns_descriptor(
             analytics_schema
         )
-        self.assertEqual(5, len(spark_columns_descriptor))
-        for k in (str(i) for i in range(1, 6)):
+        # Since we don't care if the dictionaries have the same keys in the
+        # same order, we can't use dictionary equality here
+        for k in list(expected.keys()):
             self.assertTrue(k in spark_columns_descriptor)
-
-        self.assertIsInstance(
-            spark_columns_descriptor["1"], SparkIntegerColumnDescriptor
-        )
-        self.assertIsInstance(spark_columns_descriptor["2"], SparkFloatColumnDescriptor)
-        self.assertIsInstance(
-            spark_columns_descriptor["3"], SparkStringColumnDescriptor
-        )
-        self.assertIsInstance(spark_columns_descriptor["4"], SparkDateColumnDescriptor)
-        self.assertIsInstance(
-            spark_columns_descriptor["5"], SparkTimestampColumnDescriptor
-        )
-
-    def test_analytics_to_spark_columns_descriptor_schema_with_null(self) -> None:
-        """Test conversion to Spark columns descriptor works with allow_null=True."""
-
-        # strings aren't yet supported by domains.py -> convert_spark_schema
-        analytics_schema = Schema(
-            {
-                "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-                "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
-            }
-        )
-        spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-            analytics_schema
-        )
-        self.assertEqual(5, len(spark_columns_descriptor))
-        for k in (str(i) for i in range(1, 6)):
-            self.assertTrue(k in spark_columns_descriptor)
-
-        self.assertIsInstance(
-            spark_columns_descriptor["1"], SparkIntegerColumnDescriptor
-        )
-        self.assertIsInstance(spark_columns_descriptor["2"], SparkFloatColumnDescriptor)
-        self.assertIsInstance(
-            spark_columns_descriptor["3"], SparkStringColumnDescriptor
-        )
-        self.assertIsInstance(spark_columns_descriptor["4"], SparkDateColumnDescriptor)
-        self.assertIsInstance(
-            spark_columns_descriptor["5"], SparkTimestampColumnDescriptor
-        )
-        self.assertTrue(spark_columns_descriptor["1"].allow_null)
-        self.assertTrue(spark_columns_descriptor["2"].allow_null)
-        self.assertTrue(spark_columns_descriptor["3"].allow_null)
-        self.assertTrue(spark_columns_descriptor["4"].allow_null)
-        self.assertTrue(spark_columns_descriptor["5"].allow_null)
+        for k in list(expected.keys()):
+            self.assertEqual(expected[k], spark_columns_descriptor[k])
 
     def test_spark_conversions(self) -> None:
         """Make sure conversion from Spark schema/domain to Analytics works."""
@@ -184,8 +201,8 @@ class TestSchemaConversions(PySparkTest):
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
             "C": ColumnDescriptor(ColumnType.INTEGER),
-            "D": ColumnDescriptor(ColumnType.DECIMAL),
-            "E": ColumnDescriptor(ColumnType.DECIMAL),
+            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
             "F": ColumnDescriptor(ColumnType.DATE),
             "G": ColumnDescriptor(ColumnType.TIMESTAMP),
         }
@@ -218,8 +235,8 @@ class TestSchemaConversions(PySparkTest):
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
             "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True, allow_nan=True),
+            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True, allow_nan=True),
             "F": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "G": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         }
