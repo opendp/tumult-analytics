@@ -129,7 +129,16 @@ class TransformationVisitor(QueryExprVisitor):
             if expected_schema.grouping_column is None
             else IfGroupedBy(expected_schema.grouping_column, self.inner_metric())
         )
-        if transformation.output_domain != expected_output_domain:
+        # TODO(#1904): handle this check correctly
+        if (
+            transformation.output_domain != expected_output_domain
+            and Schema(
+                spark_dataframe_domain_to_analytics_columns(
+                    transformation.output_domain
+                )
+            )
+            != expected_schema
+        ):
             raise AssertionError(
                 "Unexpected output domain. This is probably a bug; "
                 "please let us know about it so we can fix it!"

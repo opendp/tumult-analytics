@@ -70,6 +70,7 @@ class ColumnDescriptor:
 
     column_type: ColumnType
     allow_null: bool = False
+    allow_nan: bool = False
 
 
 class Schema(Mapping):
@@ -242,12 +243,20 @@ def analytics_to_spark_columns_descriptor(
     analytics_schema: Schema,
 ) -> SparkColumnsDescriptor:
     """Convert a schema in Analytics representation to a Spark columns descriptor."""
-    return {
-        column_name: _ANALYTICS_TYPE_TO_COLUMN_DESCRIPTOR[
-            ColumnType[column_desc.column_type.name]
-        ](allow_null=column_desc.allow_null)
-        for column_name, column_desc in analytics_schema.column_descs.items()
-    }
+    out: SparkColumnsDescriptor = {}
+    for column_name, column_desc in analytics_schema.column_descs.items():
+        if column_desc.column_type == ColumnType.DECIMAL:
+            out[column_name] = SparkFloatColumnDescriptor(
+                allow_nan=column_desc.allow_nan,
+                # TODO(#1904): Handle this properly
+                allow_inf=False,
+                allow_null=column_desc.allow_null,
+            )
+        else:
+            out[column_name] = _ANALYTICS_TYPE_TO_COLUMN_DESCRIPTOR[
+                ColumnType[column_desc.column_type.name]
+            ](allow_null=column_desc.allow_null)
+    return out
 
 
 def spark_schema_to_analytics_columns(
@@ -256,7 +265,11 @@ def spark_schema_to_analytics_columns(
     """Convert Spark schema to Analytics columns."""
     column_descs = {
         field.name: ColumnDescriptor(
-            column_type=_SPARK_TO_ANALYTICS[field.dataType], allow_null=field.nullable
+            column_type=_SPARK_TO_ANALYTICS[field.dataType],
+            allow_null=field.nullable,
+            # Spark doesn't contain any information on whether a field contains NaNs,
+            # so just assume that it does
+            allow_nan=(_SPARK_TO_ANALYTICS[field.dataType] == ColumnType.DECIMAL),
         )
         for field in spark_schema
     }
@@ -267,11 +280,18 @@ def spark_dataframe_domain_to_analytics_columns(
     domain: Domain,
 ) -> Dict[str, ColumnDescriptor]:
     """Convert a Spark dataframe domain to Analytics columns."""
-    column_descs = {
-        column_name: ColumnDescriptor(
-            column_type=_SPARK_TO_ANALYTICS[descriptor.data_type],
-            allow_null=descriptor.allow_null,
-        )
-        for column_name, descriptor in cast(SparkDataFrameDomain, domain).schema.items()
-    }
+    column_descs: Dict[str, ColumnDescriptor] = {}
+    for column_name, descriptor in cast(SparkDataFrameDomain, domain).schema.items():
+        if isinstance(descriptor, SparkFloatColumnDescriptor):
+            column_descs[column_name] = ColumnDescriptor(
+                ColumnType.DECIMAL,
+                allow_null=descriptor.allow_null,
+                allow_nan=descriptor.allow_nan,
+                # TODO(#1904): handle infinity
+            )
+        else:
+            column_descs[column_name] = ColumnDescriptor(
+                column_type=_SPARK_TO_ANALYTICS[descriptor.data_type],
+                allow_null=descriptor.allow_null,
+            )
     return column_descs

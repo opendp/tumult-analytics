@@ -15,7 +15,11 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
-from tmlt.analytics._schema import analytics_to_spark_columns_descriptor
+from tmlt.analytics._schema import (
+    ColumnType,
+    analytics_to_spark_columns_descriptor,
+    spark_dataframe_domain_to_analytics_columns,
+)
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -70,6 +74,7 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
+from tmlt.core.transformations.spark_transformations.nan import ReplaceNaNs
 from tmlt.core.utils.exact_number import ExactNumber
 
 
@@ -491,6 +496,48 @@ class MeasurementVisitor(QueryExprVisitor):
 
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
+        assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            info.transformation.output_metric,
+            (IfGroupedBy, HammingDistance, SymmetricDifference),
+        )
+
+        schema = spark_dataframe_domain_to_analytics_columns(
+            info.transformation.output_domain
+        )
+        nan_cols = [
+            k
+            for k in list(schema.keys())
+            if schema[k].column_type == ColumnType.DECIMAL and schema[k].allow_nan
+        ]
+        if len(nan_cols) != 0:
+            info.transformation = info.transformation | ReplaceNaNs(
+                input_domain=info.transformation.output_domain,
+                metric=info.transformation.output_metric,
+                replace_map={k: float(0) for k in nan_cols},
+            )
+            info.mid_stability = info.transformation.stability_function(self.stability)
+            if not isinstance(info.transformation.output_domain, SparkDataFrameDomain):
+                raise AssertionError(
+                    "Unexpected output domain. This is probably a bug; please let us"
+                    " know so we can fix it!"
+                )
+            if not isinstance(
+                info.transformation.output_metric,
+                (IfGroupedBy, HammingDistance, SymmetricDifference),
+            ):
+                raise AssertionError(
+                    "Unexpected output metric. This is probably a bug; please let us"
+                    " know so we can fix it!"
+                )
+            info.groupby = self._build_groupby(
+                mechanism=info.mechanism,
+                input_domain=info.transformation.output_domain,
+                input_metric=info.transformation.output_metric,
+                groupby_keys=query.groupby_keys,
+            )
+        # It is impossible to reach this code without this being true,
+        # but if you remove these asserts, mypy will complain about it
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
         assert isinstance(
             info.transformation.output_metric,

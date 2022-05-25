@@ -638,6 +638,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 name: ColumnDescriptor(
                     column_type=cd.column_type,
                     allow_null=(cd.allow_null and not name in columns_to_change),
+                    allow_nan=(cd.allow_nan and not name in columns_to_change),
                 )
                 for name, cd in input_schema.column_descs.items()
             },
