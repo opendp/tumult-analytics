@@ -74,6 +74,9 @@ setup:
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
+    # Don't bother reinstalling Core here if CORE_COMMIT_HASH is set -- it will
+    # get reinstalled again in the before_script for each job because they run
+    # poetry install again.
   script:
     - echo "setup"
   cache:
@@ -99,7 +102,7 @@ lint:
   rules:
     - if: '$CI_COMMIT_TAG'
       when: never
-    - when: always
+    - when: on_success
 
 test:
   extends: .base
@@ -115,6 +118,7 @@ test:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+      junit: junit.xml
     expire_in: 1 week
   timeout: 1h
   rules:
@@ -133,11 +137,28 @@ test_nightly:
   timeout: 23h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      allow_failure: true
     - if: '$CI_COMMIT_TAG'
       when: never
     - when: manual
       allow_failure: true
+
+# Requires the following CI variables to be set:
+# * NIGHTLY_HANDLER_TOKEN, a GitLab project access token with the read_api permission
+# * NIGHTLY_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
+#   channel
+nightly_handler:
+  stage: handler
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  script:
+    - source .pipeline_handlers
+    - nightly_handler
+  variables:
+    GIT_DEPTH: 1
+  timeout: 2m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+  interruptible: false
 
 docs:
   extends: .base
@@ -260,6 +281,7 @@ test_release:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+      junit: junit.xml
     expire_in: 1 week
   timeout: 1h
   rules:
@@ -338,13 +360,21 @@ redeploy_dev_docs:
   variables:
     REDEPLOY_DEV: "true"
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 # For reasons that are somewhat unclear, at the time of writing this job runs
 # out of memory when executed on the aws-small runner type, so it is run on
 # GitLab's shared runners instead.
+# Requires the following CI variables to be set:
+# * VERSION, the semantic version number to be given to the release. This would
+#   typically be specified when launching the manual job.
+# * RELEASER_TOKEN_USERNAME and RELEASER_TOKEN, a GitLab project access token
+#   (and an associated username) with the api permission and the ability to push
+#   tags.
 trigger_release:
-  stage: release
+  stage: handler
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   script:
     - |
@@ -398,42 +428,14 @@ trigger_release:
       when: manual
   interruptible: false
 
+# Requires the following CI variables to be set:
+# * RELEASE_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
+#   channel
 release_handler:
   stage: handler
   script:
-    - |
-      # TODO: Add a link to the docs to this message as well, once we start
-      # automatically publishing them to the public site from this pipeline.
-      cat > body.json <<EOF
-      {
-        "blocks": [
-          {
-            "type": "section",
-            "text": {
-              "type": "mrkdwn",
-              "text": "*Analytics Release $CI_COMMIT_TAG*\n<https://gitlab.com/tumult-labs/analytics/-/packages|:package: Package Registry>    <$CI_PIPELINE_URL|:factory: Pipeline>"
-            }
-          }
-        ]
-      }
-      EOF
-    - |
-      if [[ -z "$SLACK_RELEASE_WEBHOOK_URL" ]]; then
-        echo "SLACK_RELEASE_WEBHOOK_URL unset"
-        exit 1
-      fi
-    - |
-      http_status=$(
-        curl -XPOST -s -o response.json -w "%{http_code}" \
-            "$SLACK_RELEASE_WEBHOOK_URL" \
-            -H "Content-Type: application/json" -d "@body.json"
-      )
-      echo "Response body:"
-      cat response.json
-      if [[ $http_status -ne 200 ]]; then
-        echo "Got unexpected HTTP status $http_status, exiting..."
-        exit 1
-      fi
+    - source .pipeline_handlers
+    - release_handler
   timeout: 2m
   rules:
     - if: '$CI_COMMIT_TAG'
