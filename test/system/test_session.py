@@ -1755,7 +1755,7 @@ class TestSessionWithNull(PySparkTest):
         cols_to_defaults: Mapping[
             str, Union[int, float, str, datetime.date, datetime.datetime]
         ],
-    ):
+    ) -> None:
         """Test Session.replace_null_and_nan."""
         session = Session.from_dataframe(
             PureDPBudget(float("inf")), "private", self.sdf, validate=False
@@ -1767,6 +1767,7 @@ class TestSessionWithNull(PySparkTest):
         )
         # pylint: disable=protected-access
         queryable = session._accountant._queryable
+        self.assertIsInstance(queryable, SequentialQueryable)
         assert isinstance(queryable, SequentialQueryable)
         data = queryable._data
         self.assertIsInstance(data, dict)
@@ -1777,3 +1778,141 @@ class TestSessionWithNull(PySparkTest):
         self.assert_frame_equal_with_sort(
             data["replaced"].toPandas(), self._expected_replace(cols_to_defaults)
         )
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame(
+                    [[None, 0], [None, 1], ["a2", 1], ["a2", 2]],
+                    columns=["A", "new_column"],
+                ),
+                KeySet.from_dict({"new_column": [0, 1, 2]}),
+                pd.DataFrame([[0, 1], [1, 2], [2, 1]], columns=["new_column", "count"]),
+            ),
+            (
+                pd.DataFrame(
+                    [["a0", 0, 0], [None, 1, 17], ["a5", 5, 17], ["a5", 5, 400]],
+                    columns=["A", "I", "new_column"],
+                ),
+                KeySet.from_dict({"new_column": [0, 17, 400]}),
+                pd.DataFrame(
+                    [[0, 1], [17, 2], [400, 1]], columns=["new_column", "count"]
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    [
+                        [datetime.date(2000, 1, 1), "2000"],
+                        [datetime.date(2001, 1, 1), "2001"],
+                        [None, "none"],
+                        [None, "also none"],
+                    ],
+                    columns=["D", "year"],
+                ),
+                KeySet.from_dict(
+                    {"D": [datetime.date(2000, 1, 1), datetime.date(2001, 1, 1), None]}
+                ),
+                pd.DataFrame(
+                    [
+                        [datetime.date(2000, 1, 1), 1],
+                        [datetime.date(2001, 1, 1), 1],
+                        [None, 2],
+                    ],
+                    columns=["D", "count"],
+                ),
+            ),
+        ]
+    )
+    def test_join_public(
+        self, public_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
+    ) -> None:
+        """Test that join_public creates the correct results.
+
+        The query used to evaluate this is a GroupByCount on the new dataframe,
+        using the keyset provided.
+        """
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+        )
+        session.add_public_dataframe(
+            "public", self.spark.createDataFrame(public_df), validate=False
+        )
+        result = session.evaluate(
+            QueryBuilder("private").join_public("public").groupby(keyset).count(),
+            privacy_budget=PureDPBudget(float("inf")),
+        )
+        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame(
+                    [[None, 0], [None, 1], ["a2", 1], ["a2", 2]],
+                    columns=["A", "new_column"],
+                ),
+                KeySet.from_dict({"new_column": [0, 1, 2]}),
+                pd.DataFrame([[0, 1], [1, 2], [2, 1]], columns=["new_column", "count"]),
+            ),
+            (
+                pd.DataFrame(
+                    [["a0", 0, 0], [None, 1, 17], ["a5", 5, 17], ["a5", 5, 400]],
+                    columns=["A", "I", "new_column"],
+                ),
+                KeySet.from_dict({"new_column": [0, 17, 400]}),
+                pd.DataFrame(
+                    [[0, 1], [17, 2], [400, 1]], columns=["new_column", "count"]
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    [
+                        [datetime.date(2000, 1, 1), "2000"],
+                        [datetime.date(2001, 1, 1), "2001"],
+                        [None, "none"],
+                        [None, "also none"],
+                    ],
+                    columns=["D", "year"],
+                ),
+                KeySet.from_dict(
+                    {"D": [datetime.date(2000, 1, 1), datetime.date(2001, 1, 1), None]}
+                ),
+                pd.DataFrame(
+                    [
+                        [datetime.date(2000, 1, 1), 1],
+                        [datetime.date(2001, 1, 1), 1],
+                        [None, 2],
+                    ],
+                    columns=["D", "count"],
+                ),
+            ),
+        ]
+    )
+    def test_join_private(
+        self, private_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
+    ) -> None:
+        """Test that join_private creates the correct results.
+
+        The query used to evaluate this is a GroupByCount on the joined dataframe,
+        using the keyset provided.
+        """
+        session = (
+            Session.Builder()
+            .with_privacy_budget(PureDPBudget(float("inf")))
+            .with_private_dataframe("private", self.sdf, validate=False)
+            .with_private_dataframe(
+                "private2", self.spark.createDataFrame(private_df), validate=False
+            )
+            .build()
+        )
+        result = session.evaluate(
+            QueryBuilder("private")
+            .join_private(
+                QueryBuilder("private2"),
+                TruncationStrategy.DropExcess(100),
+                TruncationStrategy.DropExcess(100),
+            )
+            .groupby(keyset)
+            .count(),
+            PureDPBudget(float("inf")),
+        )
+        self.assert_frame_equal_with_sort(result.toPandas(), expected)

@@ -492,17 +492,41 @@ class TestTransformationVisitor(PySparkTest):
             got_df.toPandas(), self.visitor.public_sources[source_id].toPandas()
         )
 
-    def test_visit_join_public_df(self) -> None:
-        """Test visit_join_public with a dataframe."""
-        public_df = self.spark.createDataFrame(
-            pd.DataFrame({"A": ["asdf", "qwer"], "B": [0, 1]}),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("B", LongType(), False),
-                ]
+    @parameterized.expand(
+        [
+            (
+                pd.DataFrame({"A": ["asdf", "qwer"], "B": [0, 1]}),
+                StructType(
+                    [
+                        StructField("A", StringType(), False),
+                        StructField("B", LongType(), False),
+                    ]
+                ),
+                ["A", "B"],
+                False,
             ),
-        )
+            (
+                pd.DataFrame({"A": [None, "abc", "def"], "new_column": [0, 1, 2]}),
+                StructType(
+                    [
+                        StructField("A", StringType(), True),
+                        StructField("new_column", LongType(), False),
+                    ]
+                ),
+                ["A"],
+                True,
+            ),
+        ]
+    )
+    def test_visit_join_public_df(
+        self,
+        df: pd.DataFrame,
+        df_schema: StructType,
+        expected_join_cols: List[str],
+        expected_join_on_null: bool,
+    ) -> None:
+        """Test visit_join_public with a dataframe."""
+        public_df = self.spark.createDataFrame(df, schema=df_schema)
         query = JoinPublic(child=self.base_query, public_table=public_df)
         transformation = self.visitor.visit_join_public(query)
         self._validate_transform_basics(transformation, query)
@@ -510,9 +534,12 @@ class TestTransformationVisitor(PySparkTest):
         self.assertIsInstance(transformation.transformation2, PublicJoinTransformation)
         assert isinstance(transformation.transformation2, PublicJoinTransformation)
         public_join_transform = transformation.transformation2
-        self.assertEqual(public_join_transform.join_cols, ["A", "B"])
+        self.assertEqual(public_join_transform.join_cols, expected_join_cols)
         got_df = public_join_transform.public_df
         self.assert_frame_equal_with_sort(got_df.toPandas(), public_df.toPandas())
+        # pylint: disable=protected-access
+        self.assertEqual(public_join_transform._join_on_nulls, expected_join_on_null)
+        # pylint: enable=protected-access
 
     @parameterized.expand(
         [

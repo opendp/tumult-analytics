@@ -1349,28 +1349,6 @@ class TestQueryExprCompiler(PySparkTest):
         )
         self.assertTrue(measurement.privacy_relation(stability, sp.Integer(10)))
 
-    def test_call_invalid_public_source(self):
-        """`__call__` raises error if public source has nullable column."""
-        query_exprs = [
-            GroupByCount(
-                child=PrivateSource("private"), groupby_keys=KeySet.from_dict({})
-            )
-        ]
-        with self.assertRaisesRegex(
-            ValueError, r"Public source \(public\) contains nullable columns."
-        ):
-            self.compiler(
-                queries=query_exprs,
-                privacy_budget=sp.Integer(10),
-                stability=self.stability,
-                input_domain=self.input_domain,
-                input_metric=self.input_metric,
-                public_sources={
-                    "public": self.spark.createDataFrame([(1, 2)], schema=["A", "B"])
-                },
-                catalog=self.catalog,
-            )
-
     def test_call_no_queries(self):
         """`__call__` raises error if the sequence of queries has length 0."""
         with self.assertRaisesRegex(

@@ -11,16 +11,7 @@ from typing import Callable, Dict, List, Mapping, Optional, Type, Union
 
 import pandas as pd
 from parameterized import parameterized
-from pyspark.sql.types import (
-    BinaryType,
-    DoubleType,
-    FloatType,
-    IntegerType,
-    LongType,
-    StringType,
-    StructField,
-    StructType,
-)
+from pyspark.sql.types import BinaryType, StructField, StructType
 
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.keyset import KeySet
@@ -402,39 +393,6 @@ class TestValidAttributes(unittest.TestCase):
 class TestJoinPublicDataframe(PySparkTest):
     """Tests for JoinPublic with a Spark DataFrame as the public table."""
 
-    def test_join_public_dataframe_coercion(self):
-        """Columns of dataframe are appropriately coerced in JoinPublic."""
-        data = [
-            {"string": "a string", "int": 1, "long": 2, "float": 1.1, "double": 2.2}
-        ]
-        schema = StructType(
-            [
-                StructField("string", StringType(), True),
-                StructField("int", IntegerType(), True),
-                StructField("long", LongType(), True),
-                StructField("float", FloatType(), True),
-                StructField("double", DoubleType(), True),
-            ]
-        )
-        df = self.spark.createDataFrame(data, schema)
-        query_expr = JoinPublic(PrivateSource("a"), df)
-
-        expected_schema = StructType(
-            [
-                StructField("string", StringType(), False),
-                StructField("int", LongType(), False),
-                StructField("long", LongType(), False),
-                StructField("float", DoubleType(), False),
-                StructField("double", DoubleType(), False),
-            ]
-        )
-        expected_df = self.spark.createDataFrame(data, expected_schema)
-
-        self.assertEqual(query_expr.public_table.schema, expected_schema)
-        self.assert_frame_equal_with_sort(
-            query_expr.public_table.toPandas(), expected_df.toPandas()
-        )
-
     def test_join_public_string_nan(self):
         """Test that the string "NaN" is allowed in string-valued columns."""
         df = self.spark.createDataFrame(
@@ -452,15 +410,4 @@ class TestJoinPublicDataframe(PySparkTest):
         df = self.spark.createDataFrame(data, schema)
 
         with self.assertRaisesRegex(ValueError, "^Unsupported Spark data type.*"):
-            JoinPublic(PrivateSource("a"), df)
-
-    def test_join_public_dataframe_validation_nullable(self):
-        """Columns with null values are rejected in JoinPublic."""
-        data = [{"string": None}]
-        schema = StructType([StructField("string", StringType(), True)])
-        df = self.spark.createDataFrame(data, schema)
-
-        with self.assertRaisesRegex(
-            ValueError, "This DataFrame contains a null or nan value"
-        ):
             JoinPublic(PrivateSource("a"), df)

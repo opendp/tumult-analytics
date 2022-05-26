@@ -123,14 +123,6 @@ class QueryExprCompiler:
         """
         if len(queries) == 0:
             raise ValueError("At least one query needs to be provided")
-        for source_id, dataframe in public_sources.items():
-            if any(
-                dataframe.schema[column_name].nullable
-                for column_name in dataframe.columns
-            ):
-                raise ValueError(
-                    f"Public source ({source_id}) contains nullable columns."
-                )
 
         measurements: List[Measurement] = []
         per_query_privacy_budget = privacy_budget / len(queries)
