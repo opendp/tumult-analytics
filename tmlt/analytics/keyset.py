@@ -108,11 +108,8 @@ class KeySet:
         domains: Mapping[
             str,
             Union[
-                Iterable[str],
                 Iterable[Optional[str]],
-                Iterable[int],
                 Iterable[Optional[int]],
-                Iterable[datetime.date],
                 Iterable[Optional[datetime.date]],
             ],
         ],
@@ -139,7 +136,12 @@ class KeySet:
         """
         # Mypy can't propagate the value type through this operation for some
         # reason -- it thinks the resulting type is Dict[str, List[object]].
-        list_domains: Dict[str, Union[List[str], List[int], List[datetime.date]]] = {
+        list_domains: Dict[
+            str,
+            Union[
+                List[Optional[str]], List[Optional[int]], List[Optional[datetime.date]]
+            ],
+        ] = {
             c: list(set(d)) for c, d in domains.items()  # type: ignore
         }
         # compute_full_domain_df throws an IndexError if any list has length 0

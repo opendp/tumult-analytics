@@ -136,6 +136,22 @@ class TestKeySet(PySparkTest):
                 {"A": [0, 1], "B": [7, 8, 9, 7]},
                 pd.DataFrame({"A": [0, 0, 0, 1, 1, 1], "B": [7, 8, 9, 7, 8, 9]}),
             ),
+            (
+                {"A": [None, 1, 2, 3], "B": [None, "b1"]},
+                pd.DataFrame(
+                    [
+                        [None, None],
+                        [None, "b1"],
+                        [1, None],
+                        [1, "b1"],
+                        [2, None],
+                        [2, "b1"],
+                        [3, None],
+                        [3, "b1"],
+                    ],
+                    columns=["A", "B"],
+                ),
+            ),
         ]
     )
     def test_from_dict(

@@ -575,6 +575,12 @@ class TransformationVisitor(QueryExprVisitor):
             ),
             join_cols=list(query.join_columns) if query.join_columns else None,
             metric=child.output_metric,
+            join_on_nulls=any(
+                [
+                    public_df_schema[col].allow_null
+                    for col in list(public_df_schema.keys())
+                ]
+            ),
         )
         return child | transformation
 

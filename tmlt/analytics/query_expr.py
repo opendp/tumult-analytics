@@ -461,7 +461,9 @@ class JoinPublic(QueryExpr):
                 raise ValueError("Join columns must be distinct")
 
         if isinstance(self.public_table, DataFrame):
-            self.public_table = coerce_spark_schema_or_fail(self.public_table)
+            self.public_table = coerce_spark_schema_or_fail(
+                self.public_table, allow_nan_and_null=True
+            )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
