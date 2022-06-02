@@ -6,7 +6,7 @@ import datetime
 import os
 import shutil
 import tempfile
-from typing import Any, List, Mapping, Optional, Type, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -26,6 +26,7 @@ from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
+    AnalyticsDefault,
     CountDistinctMechanism,
     CountMechanism,
     Filter,
@@ -1913,6 +1914,96 @@ class TestSessionWithNull(PySparkTest):
             )
             .groupby(keyset)
             .count(),
+            PureDPBudget(float("inf")),
+        )
+        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+
+
+class TestSessionWithInf(PySparkTest):
+    """Test Sessions that allow infinite values."""
+
+    def setUp(self) -> None:
+        """Set up tests."""
+        self.pdf = pd.DataFrame(
+            {
+                "A": ["a0", "a0", "a1", "a1"],
+                "B": [float("-inf"), 2.0, 5.0, float("inf")],
+            }
+        )
+        self.sdf_col_types = {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+        }
+        self.sdf = self.spark.createDataFrame(
+            self.pdf, schema=analytics_to_spark_schema(Schema(self.sdf_col_types))
+        )
+        self.sdf_input_domain = SparkDataFrameDomain(
+            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
+        )
+
+    @parameterized.expand(
+        [
+            ({},),
+            ({"B": (-100.0, 100.0)},),
+            ({"B": (123.45, 678.90)},),
+            ({"B": (999.9, 111.1)},),
+        ]
+    )
+    def test_replace_infinity(
+        self, replace_with: Dict[str, Tuple[float, float]]
+    ) -> None:
+        """Test replace_infinity query."""
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+        )
+        session.create_view(
+            QueryBuilder("private").replace_infinity(replace_with),
+            "replaced",
+            cache=False,
+        )
+        # pylint: disable=protected-access
+        queryable = session._accountant._queryable
+        self.assertIsInstance(queryable, SequentialQueryable)
+        assert isinstance(queryable, SequentialQueryable)
+        data = queryable._data
+        self.assertIsInstance(data, dict)
+        assert isinstance(data, dict)
+        self.assertIsInstance(data["replaced"], DataFrame)
+        assert isinstance(data["replaced"], DataFrame)
+        # pylint: enable=protected-access
+        (replace_negative, replace_positive) = replace_with.get(
+            "B", (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
+        )
+        expected = self.pdf.replace(float("-inf"), replace_negative).replace(
+            float("inf"), replace_positive
+        )
+        self.assert_frame_equal_with_sort(data["replaced"].toPandas(), expected)
+
+    @parameterized.expand(
+        [
+            ({}, pd.DataFrame([["a0", 2.0], ["a1", 5.0]], columns=["A", "sum"])),
+            (
+                {"B": (-100.0, 100.0)},
+                pd.DataFrame([["a0", -98.0], ["a1", 105.0]], columns=["A", "sum"]),
+            ),
+            (
+                {"B": (500.0, 100.0)},
+                pd.DataFrame([["a0", 502.0], ["a1", 105.0]], columns=["A", "sum"]),
+            ),
+        ]
+    )
+    def test_sum(
+        self, replace_with: Dict[str, Tuple[float, float]], expected: pd.DataFrame
+    ) -> None:
+        """Test GroupByBoundedSum after replacing infinite values."""
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+        )
+        result = session.evaluate(
+            QueryBuilder("private")
+            .replace_infinity(replace_with)
+            .groupby(KeySet.from_dict({"A": ["a0", "a1"]}))
+            .sum("B", low=-1000, high=1000, name="sum"),
             PureDPBudget(float("inf")),
         )
         self.assert_frame_equal_with_sort(result.toPandas(), expected)

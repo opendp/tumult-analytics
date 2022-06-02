@@ -7,7 +7,7 @@
 import datetime
 import re
 import unittest
-from typing import Callable, Dict, List, Mapping, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union
 
 import pandas as pd
 from parameterized import parameterized
@@ -30,6 +30,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -200,6 +201,37 @@ class TestInvalidAttributes(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, expected_error_msg):
             JoinPublic(PrivateSource("private"), "public", join_columns)
+
+    @parameterized.expand(
+        [
+            (
+                {"str": 100.0},
+                re.escape(
+                    r"type of replace_with['str'] must be a tuple; got float instead"
+                ),
+            ),
+            (
+                {"str": [100.0, 100.0]},
+                re.escape(
+                    r"type of replace_with['str'] must be a tuple; got list instead"
+                ),
+            ),
+            ([], re.escape(r"type of replace_with must be a dict; got list instead")),
+            (
+                {"A": (-100.0,)},
+                re.escape(
+                    r"replace_with['A'] has wrong number of elements (expected 2, got 1"
+                    r" instead)"
+                ),
+            ),
+        ]
+    )
+    def test_invalid_replace_infinity(
+        self, replace_with: Any, expected_error_msg: str
+    ) -> None:
+        """Test ReplaceInfinity with invalid arguments."""
+        with self.assertRaisesRegex(TypeError, expected_error_msg):
+            ReplaceInfinity(PrivateSource("private"), replace_with)
 
     @parameterized.expand(
         [
@@ -388,6 +420,25 @@ class TestValidAttributes(unittest.TestCase):
         """Test ReplaceNullAndNan creation with valid values."""
         # this should not raise an error
         ReplaceNullAndNan(child, replace_with)
+
+    @parameterized.expand(
+        [
+            (PrivateSource("private"), {}),
+            (PrivateSource("private"), {"A": (-100.0, 100.0)}),
+            (PrivateSource("private"), {"A": (-1, 1)}),
+            (PrivateSource("private"), {"A": (-999.9, 999.9), "B": (123.45, 678.90)}),
+        ]
+    )
+    def test_valid_replace_infinity(
+        self, child: QueryExpr, replace_with: Dict[str, Tuple[float, float]]
+    ) -> None:
+        """Test ReplaceInfinity with valid values."""
+        query = ReplaceInfinity(child, replace_with)
+        for v in query.replace_with.values():
+            # Check that values got converted to floats
+            self.assertEqual(len(v), 2)
+            self.assertIsInstance(v[0], float)
+            self.assertIsInstance(v[1], float)
 
 
 class TestJoinPublicDataframe(PySparkTest):
