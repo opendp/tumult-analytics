@@ -3,9 +3,6 @@
 # <placeholder: boilerplate>
 
 import datetime
-import os
-import shutil
-import tempfile
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 from unittest.mock import patch
 
@@ -594,30 +591,6 @@ class TestEvaluate(PySparkTest):
         self.sdf_input_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
         )
-
-        self.data_dir = tempfile.mkdtemp()
-        self.private_csv_path = os.path.join(self.data_dir, "private.csv")
-        self.public_csv_path = os.path.join(self.data_dir, "public.csv")
-        private_csv = """A,B,X
-0,0,0
-0,0,1
-0,1,2
-1,0,3"""
-        public_csv = """A,A+B,EXTRA
-0,0,A
-0,1,B
-1,1,C
-1,2,D"""
-        with open(self.private_csv_path, "w") as f:
-            f.write(private_csv)
-            f.flush()
-        with open(self.public_csv_path, "w") as f:
-            f.write(public_csv)
-            f.flush()
-
-    def tearDown(self):
-        """Clean up."""
-        shutil.rmtree(self.data_dir)
 
     @parameterized.expand(EVALUATE_TESTS)
     def test_queries_privacy_budget_infinity_puredp(

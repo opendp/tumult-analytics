@@ -16,7 +16,7 @@ age 80 and above. In a language like SQL, this is likely how you would express
 this query.
 
 .. code-block::
-    
+
    SELECT age, COUNT(id)
    FROM members
    WHERE age >= 80
@@ -65,20 +65,20 @@ infinite privacy budget—not to be used in production!
 .. testcode::
 
    import os
-   import requests
+   from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.keyset import KeySet
    from tmlt.analytics.privacy_budget import PureDPBudget
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
-   r = requests.get(
-       'https://tumult-public.s3.amazonaws.com/library-members.csv',
-   )
-   with open("members.csv", "w") as f:
-       f.write(r.text)
    spark = SparkSession.builder.getOrCreate()
-   members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
+   spark.sparkContext.addFile(
+       "https://tumult-public.s3.amazonaws.com/library-members.csv"
+   )
+   members_df = spark.read.csv(
+       SparkFiles.get("library-members.csv"), header=True, inferSchema=True
+   )
 
    session = Session.from_dataframe(
        privacy_budget=PureDPBudget(epsilon=float('inf')),
@@ -252,7 +252,7 @@ we can call its :meth:`tmlt.analytics.keyset.KeySet.dataframe` method, which
 will return the group-by keys it encapsulates, as a Spark DataFrame.
 
 .. testcode::
-   
+
    teen_edu_df = teen_edu_keys.dataframe()
    teen_edu_df.sort("age", "education_level").show(n=12, truncate=False)
 
@@ -290,7 +290,7 @@ And we can use this KeySet to perform a group-by query on multiple columns.
        teen_edu_query,
        PureDPBudget(0.2),
    )
-   
+
    teen_edu_counts.sort("age", "education_level").show(n=12, truncate=False)
 
 .. testoutput::

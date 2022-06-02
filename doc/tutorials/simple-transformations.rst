@@ -17,24 +17,23 @@ As usual, we need to create a Session with our dataset.
 
     import matplotlib.pyplot as plt
     import os
-    import requests
     import pandas as pd
     import seaborn as sns
 
+    from pyspark import SparkFiles
     from pyspark.sql import SparkSession
     from tmlt.analytics.keyset import KeySet
     from tmlt.analytics.privacy_budget import PureDPBudget
     from tmlt.analytics.query_builder import QueryBuilder
     from tmlt.analytics.session import Session
 
-    r = requests.get(
-        'https://tumult-public.s3.amazonaws.com/library-members.csv',
-    )
-    with open("members.csv", "w") as f:
-        f.write(r.text)
-
     spark = SparkSession.builder.getOrCreate()
-    members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
+    spark.sparkContext.addFile(
+        "https://tumult-public.s3.amazonaws.com/library-members.csv"
+    )
+    members_df = spark.read.csv(
+       SparkFiles.get("library-members.csv"), header=True, inferSchema=True
+    )
 
 Remember that we are using an infinite privacy budget in these tutorials, but that this
 should not be done in production.
@@ -301,18 +300,17 @@ Public joins
 
 Another common transformation is joining our private data with public data. In this
 example, we will augment our private data with the city, count, and population for each
-zip code.
+ZIP code.
 
 .. testcode::
 
-    # Zip code data is based on https://worldpopulationreview.com/zips/north-carolina
-    r = requests.get(
-        'https://tumult-public.s3.amazonaws.com/nc-zip-codes.csv',
+    # ZIP code data is based on https://worldpopulationreview.com/zips/north-carolina
+    spark.sparkContext.addFile(
+        "https://tumult-public.s3.amazonaws.com/nc-zip-codes.csv"
     )
-    with open("nc-zip-codes.csv", "w") as f:
-        f.write(r.text)
-
-    nc_zip_df = spark.read.csv("nc-zip-codes.csv", header=True, inferSchema=True)
+    nc_zip_df = spark.read.csv(
+       SparkFiles.get("nc-zip-codes.csv"), header=True, inferSchema=True
+    )
     nc_zip_df.show(10)
 
 .. testoutput::
@@ -412,4 +410,3 @@ Now we can join the public data and then count how many members are in each city
     |        Stem|  759|
     +------------+-----+
     only showing top 10 rows
-

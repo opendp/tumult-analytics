@@ -2,10 +2,7 @@
 
 # <placeholder: boilerplate>
 
-import os
 import re
-import shutil
-import tempfile
 from typing import Any, List, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
 
@@ -33,10 +30,10 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
-from tmlt.analytics.session import Session, _validate_and_read_csv
+from tmlt.analytics.session import Session
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.base import Measurement
@@ -127,30 +124,6 @@ class TestSession(PySparkTest):
             "A+B": ColumnDescriptor(ColumnType.INTEGER),
         }
 
-        self.data_dir = tempfile.mkdtemp()
-        self.private_csv_path = os.path.join(self.data_dir, "private.csv")
-        self.public_csv_path = os.path.join(self.data_dir, "public.csv")
-        private_csv = """A,B,X
-0,0,0
-0,0,1
-0,1,2
-1,0,3"""
-        public_csv = """A,A+B,EXTRA
-0,0,A
-0,1,B
-1,1,C
-1,2,D"""
-        with open(self.private_csv_path, "w") as f:
-            f.write(private_csv)
-            f.flush()
-        with open(self.public_csv_path, "w") as f:
-            f.write(public_csv)
-            f.flush()
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.data_dir)
-
     @parameterized.expand(
         [
             (ExactNumber(10), PureDP(), PureDPBudget(10)),
@@ -184,28 +157,6 @@ class TestSession(PySparkTest):
             self.assertEqual(budget_value, ExactNumber(expected_budget.rho))
         else:
             self.fail(f"Unexpected budget type: found {type(expected_budget)}")
-
-    @parameterized.expand([(PureDPBudget(1.2),), (RhoZCDPBudget(1.2),)])
-    @patch.object(Session.Builder, "build", autospec=True)
-    def test_from_csv(self, budget: PrivacyBudget, mock_session_build):
-        """Tests that :func:`Session.from_csv` correctly populates the builder."""
-        # pylint: disable=protected-access
-        Session.from_csv(
-            privacy_budget=budget,
-            source_id="private",
-            path=self.private_csv_path,
-            schema=self.private_schema,
-            stability=23,
-        )
-        builder = mock_session_build.call_args[0][0]
-        assert isinstance(builder, Session.Builder)
-        self.assertEqual(builder._privacy_budget, budget)
-        self.assertEqual(list(builder._private_sources.keys()), ["private"])
-        self.assert_frame_equal_with_sort(
-            builder._private_sources["private"].dataframe.toPandas(),
-            self.sdf.toPandas(),
-        )
-        self.assertEqual(builder._private_sources["private"].stability, 23)
 
     @parameterized.expand(
         [
@@ -262,35 +213,6 @@ class TestSession(PySparkTest):
         mock_session_init.assert_called_with(
             self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
         )
-
-    @patch("tmlt.analytics.session.QueryExprCompiler", autospec=True)
-    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
-    def test_add_public_csv(self, mock_accountant, mock_compiler):
-        """Tests that :func:`add_public_csv` works correctly."""
-        mock_accountant.output_measure = PureDP()
-        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_accountant.input_domain = self.sdf_input_domain
-        mock_accountant.d_in = {"private": ExactNumber(1)}
-        mock_compiler.output_measure = PureDP()
-        session = Session(
-            accountant=mock_accountant, public_sources=dict(), compiler=mock_compiler
-        )
-        session.add_public_csv(
-            source_id="public", path=self.public_csv_path, schema=self.public_schema
-        )
-        assert "public" in session.public_source_dataframes
-        self.assert_frame_equal_with_sort(
-            session.public_source_dataframes["public"].toPandas(),
-            self.join_df.toPandas(),
-        )
-        expected_schema = StructType(
-            [
-                StructField("A", StringType(), nullable=False),
-                StructField("A+B", LongType(), nullable=False),
-            ]
-        )
-        actual_schema = session.public_source_dataframes["public"].schema
-        self.assertEqual(actual_schema, expected_schema)
 
     @patch("tmlt.analytics.session.QueryExprCompiler")
     @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
@@ -690,21 +612,6 @@ class TestInvalidSession(PySparkTest):
             "C": ColumnDescriptor(ColumnType.DECIMAL),
         }
 
-        self.data_dir = tempfile.mkdtemp()
-        self.private_csv_path = os.path.join(self.data_dir, "private.csv")
-        private_csv = """A,B,X
-0,0,0
-0,0,1
-0,1,2
-1,0,3"""
-        with open(self.private_csv_path, "w") as f:
-            f.write(private_csv)
-            f.flush()
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.data_dir)
-
     def _setup_accountant(self, mock_accountant) -> None:
         mock_accountant.output_measure = PureDP()
         mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
@@ -808,20 +715,6 @@ class TestInvalidSession(PySparkTest):
         )
         with self.assertRaisesRegex(exception_type, expected_error_msg):
             session.add_public_dataframe(source_id, dataframe=self.sdf)
-        #### from csv ####
-        # Private
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
-            Session.from_csv(
-                privacy_budget=PureDPBudget(1),
-                source_id=source_id,
-                path=self.private_csv_path,
-                schema=self.schema,
-            )
-        # Public
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
-            session.add_public_csv(
-                source_id=source_id, path=self.private_csv_path, schema=self.schema
-            )
         # create_view
         with self.assertRaisesRegex(exception_type, expected_error_msg):
             session.create_view(PrivateSource("private"), source_id, cache=False)
@@ -1036,46 +929,6 @@ class TestSessionBuilder(PySparkTest):
 
         self.dataframes = {"df1": df1, "df2": df2}
 
-        self.csv1_schema = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR),
-            "B": ColumnDescriptor(ColumnType.INTEGER),
-            "X": ColumnDescriptor(ColumnType.INTEGER),
-        }
-        self.csv2_schema = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR),
-            "A+B": ColumnDescriptor(ColumnType.INTEGER),
-        }
-
-        self.data_dir = tempfile.mkdtemp()
-        csv1_path = os.path.join(self.data_dir, "csv1.csv")
-        csv2_path = os.path.join(self.data_dir, "csv2.csv")
-        private_csv = """A,B,X
-X,0,0
-E,0,1
-D,1,2
-K,0,3"""
-        public_csv = """A,A+B
-H,0
-I,1
-J,1
-K,2"""
-        with open(csv1_path, "w") as f:
-            f.write(private_csv)
-            f.flush()
-        with open(csv2_path, "w") as f:
-            f.write(public_csv)
-            f.flush()
-        self.csvs = {"csv1": csv1_path, "csv2": csv2_path}
-        self.csv_dfs = {
-            source_id: self.spark.read.csv(csv_path, header=True, inferSchema=True)
-            for source_id, csv_path in self.csvs.items()
-        }
-        self.csv_schemas = {"csv1": self.csv1_schema, "csv2": self.csv2_schema}
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.data_dir)
-
     @parameterized.expand(
         [
             (
@@ -1110,19 +963,8 @@ K,2"""
             source_id="A", dataframe=self.dataframes["df1"], stability=1
         )
         with self.assertRaisesRegex(ValueError, "Duplicate source id: 'A'"):
-            builder.with_private_csv(
-                source_id="A",
-                path=self.csvs["csv1"],
-                schema=self.csv1_schema,
-                stability=1,
-            )
-        with self.assertRaisesRegex(ValueError, "Duplicate source id: 'A'"):
             builder.with_private_dataframe(
                 source_id="A", dataframe=self.dataframes["df2"], stability=2
-            )
-        with self.assertRaisesRegex(ValueError, "Duplicate source id: 'A'"):
-            builder.with_public_csv(
-                source_id="A", path=self.csvs["csv1"], schema=self.csv1_schema
             )
         with self.assertRaisesRegex(ValueError, "Duplicate source id: 'A'"):
             builder.with_public_dataframe(
@@ -1136,8 +978,6 @@ K,2"""
                 sp.Integer(10),
                 PureDP(),
                 [("df1", 1)],
-                [("csv1", 2)],
-                [],
                 [],
             ),
             (
@@ -1145,8 +985,6 @@ K,2"""
                 sp.Rational("1.5"),
                 PureDP(),
                 [("df1", 1)],
-                [("csv1", 2)],
-                [],
                 [],
             ),
             (
@@ -1154,17 +992,13 @@ K,2"""
                 sp.Integer(0),
                 RhoZCDP(),
                 [("df1", 4)],
-                [("csv1", 2)],
                 ["df2"],
-                ["csv2"],
             ),
             (
                 Session.Builder().with_privacy_budget(RhoZCDPBudget(float("inf"))),
                 sp.oo,
                 RhoZCDP(),
                 [("df1", 4), ("df2", 5)],
-                [("csv1", 1), ("csv2", 2)],
-                [],
                 [],
             ),
         ]
@@ -1176,9 +1010,7 @@ K,2"""
         expected_sympy_budget: sp.Expr,
         expected_output_measure: Measure,
         private_dataframes: List[Tuple[str, int]],
-        private_csvs: List[Tuple[str, int]],
         public_dataframes: List[str],
-        public_csvs: List[str],
         mock_session_init,
     ):
         """Tests that building a Session works correctly."""
@@ -1195,30 +1027,11 @@ K,2"""
             expected_private_sources[source_id] = self.dataframes[source_id]
             expected_stabilities[source_id] = stability
 
-        for source_id, stability in private_csvs:
-            builder = builder.with_private_csv(
-                source_id=source_id,
-                path=self.csvs[source_id],
-                schema=self.csv_schemas[source_id],
-                stability=stability,
-                validate=True,
-            )
-            expected_private_sources[source_id] = self.csv_dfs[source_id]
-            expected_stabilities[source_id] = stability
-
         for source_id in public_dataframes:
             builder = builder.with_public_dataframe(
                 source_id=source_id, dataframe=self.dataframes[source_id]
             )
             expected_public_sources[source_id] = self.dataframes[source_id]
-
-        for source_id in public_csvs:
-            builder = builder.with_public_csv(
-                source_id=source_id,
-                path=self.csvs[source_id],
-                schema=self.csv_schemas[source_id],
-            )
-            expected_public_sources[source_id] = self.csv_dfs[source_id]
 
         # Build the session and verify that it worked.
         builder.build()
@@ -1286,70 +1099,3 @@ K,2"""
         expected_schema = StructType([StructField("A", LongType(), nullable=False)])
         self.assertEqual(actual_private_schema, expected_schema)
         self.assertEqual(actual_public_schema, expected_schema)
-
-    def test_builder_with_csv_nonnullable(self):
-        """with_csv methods load DataFrame with all columns marked nonnullable."""
-        # pylint: disable=protected-access
-        builder = Session.Builder()
-        builder = builder.with_private_csv(
-            source_id="csv1", path=self.csvs["csv1"], schema=self.csv1_schema
-        )
-        builder = builder.with_public_csv(
-            source_id="csv2", path=self.csvs["csv2"], schema=self.csv2_schema
-        )
-        actual_private_schema = builder._private_sources["csv1"].dataframe.schema
-        actual_public_schema = builder._public_sources["csv2"].schema
-        expected_private_schema = StructType(
-            [
-                StructField("A", StringType(), nullable=False),
-                StructField("B", LongType(), nullable=False),
-                StructField("X", LongType(), nullable=False),
-            ]
-        )
-        expected_public_schema = StructType(
-            [
-                StructField("A", StringType(), nullable=False),
-                StructField("A+B", LongType(), nullable=False),
-            ]
-        )
-        self.assertEqual(actual_private_schema, expected_private_schema)
-        self.assertEqual(actual_public_schema, expected_public_schema)
-
-
-class TestValidation(PySparkTest):
-    """Tests for :func:`~tmlt.analytics.session._validate_and_read_csv`."""
-
-    def setUp(self):
-        """Setup tests."""
-        self.df = self.spark.createDataFrame(
-            pd.DataFrame(
-                {"A": ["X1", "X2", "X3"], "B": [1, 2, 3], "C": [0.5, 0.6, 0.7]}
-            )
-        )
-        self.df_with_null = self.spark.createDataFrame(
-            pd.DataFrame(
-                {"A": ["X1", "X2", None], "B": [1, 2, 3], "C": [0.5, 0.6, 0.7]}
-            )
-        )
-        self.df_with_nan = self.spark.createDataFrame(
-            pd.DataFrame(
-                {"A": ["X1", "X2", "X3"], "B": [1, 2, 3], "C": [0.5, float("nan"), 0.7]}
-            )
-        )
-        self.temp_dir = tempfile.mkdtemp()
-        self.csv_path = os.path.join(self.temp_dir, "data.csv")
-
-    def tearDown(self):
-        """Clean up."""
-        shutil.rmtree(self.temp_dir)
-
-    def test_validate_and_read_csv(self):
-        """Tests :func:`validate_and_read_csv` works correctly."""
-        csv_data = """A,B,C
-1,02,5.1
-3,01,6.2"""
-        schema = Schema({"A": "INTEGER", "B": "VARCHAR", "C": "DECIMAL"})
-        with open(self.csv_path, "w") as f:
-            f.write(csv_data)
-            f.flush()
-        _validate_and_read_csv(self.csv_path, schema, "t1").show()

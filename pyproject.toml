@@ -19,14 +19,12 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7.1"
 
-"tmlt.core" = "^0.3.0a1"
+"tmlt.core" = "^0.3.0a4"
 
 numpy = "^1.18.0,<1.19.5"
 pandas = "^1.2.0"
 pyarrow = "^2.0.0"
 pyspark = { version = "^3.0.0,<3.1.0", extras = ["sql"] }
-requests = "*"
-smart_open = "^2.0.0,!=2.2.0"
 sympy = "^1.8,<1.10"
 typeguard = "^2.12.1,<2.13.0"
 
@@ -61,7 +59,10 @@ sphinxcontrib-bibtex = "^1.0.0"
 sphinxcontrib-napoleon = "^0.7"
 pydata-sphinx-theme = "^0.7.2"
 
-# Needed for examples in tutorials
+# Needed for examples, and for testing examples
+notebook = "^6.1.6"
+nbconvert = "^6.0.7"
+# Needed for code snippets in tutorials
 seaborn = "^0.11.1"
 
 # click 8.1.0 removes _unicodefun which breaks the CI; remove this after

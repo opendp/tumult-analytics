@@ -2,23 +2,22 @@
 
 :class:`Session` provides an interface for managing data sources and performing
 differentially private queries on them. A simple session with a single private
-datasource can be created using :meth:`Session.from_csv` or
-:meth:`Session.from_dataframe`, or a more complex one with multiple datasources
-can be constructed using :class:`Session.Builder`.
+datasource can be created using :meth:`Session.from_dataframe`, or a more
+complex one with multiple datasources can be constructed using
+:class:`Session.Builder`.
 """
 # TODO(#798): Seeded RNGs in privacy framework.
 
 # <placeholder: boilerplate>
 
-from csv import DictReader
 from enum import Enum, auto
-from typing import Dict, List, Mapping, NamedTuple, Optional, Tuple, Union, cast
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
-from pyspark.sql import DataFrame, SparkSession
-from smart_open import open  # pylint: disable=redefined-builtin
+from pyspark.sql import SparkSession  # pylint: disable=unused-import
+from pyspark.sql import DataFrame
 from typeguard import check_type, typechecked
 
 from tmlt.analytics._catalog import Catalog
@@ -30,10 +29,8 @@ from tmlt.analytics._coerce_spark_schema import (
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
-    ColumnDescriptor,
     Schema,
     analytics_to_spark_columns_descriptor,
-    analytics_to_spark_schema,
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
@@ -91,7 +88,7 @@ class Session:
     """Class for an allocated DP session.
 
     Sessions should not be directly constructed. Instead, they should be created
-    using :meth:`from_dataframe` or :meth:`from_csv`, or with a :class:`Builder`.
+    using :meth:`from_dataframe` or with a :class:`Builder`.
     """
 
     class Builder:
@@ -174,52 +171,6 @@ class Session:
             self._privacy_budget = privacy_budget
             return self
 
-        def with_private_csv(
-            self,
-            source_id: str,
-            path: str,
-            schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
-            stability: int = 1,
-            delimiter: str = ",",
-            header: bool = True,
-            validate: bool = True,
-        ) -> "Session.Builder":
-            """Adds a CSV file as a private source.
-
-            Args:
-                source_id: The source id for the private source dataframe.
-                path: Path to csv file.
-                schema: The schema of the private data, a dictionary mapping column
-                    names to column types.
-                stability: Maximum number of rows that may be added or removed if
-                    a single individual is added or removed.
-                delimiter: The seperator used in the private source data file.
-                header: The header of the private source data file.
-                validate: If True, csv file is validated against provided schema.
-            """
-            _assert_is_identifier(source_id)
-            if stability < 1:
-                raise ValueError("Stability must be a positive integer.")
-            if source_id in self._private_sources or source_id in self._public_sources:
-                raise ValueError(f"Duplicate source id: '{source_id}'")
-            analytics_schema = Schema(schema)
-            dataframe = _read_csv(
-                source_id=source_id,
-                path=path,
-                schema=analytics_schema,
-                header=header,
-                delimiter=delimiter,
-                validate=validate,
-            )
-            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-                analytics_schema
-            )
-            domain = SparkDataFrameDomain(spark_columns_descriptor)
-            self._private_sources[source_id] = _PrivateSourceTuple(
-                dataframe, stability, domain
-            )
-            return self
-
         def with_private_dataframe(
             self,
             source_id: str,
@@ -294,40 +245,6 @@ class Session:
                 )
                 domain = SparkDataFrameDomain(spark_columns_descriptor)
                 domain.validate(dataframe)
-            self._public_sources[source_id] = dataframe
-            return self
-
-        def with_public_csv(
-            self,
-            source_id: str,
-            path: str,
-            schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
-            delimiter: str = ",",
-            header: bool = True,
-            validate: bool = True,
-        ) -> "Session.Builder":
-            """Adds a CSV file as a public source.
-
-            Args:
-                source_id: Source id for the public data source.
-                path: Path to CSV file.
-                schema: The schema of the public data, a dictionary mapping column
-                    names to column types.
-                delimiter: The seperator used in the public source data file.
-                header: The header of the public source data file.
-                validate: If True, the CSV file is validated against provided schema.
-            """
-            _assert_is_identifier(source_id)
-            if source_id in self._private_sources or source_id in self._public_sources:
-                raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = _read_csv(
-                source_id=source_id,
-                path=path,
-                schema=Schema(schema),
-                header=header,
-                delimiter=delimiter,
-                validate=validate,
-            )
             self._public_sources[source_id] = dataframe
             return self
 
@@ -443,88 +360,6 @@ class Session:
                 validate=validate,
             )
         )
-        return session_builder.build()
-
-    # pylint: disable=line-too-long
-    @classmethod
-    @typechecked
-    def from_csv(
-        cls,
-        privacy_budget: PrivacyBudget,
-        source_id: str,
-        path: str,
-        schema: Mapping[str, Union[ColumnType, ColumnDescriptor]],
-        delimiter: str = ",",
-        header: bool = True,
-        validate: bool = True,
-        stability: int = 1,
-    ) -> "Session":
-        r"""Initializes a DP session from a CSV file.
-
-        Only one private data source is supported with this initialization
-        method; if you need multiple data sources, use
-        :class:`~tmlt.analytics.session.Session.Builder`.
-
-        ..
-            >>> import os, tempfile
-            >>> private_csv = "A,B,X\n0,0,0\n0,0,1\n0,1,2\n1,0,3"
-            >>> filename = os.path.join(tempfile.mkdtemp(), "private.csv")
-            >>> with open(filename, "w") as f:
-            ...     x=f.write(private_csv)
-            ...     f.flush()
-
-        Example:
-            >>> with open(filename, 'r') as f:
-            ...     print(f.read())
-            A,B,X
-            0,0,0
-            0,0,1
-            0,1,2
-            1,0,3
-            >>> schema = {
-            ...     "A": ColumnType.VARCHAR,
-            ...     "B": ColumnType.INTEGER,
-            ...     "X": ColumnType.INTEGER,
-            ... }
-            >>> # Set up Session
-            >>> sess = Session.from_csv(
-            ...     privacy_budget=PureDPBudget(1),
-            ...     source_id="my_private_data",
-            ...     path=filename,
-            ...     schema=schema,
-            ... )
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
-
-        Args:
-            privacy_budget: The total privacy budget allocated to this session.
-            source_id: The source id for the private source dataframe.
-            path: Path to csv file.
-            schema: The schema of the private data, a dictionary mapping column
-                names to column types.
-            delimiter: The seperator used in the private source data file.
-            header: The header of the private source data file.
-            validate: If True, csv file is validated against provided schema.
-            stability: The maximum number of rows that could be added or removed if
-                a single individual is added or removed.
-        """
-        # pylint: enable=line-too-long
-        session_builder = (
-            Session.Builder()
-            .with_privacy_budget(privacy_budget=privacy_budget)
-            .with_private_csv(
-                source_id=source_id,
-                path=path,
-                schema=schema,
-                stability=stability,
-                delimiter=delimiter,
-                header=header,
-                validate=validate,
-            )
-        )
-
         return session_builder.build()
 
     @property
@@ -684,88 +519,6 @@ class Session:
                 ),
             )
         return catalog
-
-    # pylint: disable=line-too-long
-    @typechecked
-    def add_public_csv(
-        self,
-        source_id: str,
-        path: str,
-        schema: Mapping[str, Union[ColumnDescriptor, ColumnType]],
-        delimiter: str = ",",
-        header: bool = True,
-        validate: bool = True,
-    ):
-        r"""Adds a public data source to the session.
-
-        ..
-            >>> import os, tempfile
-            >>> private_csv = "A,B,X\n0,0,0\n0,0,1\n0,1,2\n1,0,3"
-            >>> public_csv = "A,C\n0,0\n0,1\n1,1\n1,2"
-            >>> private_filename = os.path.join(tempfile.mkdtemp(), "private.csv")
-            >>> public_filename = os.path.join(tempfile.mkdtemp(), "public.csv")
-            >>> with open(private_filename, "w") as f:
-            ...     x=f.write(private_csv)
-            ...     f.flush()
-            >>> with open(public_filename, "w") as f:
-            ...     x=f.write(public_csv)
-            ...     f.flush()
-            >>> private_schema = {
-            ...     "A": ColumnType.VARCHAR,
-            ...     "B": ColumnType.INTEGER,
-            ...     "X": ColumnType.INTEGER,
-            ... }
-            >>> sess = Session.from_csv(
-            ...     privacy_budget=PureDPBudget(1),
-            ...     source_id="my_private_data",
-            ...     path=private_filename,
-            ...     schema=private_schema,
-            ... )
-
-        Example:
-            >>> with open(public_filename, 'r') as f:
-            ...     print(f.read())
-            A,C
-            0,0
-            0,1
-            1,1
-            1,2
-            >>> # Set up a schema for the public data
-            >>> schema = {
-            ...     "A": ColumnType.VARCHAR,
-            ...     "C": ColumnType.INTEGER,
-            ... }
-            >>> # Add public data
-            >>> sess.add_public_csv(
-            ...     source_id="my_public_data",
-            ...     path=public_filename,
-            ...     schema=schema
-            ... )
-            >>> sess.public_sources
-            ['my_public_data']
-            >>> sess.get_schema('my_public_data').column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'C': 'INTEGER'}
-
-        Args:
-            source_id: The source id for the public data source.
-            path: Path to csv file.
-            schema: The schema of the public data, a dictionary mapping column
-                names to column types.
-            delimiter: The separator used in the public csv file.
-            header: The header of the public csv file.
-            validate: If True, csv source is validated against schema.
-        """
-        # pylint: enable=line-too-long
-        _assert_is_identifier(source_id)
-        dataframe = _read_csv(
-            source_id=source_id,
-            path=path,
-            schema=Schema(schema),
-            header=header,
-            delimiter=delimiter,
-            validate=validate,
-        )
-        self._public_sources[source_id] = dataframe
 
     # pylint: disable=line-too-long
     @typechecked
@@ -1378,92 +1131,3 @@ def _assert_is_identifier(source_id: str):
             " only contain alphanumeric letters (a-z) and (0-9), or underscores (_),"
             " and it cannot start with a number, or contain any spaces."
         )
-
-
-def _read_csv(
-    source_id: str,
-    path: str,
-    schema: Schema,
-    header: bool,
-    delimiter: str,
-    validate: bool,
-) -> DataFrame:
-    """Returns DataFrame read from CSV file."""
-    if validate:
-        return coerce_spark_schema_or_fail(
-            _validate_and_read_csv(
-                path=path,
-                schema=schema,
-                source_id=source_id,
-                header=header,
-                delimiter=delimiter,
-            ),
-            allow_nan_and_null=False,
-        )
-    spark = SparkSession.builder.getOrCreate()
-    return coerce_spark_schema_or_fail(
-        spark.read.csv(
-            path=path,
-            header=header,
-            sep=delimiter,
-            schema=analytics_to_spark_schema(schema),
-            enforceSchema=False,
-        ),
-        allow_nan_and_null=True,
-    )
-
-
-def _validate_and_read_csv(
-    path: str, schema: Schema, source_id: str, header: bool = True, delimiter: str = ","
-) -> DataFrame:
-    """Returns validated DataFrame constructed from csv file.
-
-    If csv source is invalid with respect to `schema`, an error is raised.
-
-    Args:
-        path: Path to csv file.
-        schema: Schema to be checked against. This may contain only a subset of the
-            columns in the csv iff header is provided. Only columns present in the
-            `schema` are validated and read.
-        source_id: Name of csv table.
-        header: If True, use first line as names of columns.
-        delimiter: Delimiter used to separate fields and values in csv. ',' by default.
-    """
-    actual_schema = schema
-    spark = SparkSession.builder.getOrCreate()
-    if header:
-        with open(path, "r") as f:
-            found_columns = DictReader(f, delimiter=delimiter).fieldnames
-        if not found_columns:
-            raise ValueError(f"Empty schema file at {path}")
-
-        if len(set(found_columns)) != len(found_columns):
-            raise ValueError(
-                "Header contains duplicate column names: "
-                f"{found_columns} for source '{source_id}'"
-            )
-        missed_columns = set(schema.column_types) - set(found_columns)
-        if missed_columns:
-            raise ValueError(
-                f"CSV header did not include all columns in schema: {missed_columns}"
-                f" for source '{source_id}'"
-            )
-        schema = Schema(
-            {
-                column: schema.column_types[column]
-                if column in schema.column_types
-                else "VARCHAR"
-                for column in found_columns
-            }
-        )
-    actual_schema_columns = list(actual_schema.column_types.keys())
-    df = spark.read.csv(
-        path,
-        header=header,
-        sep=delimiter,
-        schema=analytics_to_spark_schema(schema),
-        enforceSchema=False,
-    ).select(*actual_schema_columns)
-    domain = SparkDataFrameDomain(analytics_to_spark_columns_descriptor(actual_schema))
-    domain.validate(df)
-    return df

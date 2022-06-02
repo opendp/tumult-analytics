@@ -33,7 +33,7 @@ First, let's import some Python packages.
 .. testcode::
 
    import os
-   import requests
+   from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget
    from tmlt.analytics.query_builder import QueryBuilder
@@ -61,18 +61,18 @@ Next, we initialize the Spark session.
           .getOrCreate()
       )
 
-Then, we need to download our first dataset, containing information about the
+Then, we need to load our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``
-repository, and load in a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
+repository, and load it into a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
 
 .. testcode::
 
-   r = requests.get(
-       'https://tumult-public.s3.amazonaws.com/library-members.csv',
+   spark.sparkContext.addFile(
+       "https://tumult-public.s3.amazonaws.com/library-members.csv"
    )
-   with open("members.csv", "w") as f:
-       f.write(r.text)
-   members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
+   members_df = spark.read.csv(
+       SparkFiles.get("library-members.csv"), header=True, inferSchema=True
+   )
 
 Creating a Session
 ------------------
