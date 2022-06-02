@@ -40,7 +40,7 @@ Just like earlier, we import Python packages...
 .. testcode::
 
    import os
-   import requests
+   from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget
    from tmlt.analytics.query_builder import QueryBuilder
@@ -51,13 +51,13 @@ Just like earlier, we import Python packages...
 
 .. testcode::
 
-   r = requests.get(
-       'https://tumult-public.s3.amazonaws.com/library-members.csv',
-   )
-   with open("members.csv", "w") as f:
-       f.write(r.text)
    spark = SparkSession.builder.getOrCreate()
-   members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
+   spark.sparkContext.addFile(
+       "https://tumult-public.s3.amazonaws.com/library-members.csv"
+   )
+   members_df = spark.read.csv(
+       SparkFiles.get("library-members.csv"), header=True, inferSchema=True
+   )
 
 Creating a Session with a fixed budget
 --------------------------------------

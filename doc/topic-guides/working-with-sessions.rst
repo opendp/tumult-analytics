@@ -47,60 +47,9 @@ Both options are described below -- for even more details, consult the
 Initializing from a data source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Sessions may be constructed directly from either CSV files or Spark DataFrames.
-
-To construct a Session from a CSV file, you must specify the path where the file
-is located. Let's assume we have some data in a CSV file located in
-`path/to/private_data.csv`:
-
-.. code-block::
-
-    name, age, grade
-    alice, 20, 4.0
-    bob, 30, 3.7
-    carol, 40, 3.2
-    ...
-
-The first thing we need is a dictionary that maps each column name to a
-:class:`~tmlt.analytics.query_builder.ColumnType`:
-
-.. testcode::
-
-    schema_dict = {
-        "name": ColumnType.VARCHAR,
-        "age": ColumnType.INTEGER,
-        "grade": ColumnType.DECIMAL
-    }
-
-To create a Session, call
-:meth:`~tmlt.analytics.session.Session.from_csv` as follows:
-
-.. testcode::
-    :hide:
-
-    # Hidden block just for testing example code.
-    file_path = os.path.join(tempfile.mkdtemp(), "private.csv")
-    with open(file_path, "w", newline='') as f:
-        my_csv_writer = csv.writer(f)
-        my_csv_writer.writerow(['name','age','grade'])
-        my_csv_writer.writerow(['alice',20,4.0])
-        my_csv_writer.writerow(['bob',30,3.7])
-        my_csv_writer.writerow(['carol',40,3.2])
-        f.flush()
-
-.. testcode::
-
-    session_from_csv = Session.from_csv(
-        privacy_budget=PureDPBudget(1),
-        source_id="my_private_data",
-        path=file_path,
-        schema=schema_dict
-    )
-
-Alternatively, if your data is already loaded in a
-:class:`Spark DataFrame <pyspark.sql.DataFrame>`
-(named :code:`spark_df` in this example), you can construct a Session using
-:meth:`~tmlt.analytics.session.Session.from_dataframe` as follows:
+Sessions are constructed from :class:`Spark DataFrames <pyspark.sql.DataFrame>`.
+For example, with a dataframe named :code:`spark_df` you can construct a Session
+using :meth:`~tmlt.analytics.session.Session.from_dataframe` as follows:
 
 .. testcode::
     :hide:
@@ -121,25 +70,23 @@ Alternatively, if your data is already loaded in a
     session_from_dataframe = Session.from_dataframe(
         privacy_budget=PureDPBudget(2),
         source_id="my_private_data",
-        dataframe=spark_df
+        dataframe=spark_df,
     )
 
 When you load a Spark DataFrame into a Session, you don't need to specify the
 schema of the source; it is automatically inferred from the DataFrame's schema.
-Also recall from the :ref:`first tutorial <First steps>` that :code:`source_id`
-is simply a unique identifier for the private data that is used when
-constructing queries.
+Recall from the :ref:`first tutorial <First steps>` that :code:`source_id` is
+simply a unique identifier for the private data that is used when constructing
+queries.
 
 Using a Session Builder
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 For analysis use cases involving only one private data source,
-:meth:`~tmlt.analytics.session.Session.from_csv` and
-:meth:`~tmlt.analytics.session.Session.from_dataframe`
-are convenient ways of initializing
-a Session. However, when you have multiple sources of data, a
-:class:`Session Builder <tmlt.analytics.session.Session.Builder>` may be used instead.
-First, create your Builder:
+:meth:`~tmlt.analytics.session.Session.from_dataframe` is a convenient way of
+initializing a Session. However, when you have multiple sources of data, a
+:class:`Session Builder <tmlt.analytics.session.Session.Builder>` may be used
+instead. First, create your Builder:
 
 .. testcode::
 
@@ -149,16 +96,14 @@ Next, add a private source to it:
 
 .. testcode::
 
-    session_builder = session_builder.with_private_csv(
+    session_builder = session_builder.with_private_dataframe(
         source_id="my_private_data",
-        path=file_path,
-        schema=schema_dict
+        dataframe=spark_df,
     )
 
 You may add additional private sources to the Session, although this is
 a more advanced and uncommon use case. Suppose you had additional private
-data located in `path/to/other/private_data.csv`, and a dictionary defining its
-schema:
+data stored in a CSV file:
 
 .. code-block::
 
@@ -169,18 +114,11 @@ schema:
     ...
 
 .. testcode::
-
-    other_schema_dict = {
-        "name": ColumnType.VARCHAR,
-        "salary": ColumnType.INTEGER,
-    }
-
-.. testcode::
     :hide:
 
     # Hidden block just for testing example code.
-    file_path_2 = os.path.join(tempfile.mkdtemp(), "private2.csv")
-    with open(file_path_2, "w", newline='') as f:
+    private_csv_path = os.path.join(tempfile.mkdtemp(), "salary_data.csv")
+    with open(private_csv_path, "w", newline='') as f:
         my_csv_writer = csv.writer(f)
         my_csv_writer.writerow(['name','salary'])
         my_csv_writer.writerow(['alice',52000])
@@ -188,13 +126,17 @@ schema:
         my_csv_writer.writerow(['carol',96000])
         f.flush()
 
+First load the data into a Spark dataframe, then add it to the Session:
+
 .. testcode::
 
-    session_builder = session_builder.with_private_csv(
+    salary_df = spark.read.csv(private_csv_path, header=True, inferSchema=True)
+    session_builder = session_builder.with_private_dataframe(
         source_id="my_other_private_data",
-        path=file_path_2,
-        schema=other_schema_dict
+        dataframe=salary_df,
     )
+
+Any data file format supported by Spark can be used with Tumult Analytics this way.
 
 A more common use case is to register public
 data with your Session (e.g., for use in join operations with the private source).
@@ -202,34 +144,24 @@ data with your Session (e.g., for use in join operations with the private source
 .. testcode::
     :hide:
 
-    # Hidden block just for testing example code.
-    public_file_path = os.path.join(tempfile.mkdtemp(), "public.csv")
-    with open(public_file_path, "w", newline='') as f:
-        my_csv_writer = csv.writer(f)
-        my_csv_writer.writerow(['name', 'state', 'country'])
-        my_csv_writer.writerow(['alice', 'CA', 'USA'])
-        my_csv_writer.writerow(['bob', 'NY', 'USA'])
-        my_csv_writer.writerow(['carol', 'TX', 'USA'])
-        f.flush()
-
-    public_schema = {
-        "name": ColumnType.VARCHAR,
-        "state": ColumnType.VARCHAR,
-        "country": ColumnType.VARCHAR,
-    }
+    public_df = spark.createDataFrame(
+        pd.DataFrame(
+            [["alice", "CA", "USA"],
+            ["bob", "NY", "USA"],
+            ["carol", "TX", "USA"]],
+            columns=["name", "state", "country"]
+        )
+    )
 
 .. testcode::
 
-    session_builder = session_builder.with_public_csv(
+    session_builder = session_builder.with_public_dataframe(
         source_id="my_public_data",
-        path=public_file_path,
-        schema=public_schema
+        dataframe=public_df,
     )
 
-Public sources can also be added retroactively after a Session is created
-via the :meth:`~tmlt.analytics.session.Session.add_public_csv`
-or :meth:`~tmlt.analytics.session.Session.add_public_dataframe`
-methods.
+Public sources can also be added retroactively after a Session is created using
+the :meth:`~tmlt.analytics.session.Session.add_public_dataframe` method.
 
 When using a Session Builder, you must specify the overall privacy budget separately:
 
@@ -241,7 +173,7 @@ Once your Session is configured, the final step is to build it:
 
 .. testcode::
 
-    session = session_builder.build();
+    session = session_builder.build()
 
 
 Examining a Session's state
@@ -275,8 +207,10 @@ individual data sources, through
     :options: +NORMALIZE_WHITESPACE
 
     Schema({'name': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False, allow_inf=False),
-        'age': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False, allow_inf=False),
-        'grade': ColumnDescriptor(column_type=ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=False)})
+      'age': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False, allow_inf=False),
+      'grade': ColumnDescriptor(column_type=ColumnType.DECIMAL, allow_null=False, allow_nan=True, allow_inf=True)})
+
+As you can see, Schemas contain information about what columns are in the data, what their types are, and whether each column can contain null, NaN, or infinite values.
 
 You can access the underlying DataFrames of public sources directly using
 :meth:`public_source_dataframes <tmlt.analytics.session.Session.public_source_dataframes>`.

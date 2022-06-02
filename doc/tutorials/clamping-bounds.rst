@@ -19,19 +19,19 @@ The setup process is the same as in the earlier tutorials.
 .. testcode::
 
    import os
-   import requests
+   from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
-   r = requests.get(
-       'https://tumult-public.s3.amazonaws.com/library-members.csv',
-   )
-   with open("members.csv", "w") as f:
-       f.write(r.text)
    spark = SparkSession.builder.getOrCreate()
-   members_df = spark.read.csv("members.csv", header=True, inferSchema=True)
+   spark.sparkContext.addFile(
+       "https://tumult-public.s3.amazonaws.com/library-members.csv"
+   )
+   members_df = spark.read.csv(
+      SparkFiles.get("library-members.csv"), header=True, inferSchema=True
+   )
 
 Like before, let's start a Session with infinite privacy budget, so the system
 will not return an error after a lot of queries are run. Don't do this in

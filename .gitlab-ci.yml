@@ -130,6 +130,15 @@ test:
       allow_failure: true
   tags: [aws-large]
 
+test_examples:
+  extends: test
+  script:
+    - make test-examples
+  coverage: null
+  artifacts: null
+  timeout: 15m
+  tags: [aws-small]
+
 test_nightly:
   extends: test
   script:

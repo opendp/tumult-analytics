@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Added a `cleanup` module with two functions: a `cleanup` function to remove the current temporary table (which should be called before `spark.stop()`), and a `remove_all_temp_tables` function that removes all temporary tables ever created by Analytics.
 
+### Removed
+- *Backwards-incompatible*: `Session.from_csv` and CSV-related methods on `Session.Builder` have been removed.
+  Use `spark.read.csv` and `Session.from_dataframe` instead.
+
 ## 0.3.0-alpha.1 - 2022-05-24
 ### Added
 - Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
