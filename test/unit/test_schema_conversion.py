@@ -201,8 +201,8 @@ class TestSchemaConversions(PySparkTest):
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
             "C": ColumnDescriptor(ColumnType.INTEGER),
-            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
-            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True, allow_inf=True),
+            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True, allow_inf=True),
             "F": ColumnDescriptor(ColumnType.DATE),
             "G": ColumnDescriptor(ColumnType.TIMESTAMP),
         }
@@ -235,8 +235,12 @@ class TestSchemaConversions(PySparkTest):
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
             "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True, allow_nan=True),
-            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True, allow_nan=True),
+            "D": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            ),
+            "E": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            ),
             "F": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "G": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         }
@@ -248,3 +252,48 @@ class TestSchemaConversions(PySparkTest):
         domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
         self.assertEqual(expected, analytics_columns_2)
+
+    def test_domain_conversion(self) -> None:
+        """Test conversion to and from a SparkDataFrameDomain."""
+        analytics_columns_1 = Schema(
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR),
+                "A2": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+                "B2": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "C": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+                "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+                "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "F": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+                ),
+                "G": ColumnDescriptor(ColumnType.DATE),
+                "G2": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "H": ColumnDescriptor(ColumnType.TIMESTAMP),
+                "H2": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            }
+        )
+        expected = {
+            "A": SparkStringColumnDescriptor(),
+            "A2": SparkStringColumnDescriptor(allow_null=True),
+            "B": SparkIntegerColumnDescriptor(),
+            "B2": SparkIntegerColumnDescriptor(allow_null=True),
+            "C": SparkFloatColumnDescriptor(allow_inf=True),
+            "D": SparkFloatColumnDescriptor(allow_nan=True),
+            "E": SparkFloatColumnDescriptor(allow_null=True),
+            "F": SparkFloatColumnDescriptor(
+                allow_null=True, allow_nan=True, allow_inf=True
+            ),
+            "G": SparkDateColumnDescriptor(),
+            "G2": SparkDateColumnDescriptor(allow_null=True),
+            "H": SparkTimestampColumnDescriptor(),
+            "H2": SparkTimestampColumnDescriptor(allow_null=True),
+        }
+        # First test the schema -> SparkColumnsDescriptor conversion
+        got = analytics_to_spark_columns_descriptor(analytics_columns_1)
+        self.assertEqual(got, expected)
+        # Now test SparkDataFrameDomain -> Analytics conversion
+        analytics_columns_2 = Schema(
+            spark_dataframe_domain_to_analytics_columns(SparkDataFrameDomain(got))
+        )
+        self.assertEqual(analytics_columns_2, analytics_columns_1)

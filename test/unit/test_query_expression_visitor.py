@@ -25,6 +25,7 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     QueryExprVisitor,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -60,6 +61,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
 
     def visit_replace_null_and_nan(self, expr):
         return "ReplaceNullAndNan"
+
+    def visit_replace_infinity(self, expr):
+        return "ReplaceInfinity"
 
     def visit_groupby_count(self, expr):
         return "GroupByCount"
@@ -115,6 +119,10 @@ class TestQueryExprVisitor(unittest.TestCase):
             (
                 ReplaceNullAndNan(PrivateSource("P"), {"column": "default"}),
                 "ReplaceNullAndNan",
+            ),
+            (
+                ReplaceInfinity(PrivateSource("P"), {"column": (-100.0, 100.0)}),
+                "ReplaceInfinity",
             ),
             (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
             (

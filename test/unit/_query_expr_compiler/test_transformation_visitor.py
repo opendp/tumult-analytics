@@ -3,7 +3,7 @@
 # <placeholder: boilerplate>
 
 import datetime
-from typing import Any, Dict, List, Mapping, Optional, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import pandas as pd
 from parameterized import parameterized
@@ -24,6 +24,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
+    AnalyticsDefault,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -39,6 +40,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -75,6 +77,7 @@ from tmlt.core.transformations.spark_transformations.map import (
 from tmlt.core.transformations.spark_transformations.map import GroupingFlatMap
 from tmlt.core.transformations.spark_transformations.map import Map as MapTransformation
 from tmlt.core.transformations.spark_transformations.nan import (
+    ReplaceInfs,
     ReplaceNaNs,
     ReplaceNulls,
 )
@@ -610,6 +613,35 @@ class TestTransformationVisitor(PySparkTest):
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
+        self.assertEqual(expected_output_domain, replace_transform.output_domain)
+        self._assert_dict_equal_without_ordering(
+            expected_replace_with, replace_transform.replace_map
+        )
+
+    @parameterized.expand(
+        [
+            ({}, {"X": (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)}),
+            ({"X": (-100.0, 100.0)}, {"X": (-100.0, 100.0)}),
+        ]
+    )
+    def test_visit_replace_infinity(
+        self,
+        replace_with: Dict[str, Tuple[float, float]],
+        expected_replace_with: Dict[str, Tuple[float, float]],
+    ):
+        """Test visit_replace_infinity."""
+        query = ReplaceInfinity(child=self.base_query, replace_with=replace_with)
+        transformation = self.visitor.visit_replace_infinity(query)
+        self._validate_transform_basics(transformation, query)
+        assert isinstance(transformation, ChainTT)
+        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_domain = SparkDataFrameDomain(
+            schema=analytics_to_spark_columns_descriptor(expected_output_schema)
+        )
+        self.assertIsInstance(transformation.transformation2, ReplaceInfs)
+        assert isinstance(transformation.transformation2, ReplaceInfs)
+        replace_transform = transformation.transformation2
+
         self.assertEqual(expected_output_domain, replace_transform.output_domain)
         self._assert_dict_equal_without_ordering(
             expected_replace_with, replace_transform.replace_map

@@ -26,7 +26,7 @@ differentially private results to the query.
 # <placeholder: boilerplate>
 
 import datetime
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from pyspark.sql import DataFrame
 
@@ -52,6 +52,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
     StdevMechanism,
@@ -421,6 +422,77 @@ class QueryBuilder:
         )
         return self
 
+    def replace_infinity(
+        self, replace_with: Optional[Dict[str, Tuple[float, float]]] = None
+    ) -> "QueryBuilder":
+        """Updates the current query to replace +inf and -inf values in some columns.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [
+            ...             ["a1", 0, 0.0],
+            ...             ["a1", None, float("-inf")],
+            ...             ["a2", 2, float("inf")]
+            ...         ],
+            ...         columns=["A", "B", "X"],
+            ...     )
+            ... )
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=private_data,
+            ...     validate=False,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data").column_types
+            {'A': 'VARCHAR', 'B': 'DECIMAL', 'X': 'DECIMAL'}
+            >>> # Building a query with a replace_null_and_nan transformation
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .replace_infinity(
+            ...         replace_with={
+            ...             "X": (-100, 100),
+            ...         },
+            ...     )
+            ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"]}))
+            ...     .count()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A").toPandas()
+                A  count
+            0  a1      2
+            1  a2      1
+
+        Args:
+            replace_with: A dictionary mapping column names to values used to
+                replace -inf and +inf.
+                If None (or empty), all columns will have infinite
+                values replaced with Analytics defaults; see
+                :class:`tmlt.analytics.query_expr.AnalyticsDefault`.
+        """
+        if replace_with is None:
+            replace_with = {}
+        # this assert is for mypy
+        assert replace_with is not None
+        self._query_expr = ReplaceInfinity(
+            child=self.query_expr, replace_with=replace_with
+        )
+        return self
+
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
         """Updates the current query to rename the columns.
 
@@ -647,7 +719,13 @@ class QueryBuilder:
         self._query_expr = Map(
             child=self._query_expr,
             f=f,
-            schema_new_columns=Schema(dict(new_column_types), grouping_column=None),
+            schema_new_columns=Schema(
+                dict(new_column_types),
+                grouping_column=None,
+                default_allow_nan=True,
+                default_allow_null=True,
+                default_allow_inf=True,
+            ),
             augment=augment,
         )
         return self
@@ -736,7 +814,11 @@ class QueryBuilder:
             f=f,
             max_num_rows=max_num_rows,
             schema_new_columns=Schema(
-                dict(new_column_types), grouping_column=grouping_column
+                dict(new_column_types),
+                grouping_column=grouping_column,
+                default_allow_null=True,
+                default_allow_nan=True,
+                default_allow_inf=True,
             ),
             augment=augment,
         )
@@ -1326,6 +1408,10 @@ class QueryBuilder:
         mechanism: SumMechanism = SumMechanism.DEFAULT,
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
+
+        Invalid values (null, NaN, and +infinity/-infinity) will be converted to
+        :class:`tmlt.analytics.query_expr.AnalyticsDefault` before the sum
+        is calculated.
 
         Note:
             Regarding the clamping params:
@@ -2008,6 +2094,10 @@ class GroupedQueryBuilder:
         mechanism: SumMechanism = SumMechanism.DEFAULT,
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
+
+        Invalid values (null, NaN, and +infinity/-infinity) will be converted to
+        :class:`tmlt.analytics.query_expr.AnalyticsDefault` before the sum
+        is calculated.
 
         Note:
             Regarding the clamping params:

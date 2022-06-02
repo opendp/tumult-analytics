@@ -12,7 +12,7 @@ from pyspark.sql import DataFrame
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import (
     Filter,
     FlatMap,
@@ -29,6 +29,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -284,7 +285,19 @@ class TestTransformations(PySparkTest):
         assert isinstance(flat_map_expr, FlatMap)
         self.assertIs(getattr(flat_map_expr, "f"), duplicate_rows)
         self.assertEqual(flat_map_expr.max_num_rows, 2)
-        self.assertEqual(flat_map_expr.schema_new_columns, Schema({"C": "VARCHAR"}))
+        self.assertEqual(
+            flat_map_expr.schema_new_columns,
+            Schema(
+                {
+                    "C": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
+        )
         self.assertFalse(flat_map_expr.augment)
 
         root_expr = flat_map_expr.child
@@ -317,7 +330,19 @@ class TestTransformations(PySparkTest):
         assert isinstance(flat_map_expr, FlatMap)
         self.assertIs(getattr(flat_map_expr, "f"), duplicate_rows)
         self.assertEqual(flat_map_expr.max_num_rows, 2)
-        self.assertEqual(flat_map_expr.schema_new_columns, Schema({"C": "VARCHAR"}))
+        self.assertEqual(
+            flat_map_expr.schema_new_columns,
+            Schema(
+                {
+                    "C": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
+        )
         self.assertTrue(flat_map_expr.augment)
 
         root_expr = flat_map_expr.child
@@ -337,7 +362,17 @@ class TestTransformations(PySparkTest):
 
         query = (
             self.root_builder.flat_map(
-                duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, grouping=True
+                duplicate_rows,
+                2,
+                new_column_types={
+                    "C": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                },
+                grouping=True,
             )
             .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
             .count()
@@ -350,7 +385,17 @@ class TestTransformations(PySparkTest):
         assert isinstance(flat_map_expr, FlatMap)
         self.assertEqual(
             flat_map_expr.schema_new_columns,
-            Schema({"C": "VARCHAR"}, grouping_column="C"),
+            Schema(
+                {
+                    "C": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                },
+                grouping_column="C",
+            ),
         )
 
     def test_bin_column(self):
@@ -361,7 +406,17 @@ class TestTransformations(PySparkTest):
         map_expr = query.child
         assert isinstance(map_expr, Map)
         self.assertEqual(
-            map_expr.schema_new_columns, Schema({"A_binned": ColumnType.VARCHAR})
+            map_expr.schema_new_columns,
+            Schema(
+                {
+                    "A_binned": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
         )
         self.assertTrue(map_expr.augment)
         root_expr = map_expr.child
@@ -381,7 +436,17 @@ class TestTransformations(PySparkTest):
         map_expr = query.child
         assert isinstance(map_expr, Map)
         self.assertEqual(
-            map_expr.schema_new_columns, Schema({"rounded": ColumnType.INTEGER})
+            map_expr.schema_new_columns,
+            Schema(
+                {
+                    "rounded": ColumnDescriptor(
+                        ColumnType.INTEGER,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
         )
         self.assertTrue(map_expr.augment)
         root_expr = map_expr.child
@@ -436,6 +501,38 @@ class TestTransformations(PySparkTest):
         if replace_with is not None:
             expected_replace_with = replace_with
 
+        self.assertEqual(replace_expr.replace_with, expected_replace_with)
+
+    @parameterized.expand(
+        [
+            ({},),
+            (None,),
+            ({"A": (-100.0, 100.0)},),
+            ({"A": (-999.9, 999.9), "B": (123.45, 678.90)},),
+        ]
+    )
+    def test_replace_infinity(
+        self, replace_with: Optional[Dict[str, Tuple[float, float]]]
+    ) -> None:
+        """QueryBuilder.replace_infinity works as expected."""
+        query = self.root_builder.replace_infinity(replace_with).count()
+        # You want to use both of these assert statements:
+        # - `self.assertIsInstance` will print a helpful error message if it isn't true
+        # - `assert isinstance` tells mypy what type this has
+        self.assertIsInstance(query, GroupByCount)
+        assert isinstance(query, GroupByCount)
+        replace_expr = query.child
+        self.assertIsInstance(replace_expr, ReplaceInfinity)
+        assert isinstance(replace_expr, ReplaceInfinity)
+
+        root_expr = replace_expr.child
+        self.assertIsInstance(root_expr, PrivateSource)
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        expected_replace_with: Dict[str, Tuple[float, float]] = {}
+        if replace_with is not None:
+            expected_replace_with = replace_with
         self.assertEqual(replace_expr.replace_with, expected_replace_with)
 
 

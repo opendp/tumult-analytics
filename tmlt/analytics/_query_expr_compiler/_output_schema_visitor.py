@@ -32,6 +32,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExprVisitor,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -639,6 +640,30 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     column_type=cd.column_type,
                     allow_null=(cd.allow_null and not name in columns_to_change),
                     allow_nan=(cd.allow_nan and not name in columns_to_change),
+                    allow_inf=cd.allow_inf,
+                )
+                for name, cd in input_schema.column_descs.items()
+            },
+            grouping_column=input_schema.grouping_column,
+        )
+
+    def visit_replace_infinity(self, expr: ReplaceInfinity) -> Schema:
+        """Returns the resulting schema from evaluating a ReplaceInfinity."""
+        input_schema = expr.child.accept(self)
+        columns_to_change = list(expr.replace_with.keys())
+        if len(columns_to_change) == 0:
+            columns_to_change = [
+                col
+                for col in input_schema.column_descs.keys()
+                if input_schema[col].column_type == ColumnType.DECIMAL
+            ]
+        return Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    allow_null=cd.allow_null,
+                    allow_nan=cd.allow_nan,
+                    allow_inf=(cd.allow_inf and not name in columns_to_change),
                 )
                 for name, cd in input_schema.column_descs.items()
             },

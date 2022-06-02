@@ -15,7 +15,7 @@ import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 from pyspark.sql import DataFrame
 from typeguard import check_type
@@ -559,6 +559,37 @@ class ReplaceNullAndNan(QueryExpr):
 
 
 @dataclass
+class ReplaceInfinity(QueryExpr):
+    """Returns data with +inf and -inf expressions replaced by defaults."""
+
+    child: QueryExpr
+    """The QueryExpr to replace +inf and -inf values in."""
+
+    replace_with: Dict[str, Tuple[float, float]] = field(default_factory=dict)
+    """New values to replace with, by column. The first value for each column
+    will be used to replace -infinity, and the second value will be used to
+    replace +infinity.
+
+    If this dictionary is empty, *all* columns of type DECIMAL will be changed,
+    with infinite values replaced with a default value (see the `AnalyticsDefault`
+    class variables).
+    """
+
+    def __post_init__(self) -> None:
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("replace_with", self.replace_with, Dict[str, Tuple[float, float]])
+        # Convert ints to floats
+        self.replace_with = {
+            k: (float(v[0]), float(v[1])) for k, v in self.replace_with.items()
+        }
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_replace_infinity(self)
+
+
+@dataclass
 class GroupByCount(QueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
@@ -908,6 +939,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Any:
         """Visit a :class:`ReplaceNullAndNan`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_replace_infinity(self, expr: ReplaceInfinity) -> Any:
+        """Visit a :class:`ReplaceInfinity`."""
         raise NotImplementedError
 
     @abstractmethod

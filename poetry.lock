@@ -100,14 +100,14 @@ reference = "tumult-core"
 
 [[package]]
 name = "boto3"
-version = "1.23.4"
+version = "1.23.9"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.6"
 
 [package.dependencies]
-botocore = ">=1.26.4,<1.27.0"
+botocore = ">=1.26.9,<1.27.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.5.0,<0.6.0"
 
@@ -121,7 +121,7 @@ reference = "tumult-core"
 
 [[package]]
 name = "botocore"
-version = "1.26.4"
+version = "1.26.9"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -334,7 +334,7 @@ reference = "tumult-core"
 
 [[package]]
 name = "importlib-metadata"
-version = "4.11.3"
+version = "4.11.4"
 description = "Read metadata from Python packages"
 category = "dev"
 optional = false
@@ -812,7 +812,7 @@ reference = "tumult-core"
 
 [[package]]
 name = "pybtex-docutils"
-version = "1.0.1"
+version = "1.0.2"
 description = "A docutils backend for pybtex."
 category = "dev"
 optional = false
@@ -1517,7 +1517,7 @@ reference = "tumult-core"
 
 [[package]]
 name = "tmlt.core"
-version = "0.3.0a3"
+version = "0.3.0a4"
 description = "Tumult's differential privacy primitives"
 category = "main"
 optional = false
@@ -1697,12 +1697,10 @@ black = [
     {file = "black-21.9b0.tar.gz", hash = "sha256:7de4cfc7eb6b710de325712d40125689101d21d25283eed7e9998722cf10eb91"},
 ]
 boto3 = [
-    {file = "boto3-1.23.4-py3-none-any.whl", hash = "sha256:cef1730f607939da45b9c3c413f8b93f7c445bd74e24be7cbcdd817ebbf58fbc"},
-    {file = "boto3-1.23.4.tar.gz", hash = "sha256:29ced93acdc0e624fb7b1c235aad2e1dd3cae7aafdf90b9009b4c5274775248a"},
+    {file = "boto3-1.23.9-py3-none-any.whl", hash = "sha256:9e44d22a9cfb72e84add3ce1580e6dfef6a67321da0b958f7f33411de468a7ea"},
 ]
 botocore = [
-    {file = "botocore-1.26.4-py3-none-any.whl", hash = "sha256:bd436455310f8876dfab1a27760afffa5e34dced24b4ea6a9f6b20fec082e47e"},
-    {file = "botocore-1.26.4.tar.gz", hash = "sha256:b818986c2dde395f117829d7206f775f5bfb37ef84eb05c94d3952f8e3d7fe8d"},
+    {file = "botocore-1.26.9-py3-none-any.whl", hash = "sha256:c5f33c814f8c5e1a0bec2084760fe00ea4d43cbfbb868b05fbb83bbeb6303844"},
 ]
 certifi = [
     {file = "certifi-2022.5.18.1-py3-none-any.whl", hash = "sha256:f1d53542ee8cbedbe2118b5686372fb33c297fcd6379b050cca0ef13a597382a"},
@@ -1803,8 +1801,8 @@ imagesize = [
     {file = "imagesize-1.3.0.tar.gz", hash = "sha256:cd1750d452385ca327479d45b64d9c7729ecf0b3969a58148298c77092261f9d"},
 ]
 importlib-metadata = [
-    {file = "importlib_metadata-4.11.3-py3-none-any.whl", hash = "sha256:1208431ca90a8cca1a6b8af391bb53c1a2db74e5d1cef6ddced95d4b2062edc6"},
-    {file = "importlib_metadata-4.11.3.tar.gz", hash = "sha256:ea4c597ebf37142f827b8f39299579e31685c31d3a438b59f469406afd0f2539"},
+    {file = "importlib_metadata-4.11.4-py3-none-any.whl", hash = "sha256:c58c8eb8a762858f49e18436ff552e83914778e50e9d2f1660535ffb364552ec"},
+    {file = "importlib_metadata-4.11.4.tar.gz", hash = "sha256:5d26852efe48c0a32b0509ffbc583fda1a2266545a78d104a6f4aff3db17d700"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
@@ -2197,8 +2195,8 @@ pybtex = [
     {file = "pybtex-0.24.0.tar.gz", hash = "sha256:818eae35b61733e5c007c3fcd2cfb75ed1bc8b4173c1f70b56cc4c0802d34755"},
 ]
 pybtex-docutils = [
-    {file = "pybtex-docutils-1.0.1.tar.gz", hash = "sha256:d53aa0c31dc94d61fd30ea3f06c749e6f510f9ff0e78cb2765a9300f173d8626"},
-    {file = "pybtex_docutils-1.0.1-py3-none-any.whl", hash = "sha256:42e379bd1d5473b9fd7be4b3a64ca291d4fdc9ae6c6854e52d1d0157c955bbfa"},
+    {file = "pybtex-docutils-1.0.2.tar.gz", hash = "sha256:43aa353b6d498fd5ac30f0073a98e332d061d34fe619d3d50d1761f8fd4aa016"},
+    {file = "pybtex_docutils-1.0.2-py3-none-any.whl", hash = "sha256:6f9e3c25a37bcaac8c4f69513272706ec6253bb708a93d8b4b173f43915ba239"},
 ]
 pydata-sphinx-theme = [
     {file = "pydata-sphinx-theme-0.7.2.tar.gz", hash = "sha256:671df35fcdd290eafbd23d0595e6d359dbe90b2e64e6c3f4dc88276eed4a065e"},
@@ -2496,8 +2494,8 @@ sympy = [
     {file = "sympy-1.9.tar.gz", hash = "sha256:c7a880e229df96759f955d4f3970d4cabce79f60f5b18830c08b90ce77cd5fdc"},
 ]
 "tmlt.core" = [
-    {file = "tmlt.core-0.3.0a3-py3-none-any.whl", hash = "sha256:98a8f09437c91105dc1b92492ed9c235e70fbbca94bd8e11c879c5ba8b09515e"},
-    {file = "tmlt.core-0.3.0a3.tar.gz", hash = "sha256:7350ad4ef90578cc028820326037950363988c9db65ebca07d8fe7b698cbdd5b"},
+    {file = "tmlt.core-0.3.0a4-py3-none-any.whl", hash = "sha256:7a2883d9beb50e929ef3b6b2e40f8a17342c9cd49845a4f9a717e22184bf1457"},
+    {file = "tmlt.core-0.3.0a4.tar.gz", hash = "sha256:59234c390bcf8871fbc32d15373920a4f9174e3695be5d7518b7451881a68e3b"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},

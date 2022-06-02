@@ -906,8 +906,9 @@ class TestInvalidSession(PySparkTest):
         )
 
         expected_schema = spark_schema_to_analytics_columns(self.sdf.schema)
-        # We expect a transformation that will disallow NaNs on floats
+        # We expect a transformation that will disallow NaNs on floats and infs
         expected_schema["X"].allow_nan = False
+        expected_schema["X"].allow_inf = False
 
         with self.assertRaisesRegex(
             KeyError,

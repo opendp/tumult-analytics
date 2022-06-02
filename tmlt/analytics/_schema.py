@@ -71,6 +71,7 @@ class ColumnDescriptor:
     column_type: ColumnType
     allow_null: bool = False
     allow_nan: bool = False
+    allow_inf: bool = False
 
 
 class Schema(Mapping):
@@ -85,6 +86,8 @@ class Schema(Mapping):
         column_descs: MappingType[str, Union[str, ColumnType, ColumnDescriptor]],
         grouping_column: Optional[str] = None,
         default_allow_null: bool = False,
+        default_allow_nan: bool = False,
+        default_allow_inf: bool = False,
     ):
         """Constructor.
 
@@ -94,6 +97,12 @@ class Schema(Mapping):
             default_allow_null: When a ColumnType or string is used as the value
                 in the ColumnDescriptors mapping, the column will allow_null if
                 default_allow_null is True.
+            default_allow_nan: When a ColumnType or string is used as the value
+                in the ColumnDescriptors mapping, the column will allow_nan if
+                default_allow_nan is True.
+            default_allow_inf: When a ColumnType or string is used as the value
+                in the ColumnDescriptors mapping, the column will allow_inf if
+                default_allow_inf is True.
         """
         # TODO(#1539): update Schema interface to use ColumnDescriptor everywhere.
         self._grouping_column = grouping_column
@@ -123,11 +132,17 @@ class Schema(Mapping):
                 self._column_descs[col] = ty
             elif isinstance(ty, ColumnType):
                 self._column_descs[col] = ColumnDescriptor(
-                    ty, allow_null=default_allow_null
+                    ty,
+                    allow_null=default_allow_null,
+                    allow_nan=default_allow_nan,
+                    allow_inf=default_allow_inf,
                 )
             else:
                 self._column_descs[col] = ColumnDescriptor(
-                    column_type=ColumnType[ty], allow_null=default_allow_null
+                    column_type=ColumnType[ty],
+                    allow_null=default_allow_null,
+                    allow_nan=default_allow_nan,
+                    allow_inf=default_allow_inf,
                 )
 
     @property
@@ -248,8 +263,7 @@ def analytics_to_spark_columns_descriptor(
         if column_desc.column_type == ColumnType.DECIMAL:
             out[column_name] = SparkFloatColumnDescriptor(
                 allow_nan=column_desc.allow_nan,
-                # TODO(#1904): Handle this properly
-                allow_inf=False,
+                allow_inf=column_desc.allow_inf,
                 allow_null=column_desc.allow_null,
             )
         else:
@@ -270,6 +284,8 @@ def spark_schema_to_analytics_columns(
             # Spark doesn't contain any information on whether a field contains NaNs,
             # so just assume that it does
             allow_nan=(_SPARK_TO_ANALYTICS[field.dataType] == ColumnType.DECIMAL),
+            # Same for infinite values
+            allow_inf=(_SPARK_TO_ANALYTICS[field.dataType] == ColumnType.DECIMAL),
         )
         for field in spark_schema
     }
@@ -287,7 +303,7 @@ def spark_dataframe_domain_to_analytics_columns(
                 ColumnType.DECIMAL,
                 allow_null=descriptor.allow_null,
                 allow_nan=descriptor.allow_nan,
-                # TODO(#1904): handle infinity
+                allow_inf=descriptor.allow_inf,
             )
         else:
             column_descs[column_name] = ColumnDescriptor(

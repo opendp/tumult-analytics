@@ -420,10 +420,8 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
 
         Args:
             privacy_budget: The total privacy budget allocated to this session.
@@ -497,10 +495,8 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
 
         Args:
             privacy_budget: The total privacy budget allocated to this session.
@@ -747,9 +743,8 @@ class Session:
             ... )
             >>> sess.public_sources
             ['my_public_data']
-            >>> sess.get_schema('my_public_data') # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema('my_public_data').column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'C': 'INTEGER'}
 
         Args:
             source_id: The source id for the public data source.
@@ -816,9 +811,8 @@ class Session:
             ... )
             >>> sess.public_sources
             ['my_public_data']
-            >>> sess.get_schema('my_public_data') # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema('my_public_data').column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'C': 'INTEGER'}
 
         Args:
             source_id: The name of the public data source.
@@ -870,10 +864,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Evaluate Queries
@@ -996,10 +988,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
             >>> public_spark_data.toPandas()
                A  C
             0  0  0
@@ -1020,10 +1010,8 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data', 'private_public_join']
-            >>> sess.get_schema("private_public_join") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'C': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("private_public_join").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
             >>> # Delete the view
             >>> sess.delete_view("private_public_join")
             >>> sess.private_sources
@@ -1145,10 +1133,8 @@ class Session:
 
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Partition the Session
@@ -1162,18 +1148,14 @@ class Session:
             PureDPBudget(epsilon=0.25)
             >>> new_sessions["part0"].private_sources
             ['part0']
-            >>> new_sessions["part0"].get_schema("part0") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> new_sessions["part0"].get_schema("part0").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
             >>> new_sessions["part0"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
             >>> new_sessions["part1"].private_sources
             ['part1']
-            >>> new_sessions["part1"].get_schema("part1") # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False),
-             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False),
-             'X': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=False, allow_nan=False)})
+            >>> new_sessions["part1"].get_schema("part1").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
             >>> new_sessions["part1"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
 

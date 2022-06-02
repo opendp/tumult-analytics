@@ -37,7 +37,7 @@ from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
 from tmlt.analytics.query_expr import Map as MapExpr
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr, QueryExprVisitor
 from tmlt.analytics.query_expr import Rename as RenameExpr
-from tmlt.analytics.query_expr import ReplaceNullAndNan
+from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain, ListDomain
@@ -81,6 +81,7 @@ from tmlt.core.transformations.spark_transformations.map import (
     RowToRowTransformation,
 )
 from tmlt.core.transformations.spark_transformations.nan import (
+    ReplaceInfs,
     ReplaceNaNs,
     ReplaceNulls,
 )
@@ -129,16 +130,7 @@ class TransformationVisitor(QueryExprVisitor):
             if expected_schema.grouping_column is None
             else IfGroupedBy(expected_schema.grouping_column, self.inner_metric())
         )
-        # TODO(#1904): handle this check correctly
-        if (
-            transformation.output_domain != expected_output_domain
-            and Schema(
-                spark_dataframe_domain_to_analytics_columns(
-                    transformation.output_domain
-                )
-            )
-            != expected_schema
-        ):
+        if transformation.output_domain != expected_output_domain:
             raise AssertionError(
                 "Unexpected output domain. This is probably a bug; "
                 "please let us know about it so we can fix it!"
@@ -661,6 +653,30 @@ class TransformationVisitor(QueryExprVisitor):
                 },
             )
             transformation = transformation | replace_nan
+        return child | transformation
+
+    def visit_replace_infinity(self, query: ReplaceInfinity) -> Transformation:
+        """Create a transformation from a ReplaceInfinity query expression."""
+        child = self._visit_child(query.child)
+        assert isinstance(child.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            child.output_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
+        )
+        analytics_schema = Schema(
+            spark_dataframe_domain_to_analytics_columns(child.output_domain)
+        )
+        replace_with = query.replace_with.copy()
+        if len(replace_with) == 0:
+            replace_with = {
+                col: (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
+                for col in analytics_schema.column_descs
+                if analytics_schema[col].column_type == ColumnType.DECIMAL
+            }
+        transformation = ReplaceInfs(
+            input_domain=child.output_domain,
+            metric=child.output_metric,
+            replace_map=replace_with,
+        )
         return child | transformation
 
     # None of the queries that produce measurements are implemented

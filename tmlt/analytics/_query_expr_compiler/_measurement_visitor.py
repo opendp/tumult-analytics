@@ -3,6 +3,7 @@
 # <placeholder: boilerplate>
 
 import dataclasses
+import warnings
 from typing import Any, Dict, List, Tuple, Union
 
 import sympy as sp
@@ -17,11 +18,12 @@ from tmlt.analytics._query_expr_compiler._transformation_visitor import (
 )
 from tmlt.analytics._schema import (
     ColumnType,
+    Schema,
     analytics_to_spark_columns_descriptor,
-    spark_dataframe_domain_to_analytics_columns,
 )
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
+    AnalyticsDefault,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -41,6 +43,7 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     QueryExprVisitor,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
     StdevMechanism,
@@ -74,7 +77,6 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.nan import ReplaceNaNs
 from tmlt.core.utils.exact_number import ExactNumber
 
 
@@ -492,52 +494,53 @@ class MeasurementVisitor(QueryExprVisitor):
         """Create a measurement from a GroupByBoundedSum query expression."""
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(query)
-        info = self._build_common(query)
-
-        # _visit_child_transformation already raises an error if these aren't true
-        # these are just here for MyPy's benefit
-        assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
-        assert isinstance(
-            info.transformation.output_metric,
-            (IfGroupedBy, HammingDistance, SymmetricDifference),
+        # Get the schema of the child query
+        schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+        assert isinstance(schema, Schema), (
+            "Unexpected schema type. This is probably a bug; please let us know about"
+            " it so we can fix it!"
         )
 
-        schema = spark_dataframe_domain_to_analytics_columns(
-            info.transformation.output_domain
-        )
-        nan_cols = [
-            k
-            for k in list(schema.keys())
-            if schema[k].column_type == ColumnType.DECIMAL and schema[k].allow_nan
-        ]
-        if len(nan_cols) != 0:
-            info.transformation = info.transformation | ReplaceNaNs(
-                input_domain=info.transformation.output_domain,
-                metric=info.transformation.output_metric,
-                replace_map={k: float(0) for k in nan_cols},
-            )
-            info.mid_stability = info.transformation.stability_function(self.stability)
-            if not isinstance(info.transformation.output_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unexpected output domain. This is probably a bug; please let us"
-                    " know so we can fix it!"
-                )
-            if not isinstance(
-                info.transformation.output_metric,
-                (IfGroupedBy, HammingDistance, SymmetricDifference),
+        if schema[query.measure_column].column_type == ColumnType.DECIMAL:
+            if (
+                schema[query.measure_column].allow_null
+                or schema[query.measure_column].allow_nan
             ):
-                raise AssertionError(
-                    "Unexpected output metric. This is probably a bug; please let us"
-                    " know so we can fix it!"
+                query = dataclasses.replace(
+                    query,
+                    child=ReplaceNullAndNan(
+                        child=query.child,
+                        replace_with={query.measure_column: AnalyticsDefault.DECIMAL},
+                    ),
                 )
-            info.groupby = self._build_groupby(
-                mechanism=info.mechanism,
-                input_domain=info.transformation.output_domain,
-                input_metric=info.transformation.output_metric,
-                groupby_keys=query.groupby_keys,
+            if schema[query.measure_column].allow_inf:
+                query = dataclasses.replace(
+                    query,
+                    child=ReplaceInfinity(
+                        child=query.child,
+                        replace_with={query.measure_column: (query.low, query.high)},
+                    ),
+                )
+        elif (
+            schema[query.measure_column].column_type == ColumnType.INTEGER
+            and schema[query.measure_column].allow_null
+        ):
+            warnings.warn(
+                f"Measure column {query.measure_column} may contain null values."
+                " Automatically replacing these with a default of"
+                f" {AnalyticsDefault.INTEGER}"
             )
-        # It is impossible to reach this code without this being true,
-        # but if you remove these asserts, mypy will complain about it
+            query = dataclasses.replace(
+                query,
+                child=ReplaceNullAndNan(
+                    child=query.child,
+                    replace_with={query.measure_column: AnalyticsDefault.INTEGER},
+                ),
+            )
+
+        info = self._build_common(query)
+        # _build_common already checks these;
+        # these asserts are just for mypy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
         assert isinstance(
             info.transformation.output_metric,
@@ -689,4 +692,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Any:
         """Visit a ReplaceNullAndNan query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_replace_infinity(self, expr: ReplaceInfinity) -> Any:
+        """Visit a ReplaceInfinity query expression (raises an error)."""
         raise NotImplementedError
