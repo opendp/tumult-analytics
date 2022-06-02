@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+### Added
+- Added a `cleanup` module with two functions: a `cleanup` function to remove the current temporary table (which should be called before `spark.stop()`), and a `remove_all_temp_tables` function that removes all temporary tables ever created by Analytics.
+
 ## 0.3.0-alpha.1 - 2022-05-24
 ### Added
 - Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
