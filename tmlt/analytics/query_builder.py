@@ -37,6 +37,7 @@ from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -491,6 +492,93 @@ class QueryBuilder:
         self._query_expr = ReplaceInfinity(
             child=self.query_expr, replace_with=replace_with
         )
+        return self
+
+    def drop_invalid(self, columns: Optional[List[str]]) -> "QueryBuilder":
+        """Updates the current query to drop rows containing invalid values.
+
+        Invalid values are: nulls, NaNs, +infinity, and -infinity.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> from pyspark.sql.types import (
+            ...     DoubleType,
+            ...     LongType,
+            ...     StringType,
+            ...     StructField,
+            ...     StructType,
+            ... )
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> private_data = spark.createDataFrame(
+            ...     [["a1", 2, 0.0], ["a1", None, 1.1], ["a2", 2, None]],
+            ...     schema=StructType([
+            ...         StructField("A", StringType(), nullable=True),
+            ...         StructField("B", LongType(), nullable=True),
+            ...         StructField("X", DoubleType(), nullable=True),
+            ...     ])
+            ... )
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=private_data,
+            ...     validate=False,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data").column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'DECIMAL'}
+            >>> # Count query on the original data
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"], "B": [None, 2]}))
+            ...     .count()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A", "B").toPandas()
+                A    B  count
+            0  a1  NaN      1
+            1  a1  2.0      1
+            2  a2  NaN      0
+            3  a2  2.0      1
+
+            >>> # Building a query with a drop_invalid transformation
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .drop_invalid(columns=["B"])
+            ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"]}))
+            ...     .count()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A").toPandas()
+                A  count
+            0  a1      1
+            1  a2      1
+
+        Args:
+            columns: A list of columns in which to look for invalid values.
+                If None (or empty), then *all* columns will be considered
+                (so if *any* column has an invalid value, then the row will
+                be dropped).
+        """
+        if columns is None:
+            columns = []
+        # this assert is for mypy
+        assert columns is not None
+        self._query_expr = DropInvalid(child=self.query_expr, columns=columns)
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
@@ -1959,6 +2047,10 @@ class GroupedQueryBuilder:
             0  0  0.213415
             1  1  0.213415
 
+        ..
+            >>> # Reset the ellipsis marker
+            >>> doctest.ELLIPSIS_MARKER = '...'
+
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
@@ -2015,6 +2107,10 @@ class GroupedQueryBuilder:
                A     max_B
             0  0  2.331871
             1  1  2.331871
+
+        ..
+            >>> # Reset the ellipsis marker
+            >>> doctest.ELLIPSIS_MARKER = '...'
 
         Args:
             column: The column to compute the quantile over.

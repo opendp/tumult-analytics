@@ -590,6 +590,29 @@ class ReplaceInfinity(QueryExpr):
 
 
 @dataclass
+class DropInvalid(QueryExpr):
+    """Returns data with rows that contain null, NaN, or +inf/-inf dropped."""
+
+    child: QueryExpr
+    """The QueryExpr in which to drop nulls/NaNs/+inf/-inf."""
+
+    columns: List[str] = field(default_factory=list)
+    """Columns in which to look for nulls, NaNs, and infinite values.
+
+    If this list is empty, *all* columns will be looked at - so if *any* column
+    contains a NaN, null, or infinite value, that row will be dropped."""
+
+    def __post_init__(self) -> None:
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("columns", self.columns, List[str])
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_drop_invalid(self)
+
+
+@dataclass
 class GroupByCount(QueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
@@ -944,6 +967,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Any:
         """Visit a :class:`ReplaceInfinity`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_drop_invalid(self, expr: DropInvalid) -> Any:
+        """Visit a :class:`DropInvalid`."""
         raise NotImplementedError
 
     @abstractmethod

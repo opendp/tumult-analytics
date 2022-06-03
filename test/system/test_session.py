@@ -1980,3 +1980,18 @@ class TestSessionWithInf(PySparkTest):
             PureDPBudget(float("inf")),
         )
         self.assert_frame_equal_with_sort(result.toPandas(), expected)
+
+    def test_drop_invalid(self):
+        """Test GroupByBoundedSum after dropping infinite values."""
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+        )
+        result = session.evaluate(
+            QueryBuilder("private")
+            .drop_invalid(columns=["B"])
+            .groupby(KeySet.from_dict({"A": ["a0", "a1"]}))
+            .sum("B", low=-1000, high=1000, name="sum"),
+            PureDPBudget(float("inf")),
+        )
+        expected = pd.DataFrame([["a0", 2.0], ["a1", 5.0]], columns=["A", "sum"])
+        self.assert_frame_equal_with_sort(result.toPandas(), expected)

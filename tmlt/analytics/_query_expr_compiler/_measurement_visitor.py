@@ -3,8 +3,7 @@
 # <placeholder: boilerplate>
 
 import dataclasses
-import warnings
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
@@ -23,10 +22,10 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
-    AnalyticsDefault,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -313,6 +312,7 @@ class MeasurementVisitor(QueryExprVisitor):
         groupby: GroupBy
         lower_bound: ExactNumber
         upper_bound: ExactNumber
+        new_child: Optional[QueryExpr]
 
     def _build_common(
         self,
@@ -327,6 +327,26 @@ class MeasurementVisitor(QueryExprVisitor):
         lower_bound, upper_bound = _get_query_bounds(query)
 
         expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+
+        # You can't perform these queries on nulls, NaNs, or infinite values
+        # so check for those
+        try:
+            measure_desc = expected_schema[query.measure_column]
+        except KeyError:
+            raise KeyError(
+                f"Measure column {query.measure_column} is not in the input schema."
+            )
+        new_child: Optional[QueryExpr] = None
+        if measure_desc.allow_null or (
+            measure_desc.column_type == ColumnType.DECIMAL
+            and (measure_desc.allow_nan or measure_desc.allow_inf)
+        ):
+            # Drop invalid values
+            # (but don't mutate the original query)
+            new_child = DropInvalid(child=query.child, columns=[query.measure_column])
+            query = dataclasses.replace(query, child=new_child)
+            expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
@@ -355,6 +375,7 @@ class MeasurementVisitor(QueryExprVisitor):
             groupby=groupby,
             lower_bound=lower_bound,
             upper_bound=upper_bound,
+            new_child=new_child,
         )
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
@@ -453,6 +474,22 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_quantile(self, query: GroupByQuantile) -> Measurement:
         """Create a measurement from a GroupByQuantile query expression."""
+        child_schema: Schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+        # Check the measure column for nulls/NaNs/infs (which aren't allowed)
+        try:
+            measure_desc = child_schema[query.measure_column]
+        except KeyError:
+            raise KeyError(
+                "Measure column '{query.measure_column}' is not in the input schema."
+            )
+        if measure_desc.allow_null or (
+            measure_desc.column_type == ColumnType.DECIMAL
+            and (measure_desc.allow_nan or measure_desc.allow_inf)
+        ):
+            # Those values aren't allowed! Drop them
+            # (without mutating the original QueryExpr)
+            drop_query = DropInvalid(child=query.child, columns=[query.measure_column])
+            query = dataclasses.replace(query, child=drop_query)
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
 
@@ -494,51 +531,10 @@ class MeasurementVisitor(QueryExprVisitor):
         """Create a measurement from a GroupByBoundedSum query expression."""
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(query)
-        # Get the schema of the child query
-        schema = query.child.accept(OutputSchemaVisitor(self.catalog))
-        assert isinstance(schema, Schema), (
-            "Unexpected schema type. This is probably a bug; please let us know about"
-            " it so we can fix it!"
-        )
-
-        if schema[query.measure_column].column_type == ColumnType.DECIMAL:
-            if (
-                schema[query.measure_column].allow_null
-                or schema[query.measure_column].allow_nan
-            ):
-                query = dataclasses.replace(
-                    query,
-                    child=ReplaceNullAndNan(
-                        child=query.child,
-                        replace_with={query.measure_column: AnalyticsDefault.DECIMAL},
-                    ),
-                )
-            if schema[query.measure_column].allow_inf:
-                query = dataclasses.replace(
-                    query,
-                    child=ReplaceInfinity(
-                        child=query.child,
-                        replace_with={query.measure_column: (query.low, query.high)},
-                    ),
-                )
-        elif (
-            schema[query.measure_column].column_type == ColumnType.INTEGER
-            and schema[query.measure_column].allow_null
-        ):
-            warnings.warn(
-                f"Measure column {query.measure_column} may contain null values."
-                " Automatically replacing these with a default of"
-                f" {AnalyticsDefault.INTEGER}"
-            )
-            query = dataclasses.replace(
-                query,
-                child=ReplaceNullAndNan(
-                    child=query.child,
-                    replace_with={query.measure_column: AnalyticsDefault.INTEGER},
-                ),
-            )
 
         info = self._build_common(query)
+        if info.new_child is not None:
+            query = dataclasses.replace(query, child=info.new_child)
         # _build_common already checks these;
         # these asserts are just for mypy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -570,7 +566,8 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_average(query)
         info = self._build_common(query)
-
+        if info.new_child is not None:
+            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -602,7 +599,8 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_variance(query)
         info = self._build_common(query)
-
+        if info.new_child is not None:
+            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -632,7 +630,8 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_stdev(query)
         info = self._build_common(query)
-
+        if info.new_child is not None:
+            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -696,4 +695,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Any:
         """Visit a ReplaceInfinity query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_drop_invalid(self, expr: DropInvalid) -> Any:
+        """Visit a DropInvalid query expression (raises an error)."""
         raise NotImplementedError

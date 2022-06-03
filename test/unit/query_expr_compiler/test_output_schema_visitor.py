@@ -1,5 +1,6 @@
 """Tests for OutputSchemaVisitor."""
 import datetime
+import re
 from typing import Dict, List, Type
 
 from parameterized import parameterized
@@ -18,6 +19,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -33,6 +35,7 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
 )
@@ -193,6 +196,42 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         ),
         "Need to set augment=True to ensure that the grouping column is available for "
         "groupby.",
+    ),
+    (  # ReplaceNullAndNan with a column that doesn't exist
+        ReplaceNullAndNan(
+            child=PrivateSource("private"), replace_with={"bad_column": "new_string"}
+        ),
+        "ReplaceNullAndNan.replace_with contains a replacement value for the column"
+        " bad_column, but data has no column named bad_column",
+    ),
+    (
+        # ReplaceNullAndNan with bad replacement type
+        ReplaceNullAndNan(
+            child=PrivateSource("private"), replace_with={"B": "not_an_int"}
+        ),
+        "ReplaceNullAndNan.replace_with has column B's default value set to not_an_int,"
+        " which does not match the column type INTEGER",
+    ),
+    (
+        # ReplaceInfinity with nonexistent column
+        ReplaceInfinity(
+            child=PrivateSource("private"), replace_with={"wrong": (-1, 1)}
+        ),
+        "ReplaceInfinity.replace_with contains replacement values for the column wrong,"
+        " but data has no column named wrong",
+    ),
+    (
+        #  ReplaceInfinity with non-decimal column
+        ReplaceInfinity(child=PrivateSource("private"), replace_with={"A": (-1, 1)}),
+        re.escape(
+            "ReplaceInfinity.replace_with contains replacement values for the column A,"
+            " but the column A has type VARCHAR (not DECIMAL)"
+        ),
+    ),
+    (
+        # DropInvalid with column that doesn't exist
+        DropInvalid(child=PrivateSource("private"), columns=["bad"]),
+        "DropInvalid.columns contains the column bad, but data has no column named bad",
     ),
     (  # Type mismatch for the measure column of GroupByQuantile
         GroupByQuantile(
@@ -951,6 +990,90 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
     ) -> None:
         """Test visit_replace_null_and_nan."""
         schema = self.visitor.visit_replace_null_and_nan(query)
+        self.assertEqual(schema, expected_schema)
+
+    @parameterized.expand(
+        [
+            (
+                DropInvalid(child=PrivateSource("private"), columns=[]),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(
+                            ColumnType.VARCHAR,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "B": ColumnDescriptor(
+                            ColumnType.INTEGER,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "D": ColumnDescriptor(
+                            ColumnType.DATE,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "T": ColumnDescriptor(
+                            ColumnType.TIMESTAMP,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "NOTNULL": ColumnDescriptor(
+                            ColumnType.INTEGER,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                    }
+                ),
+            ),
+            (
+                DropInvalid(child=PrivateSource("private"), columns=["A", "X", "T"]),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(
+                            ColumnType.VARCHAR,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "T": ColumnDescriptor(
+                            ColumnType.TIMESTAMP,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "NOTNULL": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=False
+                        ),
+                    }
+                ),
+            ),
+        ]
+    )
+    def test_visit_drop_invalid(
+        self, query: DropInvalid, expected_schema: Schema
+    ) -> None:
+        """Test visit_drop_invalid."""
+        schema = self.visitor.visit_drop_invalid(query)
         self.assertEqual(schema, expected_schema)
 
     @parameterized.expand(

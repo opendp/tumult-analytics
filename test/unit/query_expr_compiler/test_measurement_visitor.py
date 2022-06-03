@@ -2,7 +2,6 @@
 
 # <placeholder: boilerplate>
 
-import dataclasses
 from typing import List, Optional, Union
 from unittest import TestCase
 from unittest.mock import patch
@@ -21,10 +20,10 @@ from tmlt.analytics._query_expr_compiler._measurement_visitor import (
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
-    AnalyticsDefault,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -40,6 +39,8 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
+    ReplaceNullAndNan,
 )
 from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
@@ -70,9 +71,9 @@ from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
 from tmlt.core.transformations.spark_transformations.nan import (
-    ReplaceInfs,
-    ReplaceNaNs,
-    ReplaceNulls,
+    DropInfs,
+    DropNaNs,
+    DropNulls,
 )
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
@@ -265,6 +266,21 @@ class TestMeasurementVisitor(PySparkTest):
                         "A": SparkStringColumnDescriptor(),
                         "B": SparkIntegerColumnDescriptor(),
                         "X": SparkFloatColumnDescriptor(),
+                        "null": SparkFloatColumnDescriptor(allow_null=True),
+                        "nan": SparkFloatColumnDescriptor(allow_nan=True),
+                        "inf": SparkFloatColumnDescriptor(allow_inf=True),
+                        "null_and_nan": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_nan=True
+                        ),
+                        "null_and_inf": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_inf=True
+                        ),
+                        "nan_and_inf": SparkFloatColumnDescriptor(
+                            allow_nan=True, allow_inf=True
+                        ),
+                        "null_and_nan_and_inf": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_nan=True, allow_inf=True
+                        ),
                     }
                 ),
                 "private_2": SparkDataFrameDomain(
@@ -298,6 +314,21 @@ class TestMeasurementVisitor(PySparkTest):
                 "A": ColumnDescriptor(ColumnType.VARCHAR),
                 "B": ColumnDescriptor(ColumnType.INTEGER),
                 "X": ColumnDescriptor(ColumnType.DECIMAL),
+                "null": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "nan": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+                "inf": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+                "null_and_nan": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
+                ),
+                "null_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_inf=True
+                ),
+                "nan_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_nan=True, allow_inf=True
+                ),
+                "null_and_nan_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+                ),
             },
             stability=3,
         )
@@ -918,6 +949,20 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.GEOMETRIC,
+                None,
+            ),
+            (
+                GroupByBoundedAverage(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
+                    measure_column="nan",
+                    low=-100,
+                    high=100,
+                    mechanism=AverageMechanism.LAPLACE,
+                ),
+                ExactNumber(3).expr,
+                NoiseMechanism.LAPLACE,
+                DropInvalid(child=PrivateSource("private"), columns=["nan"]),
             ),
             (
                 GroupByBoundedSum(
@@ -930,6 +975,20 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
+                None,
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
+                    measure_column="null",
+                    low=-100,
+                    high=100,
+                    mechanism=SumMechanism.LAPLACE,
+                ),
+                ExactNumber(3).expr,
+                NoiseMechanism.LAPLACE,
+                DropInvalid(child=PrivateSource("private"), columns=["null"]),
             ),
             (
                 GroupByBoundedVariance(
@@ -942,6 +1001,20 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.DISCRETE_GAUSSIAN,
+                None,
+            ),
+            (
+                GroupByBoundedVariance(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
+                    measure_column="inf",
+                    low=-100,
+                    high=100,
+                    mechanism=VarianceMechanism.LAPLACE,
+                ),
+                ExactNumber(3).expr,
+                NoiseMechanism.LAPLACE,
+                DropInvalid(child=PrivateSource("private"), columns=["inf"]),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -954,6 +1027,22 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.GEOMETRIC,
+                None,
+            ),
+            (
+                GroupByBoundedSTDEV(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
+                    measure_column="null_and_nan_and_inf",
+                    low=-100,
+                    high=100,
+                    mechanism=StdevMechanism.DEFAULT,
+                ),
+                ExactNumber(3).expr,
+                NoiseMechanism.LAPLACE,
+                DropInvalid(
+                    child=PrivateSource("private"), columns=["null_and_nan_and_inf"]
+                ),
             ),
         ]
     )
@@ -967,19 +1056,36 @@ class TestMeasurementVisitor(PySparkTest):
         ],
         expected_mid_stability: sp.Expr,
         expected_mechanism: NoiseMechanism,
+        expected_new_child: Optional[QueryExpr],
     ):
         """Test _build_common."""
         info = self.visitor._build_common(query)  # pylint: disable=protected-access
-        self.assertIsInstance(info.transformation, GetValue)
-        assert isinstance(info.transformation, GetValue)
-        self.assertEqual(info.transformation.key, "private")
-        self.assertEqual(info.transformation.input_domain, self.visitor.input_domain)
-        self.assertEqual(info.transformation.input_metric, self.visitor.input_metric)
+        get_value_transformation: GetValue
+        if expected_new_child is None:
+            self.assertIsInstance(info.transformation, GetValue)
+            assert isinstance(info.transformation, GetValue)
+            get_value_transformation = info.transformation
+        else:
+            self.assertIsInstance(info.transformation, ChainTT)
+            assert isinstance(info.transformation, ChainTT)
+            transformations = chain_to_list(info.transformation)
+            self.assertIsInstance(transformations[0], GetValue)
+            assert isinstance(transformations[0], GetValue)
+            get_value_transformation = transformations[0]
+            for t in transformations[1:]:
+                self.assertIsInstance(t, (DropInfs, DropNaNs, DropNulls))
+        self.assertEqual(get_value_transformation.key, "private")
         self.assertEqual(
-            info.transformation.output_domain, self.visitor.input_domain["private"]
+            get_value_transformation.input_domain, self.visitor.input_domain
         )
         self.assertEqual(
-            info.transformation.output_metric, self.visitor.input_metric["private"]
+            get_value_transformation.input_metric, self.visitor.input_metric
+        )
+        self.assertEqual(
+            get_value_transformation.output_domain, self.visitor.input_domain["private"]
+        )
+        self.assertEqual(
+            get_value_transformation.output_metric, self.visitor.input_metric["private"]
         )
 
         self.assertEqual(info.mechanism, expected_mechanism)
@@ -997,6 +1103,21 @@ class TestMeasurementVisitor(PySparkTest):
             schema=self.visitor.input_domain["private"].schema,
             group_keys=query.groupby_keys.dataframe(),
         )
+        if expected_new_child is not None:
+            if isinstance(expected_new_child, DropInvalid):
+                for col in expected_new_child.columns:
+                    if isinstance(
+                        expected_groupby_domain[col], SparkFloatColumnDescriptor
+                    ):
+                        expected_groupby_domain.schema[
+                            col
+                        ] = SparkFloatColumnDescriptor(
+                            allow_null=False, allow_nan=False, allow_inf=False
+                        )
+                    else:
+                        expected_groupby_domain.schema[
+                            col
+                        ] = SparkIntegerColumnDescriptor(allow_null=False)
         self.assertIsInstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         self.assertEqual(
@@ -1006,6 +1127,7 @@ class TestMeasurementVisitor(PySparkTest):
             info.groupby.output_domain.group_keys.toPandas(),
             expected_groupby_domain.group_keys.toPandas(),
         )
+        self.assertEqual(info.new_child, expected_new_child)
 
     @patch("tmlt.core.measurements.base.Measurement", autospec=True)
     def test_validate_measurement(self, mock_measurement):
@@ -1380,6 +1502,20 @@ class TestMeasurementVisitor(PySparkTest):
                     quantile=0.1,
                 ),
                 PureDP(),
+                None,
+            ),
+            (
+                GroupByQuantile(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    low=-100,
+                    high=100,
+                    output_column="custom_output_column",
+                    measure_column="null_and_nan",
+                    quantile=0.1,
+                ),
+                PureDP(),
+                DropInvalid(PrivateSource("private"), ["null_and_nan"]),
             ),
             (
                 GroupByQuantile(
@@ -1392,6 +1528,20 @@ class TestMeasurementVisitor(PySparkTest):
                     quantile=0.25,
                 ),
                 PureDP(),
+                None,
+            ),
+            (
+                GroupByQuantile(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
+                    measure_column="null_and_inf",
+                    output_column="quantile",
+                    low=123.345,
+                    high=987.65,
+                    quantile=0.25,
+                ),
+                PureDP(),
+                DropInvalid(PrivateSource("private"), ["null_and_inf"]),
             ),
             (
                 GroupByQuantile(
@@ -1403,6 +1553,19 @@ class TestMeasurementVisitor(PySparkTest):
                     high=0,
                 ),
                 RhoZCDP(),
+                None,
+            ),
+            (
+                GroupByQuantile(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
+                    quantile=0.5,
+                    measure_column="nan_and_inf",
+                    low=0,
+                    high=0,
+                ),
+                RhoZCDP(),
+                DropInvalid(PrivateSource("private"), ["nan_and_inf"]),
             ),
         ]
     )
@@ -1423,6 +1586,7 @@ class TestMeasurementVisitor(PySparkTest):
         self,
         query: GroupByQuantile,
         output_measure: Union[PureDP, RhoZCDP],
+        expected_new_child: Optional[QueryExpr],
         mock_create_quantile,
         mock_groupby,
         mock_measurement,
@@ -1431,12 +1595,21 @@ class TestMeasurementVisitor(PySparkTest):
         self.visitor.output_measure = output_measure
 
         expected_mechanism = self.visitor.default_mechanism
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
+        expected_child_query: QueryExpr
+        if expected_new_child is not None:
+            expected_child_query = expected_new_child
+        else:
+            expected_child_query = query.child
+        self.setup_mock_measurement(
+            mock_measurement, expected_child_query, expected_mechanism
+        )
         mock_create_quantile.return_value = mock_measurement
 
         measurement = self.visitor.visit_groupby_quantile(query)
 
-        self.check_measurement(measurement, query.child == self.base_query)
+        self.check_measurement(
+            measurement, query.child == self.base_query and expected_new_child is None
+        )
         assert isinstance(measurement, ChainTM)
         self.assertEqual(measurement.measurement, mock_measurement)
         self.check_mock_groupby_call(
@@ -1462,6 +1635,15 @@ class TestMeasurementVisitor(PySparkTest):
             groupby_transformation=mock_groupby.return_value,
             quantile_column=query.output_column,
         )
+
+        # Check for the drop transformations, if expected
+        if expected_new_child is not None:
+            self.assertIsInstance(measurement.transformation, ChainTT)
+            assert isinstance(measurement.transformation, ChainTT)
+            transformations = chain_to_list(measurement.transformation)
+            self.assertIsInstance(transformations[0], GetValue)
+            for t in transformations[1:]:
+                self.assertIsInstance(t, (DropInfs, DropNaNs, DropNulls))
 
     @parameterized.expand(
         [
@@ -1947,446 +2129,12 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
             ),
             (JoinPublic(child=PrivateSource("private"), public_table="public"),),
+            (ReplaceNullAndNan(child=PrivateSource("private")),),
+            (ReplaceInfinity(child=PrivateSource("private")),),
+            (DropInvalid(child=PrivateSource("private")),),
         ]
     )
     def test_visit_transformations(self, query: QueryExpr):
         """Test that visiting transformations returns an error."""
         with self.assertRaises(NotImplementedError):
             query.accept(self.visitor)
-
-
-class TestMeasurementVisitorImplicitConversions(PySparkTest):
-    """Test MeasurementVisitor."""
-
-    def setUp(self) -> None:
-        """Setup tests."""
-        input_domain = DictDomain(
-            {
-                "private": SparkDataFrameDomain(
-                    {
-                        "A": SparkStringColumnDescriptor(),
-                        "X": SparkFloatColumnDescriptor(),
-                        "has_nulls": SparkFloatColumnDescriptor(allow_null=True),
-                        "has_nans": SparkFloatColumnDescriptor(allow_nan=True),
-                        "has_infs": SparkFloatColumnDescriptor(allow_inf=True),
-                        "null_and_nan": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_nan=True
-                        ),
-                        "null_and_inf": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_inf=True
-                        ),
-                        "nan_and_inf": SparkFloatColumnDescriptor(
-                            allow_nan=True, allow_inf=True
-                        ),
-                        "R": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_nan=True, allow_inf=True
-                        ),
-                    }
-                )
-            }
-        )
-        input_metric = DictMetric({"private": SymmetricDifference()})
-        self.base_query = PrivateSource(source_id="private")
-
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "X": ColumnDescriptor(ColumnType.DECIMAL),
-                "has_nulls": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                "has_nans": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
-                "has_infs": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
-                "null_and_nan": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
-                ),
-                "null_and_inf": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_inf=True
-                ),
-                "nan_and_inf": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_nan=True, allow_inf=True
-                ),
-                "R": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
-                ),
-            },
-            stability=3,
-        )
-
-        budget = ExactNumber(10).expr
-        stability = {"private": ExactNumber(3).expr}
-        self.visitor = MeasurementVisitor(
-            per_query_privacy_budget=budget,
-            stability=stability,
-            input_domain=input_domain,
-            input_metric=input_metric,
-            output_measure=PureDP(),
-            default_mechanism=NoiseMechanism.LAPLACE,
-            public_sources={},
-            catalog=self.catalog,
-        )
-        self.keyset = KeySet.from_dict({"A": ["a0", "a1", "a2"]})
-
-    def _check_sum_measurement(
-        self,
-        query: GroupByBoundedSum,
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
-        got_measurement: Measurement,
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Check that the actual sum measurement was generated correctly."""
-        self.assertIsInstance(got_measurement, ChainTM)
-        assert isinstance(got_measurement, ChainTM)
-
-        self.assertEqual(
-            got_measurement.transformation.input_domain, self.visitor.input_domain
-        )
-        self.assertEqual(
-            got_measurement.transformation.input_metric, self.visitor.input_metric
-        )
-        self.assertIsInstance(
-            got_measurement.transformation.output_domain, SparkDataFrameDomain
-        )
-        self.assertEqual(
-            got_measurement.transformation.output_domain,
-            got_measurement.measurement.input_domain,
-        )
-        self.assertIsInstance(
-            got_measurement.transformation.output_metric,
-            (IfGroupedBy, HammingDistance, SymmetricDifference),
-        )
-        self.assertEqual(
-            got_measurement.transformation.output_metric,
-            got_measurement.measurement.input_metric,
-        )
-        # The leftmost transformation should be GetValue("private")
-        transformation: Transformation = got_measurement.transformation
-        while isinstance(transformation, ChainTT):
-            transformation = transformation.transformation1
-        self.assertIsInstance(transformation, GetValue)
-        assert isinstance(transformation, GetValue)
-        self.assertEqual(transformation.key, "private")
-
-        groupby_df: DataFrame = query.groupby_keys.dataframe()
-        mock_groupby.assert_called_with(
-            input_domain=got_measurement.transformation.output_domain,
-            input_metric=got_measurement.transformation.output_metric,
-            use_l2=(expected_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN),
-            group_keys=groupby_df,
-        )
-
-        self.assertEqual(got_measurement.measurement, mock_measurement)
-
-        mid_stability = got_measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        lower, upper = _get_query_bounds(query)
-        mock_create_sum.assert_called_with(
-            input_domain=got_measurement.transformation.output_domain,
-            input_metric=got_measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            lower=lower,
-            upper=upper,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            sum_column=query.output_column,
-        )
-
-    @parameterized.expand([(PureDP(),), (RhoZCDP(),)])
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_sum_measurement",
-        autospec=True,
-    )
-    def test_sum_no_replacement(
-        self,
-        output_measure: Union[PureDP, RhoZCDP],
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
-    ) -> None:
-        """Test GroupByBoundedSum with no expected replacements."""
-        query = GroupByBoundedSum(
-            child=self.base_query,
-            measure_column="X",
-            mechanism=SumMechanism.LAPLACE,
-            output_column="sum",
-            low=-100.0,
-            high=100.0,
-            groupby_keys=self.keyset,
-        )
-        self.visitor.output_measure = output_measure
-        mock_measurement.input_domain = self.visitor.input_domain["private"]
-        mock_measurement.input_metric = self.visitor.input_metric["private"]
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mock_create_sum.return_value = mock_measurement
-
-        measurement = self.visitor.visit_groupby_bounded_sum(query)
-        self._check_sum_measurement(
-            query=query,
-            mock_create_sum=mock_create_sum,
-            mock_groupby=mock_groupby,
-            mock_measurement=mock_measurement,
-            got_measurement=measurement,
-            expected_mechanism=NoiseMechanism.LAPLACE,
-        )
-
-    def _expected_input_domain(self, measure_column: str) -> SparkDataFrameDomain:
-        """Get the expected input domain after 'fixing' measure_column."""
-        df_domain = self.visitor.input_domain["private"]
-        assert isinstance(df_domain, SparkDataFrameDomain)
-        expected_columns = df_domain.schema.copy()
-        expected_columns[measure_column] = dataclasses.replace(
-            df_domain.schema[measure_column],
-            allow_null=False,
-            allow_nan=False,
-            allow_inf=False,
-        )
-        return SparkDataFrameDomain(expected_columns)
-
-    @parameterized.expand(
-        [
-            (PureDP(), "has_nulls"),
-            (RhoZCDP(), "has_nulls"),
-            (PureDP(), "has_nans"),
-            (RhoZCDP(), "has_nans"),
-            (PureDP(), "null_and_nan"),
-            (RhoZCDP(), "null_and_nan"),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_sum_measurement",
-        autospec=True,
-    )
-    def test_sum_replace_null_or_nan(
-        self,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column,
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
-    ) -> None:
-        """Test GroupByBoundedSum replacing a nan and/or a null value."""
-        self.visitor.output_measure = output_measure
-        query = GroupByBoundedSum(
-            child=self.base_query,
-            measure_column=measure_column,
-            mechanism=SumMechanism.LAPLACE,
-            output_column="sum",
-            low=-100.0,
-            high=100.0,
-            groupby_keys=self.keyset,
-        )
-        expected_input_domain = self._expected_input_domain(measure_column)
-        mock_measurement.input_domain = expected_input_domain
-        mock_measurement.input_metric = self.visitor.input_metric["private"]
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mock_create_sum.return_value = mock_measurement
-
-        measurement = self.visitor.visit_groupby_bounded_sum(query)
-        self._check_sum_measurement(
-            query=query,
-            mock_create_sum=mock_create_sum,
-            mock_groupby=mock_groupby,
-            mock_measurement=mock_measurement,
-            got_measurement=measurement,
-            expected_mechanism=NoiseMechanism.LAPLACE,
-        )
-        assert isinstance(measurement, ChainTM)
-        self.assertIsInstance(measurement.transformation, ChainTT)
-        assert isinstance(measurement.transformation, ChainTT)
-        transforms = chain_to_list(measurement.transformation)
-        self.assertEqual(len(transforms), 3)
-        # The first one is a GetValue; we can skip it
-        replace_null_transform = transforms[1]
-        self.assertIsInstance(replace_null_transform, ReplaceNulls)
-        assert isinstance(replace_null_transform, ReplaceNulls)
-        self.assertEqual(
-            replace_null_transform.replace_map,
-            {measure_column: AnalyticsDefault.DECIMAL},
-        )
-        replace_nan_transform = transforms[2]
-        self.assertIsInstance(replace_nan_transform, ReplaceNaNs)
-        assert isinstance(replace_nan_transform, ReplaceNaNs)
-        self.assertEqual(replace_nan_transform.output_domain, expected_input_domain)
-        self.assertEqual(
-            replace_nan_transform.replace_map,
-            {measure_column: AnalyticsDefault.DECIMAL},
-        )
-
-    @parameterized.expand([(PureDP(), "has_infs"), (RhoZCDP(), "has_infs")])
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_sum_measurement",
-        autospec=True,
-    )
-    def test_sum_replace_infs(
-        self,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column,
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
-    ) -> None:
-        """Test GroupByBoundedSum replacing a nan and/or a null value."""
-        self.visitor.output_measure = output_measure
-        query = GroupByBoundedSum(
-            child=self.base_query,
-            measure_column=measure_column,
-            mechanism=SumMechanism.LAPLACE,
-            output_column="sum",
-            low=-100.0,
-            high=100.0,
-            groupby_keys=self.keyset,
-        )
-        expected_input_domain = self._expected_input_domain(measure_column)
-        mock_measurement.input_domain = expected_input_domain
-        mock_measurement.input_metric = self.visitor.input_metric["private"]
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mock_create_sum.return_value = mock_measurement
-
-        measurement = self.visitor.visit_groupby_bounded_sum(query)
-        self._check_sum_measurement(
-            query=query,
-            mock_create_sum=mock_create_sum,
-            mock_groupby=mock_groupby,
-            mock_measurement=mock_measurement,
-            got_measurement=measurement,
-            expected_mechanism=NoiseMechanism.LAPLACE,
-        )
-        assert isinstance(measurement, ChainTM)
-        self.assertIsInstance(measurement.transformation, ChainTT)
-        assert isinstance(measurement.transformation, ChainTT)
-        replace_infs_transform = measurement.transformation.transformation2
-        self.assertIsInstance(replace_infs_transform, ReplaceInfs)
-        assert isinstance(replace_infs_transform, ReplaceInfs)
-        self.assertEqual(
-            replace_infs_transform.replace_map, {measure_column: (-100.0, 100.0)}
-        )
-        self.assertEqual(replace_infs_transform.output_domain, expected_input_domain)
-
-    @parameterized.expand(
-        [
-            (PureDP(), "null_and_inf"),
-            (RhoZCDP(), "null_and_inf"),
-            (PureDP(), "nan_and_inf"),
-            (RhoZCDP(), "nan_and_inf"),
-            (PureDP(), "R"),
-            (RhoZCDP(), "R"),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_sum_measurement",
-        autospec=True,
-    )
-    def test_sum_replace_all(
-        self,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column,
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
-    ) -> None:
-        """Test GroupByBoundedSum replacing a nan and/or a null value."""
-        self.visitor.output_measure = output_measure
-        query = GroupByBoundedSum(
-            child=self.base_query,
-            measure_column=measure_column,
-            mechanism=SumMechanism.LAPLACE,
-            output_column="sum",
-            low=-100.0,
-            high=100.0,
-            groupby_keys=self.keyset,
-        )
-        expected_input_domain = self._expected_input_domain(measure_column)
-        mock_measurement.input_domain = expected_input_domain
-        mock_measurement.input_metric = self.visitor.input_metric["private"]
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mock_create_sum.return_value = mock_measurement
-
-        measurement = self.visitor.visit_groupby_bounded_sum(query)
-        self._check_sum_measurement(
-            query=query,
-            mock_create_sum=mock_create_sum,
-            mock_groupby=mock_groupby,
-            mock_measurement=mock_measurement,
-            got_measurement=measurement,
-            expected_mechanism=NoiseMechanism.LAPLACE,
-        )
-        assert isinstance(measurement, ChainTM)
-
-        self.assertIsInstance(measurement.transformation, ChainTT)
-        assert isinstance(measurement.transformation, ChainTT)
-        transforms = chain_to_list(measurement.transformation)
-        self.assertEqual(len(transforms), 4)
-        # The first transform is a GetValue;
-        # _check_sum_measurement already checked it for us
-        replace_null_transform = transforms[1]
-        self.assertIsInstance(replace_null_transform, ReplaceNulls)
-        assert isinstance(replace_null_transform, ReplaceNulls)
-        self.assertEqual(
-            replace_null_transform.replace_map,
-            {measure_column: AnalyticsDefault.DECIMAL},
-        )
-        replace_nan_transform = transforms[2]
-        self.assertIsInstance(replace_nan_transform, ReplaceNaNs)
-        assert isinstance(replace_nan_transform, ReplaceNaNs)
-        self.assertEqual(
-            replace_nan_transform.replace_map,
-            {measure_column: AnalyticsDefault.DECIMAL},
-        )
-        replace_inf_transform = transforms[3]
-        self.assertIsInstance(replace_inf_transform, ReplaceInfs)
-        assert isinstance(replace_inf_transform, ReplaceInfs)
-        self.assertEqual(replace_inf_transform.output_domain, expected_input_domain)
-        self.assertEqual(
-            replace_inf_transform.replace_map, {measure_column: (-100.0, 100.0)}
-        )
-
-    def _recursive_visit(self, transformation: Transformation) -> str:
-        if not isinstance(transformation, ChainTT):
-            return str(transformation)
-        left = self._recursive_visit(transformation.transformation1)
-        right = self._recursive_visit(transformation.transformation2)
-        left = "\t\n".join(left.split("\n"))
-        right = "\t\n".join(right.split("\n"))
-        return f"Left: {left}\nRight:{right}"
