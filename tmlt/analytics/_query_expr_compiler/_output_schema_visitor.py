@@ -17,6 +17,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.query_expr import (
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -628,7 +629,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     if not (isinstance(val, int) and pytypes[col] == float):
                         raise ValueError(
                             f"ReplaceNullAndNan.replace_with has column {col}'s default"
-                            f" value as {val}, which does not match the column type"
+                            f" value set to {val}, which does not match the column type"
                             f" {input_schema[col].column_type.name}"
                         )
         columns_to_change = list(dict(expr.replace_with).keys())
@@ -657,6 +658,20 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 for col in input_schema.column_descs.keys()
                 if input_schema[col].column_type == ColumnType.DECIMAL
             ]
+        else:
+            for name in expr.replace_with:
+                if name not in input_schema.keys():
+                    raise ValueError(
+                        "ReplaceInfinity.replace_with contains replacement values for"
+                        f" the column {name}, but data has no column named {name}"
+                    )
+                if input_schema[name].column_type != ColumnType.DECIMAL:
+                    raise ValueError(
+                        "ReplaceInfinity.replace_with contains replacement values for"
+                        f" the column {name}, but the column {name} has type"
+                        f" {input_schema[name].column_type.name} (not"
+                        f" {ColumnType.DECIMAL.name})"
+                    )
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -664,6 +679,36 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     allow_null=cd.allow_null,
                     allow_nan=cd.allow_nan,
                     allow_inf=(cd.allow_inf and not name in columns_to_change),
+                )
+                for name, cd in input_schema.column_descs.items()
+            },
+            grouping_column=input_schema.grouping_column,
+        )
+
+    def visit_drop_invalid(self, expr: DropInvalid) -> Schema:
+        """Returns the resulting schema from evaluating a DropInvalid."""
+        input_schema = expr.child.accept(self)
+        columns = expr.columns.copy()
+        if len(columns) == 0:
+            columns = [
+                name
+                for name, cd in input_schema.column_descs.items()
+                if (cd.allow_null or cd.allow_nan or cd.allow_inf)
+            ]
+        else:
+            for name in columns:
+                if name not in input_schema.keys():
+                    raise ValueError(
+                        "DropInvalid.columns contains the column"
+                        f" {name}, but data has no column named {name}"
+                    )
+        return Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    allow_null=(cd.allow_null and not name in columns),
+                    allow_nan=(cd.allow_nan and not name in columns),
+                    allow_inf=(cd.allow_inf and not name in columns),
                 )
                 for name, cd in input_schema.column_descs.items()
             },

@@ -16,6 +16,7 @@ from pyspark.sql.types import BinaryType, StructField, StructType
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -235,6 +236,18 @@ class TestInvalidAttributes(unittest.TestCase):
 
     @parameterized.expand(
         [
+            ("A", "type of columns must be a list; got str instead"),
+            (("A", "B"), "type of columns must be a list; got tuple instead"),
+            ([1], re.escape(r"type of columns[0] must be str; got int instead")),
+        ]
+    )
+    def test_invalid_drop_invalid(self, columns: Any, expected_error_msg: str) -> None:
+        """Test DropInvalid with invalid arguments."""
+        with self.assertRaisesRegex(TypeError, expected_error_msg):
+            DropInvalid(PrivateSource("private"), columns)
+
+    @parameterized.expand(
+        [
             (
                 PrivateSource("private"),
                 KeySet.from_dict({}),
@@ -439,6 +452,20 @@ class TestValidAttributes(unittest.TestCase):
             self.assertEqual(len(v), 2)
             self.assertIsInstance(v[0], float)
             self.assertIsInstance(v[1], float)
+
+    # pylint: disable=no-self-use
+    @parameterized.expand(
+        [
+            (PrivateSource("private"), []),
+            (PrivateSource("private"), ["A"]),
+            (PrivateSource("different_private_source"), ["A", "B"]),
+        ]
+    )
+    def test_valid_drop_invalid(self, child: QueryExpr, columns: List[str]) -> None:
+        """Test DropInvalid with valid values."""
+        DropInvalid(child, columns)
+
+    # pylint: enable=no-self-use
 
 
 class TestJoinPublicDataframe(PySparkTest):

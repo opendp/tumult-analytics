@@ -20,7 +20,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics.query_expr import AnalyticsDefault
+from tmlt.analytics.query_expr import AnalyticsDefault, DropInvalid
 from tmlt.analytics.query_expr import Filter as FilterExpr
 from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
 from tmlt.analytics.query_expr import (
@@ -81,6 +81,9 @@ from tmlt.core.transformations.spark_transformations.map import (
     RowToRowTransformation,
 )
 from tmlt.core.transformations.spark_transformations.nan import (
+    DropInfs,
+    DropNaNs,
+    DropNulls,
     ReplaceInfs,
     ReplaceNaNs,
     ReplaceNulls,
@@ -678,6 +681,61 @@ class TransformationVisitor(QueryExprVisitor):
             replace_map=replace_with,
         )
         return child | transformation
+
+    def visit_drop_invalid(self, query: DropInvalid) -> Transformation:
+        """Create a transformation from a DropInvalid expression."""
+        child = self._visit_child(query.child)
+        analytics_schema = Schema(
+            spark_dataframe_domain_to_analytics_columns(child.output_domain)
+        )
+        columns = query.columns.copy()
+        if len(columns) == 0:
+            columns = [
+                col
+                for col, cd in analytics_schema.column_descs.items()
+                if (cd.allow_null or cd.allow_nan or cd.allow_inf)
+            ]
+
+        transformation: Transformation = self._ensure_not_hamming(child)
+        # visit_child will raise an exception if these aren't true;
+        # these asserts are for mypy
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            transformation.output_metric, (IfGroupedBy, SymmetricDifference)
+        )
+        null_columns = [col for col in columns if analytics_schema[col].allow_null]
+        if len(null_columns) != 0:
+            transformation = transformation | DropNulls(
+                transformation.output_domain, transformation.output_metric, null_columns
+            )
+        nan_columns = [col for col in columns if analytics_schema[col].allow_nan]
+        if len(nan_columns) != 0:
+            # Either a DropNulls transformation was created - for which these
+            # should always be true - or it wasn't, in which case we already
+            # checked these.
+            # These asserts are just here so mypy knows what types to expect.
+            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+            assert isinstance(
+                transformation.output_metric, (IfGroupedBy, SymmetricDifference)
+            )
+            transformation = transformation | DropNaNs(
+                transformation.output_domain, transformation.output_metric, nan_columns
+            )
+        inf_columns = [col for col in columns if analytics_schema[col].allow_inf]
+        if len(inf_columns) != 0:
+            # Again, DropNaNs transformations should always have these properties,
+            # as should DropNulls transformations.
+            # These asserts are just here so mypy knows what types to expect.
+            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+            assert isinstance(
+                transformation.output_metric, (IfGroupedBy, SymmetricDifference)
+            )
+
+            transformation = transformation | DropInfs(
+                transformation.output_domain, transformation.output_metric, inf_columns
+            )
+
+        return transformation
 
     # None of the queries that produce measurements are implemented
     def visit_groupby_count(self, expr: GroupByCount) -> Any:

@@ -25,6 +25,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AnalyticsDefault,
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -77,6 +78,9 @@ from tmlt.core.transformations.spark_transformations.map import (
 from tmlt.core.transformations.spark_transformations.map import GroupingFlatMap
 from tmlt.core.transformations.spark_transformations.map import Map as MapTransformation
 from tmlt.core.transformations.spark_transformations.nan import (
+    DropInfs,
+    DropNaNs,
+    DropNulls,
     ReplaceInfs,
     ReplaceNaNs,
     ReplaceNulls,
@@ -88,6 +92,21 @@ from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
 from tmlt.core.utils.testing import PySparkTest
+
+
+def chain_to_list(t: ChainTT) -> List[Transformation]:
+    """Turns a ChainTT's tree into a list, in order from left to right."""
+    left: List[Transformation]
+    if not isinstance(t.transformation1, ChainTT):
+        left = [t.transformation1]
+    else:
+        left = chain_to_list(t.transformation1)
+    right: List[Transformation]
+    if not isinstance(t.transformation2, ChainTT):
+        right = [t.transformation2]
+    else:
+        right = chain_to_list(t.transformation2)
+    return left + right
 
 
 class TestTransformationVisitor(PySparkTest):
@@ -716,3 +735,176 @@ class TestTransformationVisitor(PySparkTest):
                     high=1,
                 )
             )
+
+
+class TestTransformationVisitorWithComplexSchema(PySparkTest):
+    """Test the TransformationVisitor with a complicated schema."""
+
+    def setUp(self) -> None:
+        input_domain = DictDomain(
+            {
+                "private": SparkDataFrameDomain(
+                    {
+                        "A": SparkStringColumnDescriptor(allow_null=True),
+                        "B": SparkIntegerColumnDescriptor(allow_null=True),
+                        "NOTNULL": SparkFloatColumnDescriptor(allow_null=False),
+                        "null": SparkFloatColumnDescriptor(allow_null=True),
+                        "nan": SparkFloatColumnDescriptor(allow_nan=True),
+                        "inf": SparkFloatColumnDescriptor(allow_inf=True),
+                        "null_and_nan": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_nan=True
+                        ),
+                        "null_and_inf": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_inf=True
+                        ),
+                        "nan_and_inf": SparkFloatColumnDescriptor(
+                            allow_nan=True, allow_inf=True
+                        ),
+                        "null_and_nan_and_inf": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_nan=True, allow_inf=True
+                        ),
+                        "D": SparkDateColumnDescriptor(allow_null=True),
+                        "T": SparkTimestampColumnDescriptor(allow_null=True),
+                    }
+                )
+            }
+        )
+        input_metric = DictMetric({"private": SymmetricDifference()})
+        self.visitor = TransformationVisitor(
+            input_domain=input_domain,
+            input_metric=input_metric,
+            mechanism=NoiseMechanism.LAPLACE,
+            public_sources={},
+        )
+        self.base_query = PrivateSource(source_id="private")
+
+        self.catalog = Catalog()
+        self.catalog.add_private_source(
+            "private",
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "NOTNULL": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                "null": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "nan": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+                "inf": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+                "null_and_nan": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
+                ),
+                "null_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_inf=True
+                ),
+                "nan_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_nan=True, allow_inf=True
+                ),
+                "null_and_nan_and_inf": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+                ),
+                "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            },
+            stability=3,
+        )
+
+    def _validate_transform_basics(self, t: Transformation, query: QueryExpr) -> None:
+        """Check the basics of a transformation."""
+        self.assertEqual(t.input_domain, self.visitor.input_domain)
+        self.assertEqual(t.input_metric, self.visitor.input_metric)
+        first_transform: Transformation
+        if isinstance(t, ChainTT):
+            first_transform = chain_to_list(t)[0]
+        else:
+            first_transform = t
+        self.assertIsInstance(first_transform, GetValue)
+
+        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_domain = SparkDataFrameDomain(
+            analytics_to_spark_columns_descriptor(expected_schema)
+        )
+        expected_output_metric = (
+            SymmetricDifference()
+            if expected_schema.grouping_column is None
+            else IfGroupedBy(
+                expected_schema.grouping_column, self.visitor.inner_metric()
+            )
+        )
+        self.assertEqual(t.output_domain, expected_output_domain)
+        self.assertEqual(t.output_metric, expected_output_metric)
+
+    @parameterized.expand(
+        [
+            (["A"], ["A"], [], []),
+            (["A", "B", "D", "T"], ["A", "B", "D", "T"], [], []),
+            (["NOTNULL"], [], [], []),
+            (["null", "nan", "inf"], ["null"], ["nan"], ["inf"]),
+            (
+                ["null_and_nan", "null_and_inf", "nan_and_inf"],
+                ["null_and_nan", "null_and_inf"],
+                ["null_and_nan", "nan_and_inf"],
+                ["null_and_inf", "nan_and_inf"],
+            ),
+            (
+                ["null", "nan", "inf", "null_and_nan_and_inf"],
+                ["null", "null_and_nan_and_inf"],
+                ["nan", "null_and_nan_and_inf"],
+                ["inf", "null_and_nan_and_inf"],
+            ),
+            (
+                [],
+                [
+                    "A",
+                    "B",
+                    "null",
+                    "null_and_nan",
+                    "null_and_inf",
+                    "null_and_nan_and_inf",
+                    "D",
+                    "T",
+                ],
+                ["nan", "null_and_nan", "nan_and_inf", "null_and_nan_and_inf"],
+                ["inf", "null_and_inf", "nan_and_inf", "null_and_nan_and_inf"],
+            ),
+        ]
+    )
+    def test_visit_drop_invalid(
+        self,
+        query_columns: List[str],
+        expected_null_cols: List[str],
+        expected_nan_cols: List[str],
+        expected_inf_cols: List[str],
+    ) -> None:
+        """Test visit_drop_invalid."""
+        query = DropInvalid(child=PrivateSource("private"), columns=query_columns)
+        transform = self.visitor.visit_drop_invalid(query)
+        self._validate_transform_basics(transform, query)
+        if not expected_null_cols and not expected_nan_cols and not expected_inf_cols:
+            # There should just be a GetValue transformation
+            self.assertIsInstance(transform, GetValue)
+            # nothing else to test!
+            return
+        self.assertIsInstance(transform, ChainTT)
+        assert isinstance(transform, ChainTT)
+        transformations = chain_to_list(transform)
+        # Pop the get_value transformation off the front of the list
+        # (_validate_transform_basics checks that the first transformation
+        # is a GetValue transformation)
+        transformations.pop(0)
+
+        # We expect transformations to happen in this order:
+        # DropNulls -> DropNaNs -> DropInfs
+        # but each one will only be present if it makes sense
+        if expected_null_cols:
+            null_transform = transformations.pop(0)
+            self.assertIsInstance(null_transform, DropNulls)
+            assert isinstance(null_transform, DropNulls)
+            self.assertEqual(sorted(null_transform.columns), sorted(expected_null_cols))
+        if expected_nan_cols:
+            nan_transform = transformations.pop(0)
+            self.assertIsInstance(nan_transform, DropNaNs)
+            assert isinstance(nan_transform, DropNaNs)
+            self.assertEqual(sorted(nan_transform.columns), sorted(expected_nan_cols))
+        if expected_inf_cols:
+            inf_transform = transformations.pop(0)
+            self.assertIsInstance(inf_transform, DropInfs)
+            assert isinstance(inf_transform, DropInfs)
+            self.assertEqual(sorted(inf_transform.columns), sorted(expected_inf_cols))

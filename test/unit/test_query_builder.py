@@ -14,6 +14,7 @@ from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import (
+    DropInvalid,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -534,6 +535,26 @@ class TestTransformations(PySparkTest):
         if replace_with is not None:
             expected_replace_with = replace_with
         self.assertEqual(replace_expr.replace_with, expected_replace_with)
+
+    @parameterized.expand([([],), (None,), (["A"],), (["A", "B"],)])
+    def test_drop_invalid(self, columns: Optional[List[str]]) -> None:
+        """QueryBuilder.drop_invalid works as expected."""
+        query = self.root_builder.drop_invalid(columns).count()
+        self.assertIsInstance(query, GroupByCount)
+        assert isinstance(query, GroupByCount)
+        drop_expr = query.child
+        self.assertIsInstance(drop_expr, DropInvalid)
+        assert isinstance(drop_expr, DropInvalid)
+
+        root_expr = drop_expr.child
+        self.assertIsInstance(root_expr, PrivateSource)
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        expected_columns: List[str] = []
+        if columns is not None:
+            expected_columns = columns
+        self.assertEqual(drop_expr.columns, expected_columns)
 
 
 class _TestAggregationsData:
