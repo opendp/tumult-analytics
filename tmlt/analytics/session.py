@@ -4,7 +4,19 @@
 differentially private queries on them. A simple session with a single private
 datasource can be created using :meth:`Session.from_dataframe`, or a more
 complex one with multiple datasources can be constructed using
-:class:`Session.Builder`.
+:class:`Session.Builder`. Queries can then be evaluated on the data using
+:meth:`Session.evaluate`.
+
+A Session is initialized with a
+:class:`~tmlt.analytics.privacy_budget.PrivacyBudget`, and ensures that queries
+evaluated on the private data do not consume more than this budget. By default,
+a Session enforces this privacy guarantee at the row level: the queries prevent
+an attacker from learning whether an individual row has been added or removed in
+the private dataset, provided that the private data is not used elsewhere in the
+computation of the queries.
+
+More details on the exact privacy promise provided by :class:`Session` can be
+found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
 # TODO(#798): Seeded RNGs in privacy framework.
 
@@ -85,7 +97,7 @@ class PrivacyDefinition(Enum):
 
 
 class Session:
-    """Class for an allocated DP session.
+    """Allows differentially private query evaluation on sensitive data.
 
     Sessions should not be directly constructed. Instead, they should be created
     using :meth:`from_dataframe` or with a :class:`Builder`.
@@ -97,8 +109,8 @@ class Session:
         def __init__(self):
             """Constructor."""
             self._privacy_budget: Optional[PrivacyBudget] = None
-            self._private_sources: Dict[str, _PrivateSourceTuple] = dict()
-            self._public_sources: Dict[str, DataFrame] = dict()
+            self._private_sources: Dict[str, _PrivateSourceTuple] = {}
+            self._public_sources: Dict[str, DataFrame] = {}
 
         def build(self) -> "Session":
             """Builds Session with specified configuration."""
@@ -257,8 +269,7 @@ class Session:
         """Initializes a DP session from a queryable.
 
         This constructor is not intended to be used directly. Use
-        :class:`~tmlt.analytics.session.Session.Builder` or `from_`
-        constructors instead.
+        :class:`Session.Builder` or `from_` constructors instead.
         """
         # pylint: disable=pointless-string-statement
         """
