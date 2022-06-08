@@ -358,6 +358,9 @@ class QueryBuilder:
     ) -> "QueryBuilder":
         """Updates the current query to replace null and NaN values in some columns.
 
+        Note: if null values are replaced in a column, then Analytics will raise
+        an error if you use a KeySet with a null value for that column.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -498,6 +501,10 @@ class QueryBuilder:
         """Updates the current query to drop rows containing invalid values.
 
         Invalid values are: nulls, NaNs, +infinity, and -infinity.
+
+        Note: if invalid values are dropped from a column, then Analytics will
+        raise an error if you use a KeySet that contains a null value for
+        that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1269,6 +1276,9 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -1326,6 +1336,9 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -1381,6 +1394,9 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -1435,6 +1451,9 @@ class QueryBuilder:
         self, column: str, low: float, high: float, name: Optional[str] = None
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
+
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1497,9 +1516,8 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Invalid values (null, NaN, and +infinity/-infinity) will be converted to
-        :class:`tmlt.analytics.query_expr.AnalyticsDefault` before the sum
-        is calculated.
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         Note:
             Regarding the clamping params:
@@ -1571,6 +1589,9 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         Note:
             Regarding the clamping params:
 
@@ -1641,6 +1662,9 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         Note:
             Regarding the clamping params:
 
@@ -1710,6 +1734,9 @@ class QueryBuilder:
         mechanism: StdevMechanism = StdevMechanism.DEFAULT,
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
+
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         Note:
             Regarding the clamping params:
@@ -1938,6 +1965,9 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -2006,6 +2036,9 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -2067,6 +2100,9 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -2127,6 +2163,9 @@ class GroupedQueryBuilder:
         self, column: str, low: float, high: float, name: Optional[str] = None
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
+
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2191,9 +2230,8 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Invalid values (null, NaN, and +infinity/-infinity) will be converted to
-        :class:`tmlt.analytics.query_expr.AnalyticsDefault` before the sum
-        is calculated.
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         Note:
             Regarding the clamping params:
@@ -2276,6 +2314,9 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         Note:
             Regarding the clamping params:
 
@@ -2357,6 +2398,9 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
+
         Note:
             Regarding the clamping params:
 
@@ -2437,6 +2481,9 @@ class GroupedQueryBuilder:
         mechanism: StdevMechanism = StdevMechanism.DEFAULT,
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
+
+        Note that if the column being measured contains NaN, null, or
+        infinite values, a `drop_invalid` query will be performed first.
 
         Note:
             Regarding the clamping params:

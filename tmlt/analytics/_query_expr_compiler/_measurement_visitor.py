@@ -323,7 +323,12 @@ class MeasurementVisitor(QueryExprVisitor):
             GroupByBoundedVariance,
         ],
     ) -> _AggInfo:
-        """Everything you need to build a measurement for these query types."""
+        """Everything you need to build a measurement for these query types.
+
+        This function also checks to see if the measure_column allows
+        invalid values (nulls, NaNs, and infinite values), and adds a
+        DropInvalid query to remove them if they are present.
+        """
         lower_bound, upper_bound = _get_query_bounds(query)
 
         expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
@@ -337,11 +342,12 @@ class MeasurementVisitor(QueryExprVisitor):
                 f"Measure column {query.measure_column} is not in the input schema."
             )
         new_child: Optional[QueryExpr] = None
+        # If invalid values are allowed ...
         if measure_desc.allow_null or (
             measure_desc.column_type == ColumnType.DECIMAL
             and (measure_desc.allow_nan or measure_desc.allow_inf)
         ):
-            # Drop invalid values
+            # then drop invalid values
             # (but don't mutate the original query)
             new_child = DropInvalid(child=query.child, columns=[query.measure_column])
             query = dataclasses.replace(query, child=new_child)
@@ -473,7 +479,13 @@ class MeasurementVisitor(QueryExprVisitor):
         return transformation | agg
 
     def visit_groupby_quantile(self, query: GroupByQuantile) -> Measurement:
-        """Create a measurement from a GroupByQuantile query expression."""
+        """Create a measurement from a GroupByQuantile query expression.
+
+        This method also checks to see if the schema allows invalid values
+        (nulls, NaNs, and infinite values) on the measure column; if so,
+        the query has a DropInvalid query inserted immediately before
+        it is executed.
+        """
         child_schema: Schema = query.child.accept(OutputSchemaVisitor(self.catalog))
         # Check the measure column for nulls/NaNs/infs (which aren't allowed)
         try:
@@ -482,6 +494,7 @@ class MeasurementVisitor(QueryExprVisitor):
             raise KeyError(
                 "Measure column '{query.measure_column}' is not in the input schema."
             )
+        # If invalid values are allowed ...
         if measure_desc.allow_null or (
             measure_desc.column_type == ColumnType.DECIMAL
             and (measure_desc.allow_nan or measure_desc.allow_inf)
