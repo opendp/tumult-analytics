@@ -57,7 +57,12 @@ def _check_dict_schema(types: Dict[str, type]) -> None:
 
 
 class KeySet:
-    """A class containing a set of values for specific columns."""
+    """A class containing a set of values for specific columns.
+
+    Note that if a column has null values dropped or replaced, then Analytics
+    will raise an error if you use a KeySet that contains a null value for
+    that column.
+    """
 
     def __init__(self, dataframe: Union[DataFrame, Callable[[], DataFrame]]) -> None:
         """Construct a new keyset.

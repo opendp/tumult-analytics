@@ -529,7 +529,12 @@ class AnalyticsDefault:
 
 @dataclass
 class ReplaceNullAndNan(QueryExpr):
-    """Returns data with null and NaN expressions replaced by a default."""
+    """Returns data with null and NaN expressions replaced by a default.
+
+    Note that after a `ReplaceNullAndNan` query has been performed for a column,
+    Analyitcs will raise an error if you use a `KeySet` for that column
+    that contains null values.
+    """
 
     child: QueryExpr
     """The QueryExpr to replace null/NaN values in."""
@@ -591,7 +596,12 @@ class ReplaceInfinity(QueryExpr):
 
 @dataclass
 class DropInvalid(QueryExpr):
-    """Returns data with rows that contain null, NaN, or +inf/-inf dropped."""
+    """Returns data with rows that contain null, NaN, or +inf/-inf dropped.
+
+    Note that after a `DropInvalid` query has been performed for a column,
+    Analytics will raise an error if you use a `KeySet` for that column
+    that contains null values.
+    """
 
     child: QueryExpr
     """The QueryExpr in which to drop nulls/NaNs/+inf/-inf."""
@@ -677,7 +687,13 @@ class GroupByCountDistinct(QueryExpr):
 
 @dataclass
 class GroupByQuantile(QueryExpr):
-    """Returns the quantile of a column for each combination of the groupby domains."""
+    """Returns the quantile of a column for each combination of the groupby domains.
+
+    If the column to be measured contains invalid values (null, NaN, or
+    positive or negative infinity), those values will be dropped (as if
+    dropped explicitly via :class:`DropInvalid`) before the quantile is
+    calculated.
+    """
 
     child: QueryExpr
     """The QueryExpr to measure."""
@@ -725,7 +741,13 @@ class GroupByQuantile(QueryExpr):
 
 @dataclass
 class GroupByBoundedSum(QueryExpr):
-    """Returns the bounded sum of a column for each combination of groupby domains."""
+    """Returns the bounded sum of a column for each combination of groupby domains.
+
+    If the column to be measured contains invalid values (null, NaN, or
+    positive or negative infinity), those values will be dropped (as if
+    dropped explicitly via :class:`DropInvalid`) before the sum is
+    calculated.
+    """
 
     child: QueryExpr
     """The QueryExpr to measure."""
@@ -773,7 +795,13 @@ class GroupByBoundedSum(QueryExpr):
 
 @dataclass
 class GroupByBoundedAverage(QueryExpr):
-    """Returns bounded average of a column for each combination of groupby domains."""
+    """Returns bounded average of a column for each combination of groupby domains.
+
+    If the column to be measured contains invalid values (null, NaN, or
+    positive or negative infinity), those values will be dropped (as if
+    dropped explicitly via :class:`DropInvalid`) before the average is
+    calculated.
+    """
 
     child: QueryExpr
     """The QueryExpr to measure."""
@@ -821,7 +849,13 @@ class GroupByBoundedAverage(QueryExpr):
 
 @dataclass
 class GroupByBoundedVariance(QueryExpr):
-    """Returns bounded variance of a column for each combination of groupby domains."""
+    """Returns bounded variance of a column for each combination of groupby domains.
+
+    If the column to be measured contains invalid values (null, NaN, or
+    positive or negative infinity), those values will be dropped (as if
+    dropped explicitly via :class:`DropInvalid`) before the variance is
+    calculated.
+    """
 
     child: QueryExpr
     """The QueryExpr to measure."""
@@ -869,7 +903,13 @@ class GroupByBoundedVariance(QueryExpr):
 
 @dataclass
 class GroupByBoundedSTDEV(QueryExpr):
-    """Returns bounded stdev of a column for each combination of groupby domains."""
+    """Returns bounded stdev of a column for each combination of groupby domains.
+
+    If the column to be measured contains invalid values (null, NaN, or
+    positive or negative infinity), those values will be dropped (as if
+    dropped explicitly via :class:`DropInvalid`) before the standard deviation is
+    calculated.
+    """
 
     child: QueryExpr
     """The QueryExpr to measure."""
