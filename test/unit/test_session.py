@@ -680,6 +680,39 @@ class TestInvalidSession(PySparkTest):
         ):
             session.get_grouping_column(source_id)
 
+    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
+    def test_invalid_column_name(self, mock_accountant) -> None:
+        """Builder raises an error if a column is named "".
+
+        Columns named "" (empty string) are not allowed.
+        """
+        self._setup_accountant(mock_accountant)
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('This DataFrame contains a column named "" (the empty string)'),
+        ):
+            Session.from_dataframe(
+                privacy_budget=PureDPBudget(1),
+                source_id="private",
+                dataframe=self.spark.createDataFrame(
+                    pd.DataFrame({"A": ["a0", "a1"], "": [0, 1]})
+                ),
+            )
+        session = Session(accountant=mock_accountant, public_sources={})
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('This DataFrame contains a column named "" (the empty string)'),
+        ):
+            session.add_public_dataframe(
+                source_id="my_public_data",
+                dataframe=self.spark.createDataFrame(
+                    pd.DataFrame(
+                        [["0", 0, 0.0], ["1", 1, 1.1], ["2", 2, 2.2]],
+                        columns=["A", "B", ""],
+                    )
+                ),
+            )
+
     @parameterized.expand(
         [
             (2, TypeError, 'type of argument "source_id" must be str; got int instead'),

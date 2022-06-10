@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Aggregations (sum, quantile, average, variance, and standard deviation) now silently drop invalid values before being performed.
 - Added a `cleanup` module with two functions: a `cleanup` function to remove the current temporary table (which should be called before `spark.stop()`), and a `remove_all_temp_tables` function that removes all temporary tables ever created by Analytics.
 
+### Changed
+- *Backwards-incompatible*: Sessions no longer allow DataFrames to contain a column named `""` (the empty string).
+
 ### Removed
 - *Backwards-incompatible*: `Session.from_csv` and CSV-related methods on `Session.Builder` have been removed.
   Use `spark.read.csv` and `Session.from_dataframe` instead.

@@ -2,6 +2,7 @@
 
 # <placeholder: boilerplate>
 
+import re
 import unittest
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
@@ -19,6 +20,14 @@ class TestSchema(unittest.TestCase):
         ):
             columns = {"Col1": "VARCHAR", "Col2": "BADTYPE", "Col3": "INTEGER"}
             Schema(columns)
+
+    def test_invalid_column_name(self) -> None:
+        """Schema raises an exception if a column is named "" (empty string)."""
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            Schema({"col1": "VARCHAR", "": "VARCHAR"})
 
     def test_valid_column_types(self) -> None:
         """Schema construction and py type translation succeeds with valid columns."""
