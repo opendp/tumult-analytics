@@ -4,7 +4,7 @@
 
 import dataclasses
 import datetime
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -595,6 +595,15 @@ class TransformationVisitor(QueryExprVisitor):
         assert isinstance(
             child.output_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
         )
+        grouping_column: Optional[str] = None
+        if isinstance(child.output_metric, IfGroupedBy):
+            grouping_column = child.output_metric.column
+            if grouping_column in query.replace_with:
+                raise ValueError(
+                    "Cannot replace null values in column"
+                    f" {child.output_metric.column}, because it is being used as a"
+                    " grouping column"
+                )
         analytics_schema = spark_dataframe_domain_to_analytics_columns(
             child.output_domain
         )
@@ -602,6 +611,12 @@ class TransformationVisitor(QueryExprVisitor):
         replace_with: Dict[str, Any] = dict(query.replace_with).copy()
         if len(replace_with) == 0:
             for col in list(Schema(analytics_schema).column_descs.keys()):
+                if col == grouping_column:
+                    continue
+                if not analytics_schema[col].allow_null and not (
+                    analytics_schema[col].allow_nan
+                ):
+                    continue
                 if analytics_schema[col].column_type == ColumnType.INTEGER:
                     replace_with[col] = int(AnalyticsDefault.INTEGER)
                 elif analytics_schema[col].column_type == ColumnType.DECIMAL:
@@ -620,7 +635,15 @@ class TransformationVisitor(QueryExprVisitor):
                         f" type {analytics_schema[col].column_type}, and no default"
                         " value was provided"
                     )
+
         else:
+            # Check that all columns exist
+            for col in replace_with:
+                if not col in analytics_schema:
+                    raise ValueError(
+                        f"Cannot replace values in column {col}, because it is not in"
+                        " the schema"
+                    )
             # Make sure all DECIMAL replacement values are floats
             for col in list(replace_with.keys()):
                 if analytics_schema[col].column_type == ColumnType.DECIMAL:
@@ -628,16 +651,26 @@ class TransformationVisitor(QueryExprVisitor):
 
         also_replace_nan = any(
             [
-                analytics_schema[col].column_type == ColumnType.DECIMAL
+                (
+                    analytics_schema[col].column_type == ColumnType.DECIMAL
+                    and analytics_schema[col].allow_nan
+                )
                 for col in list(replace_with.keys())
             ]
         )
 
-        transformation: Transformation = ReplaceNulls(
-            input_domain=child.output_domain,
-            metric=child.output_metric,
-            replace_map=replace_with,
-        )
+        transformation: Transformation = child
+
+        if any([analytics_schema[col].allow_null for col in replace_with]):
+            transformation = transformation | ReplaceNulls(
+                input_domain=child.output_domain,
+                metric=child.output_metric,
+                replace_map={
+                    col: val
+                    for col, val in replace_with.items()
+                    if analytics_schema[col].allow_null
+                },
+            )
         if also_replace_nan:
             # These assertions are here to make MyPy happy
             # If they fail, something is very wrong in Core
@@ -652,11 +685,14 @@ class TransformationVisitor(QueryExprVisitor):
                 replace_map={
                     col: replace_with[col]
                     for col in list(replace_with.keys())
-                    if analytics_schema[col].column_type == ColumnType.DECIMAL
+                    if (
+                        analytics_schema[col].column_type == ColumnType.DECIMAL
+                        and analytics_schema[col].allow_nan
+                    )
                 },
             )
             transformation = transformation | replace_nan
-        return child | transformation
+        return transformation
 
     def visit_replace_infinity(self, query: ReplaceInfinity) -> Transformation:
         """Create a transformation from a ReplaceInfinity query expression."""
@@ -688,12 +724,24 @@ class TransformationVisitor(QueryExprVisitor):
         analytics_schema = Schema(
             spark_dataframe_domain_to_analytics_columns(child.output_domain)
         )
+
+        grouping_column: Optional[str] = None
+        if isinstance(child.output_metric, IfGroupedBy):
+            grouping_column = child.output_metric.column
+            if grouping_column in query.columns:
+                raise ValueError(
+                    "Cannot drop null values in column"
+                    f" {child.output_metric.column}, because it is being used as a"
+                    " grouping column"
+                )
+
         columns = query.columns.copy()
         if len(columns) == 0:
             columns = [
                 col
                 for col, cd in analytics_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan or cd.allow_inf)
+                and not (col == grouping_column)
             ]
 
         transformation: Transformation = self._ensure_not_hamming(child)

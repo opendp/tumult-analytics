@@ -119,7 +119,9 @@ class TestTransformationVisitor(PySparkTest):
                     {
                         "A": SparkStringColumnDescriptor(allow_null=True),
                         "B": SparkIntegerColumnDescriptor(allow_null=True),
-                        "X": SparkFloatColumnDescriptor(allow_null=True),
+                        "X": SparkFloatColumnDescriptor(
+                            allow_null=True, allow_nan=True
+                        ),
                         "D": SparkDateColumnDescriptor(allow_null=True),
                         "T": SparkTimestampColumnDescriptor(allow_null=True),
                     }
@@ -160,7 +162,9 @@ class TestTransformationVisitor(PySparkTest):
             {
                 "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                 "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "X": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
+                ),
                 "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                 "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
             },
@@ -187,7 +191,8 @@ class TestTransformationVisitor(PySparkTest):
         self.assertEqual(t.input_metric, self.visitor.input_metric)
         self.assertIsInstance(t, ChainTT)
         assert isinstance(t, ChainTT)
-        self.assertIsInstance(t.transformation1, GetValue)
+        first_transform = chain_to_list(t)[0]
+        self.assertIsInstance(first_transform, GetValue)
 
         expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
@@ -599,20 +604,16 @@ class TestTransformationVisitor(PySparkTest):
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
+        transformations = chain_to_list(transformation)
 
         replace_transform: ReplaceNulls
         if expect_nan_replacement:
-            self.assertIsInstance(transformation.transformation2, ChainTT)
-            assert isinstance(transformation.transformation2, ChainTT)
-            self.assertIsInstance(
-                transformation.transformation2.transformation1, ReplaceNulls
-            )
-            assert isinstance(
-                transformation.transformation2.transformation1, ReplaceNulls
-            )
-            replace_transform = transformation.transformation2.transformation1
+            self.assertEqual(len(transformations), 3)
+            self.assertIsInstance(transformations[1], ReplaceNulls)
+            assert isinstance(transformations[1], ReplaceNulls)
+            replace_transform = transformations[1]
 
-            nan_transform = transformation.transformation2.transformation2
+            nan_transform = transformations[2]
             self.assertIsInstance(nan_transform, ReplaceNaNs)
             assert isinstance(nan_transform, ReplaceNaNs)
             expected_nan_replace = {
@@ -624,18 +625,68 @@ class TestTransformationVisitor(PySparkTest):
                 expected_nan_replace, nan_transform.replace_map
             )
         else:
-            self.assertIsInstance(transformation.transformation2, ReplaceNulls)
-            assert isinstance(transformation.transformation2, ReplaceNulls)
-            replace_transform = transformation.transformation2
+            self.assertEqual(len(transformations), 2)
+            self.assertIsInstance(transformations[1], ReplaceNulls)
+            assert isinstance(transformations[1], ReplaceNulls)
+            replace_transform = transformations[1]
 
         expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
-        self.assertEqual(expected_output_domain, replace_transform.output_domain)
+        self.assertEqual(expected_output_domain, transformation.output_domain)
         self._assert_dict_equal_without_ordering(
             expected_replace_with, replace_transform.replace_map
         )
+
+    def test_visit_replace_null_and_nan_with_grouping_column(self) -> None:
+        """Test behavior of visit_replace_null_and_nan with IfGroupedBy metric."""
+        flatmap_query = FlatMap(
+            child=PrivateSource("private"),
+            f=lambda row: [{"Group": 0 if row["X"] == 0 else 17}],
+            max_num_rows=2,
+            schema_new_columns=Schema(
+                {"Group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
+                grouping_column="Group",
+            ),
+            augment=True,
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot replace null values in column Group, because it is being used as a"
+            " grouping column",
+        ):
+            invalid_replace_query = ReplaceNullAndNan(
+                child=flatmap_query, replace_with={"Group": -10}
+            )
+            self.visitor.visit_replace_null_and_nan(invalid_replace_query)
+        valid_replace_query = ReplaceNullAndNan(child=flatmap_query, replace_with={})
+        expected_replace_with = {
+            "A": "",
+            "B": 0,
+            "X": 0.0,
+            "D": datetime.date.fromtimestamp(0),
+            "T": datetime.datetime.fromtimestamp(0),
+        }
+        transformation = self.visitor.visit_replace_null_and_nan(valid_replace_query)
+        self._validate_transform_basics(transformation, valid_replace_query)
+        self.assertIsInstance(transformation, ChainTT)
+        assert isinstance(transformation, ChainTT)
+        transformations = chain_to_list(transformation)
+        self.assertIsInstance(transformations[0], GetValue)
+        self.assertIsInstance(transformations[1], GroupingFlatMap)
+        self.assertIsInstance(transformations[2], ReplaceNulls)
+        assert isinstance(transformations[2], ReplaceNulls)
+        replace_nulls = transformations[2]
+        self._assert_dict_equal_without_ordering(
+            replace_nulls.replace_map, expected_replace_with
+        )
+        expected_replace_nan = {"X": 0.0}
+        self.assertEqual(len(transformations), 4)
+        self.assertIsInstance(transformations[3], ReplaceNaNs)
+        assert isinstance(transformations[3], ReplaceNaNs)
+        replace_nans = transformations[3]
+        self.assertEqual(replace_nans.replace_map, expected_replace_nan)
 
     @parameterized.expand(
         [
@@ -664,6 +715,40 @@ class TestTransformationVisitor(PySparkTest):
         self.assertEqual(expected_output_domain, replace_transform.output_domain)
         self._assert_dict_equal_without_ordering(
             expected_replace_with, replace_transform.replace_map
+        )
+
+    def test_visit_drop_invalid_with_grouping_column(self) -> None:
+        """Test behavior of visit_drop_invalid with IfGroupedBy metric."""
+        flatmap_query = FlatMap(
+            child=PrivateSource("private"),
+            f=lambda row: [{"Group": 0 if row["X"] == 0 else 17}],
+            max_num_rows=2,
+            schema_new_columns=Schema(
+                {"Group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
+                grouping_column="Group",
+            ),
+            augment=True,
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot drop null values in column Group, because it is being used as a"
+            " grouping column",
+        ):
+            invalid_drop_query = DropInvalid(child=flatmap_query, columns=["Group"])
+            self.visitor.visit_drop_invalid(invalid_drop_query)
+        valid_drop_query = DropInvalid(child=flatmap_query, columns=[])
+        expected_columns = ["A", "B", "X", "D", "T"]
+        t = self.visitor.visit_drop_invalid(valid_drop_query)
+        self._validate_transform_basics(t, valid_drop_query)
+        self.assertIsInstance(t, ChainTT)
+        assert isinstance(t, ChainTT)
+        transformations = chain_to_list(t)
+        self.assertIsInstance(transformations[0], GetValue)
+        self.assertIsInstance(transformations[1], GroupingFlatMap)
+        self.assertIsInstance(transformations[2], DropNulls)
+        assert isinstance(transformations[2], DropNulls)
+        self.assertEqual(
+            sorted(set(transformations[2].columns)), sorted(set(expected_columns))
         )
 
     def test_measurement_visits(self):

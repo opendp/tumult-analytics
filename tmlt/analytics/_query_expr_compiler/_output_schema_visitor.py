@@ -615,6 +615,14 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a ReplaceNullAndNan."""
         input_schema = expr.child.accept(self)
+        if (
+            input_schema.grouping_column
+            and input_schema.grouping_column in expr.replace_with
+        ):
+            raise ValueError(
+                f"Cannot replace null values in column {input_schema.grouping_column},"
+                " because it is being used as a grouping column"
+            )
         if len(expr.replace_with) != 0:
             pytypes = analytics_to_py_types(input_schema)
             for col, val in expr.replace_with.items():
@@ -634,7 +642,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
                         )
         columns_to_change = list(dict(expr.replace_with).keys())
         if len(columns_to_change) == 0:
-            columns_to_change = list(input_schema.column_descs.keys())
+            columns_to_change = [
+                col
+                for col in input_schema.column_descs.keys()
+                if (input_schema[col].allow_null or input_schema[col].allow_nan)
+                and not (col == input_schema.grouping_column)
+            ]
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -688,12 +701,21 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_drop_invalid(self, expr: DropInvalid) -> Schema:
         """Returns the resulting schema from evaluating a DropInvalid."""
         input_schema = expr.child.accept(self)
+        if (
+            input_schema.grouping_column
+            and input_schema.grouping_column in expr.columns
+        ):
+            raise ValueError(
+                f"Cannot drop null values in column {input_schema.grouping_column},"
+                " because it is being used as a grouping column"
+            )
         columns = expr.columns.copy()
         if len(columns) == 0:
             columns = [
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan or cd.allow_inf)
+                and not name == input_schema.grouping_column
             ]
         else:
             for name in columns:
