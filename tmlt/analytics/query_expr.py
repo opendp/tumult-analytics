@@ -213,6 +213,12 @@ class Rename(QueryExpr):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
         check_type("column_mapper", self.column_mapper, Dict[str, str])
+        for k, v in self.column_mapper.items():
+            if v == "":
+                raise ValueError(
+                    f'Cannot rename column {k} to "" (the empty string): columns named'
+                    ' "" are not allowed'
+                )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

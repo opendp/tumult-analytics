@@ -3,6 +3,7 @@
 # <placeholder: boilerplate>
 
 import datetime
+import re
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
@@ -196,6 +197,31 @@ class TestTransformations(PySparkTest):
         assert isinstance(root_expr, PrivateSource)
         self.assertEqual(root_expr.source_id, PRIVATE_ID)
 
+    def test_invalid_map(self):
+        """QueryBuilder.map doesn't allow columns named ""."""
+
+        # this is a map function that returns a column named ""
+        def new_empty_column(_: Row) -> Row:
+            return {"": 2 * "B"}
+
+        # which should raise an error
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.map(
+                f=new_empty_column, new_column_types={"": "VARCHAR"}, augment=False
+            )
+
+        # this should also raise an error if augment is true
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.map(
+                f=new_empty_column, new_column_types={"": "VARCHAR"}, augment=True
+            )
+
     def test_map_augment_is_false(self):
         """QueryBuilder map works as expected with augment=False."""
 
@@ -259,6 +285,58 @@ class TestTransformations(PySparkTest):
         root_expr = map_expr.child
         assert isinstance(root_expr, PrivateSource)
         self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+    def test_invalid_flat_map(self) -> None:
+        """QueryBuilder flat_map does not allow columns named ""."""
+
+        def duplicate_rows(_: Row) -> List[Row]:
+            return [{"": "0"}, {"": "1"}]
+
+        # This should fail whether augment and grouping are true or false
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.flat_map(
+                f=duplicate_rows,
+                max_num_rows=2,
+                new_column_types={"": "VARCHAR"},
+                augment=False,
+                grouping=False,
+            )
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.flat_map(
+                f=duplicate_rows,
+                max_num_rows=2,
+                new_column_types={"": "VARCHAR"},
+                augment=False,
+                grouping=True,
+            )
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.flat_map(
+                f=duplicate_rows,
+                max_num_rows=2,
+                new_column_types={"": "VARCHAR"},
+                augment=True,
+                grouping=False,
+            )
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape('"" (the empty string) is not a supported column name'),
+        ):
+            self.root_builder.flat_map(
+                f=duplicate_rows,
+                max_num_rows=2,
+                new_column_types={"": "VARCHAR"},
+                augment=True,
+                grouping=True,
+            )
 
     def test_flat_map_augment_is_false(self):
         """QueryBuilder flat_map works as expected with augment=False."""

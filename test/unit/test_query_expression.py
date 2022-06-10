@@ -81,6 +81,17 @@ class TestInvalidAttributes(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, expected_error_msg):
             Rename(PrivateSource("private"), column_mapper)
 
+    def test_invalid_rename_empty_string(self):
+        """Test that rename doesn't allow you to rename columns to "" (empty string)."""
+        with self.assertRaisesRegex(
+            ValueError,
+            re.escape(
+                'Cannot rename column A to "" (the empty string): columns named ""'
+                " are not allowed"
+            ),
+        ):
+            Rename(PrivateSource("private"), {"A": ""})
+
     def test_invalid_filter(self):
         """Tests that invalid Filter errors on post-init."""
         with self.assertRaises(TypeError):

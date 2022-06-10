@@ -105,11 +105,15 @@ def coerce_spark_schema_or_fail(
             SUPPORTED_SPARK_TYPES
         * if `dataframe` contains nulls or nans in any column
           (if allow_nan_and_null is not True)
+        * if `dataframe` contains a column named "" (the empty string)
 
     This function returns a DataFrame where all column types
         * are coerced according to TYPE_COERCION_MAP if necessary
         * are marked as non-nullable
     """
+    if "" in dataframe.columns:
+        raise ValueError('This DataFrame contains a column named "" (the empty string)')
+
     _fail_if_dataframe_contains_unsupported_types(dataframe)
 
     if not allow_nan_and_null:

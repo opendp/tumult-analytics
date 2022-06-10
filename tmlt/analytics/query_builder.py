@@ -829,7 +829,7 @@ class QueryBuilder:
         self,
         f: Callable[[Row], List[Row]],
         max_num_rows: int,
-        new_column_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+        new_column_types: Mapping[str, Union[str, ColumnDescriptor, ColumnType]],
         augment: bool = False,
         grouping: bool = False,
     ) -> "QueryBuilder":

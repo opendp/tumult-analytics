@@ -105,6 +105,8 @@ class Schema(Mapping):
                 default_allow_inf is True.
         """
         # TODO(#1539): update Schema interface to use ColumnDescriptor everywhere.
+        if "" in column_descs:
+            raise ValueError('"" (the empty string) is not a supported column name')
         self._grouping_column = grouping_column
 
         supported_types: List[str] = [t.name for t in list(ColumnType)]
