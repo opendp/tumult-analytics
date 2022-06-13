@@ -538,7 +538,7 @@ class ReplaceNullAndNan(QueryExpr):
     """Returns data with null and NaN expressions replaced by a default.
 
     Note that after a `ReplaceNullAndNan` query has been performed for a column,
-    Analyitcs will raise an error if you use a `KeySet` for that column
+    Analytics will raise an error if you use a `KeySet` for that column
     that contains null values.
     """
 
