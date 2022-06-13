@@ -756,6 +756,10 @@ class QueryBuilder:
     ) -> "QueryBuilder":
         """Updates the current query to apply a mapping function to each row.
 
+        If you provide only a ColumnType for the new column types, Analytics
+        assumes that all new columns created may contain null values (and that
+        DECIMAL columns may contain NaN or infinite values).
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -834,6 +838,10 @@ class QueryBuilder:
         grouping: bool = False,
     ) -> "QueryBuilder":
         """Updates the current query to apply a flat map.
+
+        If you provide only a ColumnType for the new column types, Analytics
+        assumes that all new columns created may contain null values (and that
+        DECIMAL columns may contain NaN or infinite values).
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
