@@ -6,8 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Unreleased
 ### Added
 - Added `QueryBuilder.replace_infinite` function, which replaces positive and negative infinity values with specified defaults.
-- Added `QueryBuilder.drop_invalid` function, which drops null, NaN, and infinite values for specified columns.
-- Aggregations (sum, quantile, average, variance, and standard deviation) now silently drop invalid values before being performed.
+- Added `QueryBuilder.drop_null_and_nan` function, which drops null and NaN values for specified columns.
+- Added `QueryBuilder.drop_infinite` function, which drops infinite values for specified columns.
+- Aggregations (sum, quantile, average, variance, and standard deviation) now silently drop null, NaN, and infinite values before being performed.
 - Added a `cleanup` module with two functions: a `cleanup` function to remove the current temporary table (which should be called before `spark.stop()`), and a `remove_all_temp_tables` function that removes all temporary tables ever created by Analytics.
 
 ### Changed

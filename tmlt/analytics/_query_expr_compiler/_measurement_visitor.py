@@ -25,7 +25,8 @@ from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -326,8 +327,8 @@ class MeasurementVisitor(QueryExprVisitor):
         """Everything you need to build a measurement for these query types.
 
         This function also checks to see if the measure_column allows
-        invalid values (nulls, NaNs, and infinite values), and adds a
-        DropInvalid query to remove them if they are present.
+        invalid values (nulls, NaNs, and infinite values), and adds
+        DropNullAndNan and/or DropInfinity queries to remove them if they are present.
         """
         lower_bound, upper_bound = _get_query_bounds(query)
 
@@ -342,14 +343,23 @@ class MeasurementVisitor(QueryExprVisitor):
                 f"Measure column {query.measure_column} is not in the input schema."
             )
         new_child: Optional[QueryExpr] = None
-        # If invalid values are allowed ...
+        # If null or NaN values are allowed ...
         if measure_desc.allow_null or (
-            measure_desc.column_type == ColumnType.DECIMAL
-            and (measure_desc.allow_nan or measure_desc.allow_inf)
+            measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_nan
         ):
-            # then drop invalid values
+            # then drop those values
             # (but don't mutate the original query)
-            new_child = DropInvalid(child=query.child, columns=[query.measure_column])
+            new_child = DropNullAndNan(
+                child=query.child, columns=[query.measure_column]
+            )
+            query = dataclasses.replace(query, child=new_child)
+            expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+
+        # If infinite values are allowed...
+        if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
+            # then drop infinite values
+            # (but don't mutate the original query)
+            new_child = DropInfinity(child=query.child, columns=[query.measure_column])
             query = dataclasses.replace(query, child=new_child)
             expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
 
@@ -483,8 +493,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
         This method also checks to see if the schema allows invalid values
         (nulls, NaNs, and infinite values) on the measure column; if so,
-        the query has a DropInvalid query inserted immediately before
-        it is executed.
+        the query has DropNullAndNan and/or DropInfinity queries
+        inserted immediately before it is executed.
         """
         child_schema: Schema = query.child.accept(OutputSchemaVisitor(self.catalog))
         # Check the measure column for nulls/NaNs/infs (which aren't allowed)
@@ -494,15 +504,26 @@ class MeasurementVisitor(QueryExprVisitor):
             raise KeyError(
                 "Measure column '{query.measure_column}' is not in the input schema."
             )
-        # If invalid values are allowed ...
+        # If null or NaN values are allowed ...
         if measure_desc.allow_null or (
-            measure_desc.column_type == ColumnType.DECIMAL
-            and (measure_desc.allow_nan or measure_desc.allow_inf)
+            measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_nan
         ):
             # Those values aren't allowed! Drop them
             # (without mutating the original QueryExpr)
-            drop_query = DropInvalid(child=query.child, columns=[query.measure_column])
-            query = dataclasses.replace(query, child=drop_query)
+            drop_null_and_nan_query = DropNullAndNan(
+                child=query.child, columns=[query.measure_column]
+            )
+            query = dataclasses.replace(query, child=drop_null_and_nan_query)
+
+        # If infinite values are allowed ...
+        if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
+            # Those values aren't allowed! Drop them
+            # (without mutating the original QueryExpr)
+            drop_infinity_query = DropInfinity(
+                child=query.child, columns=[query.measure_column]
+            )
+            query = dataclasses.replace(query, child=drop_infinity_query)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
 
@@ -710,6 +731,10 @@ class MeasurementVisitor(QueryExprVisitor):
         """Visit a ReplaceInfinity query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_drop_invalid(self, expr: DropInvalid) -> Any:
-        """Visit a DropInvalid query expression (raises an error)."""
+    def visit_drop_infinity(self, expr: DropInfinity) -> Any:
+        """Visit a DropInfinity query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Any:
+        """Visit a DropNullAndNan query expression (raises an error)."""
         raise NotImplementedError

@@ -23,9 +23,10 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
 )
 from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.query_expr import AnalyticsDefault
+from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics.query_expr import (
-    AnalyticsDefault,
-    DropInvalid,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -78,7 +79,9 @@ from tmlt.core.transformations.spark_transformations.map import (
 from tmlt.core.transformations.spark_transformations.map import GroupingFlatMap
 from tmlt.core.transformations.spark_transformations.map import Map as MapTransformation
 from tmlt.core.transformations.spark_transformations.nan import (
-    DropInfs,
+    DropInfs as DropInfTransformation,
+)
+from tmlt.core.transformations.spark_transformations.nan import (
     DropNaNs,
     DropNulls,
     ReplaceInfs,
@@ -120,7 +123,7 @@ class TestTransformationVisitor(PySparkTest):
                         "A": SparkStringColumnDescriptor(allow_null=True),
                         "B": SparkIntegerColumnDescriptor(allow_null=True),
                         "X": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_nan=True
+                            allow_null=True, allow_nan=True, allow_inf=True
                         ),
                         "D": SparkDateColumnDescriptor(allow_null=True),
                         "T": SparkTimestampColumnDescriptor(allow_null=True),
@@ -163,7 +166,7 @@ class TestTransformationVisitor(PySparkTest):
                 "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                 "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
                 "X": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
+                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
                 ),
                 "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                 "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
@@ -717,8 +720,8 @@ class TestTransformationVisitor(PySparkTest):
             expected_replace_with, replace_transform.replace_map
         )
 
-    def test_visit_drop_invalid_with_grouping_column(self) -> None:
-        """Test behavior of visit_drop_invalid with IfGroupedBy metric."""
+    def test_visit_drop_null_and_nan_with_grouping_column(self) -> None:
+        """Test behavior of visit_drop_null_and_nan with IfGroupedBy metric."""
         flatmap_query = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{"Group": 0 if row["X"] == 0 else 17}],
@@ -734,11 +737,11 @@ class TestTransformationVisitor(PySparkTest):
             "Cannot drop null values in column Group, because it is being used as a"
             " grouping column",
         ):
-            invalid_drop_query = DropInvalid(child=flatmap_query, columns=["Group"])
-            self.visitor.visit_drop_invalid(invalid_drop_query)
-        valid_drop_query = DropInvalid(child=flatmap_query, columns=[])
+            invalid_drop_query = DropNullAndNan(child=flatmap_query, columns=["Group"])
+            self.visitor.visit_drop_null_and_nan(invalid_drop_query)
+        valid_drop_query = DropNullAndNan(child=flatmap_query, columns=[])
         expected_columns = ["A", "B", "X", "D", "T"]
-        t = self.visitor.visit_drop_invalid(valid_drop_query)
+        t = self.visitor.visit_drop_null_and_nan(valid_drop_query)
         self._validate_transform_basics(t, valid_drop_query)
         self.assertIsInstance(t, ChainTT)
         assert isinstance(t, ChainTT)
@@ -747,6 +750,40 @@ class TestTransformationVisitor(PySparkTest):
         self.assertIsInstance(transformations[1], GroupingFlatMap)
         self.assertIsInstance(transformations[2], DropNulls)
         assert isinstance(transformations[2], DropNulls)
+        self.assertEqual(
+            sorted(set(transformations[2].columns)), sorted(set(expected_columns))
+        )
+
+    def test_visit_drop_infinity_with_grouping_column(self) -> None:
+        """Test behavior of visit_drop_infinity with IfGroupedBy metric."""
+        flatmap_query = FlatMap(
+            child=PrivateSource("private"),
+            f=lambda row: [{"Group": 0 if row["X"] == 0 else 17}],
+            max_num_rows=2,
+            schema_new_columns=Schema(
+                {"Group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
+                grouping_column="Group",
+            ),
+            augment=True,
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot drop infinite values in column Group, because it is being used as a"
+            " grouping column",
+        ):
+            invalid_drop_query = DropInfExpr(child=flatmap_query, columns=["Group"])
+            self.visitor.visit_drop_infinity(invalid_drop_query)
+        valid_drop_query = DropInfExpr(child=flatmap_query, columns=[])
+        expected_columns = ["X"]
+        t = self.visitor.visit_drop_infinity(valid_drop_query)
+        self._validate_transform_basics(t, valid_drop_query)
+        self.assertIsInstance(t, ChainTT)
+        assert isinstance(t, ChainTT)
+        transformations = chain_to_list(t)
+        self.assertIsInstance(transformations[0], GetValue)
+        self.assertIsInstance(transformations[1], GroupingFlatMap)
+        self.assertIsInstance(transformations[2], DropInfTransformation)
+        assert isinstance(transformations[2], DropInfTransformation)
         self.assertEqual(
             sorted(set(transformations[2].columns)), sorted(set(expected_columns))
         )
@@ -918,21 +955,19 @@ class TestTransformationVisitorWithComplexSchema(PySparkTest):
 
     @parameterized.expand(
         [
-            (["A"], ["A"], [], []),
-            (["A", "B", "D", "T"], ["A", "B", "D", "T"], [], []),
-            (["NOTNULL"], [], [], []),
-            (["null", "nan", "inf"], ["null"], ["nan"], ["inf"]),
+            (["A"], ["A"], []),
+            (["A", "B", "D", "T"], ["A", "B", "D", "T"], []),
+            (["NOTNULL"], [], []),
+            (["null", "nan", "inf"], ["null"], ["nan"]),
             (
                 ["null_and_nan", "null_and_inf", "nan_and_inf"],
                 ["null_and_nan", "null_and_inf"],
                 ["null_and_nan", "nan_and_inf"],
-                ["null_and_inf", "nan_and_inf"],
             ),
             (
                 ["null", "nan", "inf", "null_and_nan_and_inf"],
                 ["null", "null_and_nan_and_inf"],
                 ["nan", "null_and_nan_and_inf"],
-                ["inf", "null_and_nan_and_inf"],
             ),
             (
                 [],
@@ -947,22 +982,20 @@ class TestTransformationVisitorWithComplexSchema(PySparkTest):
                     "T",
                 ],
                 ["nan", "null_and_nan", "nan_and_inf", "null_and_nan_and_inf"],
-                ["inf", "null_and_inf", "nan_and_inf", "null_and_nan_and_inf"],
             ),
         ]
     )
-    def test_visit_drop_invalid(
+    def test_visit_drop_null_and_nan(
         self,
         query_columns: List[str],
         expected_null_cols: List[str],
         expected_nan_cols: List[str],
-        expected_inf_cols: List[str],
     ) -> None:
         """Test visit_drop_invalid."""
-        query = DropInvalid(child=PrivateSource("private"), columns=query_columns)
-        transform = self.visitor.visit_drop_invalid(query)
+        query = DropNullAndNan(child=PrivateSource("private"), columns=query_columns)
+        transform = self.visitor.visit_drop_null_and_nan(query)
         self._validate_transform_basics(transform, query)
-        if not expected_null_cols and not expected_nan_cols and not expected_inf_cols:
+        if not expected_null_cols and not expected_nan_cols:
             # There should just be a GetValue transformation
             self.assertIsInstance(transform, GetValue)
             # nothing else to test!
@@ -976,7 +1009,7 @@ class TestTransformationVisitorWithComplexSchema(PySparkTest):
         transformations.pop(0)
 
         # We expect transformations to happen in this order:
-        # DropNulls -> DropNaNs -> DropInfs
+        # DropNulls -> DropNaNs
         # but each one will only be present if it makes sense
         if expected_null_cols:
             null_transform = transformations.pop(0)
@@ -988,8 +1021,38 @@ class TestTransformationVisitorWithComplexSchema(PySparkTest):
             self.assertIsInstance(nan_transform, DropNaNs)
             assert isinstance(nan_transform, DropNaNs)
             self.assertEqual(sorted(nan_transform.columns), sorted(expected_nan_cols))
-        if expected_inf_cols:
-            inf_transform = transformations.pop(0)
-            self.assertIsInstance(inf_transform, DropInfs)
-            assert isinstance(inf_transform, DropInfs)
-            self.assertEqual(sorted(inf_transform.columns), sorted(expected_inf_cols))
+
+    @parameterized.expand(
+        [
+            (["inf"], ["inf"]),
+            (["null", "nan", "inf"], ["null", "nan", "inf"]),
+            (
+                ["null_and_nan", "null_and_inf", "nan_and_inf"],
+                ["null_and_nan", "null_and_inf", "nan_and_inf"],
+            ),
+            (
+                ["null", "nan", "inf", "null_and_nan_and_inf"],
+                ["null", "nan", "inf", "null_and_nan_and_inf"],
+            ),
+            ([], ["inf", "null_and_inf", "nan_and_inf", "null_and_nan_and_inf"]),
+        ]
+    )
+    def test_visit_drop_infinity(
+        self, query_columns: List[str], expected_inf_cols: List[str]
+    ) -> None:
+        """Test visit_drop_infinity."""
+        query = DropInfExpr(child=PrivateSource("private"), columns=query_columns)
+        transform = self.visitor.visit_drop_infinity(query)
+        self._validate_transform_basics(transform, query)
+        self.assertIsInstance(transform, ChainTT)
+        assert isinstance(transform, ChainTT)
+        transformations = chain_to_list(transform)
+        # Pop the get_value transformation off the front of the list
+        # (_validate_transform_basics checks that the first transformation
+        # is a GetValue transformation)
+        transformations.pop(0)
+
+        inf_transform = transformations.pop(0)
+        self.assertIsInstance(inf_transform, DropInfTransformation)
+        assert isinstance(inf_transform, DropInfTransformation)
+        self.assertEqual(sorted(inf_transform.columns), sorted(expected_inf_cols))

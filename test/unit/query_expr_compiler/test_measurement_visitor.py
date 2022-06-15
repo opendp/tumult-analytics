@@ -23,7 +23,10 @@ from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-    DropInvalid,
+)
+from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
+from tmlt.analytics.query_expr import (
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -71,10 +74,9 @@ from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
 from tmlt.core.transformations.spark_transformations.nan import (
-    DropInfs,
-    DropNaNs,
-    DropNulls,
+    DropInfs as DropInfTransformation,
 )
+from tmlt.core.transformations.spark_transformations.nan import DropNaNs, DropNulls
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
@@ -962,7 +964,7 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInvalid(child=PrivateSource("private"), columns=["nan"]),
+                DropNullAndNan(child=PrivateSource("private"), columns=["nan"]),
             ),
             (
                 GroupByBoundedSum(
@@ -988,7 +990,7 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInvalid(child=PrivateSource("private"), columns=["null"]),
+                DropNullAndNan(child=PrivateSource("private"), columns=["null"]),
             ),
             (
                 GroupByBoundedVariance(
@@ -1014,7 +1016,7 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInvalid(child=PrivateSource("private"), columns=["inf"]),
+                DropInfExpr(child=PrivateSource("private"), columns=["inf"]),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1040,8 +1042,11 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInvalid(
-                    child=PrivateSource("private"), columns=["null_and_nan_and_inf"]
+                DropInfExpr(
+                    child=DropNullAndNan(
+                        child=PrivateSource("private"), columns=["null_and_nan_and_inf"]
+                    ),
+                    columns=["null_and_nan_and_inf"],
                 ),
             ),
         ]
@@ -1066,14 +1071,33 @@ class TestMeasurementVisitor(PySparkTest):
             assert isinstance(info.transformation, GetValue)
             get_value_transformation = info.transformation
         else:
+            expected_null_nan_columns: List[str] = []
+            expected_inf_columns: List[str] = []
+            if isinstance(expected_new_child, DropInfExpr):
+                expected_inf_columns = expected_new_child.columns
+                if isinstance(expected_new_child.child, DropNullAndNan):
+                    expected_null_nan_columns = expected_new_child.child.columns
+            if isinstance(expected_new_child, DropNullAndNan):
+                expected_null_nan_columns = expected_new_child.columns
             self.assertIsInstance(info.transformation, ChainTT)
             assert isinstance(info.transformation, ChainTT)
             transformations = chain_to_list(info.transformation)
             self.assertIsInstance(transformations[0], GetValue)
             assert isinstance(transformations[0], GetValue)
             get_value_transformation = transformations[0]
+            got_null_nan_columns: List[str] = []
             for t in transformations[1:]:
-                self.assertIsInstance(t, (DropInfs, DropNaNs, DropNulls))
+                self.assertIsInstance(t, (DropInfTransformation, DropNaNs, DropNulls))
+                if isinstance(t, DropInfTransformation):
+                    self.assertEqual(sorted(t.columns), sorted(expected_inf_columns))
+                elif isinstance(t, DropNaNs):
+                    got_null_nan_columns += t.columns
+                elif isinstance(t, DropNulls):
+                    got_null_nan_columns += t.columns
+            self.assertEqual(
+                sorted(list(set(got_null_nan_columns))),
+                sorted(expected_null_nan_columns),
+            )
         self.assertEqual(get_value_transformation.key, "private")
         self.assertEqual(
             get_value_transformation.input_domain, self.visitor.input_domain
@@ -1104,20 +1128,34 @@ class TestMeasurementVisitor(PySparkTest):
             group_keys=query.groupby_keys.dataframe(),
         )
         if expected_new_child is not None:
-            if isinstance(expected_new_child, DropInvalid):
-                for col in expected_new_child.columns:
-                    if isinstance(
-                        expected_groupby_domain[col], SparkFloatColumnDescriptor
-                    ):
-                        expected_groupby_domain.schema[
-                            col
-                        ] = SparkFloatColumnDescriptor(
-                            allow_null=False, allow_nan=False, allow_inf=False
-                        )
-                    else:
-                        expected_groupby_domain.schema[
-                            col
-                        ] = SparkIntegerColumnDescriptor(allow_null=False)
+            new_transform: QueryExpr = expected_new_child
+            while isinstance(new_transform, (DropInfExpr, DropNullAndNan)):
+                if isinstance(new_transform, DropInfExpr):
+                    drop_inf_expr: DropInfExpr = new_transform
+                    for col in new_transform.columns:
+                        if isinstance(
+                            expected_groupby_domain[col], SparkFloatColumnDescriptor
+                        ):
+                            expected_groupby_domain.schema[
+                                col
+                            ] = SparkFloatColumnDescriptor(allow_inf=False)
+                            new_transform = drop_inf_expr.child
+                elif isinstance(new_transform, DropNullAndNan):
+                    drop_null_and_nan_expr: DropNullAndNan = new_transform
+                    for col in new_transform.columns:
+                        if isinstance(
+                            expected_groupby_domain[col], SparkFloatColumnDescriptor
+                        ):
+                            expected_groupby_domain.schema[
+                                col
+                            ] = SparkFloatColumnDescriptor(
+                                allow_null=False, allow_nan=False
+                            )
+                        else:
+                            expected_groupby_domain.schema[
+                                col
+                            ] = SparkIntegerColumnDescriptor(allow_null=False)
+                    new_transform = drop_null_and_nan_expr.child
         self.assertIsInstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         self.assertEqual(
@@ -1515,7 +1553,7 @@ class TestMeasurementVisitor(PySparkTest):
                     quantile=0.1,
                 ),
                 PureDP(),
-                DropInvalid(PrivateSource("private"), ["null_and_nan"]),
+                DropNullAndNan(PrivateSource("private"), ["null_and_nan"]),
             ),
             (
                 GroupByQuantile(
@@ -1541,7 +1579,10 @@ class TestMeasurementVisitor(PySparkTest):
                     quantile=0.25,
                 ),
                 PureDP(),
-                DropInvalid(PrivateSource("private"), ["null_and_inf"]),
+                DropInfExpr(
+                    DropNullAndNan(PrivateSource("private"), ["null_and_inf"]),
+                    ["null_and_inf"],
+                ),
             ),
             (
                 GroupByQuantile(
@@ -1565,7 +1606,22 @@ class TestMeasurementVisitor(PySparkTest):
                     high=0,
                 ),
                 RhoZCDP(),
-                DropInvalid(PrivateSource("private"), ["nan_and_inf"]),
+                DropInfExpr(
+                    DropNullAndNan(PrivateSource("private"), ["nan_and_inf"]),
+                    ["nan_and_inf"],
+                ),
+            ),
+            (
+                GroupByQuantile(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
+                    quantile=0.5,
+                    measure_column="inf",
+                    low=0,
+                    high=0,
+                ),
+                RhoZCDP(),
+                DropInfExpr(PrivateSource("private"), ["inf"]),
             ),
         ]
     )
@@ -1638,12 +1694,31 @@ class TestMeasurementVisitor(PySparkTest):
 
         # Check for the drop transformations, if expected
         if expected_new_child is not None:
+            expected_null_nan_columns: List[str] = []
+            expected_inf_columns: List[str] = []
+            if isinstance(expected_new_child, DropInfExpr):
+                expected_inf_columns = expected_new_child.columns
+                if isinstance(expected_new_child.child, DropNullAndNan):
+                    expected_null_nan_columns = expected_new_child.child.columns
+            elif isinstance(expected_new_child, DropNullAndNan):
+                expected_null_nan_columns = expected_new_child.columns
             self.assertIsInstance(measurement.transformation, ChainTT)
             assert isinstance(measurement.transformation, ChainTT)
             transformations = chain_to_list(measurement.transformation)
             self.assertIsInstance(transformations[0], GetValue)
+            got_null_nan_columns: List[str] = []
             for t in transformations[1:]:
-                self.assertIsInstance(t, (DropInfs, DropNaNs, DropNulls))
+                self.assertIsInstance(t, (DropInfTransformation, DropNaNs, DropNulls))
+                if isinstance(t, DropInfTransformation):
+                    self.assertEqual(sorted(t.columns), sorted(expected_inf_columns))
+                elif isinstance(t, DropNaNs):
+                    got_null_nan_columns += t.columns
+                elif isinstance(t, DropNulls):
+                    got_null_nan_columns += t.columns
+            self.assertEqual(
+                sorted(list(set(got_null_nan_columns))),
+                sorted(expected_null_nan_columns),
+            )
 
     @parameterized.expand(
         [
@@ -2131,7 +2206,8 @@ class TestMeasurementVisitor(PySparkTest):
             (JoinPublic(child=PrivateSource("private"), public_table="public"),),
             (ReplaceNullAndNan(child=PrivateSource("private")),),
             (ReplaceInfinity(child=PrivateSource("private")),),
-            (DropInvalid(child=PrivateSource("private")),),
+            (DropNullAndNan(child=PrivateSource("private")),),
+            (DropInfExpr(child=PrivateSource("private")),),
         ]
     )
     def test_visit_transformations(self, query: QueryExpr):

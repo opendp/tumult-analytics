@@ -37,7 +37,8 @@ from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -497,12 +498,10 @@ class QueryBuilder:
         )
         return self
 
-    def drop_invalid(self, columns: Optional[List[str]]) -> "QueryBuilder":
-        """Updates the current query to drop rows containing invalid values.
+    def drop_null_and_nan(self, columns: Optional[List[str]]) -> "QueryBuilder":
+        """Updates the current query to drop rows containing null or NaN values.
 
-        Invalid values are: nulls, NaNs, +infinity, and -infinity.
-
-        Note: if invalid values are dropped from a column, then Analytics will
+        Note: if null and NaN values are dropped from a column, then Analytics will
         raise an error if you use a KeySet that contains a null value for
         that column.
 
@@ -558,10 +557,10 @@ class QueryBuilder:
             2  a2  NaN      0
             3  a2  2.0      1
 
-            >>> # Building a query with a drop_invalid transformation
+            >>> # Building a query with a  transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
-            ...     .drop_invalid(columns=["B"])
+            ...     .drop_null_and_nan(columns=["B"])
             ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"]}))
             ...     .count()
             ... )
@@ -585,7 +584,95 @@ class QueryBuilder:
             columns = []
         # this assert is for mypy
         assert columns is not None
-        self._query_expr = DropInvalid(child=self.query_expr, columns=columns)
+        self._query_expr = DropNullAndNan(child=self.query_expr, columns=columns)
+        return self
+
+    def drop_infinity(self, columns: Optional[List[str]]) -> "QueryBuilder":
+        """Updates the current query to drop rows containing infinite values.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> from pyspark.sql.types import (
+            ...     DoubleType,
+            ...     LongType,
+            ...     StringType,
+            ...     StructField,
+            ...     StructType,
+            ... )
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> my_private_data = spark.createDataFrame(
+            ...     [["a1", 2, 0.0], ["a1", 1, 1.1], ["a2", 2, float("inf")]],
+            ...     schema=StructType([
+            ...         StructField("A", StringType(), nullable=True),
+            ...         StructField("B", LongType(), nullable=True),
+            ...         StructField("X", DoubleType(), nullable=True),
+            ...     ])
+            ... )
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ...     validate=False,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> my_private_data.sort("A", "B", "X").toPandas()
+                A  B    X
+            0  a1  1  1.1
+            1  a1  2  0.0
+            2  a2  2  inf
+            >>> sess.get_schema("my_private_data").column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'DECIMAL'}
+            >>> # Count query on the original data
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"]}))
+            ...     .count()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A").toPandas()
+                A  count
+            0  a1      2
+            1  a2      1
+
+            >>> # Building a query with a drop_infinity transformation
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .drop_infinity(columns=["X"])
+            ...     .groupby(KeySet.from_dict({"A": ["a1", "a2"]}))
+            ...     .count()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A").toPandas()
+                A  count
+            0  a1      2
+            1  a2      0
+
+        Args:
+            columns: A list of columns in which to look for invalid values.
+                If None (or empty), then *all* columns will be considered
+                (so if *any* column has an invalid value, then the row will
+                be dropped).
+        """
+        if columns is None:
+            columns = []
+        # this assert is for mypy
+        assert columns is not None
+        self._query_expr = DropInfinity(child=self.query_expr, columns=columns)
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
@@ -1284,8 +1371,11 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
+
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1344,8 +1434,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1402,8 +1494,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1460,8 +1554,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1524,8 +1620,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -1597,8 +1695,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -1670,8 +1770,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -1743,8 +1845,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -1973,8 +2077,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2044,8 +2150,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2108,8 +2216,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2172,8 +2282,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2238,8 +2350,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -2322,8 +2436,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -2406,8 +2522,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
@@ -2490,8 +2608,10 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN, null, or
-        infinite values, a `drop_invalid` query will be performed first.
+        Note that if the column being measured contains NaN or null values,
+        a `drop_null_and_nan` query will be performed first. If the column being
+        measured contains infinite values, a `drop_infinity` query will be
+        performed first.
 
         Note:
             Regarding the clamping params:
