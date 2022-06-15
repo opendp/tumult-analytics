@@ -17,7 +17,8 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.query_expr import (
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -698,8 +699,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             grouping_column=input_schema.grouping_column,
         )
 
-    def visit_drop_invalid(self, expr: DropInvalid) -> Schema:
-        """Returns the resulting schema from evaluating a DropInvalid."""
+    def visit_drop_infinity(self, expr: DropInfinity) -> Schema:
+        """Returns the resulting schema from evaluating a DropInfinity."""
         input_schema = expr.child.accept(self)
         if (
             input_schema.grouping_column
@@ -714,14 +715,58 @@ class OutputSchemaVisitor(QueryExprVisitor):
             columns = [
                 name
                 for name, cd in input_schema.column_descs.items()
-                if (cd.allow_null or cd.allow_nan or cd.allow_inf)
+                if (cd.allow_inf) and not name == input_schema.grouping_column
+            ]
+        else:
+            for name in columns:
+                if name not in input_schema.keys():
+                    raise ValueError(
+                        "DropInfinity.columns contains the column"
+                        f" {name}, but data has no column named {name}"
+                    )
+                if input_schema[name].column_type != ColumnType.DECIMAL:
+                    raise ValueError(
+                        f"DropInfinity.columns contains the column {name}, but the"
+                        f" column {name} is not a DECIMAL column and cannot contain"
+                        " infinite values"
+                    )
+        return Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    allow_null=cd.allow_null,
+                    allow_nan=cd.allow_nan,
+                    allow_inf=(cd.allow_inf and not name in columns),
+                )
+                for name, cd in input_schema.column_descs.items()
+            },
+            grouping_column=input_schema.grouping_column,
+        )
+
+    def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Schema:
+        """Returns the resulting schema from evaluating a DropNullAndNan."""
+        input_schema = expr.child.accept(self)
+        if (
+            input_schema.grouping_column
+            and input_schema.grouping_column in expr.columns
+        ):
+            raise ValueError(
+                f"Cannot drop null values in column {input_schema.grouping_column},"
+                " because it is being used as a grouping column"
+            )
+        columns = expr.columns.copy()
+        if len(columns) == 0:
+            columns = [
+                name
+                for name, cd in input_schema.column_descs.items()
+                if (cd.allow_null or cd.allow_nan)
                 and not name == input_schema.grouping_column
             ]
         else:
             for name in columns:
                 if name not in input_schema.keys():
                     raise ValueError(
-                        "DropInvalid.columns contains the column"
+                        "DropNullAndNan.columns contains the column"
                         f" {name}, but data has no column named {name}"
                     )
         return Schema(
@@ -730,7 +775,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     column_type=cd.column_type,
                     allow_null=(cd.allow_null and not name in columns),
                     allow_nan=(cd.allow_nan and not name in columns),
-                    allow_inf=(cd.allow_inf and not name in columns),
+                    allow_inf=(cd.allow_inf),
                 )
                 for name, cd in input_schema.column_descs.items()
             },

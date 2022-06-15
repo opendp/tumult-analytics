@@ -15,7 +15,8 @@ from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import (
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -615,14 +616,34 @@ class TestTransformations(PySparkTest):
         self.assertEqual(replace_expr.replace_with, expected_replace_with)
 
     @parameterized.expand([([],), (None,), (["A"],), (["A", "B"],)])
-    def test_drop_invalid(self, columns: Optional[List[str]]) -> None:
-        """QueryBuilder.drop_invalid works as expected."""
-        query = self.root_builder.drop_invalid(columns).count()
+    def test_drop_null_and_nan(self, columns: Optional[List[str]]) -> None:
+        """QueryBuilder.drop_null_and_nan works as expected."""
+        query = self.root_builder.drop_null_and_nan(columns).count()
         self.assertIsInstance(query, GroupByCount)
         assert isinstance(query, GroupByCount)
         drop_expr = query.child
-        self.assertIsInstance(drop_expr, DropInvalid)
-        assert isinstance(drop_expr, DropInvalid)
+        self.assertIsInstance(drop_expr, DropNullAndNan)
+        assert isinstance(drop_expr, DropNullAndNan)
+
+        root_expr = drop_expr.child
+        self.assertIsInstance(root_expr, PrivateSource)
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        expected_columns: List[str] = []
+        if columns is not None:
+            expected_columns = columns
+        self.assertEqual(drop_expr.columns, expected_columns)
+
+    @parameterized.expand([([],), (None,), (["A"],), (["A", "B"],)])
+    def test_drop_infinity(self, columns: Optional[List[str]]) -> None:
+        """QueryBuilder.drop_infinity works as expected."""
+        query = self.root_builder.drop_infinity(columns).count()
+        self.assertIsInstance(query, GroupByCount)
+        assert isinstance(query, GroupByCount)
+        drop_expr = query.child
+        self.assertIsInstance(drop_expr, DropInfinity)
+        assert isinstance(drop_expr, DropInfinity)
 
         root_expr = drop_expr.child
         self.assertIsInstance(root_expr, PrivateSource)

@@ -16,7 +16,8 @@ from pyspark.sql.types import BinaryType, StructField, StructType
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -252,10 +253,24 @@ class TestInvalidAttributes(unittest.TestCase):
             ([1], re.escape(r"type of columns[0] must be str; got int instead")),
         ]
     )
-    def test_invalid_drop_invalid(self, columns: Any, expected_error_msg: str) -> None:
-        """Test DropInvalid with invalid arguments."""
+    def test_invalid_drop_null_and_nan(
+        self, columns: Any, expected_error_msg: str
+    ) -> None:
+        """Test DropNullAndNan with invalid arguments."""
         with self.assertRaisesRegex(TypeError, expected_error_msg):
-            DropInvalid(PrivateSource("private"), columns)
+            DropNullAndNan(PrivateSource("private"), columns)
+
+    @parameterized.expand(
+        [
+            ("A", "type of columns must be a list; got str instead"),
+            (("A", "B"), "type of columns must be a list; got tuple instead"),
+            ([1], re.escape(r"type of columns[0] must be str; got int instead")),
+        ]
+    )
+    def test_invalid_drop_infinity(self, columns: Any, expected_error_msg: str) -> None:
+        """Test DropInfinity with invalid arguments."""
+        with self.assertRaisesRegex(TypeError, expected_error_msg):
+            DropInfinity(PrivateSource("private"), columns)
 
     @parameterized.expand(
         [
@@ -472,9 +487,25 @@ class TestValidAttributes(unittest.TestCase):
             (PrivateSource("different_private_source"), ["A", "B"]),
         ]
     )
-    def test_valid_drop_invalid(self, child: QueryExpr, columns: List[str]) -> None:
-        """Test DropInvalid with valid values."""
-        DropInvalid(child, columns)
+    def test_valid_drop_null_and_nan(
+        self, child: QueryExpr, columns: List[str]
+    ) -> None:
+        """Test DropNullAndNan with valid values."""
+        DropInfinity(child, columns)
+
+    # pylint: enable=no-self-use
+
+    # pylint: disable=no-self-use
+    @parameterized.expand(
+        [
+            (PrivateSource("private"), []),
+            (PrivateSource("private"), ["A"]),
+            (PrivateSource("different_private_source"), ["A", "B"]),
+        ]
+    )
+    def test_valid_drop_infinity(self, child: QueryExpr, columns: List[str]) -> None:
+        """Test DropInfinity with valid values."""
+        DropInfinity(child, columns)
 
     # pylint: enable=no-self-use
 

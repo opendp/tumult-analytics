@@ -9,7 +9,8 @@ from parameterized import parameterized
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -66,8 +67,11 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     def visit_replace_infinity(self, expr):
         return "ReplaceInfinity"
 
-    def visit_drop_invalid(self, expr):
-        return "DropInvalid"
+    def visit_drop_infinity(self, expr):
+        return "DropInfinity"
+
+    def visit_drop_null_and_nan(self, expr):
+        return "DropNullAndNan"
 
     def visit_groupby_count(self, expr):
         return "GroupByCount"
@@ -128,7 +132,8 @@ class TestQueryExprVisitor(unittest.TestCase):
                 ReplaceInfinity(PrivateSource("P"), {"column": (-100.0, 100.0)}),
                 "ReplaceInfinity",
             ),
-            (DropInvalid(PrivateSource("P"), ["column"]), "DropInvalid"),
+            (DropInfinity(PrivateSource("P"), ["column"]), "DropInfinity"),
+            (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
             (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
             (
                 GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),

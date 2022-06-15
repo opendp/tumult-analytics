@@ -19,7 +19,8 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
-    DropInvalid,
+    DropInfinity,
+    DropNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -229,9 +230,16 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         ),
     ),
     (
-        # DropInvalid with column that doesn't exist
-        DropInvalid(child=PrivateSource("private"), columns=["bad"]),
-        "DropInvalid.columns contains the column bad, but data has no column named bad",
+        # DropNullAndNan with column that doesn't exist
+        DropNullAndNan(child=PrivateSource("private"), columns=["bad"]),
+        "DropNullAndNan.columns contains the column bad, but data has no column"
+        " named bad",
+    ),
+    (
+        # DropInfinity with column that doesn't exist
+        DropInfinity(child=PrivateSource("private"), columns=["bad"]),
+        "DropInfinity.columns contains the column bad, but data has no column"
+        " named bad",
     ),
     (  # Type mismatch for the measure column of GroupByQuantile
         GroupByQuantile(
@@ -450,7 +458,9 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
             {
                 "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                 "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "X": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True, allow_inf=True, allow_nan=True
+                ),
                 "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                 "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                 "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
@@ -616,7 +626,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "AAA": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -633,7 +648,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                         "BrandNewColumnName": ColumnDescriptor(
                             ColumnType.INTEGER, allow_null=True
                         ),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -649,7 +669,10 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
                         "Friendly Decimal": ColumnDescriptor(
-                            ColumnType.DECIMAL, allow_null=True
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
                         ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
@@ -716,7 +739,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -741,7 +769,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -764,7 +797,10 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                                 ColumnType.INTEGER, allow_null=True
                             ),
                             "_X_": ColumnDescriptor(
-                                ColumnType.DECIMAL, allow_null=True
+                                ColumnType.DECIMAL,
+                                allow_null=True,
+                                allow_nan=True,
+                                allow_inf=True,
                             ),
                             "_D_": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                             "_T_": ColumnDescriptor(
@@ -781,7 +817,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "_A_": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "_B_": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "_X_": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "_X_": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "_D_": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "_T_": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "_NOTNULL_": ColumnDescriptor(
@@ -837,7 +878,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -879,7 +925,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -907,7 +958,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -933,7 +989,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=False),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=False),
                         "NOTNULL": ColumnDescriptor(
@@ -950,7 +1011,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
                         "NOTNULL": ColumnDescriptor(
@@ -974,7 +1040,12 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
                         "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-                        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=True,
+                        ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=False),
                         "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=False),
                         "NOTNULL": ColumnDescriptor(
@@ -995,7 +1066,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
     @parameterized.expand(
         [
             (
-                DropInvalid(child=PrivateSource("private"), columns=[]),
+                DropNullAndNan(child=PrivateSource("private"), columns=[]),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1014,7 +1085,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                             ColumnType.DECIMAL,
                             allow_null=False,
                             allow_nan=False,
-                            allow_inf=False,
+                            allow_inf=True,
                         ),
                         "D": ColumnDescriptor(
                             ColumnType.DATE,
@@ -1038,7 +1109,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 ),
             ),
             (
-                DropInvalid(child=PrivateSource("private"), columns=["A", "X", "T"]),
+                DropNullAndNan(child=PrivateSource("private"), columns=["A", "X", "T"]),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1052,7 +1123,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                             ColumnType.DECIMAL,
                             allow_null=False,
                             allow_nan=False,
-                            allow_inf=False,
+                            allow_inf=True,
                         ),
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "T": ColumnDescriptor(
@@ -1069,11 +1140,95 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
             ),
         ]
     )
-    def test_visit_drop_invalid(
-        self, query: DropInvalid, expected_schema: Schema
+    def test_visit_drop_null_and_nan(
+        self, query: DropNullAndNan, expected_schema: Schema
     ) -> None:
-        """Test visit_drop_invalid."""
-        schema = self.visitor.visit_drop_invalid(query)
+        """Test visit_drop_null_and_nan."""
+        schema = self.visitor.visit_drop_null_and_nan(query)
+        self.assertEqual(schema, expected_schema)
+
+    @parameterized.expand(
+        [
+            (
+                DropInfinity(child=PrivateSource("private"), columns=[]),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(
+                            ColumnType.VARCHAR,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "B": ColumnDescriptor(
+                            ColumnType.INTEGER,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=False,
+                        ),
+                        "D": ColumnDescriptor(
+                            ColumnType.DATE,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "T": ColumnDescriptor(
+                            ColumnType.TIMESTAMP,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "NOTNULL": ColumnDescriptor(
+                            ColumnType.INTEGER,
+                            allow_null=False,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                    }
+                ),
+            ),
+            (
+                DropInfinity(child=PrivateSource("private"), columns=["X"]),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(
+                            ColumnType.VARCHAR,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=False,
+                        ),
+                        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "T": ColumnDescriptor(
+                            ColumnType.TIMESTAMP,
+                            allow_null=True,
+                            allow_nan=False,
+                            allow_inf=False,
+                        ),
+                        "NOTNULL": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=False
+                        ),
+                    }
+                ),
+            ),
+        ]
+    )
+    def test_visit_drop_infinity(
+        self, query: DropInfinity, expected_schema: Schema
+    ) -> None:
+        """Test visit_drop_infinity."""
+        schema = self.visitor.visit_drop_infinity(query)
         self.assertEqual(schema, expected_schema)
 
     @parameterized.expand(

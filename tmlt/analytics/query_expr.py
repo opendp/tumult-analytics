@@ -601,22 +601,22 @@ class ReplaceInfinity(QueryExpr):
 
 
 @dataclass
-class DropInvalid(QueryExpr):
-    """Returns data with rows that contain null, NaN, or +inf/-inf dropped.
+class DropNullAndNan(QueryExpr):
+    """Returns data with rows that contain null or NaN value dropped.
 
-    Note that after a `DropInvalid` query has been performed for a column,
+    Note that after a `DropNullAndNan` query has been performed for a column,
     Analytics will raise an error if you use a `KeySet` for that column
     that contains null values.
     """
 
     child: QueryExpr
-    """The QueryExpr in which to drop nulls/NaNs/+inf/-inf."""
+    """The QueryExpr in which to drop nulls/NaNs."""
 
     columns: List[str] = field(default_factory=list)
-    """Columns in which to look for nulls, NaNs, and infinite values.
+    """Columns in which to look for nulls and NaNs.
 
     If this list is empty, *all* columns will be looked at - so if *any* column
-    contains a NaN, null, or infinite value, that row will be dropped."""
+    contains a null or NaN value that row will be dropped."""
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
@@ -625,7 +625,30 @@ class DropInvalid(QueryExpr):
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
-        return visitor.visit_drop_invalid(self)
+        return visitor.visit_drop_null_and_nan(self)
+
+
+@dataclass
+class DropInfinity(QueryExpr):
+    """Returns data with rows that contain +inf/-inf dropped."""
+
+    child: QueryExpr
+    """The QueryExpr in which to drop +inf/-inf."""
+
+    columns: List[str] = field(default_factory=list)
+    """Columns in which to look for and infinite values.
+
+    If this list is empty, *all* columns will be looked at - so if *any* column
+    contains an infinite value, that row will be dropped."""
+
+    def __post_init__(self) -> None:
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("columns", self.columns, List[str])
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_drop_infinity(self)
 
 
 @dataclass
@@ -695,9 +718,9 @@ class GroupByCountDistinct(QueryExpr):
 class GroupByQuantile(QueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
-    If the column to be measured contains invalid values (null, NaN, or
-    positive or negative infinity), those values will be dropped (as if
-    dropped explicitly via :class:`DropInvalid`) before the quantile is
+    If the column to be measured contains null, NaN, or positive or negative infinity,
+    those values will be dropped (as if dropped explicitly via
+    :class:`DropNullAndNan` and :class:`DropInfinity`) before the quantile is
     calculated.
     """
 
@@ -749,9 +772,9 @@ class GroupByQuantile(QueryExpr):
 class GroupByBoundedSum(QueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains.
 
-    If the column to be measured contains invalid values (null, NaN, or
-    positive or negative infinity), those values will be dropped (as if
-    dropped explicitly via :class:`DropInvalid`) before the sum is
+    If the column to be measured contains null, NaN, or positive or negative infinity,
+    those values will be dropped (as if dropped explicitly via
+    :class:`DropNullAndNan` and :class:`DropInfinity`) before the sum is
     calculated.
     """
 
@@ -803,9 +826,9 @@ class GroupByBoundedSum(QueryExpr):
 class GroupByBoundedAverage(QueryExpr):
     """Returns bounded average of a column for each combination of groupby domains.
 
-    If the column to be measured contains invalid values (null, NaN, or
-    positive or negative infinity), those values will be dropped (as if
-    dropped explicitly via :class:`DropInvalid`) before the average is
+    If the column to be measured contains null, NaN, or positive or negative infinity,
+    those values will be dropped (as if dropped explicitly via
+    :class:`DropNullAndNan` and :class:`DropInfinity`) before the average is
     calculated.
     """
 
@@ -857,9 +880,9 @@ class GroupByBoundedAverage(QueryExpr):
 class GroupByBoundedVariance(QueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains.
 
-    If the column to be measured contains invalid values (null, NaN, or
-    positive or negative infinity), those values will be dropped (as if
-    dropped explicitly via :class:`DropInvalid`) before the variance is
+    If the column to be measured contains null, NaN, or positive or negative infinity,
+    those values will be dropped (as if dropped explicitly via
+    :class:`DropNullAndNan` and :class:`DropInfinity`) before the variance is
     calculated.
     """
 
@@ -911,10 +934,10 @@ class GroupByBoundedVariance(QueryExpr):
 class GroupByBoundedSTDEV(QueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains.
 
-    If the column to be measured contains invalid values (null, NaN, or
-    positive or negative infinity), those values will be dropped (as if
-    dropped explicitly via :class:`DropInvalid`) before the standard deviation is
-    calculated.
+    If the column to be measured contains null, NaN, or positive or negative infinity,
+    those values will be dropped (as if dropped explicitly via
+    :class:`DropNullAndNan` and :class:`DropInfinity`) before the
+    standard deviation is calculated.
     """
 
     child: QueryExpr
@@ -1016,8 +1039,13 @@ class QueryExprVisitor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def visit_drop_invalid(self, expr: DropInvalid) -> Any:
-        """Visit a :class:`DropInvalid`."""
+    def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Any:
+        """Visit a :class:`DropNullAndNan`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_drop_infinity(self, expr: DropInfinity) -> Any:
+        """Visit a :class:`DropInfinity`."""
         raise NotImplementedError
 
     @abstractmethod
