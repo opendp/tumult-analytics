@@ -30,7 +30,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
@@ -752,6 +752,34 @@ class TestInvalidSession(PySparkTest):
         with self.assertRaisesRegex(exception_type, expected_error_msg):
             session.create_view(PrivateSource("private"), source_id, cache=False)
 
+    @patch("tmlt.analytics._query_expr_compiler.QueryExprCompiler")
+    @patch("tmlt.analytics.session.PrivacyAccountant")
+    def test_invalid_public_source(self, mock_accountant, mock_compiler):
+        """Session raises an error adding a public source with duplicate source_id."""
+        mock_accountant.launch().output_measure = PureDP()
+        mock_accountant.launch().input_metric = DictMetric(
+            {"private": SymmetricDifference()}
+        )
+        mock_accountant.launch().input_domain = DictDomain(
+            {"private": self.sdf_input_domain}
+        )
+        mock_accountant.launch().d_in = {"private": sp.Integer(1)}
+        mock_compiler.output_measure = PureDP()
+
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(1), source_id="private", dataframe=self.sdf
+        )
+
+        # This should work
+        session.add_public_dataframe("public_df", dataframe=self.sdf)
+
+        # But this should not
+        with self.assertRaisesRegex(
+            ValueError,
+            "This session already has a public source with the source_id public_df",
+        ):
+            session.add_public_dataframe("public_df", dataframe=self.sdf)
+
     @parameterized.expand([(["filter private A == 0"],), ([PrivateSource("private")],)])
     @patch("tmlt.analytics.session.QueryExprCompiler")
     @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
@@ -989,6 +1017,19 @@ class TestSessionBuilder(PySparkTest):
             Session.Builder().with_private_dataframe(
                 source_id="df1", dataframe=self.dataframes["df1"], stability=-1
             )
+
+    @parameterized.expand([(PureDPBudget(1),), (RhoZCDPBudget(1),)])
+    def test_invalid_to_add_budget_twice(self, initial_budget: PrivacyBudget):
+        """Test that you can't call `with_privacy_budget()` twice."""
+        builder = Session.Builder().with_privacy_budget(initial_budget)
+        with self.assertRaisesRegex(
+            ValueError, "This Builder already has a privacy budget"
+        ):
+            builder.with_privacy_budget(PureDPBudget(1))
+        with self.assertRaisesRegex(
+            ValueError, "This Builder already has a privacy budget"
+        ):
+            builder.with_privacy_budget(RhoZCDPBudget(1))
 
     def test_duplicate_source_id(self):
         """Tests that a repeated source id raises appropriate error."""

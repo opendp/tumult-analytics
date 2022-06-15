@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - *Backwards-incompatible*: Sessions no longer allow DataFrames to contain a column named `""` (the empty string).
+- *Backwards-incompatible*: You can no longer call `Session.Builder.with_privacy_budget` multiple times on the same builder.
+- *Backwards-incompatible*: You can no longer call `Session.add_private_data` multiple times with the same source id.
 
 ### Removed
 - *Backwards-incompatible*: `Session.from_csv` and CSV-related methods on `Session.Builder` have been removed.

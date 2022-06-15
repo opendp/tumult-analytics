@@ -180,6 +180,8 @@ class Session:
             Args:
                 privacy_budget: Privacy Budget to be allocated to Session.
             """
+            if self._privacy_budget is not None:
+                raise ValueError("This Builder already has a privacy budget")
             self._privacy_budget = privacy_budget
             return self
 
@@ -585,6 +587,11 @@ class Session:
         """
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
+        if source_id in self._public_sources:
+            raise ValueError(
+                "This session already has a public source with the source_id"
+                f" {source_id}"
+            )
         dataframe = coerce_spark_schema_or_fail(
             dataframe, allow_nan_and_null=not validate
         )
