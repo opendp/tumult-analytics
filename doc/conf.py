@@ -20,10 +20,8 @@ copyright = "Tumult Labs 2022"
 
 package_name = "tmlt.analytics"
 
-# TODO(#1256): Fix import failure in nested class; `tmlt.common`, `tmlt.core` and remove suppress_warnings setting
+# TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove suppress_warnings setting
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
-# TODO(#1256): Fix NotebookError caused due to ModuleNotFoundError
-nbsphinx_allow_errors = True
 
 
 # Build information
@@ -131,10 +129,6 @@ nitpick_ignore = [
     ("py:class", "pyspark.sql.session.SparkSession"),
     # Sphinx can't resolve DataFrame in KeySet.__init__
     ("py:class", "pyspark.sql.dataframe.DataFrame"),
-    # Caused by TypeVar in tmlt.common Marshallable base class
-    ("py:class", "M"),
-    ("py:class", "Item"),
-    ("py:class", "Primitive"),
     # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
     ("py:class", "Ellipsis"),
     ("py:class", "DF"),

@@ -10,10 +10,8 @@ for users of the Analytics library.
 Configuring Spark sessions
 --------------------------
 
-Analytics uses 
-`Spark sessions <https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.html>`_
-to do all data processing operations. 
-As long as Spark has an active session, any calls that "create" new Spark 
+Analytics uses :class:`Spark sessions <pyspark.sql.SparkSession>` to do all data processing operations.
+As long as Spark has an active session, any calls that "create" new Spark
 sessions use that active session.
 
 If you want Analytics to use Spark sessions with any *specific* properties,
@@ -29,7 +27,7 @@ As long as this session is active, Analytics will use it.
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
 
-If you want to connect Spark to an existing `Hive <https://hive.apache.org/>`_ 
+If you want to connect Spark to an existing `Hive <https://hive.apache.org/>`_
 database, you should use the following options when creating a Spark session:
 
 .. code-block::
@@ -57,7 +55,7 @@ Materialization and data cleanup
 
 Tumult Analytics is built on top of Tumult Core, which
 implements all of the differential privacy primitives that Analytics uses.
-Tumult Core uses a Spark database (named "``tumult_temp_<time>_<uuid>``") to 
+Tumult Core uses a Spark database (named "``tumult_temp_<time>_<uuid>``") to
 materialize dataframes after noise has been added. This ensures that repeated
 queries on a dataframe of results do not re-evaluate the query with fresh
 randomness.
@@ -66,7 +64,7 @@ This has a few consequences for users:
 
 * Queries are eagerly-evaluated, instead of lazily-evaluated.
 * Operations create a temporary database in Spark.
-* Analytics *does not* support multi-threaded operations, because the 
+* Analytics *does not* support multi-threaded operations, because the
   materialization step changes the active Spark database. (The active database is
   changed back to the original database at the end of the materialization step.)
 
@@ -89,17 +87,17 @@ Finding and removing leftover temporary data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The materialization database is stored as a folder in your Spark
-warehouse directory.  If your program exits unexpectedly (for example, 
+warehouse directory.  If your program exits unexpectedly (for example,
 because it was terminated with Ctrl-C),
 or if the cleanup function is called without an active Spark session,
 this temporary database (and its associated folder) may not be deleted.
 
 You can delete this database by deleting its
 directory from your Spark warehouse directory.
-(If you did not explicitly configure a Spark warehouse directory, 
-look for a directory called ``spark-warehouse``.) 
-Spark represents databases as folders; the databases used 
-for materialization will be folders named "``tumult_temp_<time>_<uuid>``". 
+(If you did not explicitly configure a Spark warehouse directory,
+look for a directory called ``spark-warehouse``.)
+Spark represents databases as folders; the databases used
+for materialization will be folders named "``tumult_temp_<time>_<uuid>``".
 Deleting the folder will delete the database.
 
 These folders are safe to delete any time that your program is not running.

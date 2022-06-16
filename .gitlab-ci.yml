@@ -294,7 +294,6 @@ publish_docs:
     - rm -rf docs.tmlt.dev/public/analytics/$docs_version
     - mv public/ docs.tmlt.dev/public/analytics/$docs_version
     - cd docs.tmlt.dev
-    - ./update-versions public/analytics/
     - git config user.name "gitlab"
     - git config user.email "gitlab@tmlt.io"
     - git add public
@@ -306,18 +305,6 @@ publish_docs:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_TAG'
-
-redeploy_dev_docs:
-  stage: handler
-  trigger:
-    project: tumult-labs/tumult-docs
-    branch: dev
-  variables:
-    REDEPLOY_DEV: "true"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 # For reasons that are somewhat unclear, at the time of writing this job runs
 # out of memory when executed on the aws-small runner type, so it is run on
