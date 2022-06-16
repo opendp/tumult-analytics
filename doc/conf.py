@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sys
+import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -18,12 +19,6 @@ author = "Tumult Labs"
 copyright = "Tumult Labs 2022"
 
 package_name = "tmlt.analytics"
-# A list of version numbers whose docs should not be built. These are used as
-# part of a regex, so characters with special meaning in that context (e.g. '.')
-# should be escaped, and regex features can be used to suppress multiple
-# versions at once. They are not, and cannot easily be, anchored at the end, so
-# "1\.2\.3" will suppress version 1.2.3 and all of its pre-releases.
-suppressed_versions = [r"1\.2\.0", r"1\.3\.0", r"1\.3\.1"]
 
 # TODO(#1256): Fix import failure in nested class; `tmlt.common`, `tmlt.core` and remove suppress_warnings setting
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
@@ -33,18 +28,13 @@ nbsphinx_allow_errors = True
 
 # Build information
 
-# Base directory of the build; in CI, this is taken from environment variables;
-# locally, it's taken relative to this config file.
-project_dir = os.getenv("CI_PROJECT_DIR") or "../.."
-# Tag being built for, if any, when running in CI
 ci_tag = os.getenv("CI_COMMIT_TAG")
-# Name of the version currently being built, e.g. dev, head, or
-# 1.4.0. Not set on the initial evaluation of this file with
-# sphinx-multiversion, or when using sphinx-build instead.
-package_version = os.getenv("SPHINX_MULTIVERSION_NAME")
-# Path to the temporary source directory for the version currently being built.
-release_sourcedir = os.getenv("SPHINX_MULTIVERSION_SOURCEDIR")
-# In linkcheck mode, prepend the intersphinx URLs with the value of BASE_URL_OVERRIDE.
+ci_branch = os.getenv("CI_COMMIT_BRANCH")
+
+version = ci_tag or ci_branch or "HEAD"
+commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
+build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
+
 linkcheck_mode_url_prefix = os.getenv("BASE_URL_OVERRIDE")
 # Linkcheck fails to check anchors in Github
 # See https://github.com/sphinx-doc/sphinx/issues/9016 and also
@@ -62,7 +52,6 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
-    "sphinx_multiversion",
     "sphinxcontrib.bibtex",
     "sphinx_autodoc_typehints",
     "sphinx_panels",
@@ -80,54 +69,6 @@ panels_css_variables = {
     "tabs-color-underline": "rgb(207, 236, 238)",
     "tabs-size-label": "1rem",
 }
-
-# sphinx-multiversion configuration
-
-# Some building blocks for other regexes. These do not actually match all valid
-# semantic versions, only the subset that we use.
-semver_base_regex = (
-    r"(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)"
-)
-semver_prerelease_regex = (
-    r"(?:-(?P<prerelease_type>alpha|beta|rc)\.(?P<prerelease_num>0|[1-9]\d*))?"
-)
-suppressed_versions_regex = (
-    rf"(?!{'|'.join(suppressed_versions)})" if suppressed_versions else ""
-)
-
-# Build for matching branches from remotes as well as for local branches.
-smv_remote_whitelist = r"^.*$"
-smv_released_pattern = rf"^refs/tags/{semver_base_regex}$"
-
-if ci_tag:
-    version_regex = re.compile(
-        rf"{semver_base_regex}{semver_prerelease_regex}"
-    )
-    match = version_regex.fullmatch(ci_tag)
-    if match is None:
-        _logger.error(
-            f"Tag {ci_tag} does not match version regex, it appears to be invalid."
-        )
-        sys.exit(1)
-
-    if match.group("prerelease_type") == "alpha":
-        smv_tag_whitelist = (
-            rf"{suppressed_versions_regex}"
-            rf"{semver_base_regex}(-(alpha|beta|rc)\.(0|[1-9]\d*))?$"
-        )
-    else:
-        smv_tag_whitelist = (
-            rf"{suppressed_versions_regex}"
-            rf"{semver_base_regex}(-(beta|rc)\.(0|[1-9]\d*))?$"
-        )
-    smv_branch_whitelist = "^$"
-else:
-    smv_branch_whitelist = r"^(dev|main|head)$"
-    smv_tag_whitelist = (
-        rf"{suppressed_versions_regex}"
-        rf"{semver_base_regex}(-(beta|rc)\.(0|[1-9]\d*))?$"
-    )
-
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -195,6 +136,7 @@ nitpick_ignore = [
     ("py:class", "Item"),
     ("py:class", "Primitive"),
     # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
+    ("py:class", "Ellipsis"),
     ("py:class", "DF"),
     ("py:class", "Row"),
     ("py:class", "BinT"),
@@ -211,18 +153,33 @@ nitpick_ignore_regex = [
 # Theme settings
 templates_path = ["_templates"]
 html_theme = "pydata_sphinx_theme"
-html_theme_options = {"collapse_navigation": True, "navigation_depth": 4}
+html_theme_options = {
+    "collapse_navigation": True,
+    "navigation_depth": 4,
+    "navbar_end": ["navbar-icon-links"],
+    "footer_items": ["copyright", "build-info", "sphinx-version"],
+    "switcher": {
+        "json_url": "https://docs.tmlt.dev/analytics/versions.json",
+        "version_match": version,
+    },
+    "gitlab_url": "https://gitlab.com/tumult-labs/analytics",
+}
+html_context = {
+    "default_mode": "light",
+    "commit_hash": commit_hash,
+    "build_time": build_time,
+}
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 html_logo = "_static/logo.png"
+html_favicon = "_static/favicon.ico"
 html_show_sourcelink = False
 html_sidebars = {
     "**": [
         "package-name",
+        "version-switcher",
         "search-field",
         "sidebar-nav-bs",
-        "sidebar-ethical-ads",
-        "versions",
     ]
 }
 
