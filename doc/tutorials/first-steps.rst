@@ -74,6 +74,10 @@ repository, and load it into a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
        SparkFiles.get("library-members.csv"), header=True, inferSchema=True
    )
 
+For more information about loading data files into Spark, see the Spark `data sources documentation`_.
+
+.. _data sources documentation: https://spark.apache.org/docs/latest/sql-data-sources.html
+
 Creating a Session
 ------------------
 

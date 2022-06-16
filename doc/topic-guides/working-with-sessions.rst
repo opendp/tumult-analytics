@@ -137,6 +137,9 @@ First load the data into a Spark dataframe, then add it to the Session:
     )
 
 Any data file format supported by Spark can be used with Tumult Analytics this way.
+See the Spark `data sources documentation`_ for more details on what formats are supported and the available options for them.
+
+.. _data sources documentation: https://spark.apache.org/docs/latest/sql-data-sources.html
 
 A more common use case is to register public
 data with your Session (e.g., for use in join operations with the private source).
