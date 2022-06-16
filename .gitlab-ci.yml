@@ -175,78 +175,18 @@ docs:
   needs:
     - job: setup
       artifacts: false
-  variables:
-    # Require the CI executor to fetch all refs in the repo -- this ensures that
-    # sphinx-multiversion can detect all of the versions that might need to be
-    # built.
-    GIT_DEPTH: 0
-    SPHINX_EXTRA_OPTS: "-n -W --keep-going"
-    SPHINX_LINKCHECK: "true"
   script:
-    - git checkout -B head
-    - cd $CI_PROJECT_DIR
-    - if [[ "$(sphinx-multiversion doc public --dump-metadata)" == "{}" ]] ; then
-      echo "Skipping docs build, no docs versions would be built" ;
-      exit 0 ;
-      fi
-    - |
-      echo "Versions to build:"
-      sphinx-multiversion doc public --dump-metadata | jq "[.[].name]"
-    - |
-      # Set up a function for running tests
-      function run_sphinx_tests() {
-        echo "Version options: $SMV_TEST_VERSION_OPTS"
-        if [ "$SPHINX_LINKCHECK" = "true" ]; then
-             python -m http.server --directory $CI_PROJECT_DIR & # Start webserver in background
-             sleep 1 # Wait for the server to start
-             echo "Running linkcheck..."
-             BASE_URL_OVERRIDE="http://localhost:8000" sphinx-multiversion doc/ public/ -b linkcheck $SMV_TEST_VERSION_OPTS
-             kill $! # Kill the server process
-        fi
-        echo "Running test build..."
-        sphinx-multiversion doc/ public/ $SPHINX_EXTRA_OPTS $SMV_TEST_VERSION_OPTS
-        echo "Running doctest..."
-        sphinx-multiversion doc/ public/ -b doctest $SMV_TEST_VERSION_OPTS
-      }
-    - |
-      # When building a tag, run the usual tests.
-      if [[ "$CI_COMMIT_TAG" ]]; then
-        SMV_TEST_VERSION_OPTS="-D smv_branch_whitelist=^\$ -D smv_tag_whitelist=^$CI_COMMIT_TAG\$"
-        run_sphinx_tests
-      # For branches, create a temporary branch called head at the current commit,
-      # and run the usual tests against that. Keep it around for the final build
-      # on feature branches, but on the default branch delete it.
-      else
-        SMV_TEST_VERSION_OPTS="-D smv_branch_whitelist=^head\$ -D smv_tag_whitelist=^\$"
-        run_sphinx_tests
-      fi
-    - rm -rf public/
-    - sphinx-multiversion doc/ public/
-    # Add a page to automatically redirect the base directory of the site to the
-    # latest or most relevant version. sort -V doesn't completely correctly handle
-    # semantic versioning, but it works well enough for this purpose.
-    - |
-      if [ "$CI_COMMIT_TAG" ] ; then
-        # Try to choose a non-prerelease version as the default; if there isn't
-        # one, then use the latest pre-release.
-        DEFAULT_VERSION="$(find public/ -maxdepth 1 -type d | cut -d '/' -f2 | grep -vE '(alpha|beta|rc)' | sort -V | tail -n1)"
-        if [ -z "$DEFAULT_VERSION" ]; then
-          DEFAULT_VERSION="$(find public/ -maxdepth 1 -type d | cut -d '/' -f2 | sort -V | tail -n1)"
-        fi
-      elif [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ] ; then
-        DEFAULT_VERSION="$CI_DEFAULT_BRANCH"
-      else
-        DEFAULT_VERSION="head"
-      fi
-    - echo "<head><meta http-equiv=\"refresh\" content=\"0; url='./$DEFAULT_VERSION/'\" /></head>" > public/index.html
+    - make docs-linkcheck docs-doctest
+    - rm -rf public
+    - make docs
   artifacts:
     paths:
       - public/
     expire_in: 1 week
-    expose_as: 'Tumult Analytics - documentation'
+    expose_as: 'Documentation'
   timeout: 15m
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^[Dd]raft:/'
     - if: '$CI_COMMIT_TAG'
@@ -316,45 +256,51 @@ publish:
     - if: '$CI_COMMIT_TAG'
   interruptible: false
 
-# This job requires the TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_USER and
-# TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_TOKEN variables to be set. They should be
-# the name and token of a project access token from the tumult/tumult-docs
-# project with the read_registry and write_registry permissions.
+# This job requires the DOCS_TOKEN_USER and DOCS_TOKEN variables to be set. They
+# should be the name and token of a project access token from the
+# tumult-labs/ops/docs.tmlt.dev project with the read_repository and
+# write_repository permissions. The bot user for this token must have permission
+# to push the protected `prod` branch.
 publish_docs:
   stage: release
-  image:
-    name: gcr.io/kaniko-project/executor:v1.6.0-debug
-    entrypoint: [""]
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  dependencies: [docs]
   variables:
-    PACKAGE_NAME: "analytics"
+    GIT_STRATEGY: none
   before_script:
-    - if [ "$CI_COMMIT_TAG" ] ; then
-        IMAGE_TAG="release-$(date +%Y%m%d%H%M%S)" ;
-      else
-        IMAGE_TAG="git-$CI_COMMIT_BRANCH" ;
-      fi
-  script:
     - |
-      cat <<EOF > /kaniko/.docker/config.json
-      {
-        "auths": {
-          "registry.gitlab.com": {
-            "username": "$TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_USER",
-            "password": "$TUMULT_DOCS_CONTAINER_REGISTRY_WRITE_TOKEN"
-          }
-        }
-      }
-      EOF
-    - echo "IMAGE_TAG=$IMAGE_TAG" > .env
-    - /kaniko/executor --cleanup
-        --dockerfile "$CI_PROJECT_DIR/doc/Dockerfile"
-        --context "$CI_PROJECT_DIR/$PACKAGE_DIR"
-        --destination "registry.gitlab.com/tumult-labs/tumult-docs/$PACKAGE_NAME:$IMAGE_TAG"
-        --label "git-version=$CI_COMMIT_REF_NAME"
-        --label "git-commit=$CI_COMMIT_SHORT_SHA"
-  artifacts:
-    reports:
-      dotenv: ".env"
+      if [[ -z "$DOCS_TOKEN_USER" || -z "$DOCS_TOKEN" ]]; then
+        echo "Credentials for publishing to docs repo are not set"
+        exit 1
+      fi
+    - |
+      if [[ -z "$CI_COMMIT_TAG" ]]; then
+        version="$CI_COMMIT_BRANCH"
+        docs_version="$version"
+      else
+        version="$CI_COMMIT_TAG"
+        # Check if this tag is a pre-release.
+        if [[ "$version" =~ ^\d+\.\d+\.\d+-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
+          echo "Version $version is a pre-release, skipping docs publication."
+          exit 0
+        fi
+        # Convert X.Y.Z semantic version to vX.Y for docs.
+        docs_version="v$(echo $version | sed -E 's/^([[:digit:]]+\.[[:digit:]]+).*/\1/')"
+      fi
+    - echo "Publishing version $version as $docs_version..."
+  script:
+    - git clone https://$DOCS_TOKEN_USER:$DOCS_TOKEN@gitlab.com/tumult-labs/ops/docs.tmlt.dev.git
+    # Remove old docs published as this version, if any
+    - rm -rf docs.tmlt.dev/public/analytics/$docs_version
+    - mv public/ docs.tmlt.dev/public/analytics/$docs_version
+    - cd docs.tmlt.dev
+    - ./update-versions public/analytics/
+    - git config user.name "gitlab"
+    - git config user.email "gitlab@tmlt.io"
+    - git add public
+    - git diff --staged --stat
+    - git commit -m "[auto] Publish docs for $version" --author "$CI_COMMIT_AUTHOR"
+    - git push
   timeout: 3m
   interruptible: false
   rules:

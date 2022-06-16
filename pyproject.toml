@@ -52,12 +52,8 @@ sphinx-autoapi = "^1.7.0"
 sphinx-autodoc-typehints = "1.12.0" # 1.13.0 doesn't work https://gitlab.com/tumult-labs/tumult/-/issues/1565
 sphinx-copybutton = "^0.4.0"
 sphinx-panels = "^0.6.0"
-# A patch is needed that wasn't merged until after the last release, so for now
-# just use a version on https://github.com/Holzhaus/sphinx-multiversion/tree/master
-sphinx-multiversion = {git = "https://github.com/Holzhaus/sphinx-multiversion.git", rev = "cdc9cb591a738e67a5aacc458f9c95e2b88a94c2"}
 sphinxcontrib-bibtex = "^1.0.0"
-sphinxcontrib-napoleon = "^0.7"
-pydata-sphinx-theme = "^0.7.2"
+pydata-sphinx-theme = "^0.9.0"
 
 # Needed for examples, and for testing examples
 notebook = "^6.1.6"
