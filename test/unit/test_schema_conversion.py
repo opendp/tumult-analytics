@@ -1,6 +1,6 @@
 """Unit tests conversion functions in :mod:`~tmlt.analytics._schema`."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 

@@ -20,7 +20,7 @@ found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
 # TODO(#798): Seeded RNGs in privacy framework.
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from enum import Enum, auto
 from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast

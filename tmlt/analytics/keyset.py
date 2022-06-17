@@ -7,7 +7,7 @@ Currently, KeySets are used as a simpler way to specify domains for groupby
 transformations.
 """
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

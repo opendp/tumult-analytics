@@ -9,7 +9,7 @@ user-friendly features.
 """
 # TODO: Known typeguard issue: https://github.com/agronholm/typeguard/issues/65
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 from abc import ABC, abstractmethod

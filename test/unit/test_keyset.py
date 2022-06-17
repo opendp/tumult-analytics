@@ -1,6 +1,6 @@
 """Unit tests for KeySet."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 from typing import Dict, List, Mapping, Optional, Union

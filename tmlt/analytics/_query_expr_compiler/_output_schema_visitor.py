@@ -1,6 +1,6 @@
 """Defines a visitor for determining the output schemas of query expressions."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 from typing import KeysView, List, Optional, Union, cast

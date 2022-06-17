@@ -1,6 +1,6 @@
 """Classes for specifying privacy budgets."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 import math
 from abc import ABC
 from typing import Union

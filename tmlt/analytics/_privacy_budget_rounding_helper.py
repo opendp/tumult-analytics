@@ -1,6 +1,6 @@
 """Helper functions for dealing with budget floating point imprecision."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 from typing import Union
 
 import sympy as sp

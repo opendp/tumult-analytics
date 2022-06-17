@@ -1,6 +1,6 @@
 """Defines strategies for performing truncation in private joins."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC
 from dataclasses import dataclass

@@ -5,7 +5,7 @@
 # TODO(#1547): Associate metric with output measure instead of algorithm for
 #              adding noise.
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict, List, Sequence, Union
 

@@ -1,6 +1,6 @@
 """Defines a visitor for creating noisy measurements from query expressions."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import dataclasses
 from typing import Any, Dict, List, Optional, Tuple, Union
