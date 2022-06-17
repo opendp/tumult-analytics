@@ -88,24 +88,10 @@ class TestSession(PySparkTest):
                 "X": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             }
         )
-        self.validated_col_types = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
-            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-            "X": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-        }
         self.sdf_input_domain = DictDomain(
             {
                 "private": SparkDataFrameDomain(
                     analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
-                )
-            }
-        )
-        self.validated_input_domain = DictDomain(
-            {
-                "private": SparkDataFrameDomain(
-                    analytics_to_spark_columns_descriptor(
-                        Schema(self.validated_col_types)
-                    )
                 )
             }
         )
@@ -160,8 +146,8 @@ class TestSession(PySparkTest):
 
     @parameterized.expand(
         [
-            (PureDPBudget(float("inf")), PureDP(), True),
-            (PureDPBudget(float("inf")), PureDP(), False),
+            (PureDPBudget(float("inf")), PureDP()),
+            (RhoZCDPBudget(float("inf")), RhoZCDP()),
         ]
     )
     @patch("tmlt.analytics.session.SequentialComposition", autospec=True)
@@ -170,7 +156,6 @@ class TestSession(PySparkTest):
         self,
         budget: Union[PureDPBudget, RhoZCDPBudget],
         expected_output_measure: Union[PureDP, RhoZCDP],
-        validate: bool,
         mock_session_init,
         mock_composition_init,
     ):
@@ -184,20 +169,13 @@ class TestSession(PySparkTest):
         mock_composition_init.return_value.privacy_budget = (
             _privacy_budget_to_exact_number(budget)
         )
-        expected_input_domain = self.sdf_input_domain
-        if validate:
-            expected_input_domain = self.validated_input_domain
 
         Session.from_dataframe(
-            privacy_budget=budget,
-            source_id="private",
-            dataframe=self.sdf,
-            stability=23,
-            validate=validate,
+            privacy_budget=budget, source_id="private", dataframe=self.sdf, stability=23
         )
 
         mock_composition_init.assert_called_with(
-            input_domain=expected_input_domain,
+            input_domain=self.sdf_input_domain,
             input_metric=DictMetric({"private": SymmetricDifference()}),
             d_in={"private": 23},
             privacy_budget=sp.oo,
@@ -232,12 +210,7 @@ class TestSession(PySparkTest):
             session.public_source_dataframes["public"].toPandas(),
             self.join_df.toPandas(),
         )
-        expected_schema = StructType(
-            [
-                StructField("A", StringType(), nullable=False),
-                StructField("A+B", LongType(), nullable=False),
-            ]
-        )
+        expected_schema = self.join_df.schema
         actual_schema = session.public_source_dataframes["public"].schema
         self.assertEqual(actual_schema, expected_schema)
 
@@ -962,18 +935,36 @@ class TestInvalidSession(PySparkTest):
                 privacy_budget=PureDPBudget(1), source_id="private", dataframe=sdf
             )
 
-    @parameterized.expand([(None,), (float("nan"),)])
-    def test_session_raises_error_on_dataframe_null_nans(self, value: Any):
-        """Session raises error when initialized with nans/nulls in DataFrame."""
-        sdf = self.spark.createDataFrame(
-            [(value,)], schema=StructType([StructField("A", DoubleType())])
+    @parameterized.expand([(True,), (False,)])
+    def test_keep_nullable_status(self, nullable: bool):
+        """Session uses the nullable status of input dataframes."""
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(1),
+            source_id="private_df",
+            dataframe=self.spark.createDataFrame(
+                [(1.0,)],
+                schema=StructType([StructField("A", DoubleType(), nullable=nullable)]),
+            ),
         )
-        with self.assertRaisesRegex(
-            ValueError, "This DataFrame contains a null or nan value"
-        ):
-            Session.from_dataframe(
-                privacy_budget=PureDPBudget(1), source_id="private", dataframe=sdf
-            )
+        session.add_public_dataframe(
+            source_id="public_df",
+            dataframe=self.spark.createDataFrame(
+                [(1.0,)],
+                schema=StructType([StructField("A", DoubleType(), nullable=nullable)]),
+            ),
+        )
+        expected_schema = Schema(
+            {
+                "A": ColumnDescriptor(
+                    ColumnType.DECIMAL,
+                    allow_null=nullable,
+                    allow_nan=True,
+                    allow_inf=True,
+                )
+            }
+        )
+        self.assertEqual(session.get_schema("private_df"), expected_schema)
+        self.assertEqual(session.get_schema("public_df"), expected_schema)
 
 
 class TestSessionBuilder(PySparkTest):
@@ -1145,19 +1136,22 @@ class TestSessionBuilder(PySparkTest):
         assert isinstance(compiler, QueryExprCompiler)
         self.assertEqual(compiler.output_measure, expected_output_measure)
 
-    def test_builder_with_dataframe_nonnullable(self):
-        """with_dataframe methods mark all columns in schema nonnullable."""
+    @parameterized.expand([(True,), (False,)])
+    def test_builder_with_dataframe_keep_nullable_status(self, nullable: bool):
+        """with_dataframe methods use the nullable status of the dataframe."""
         builder = Session.Builder()
         builder = builder.with_private_dataframe(
             source_id="private_df",
             dataframe=self.spark.createDataFrame(
-                [(1,)], schema=StructType([StructField("A", LongType(), nullable=True)])
+                [(1,)],
+                schema=StructType([StructField("A", LongType(), nullable=nullable)]),
             ),
         )
         builder = builder.with_public_dataframe(
             source_id="public_df",
             dataframe=self.spark.createDataFrame(
-                [(1,)], schema=StructType([StructField("A", LongType(), nullable=True)])
+                [(1,)],
+                schema=StructType([StructField("A", LongType(), nullable=nullable)]),
             ),
         )
         actual_private_schema = (
@@ -1170,6 +1164,6 @@ class TestSessionBuilder(PySparkTest):
                 "public_df"
             ].schema
         )
-        expected_schema = StructType([StructField("A", LongType(), nullable=False)])
+        expected_schema = StructType([StructField("A", LongType(), nullable=nullable)])
         self.assertEqual(actual_private_schema, expected_schema)
         self.assertEqual(actual_public_schema, expected_schema)

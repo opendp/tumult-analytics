@@ -42,7 +42,6 @@ from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     Schema,
-    analytics_to_spark_columns_descriptor,
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
@@ -186,11 +185,7 @@ class Session:
             return self
 
         def with_private_dataframe(
-            self,
-            source_id: str,
-            dataframe: DataFrame,
-            stability: int = 1,
-            validate: bool = True,
+            self, source_id: str, dataframe: DataFrame, stability: int = 1
         ) -> "Session.Builder":
             """Adds a Spark DataFrame as a private source.
 
@@ -204,33 +199,21 @@ class Session:
                     corresponding to the `source_id`.
                 stability: Maximum number of rows that may be added or removed if
                     a single individual is added or removed.
-                validate: If True, an error is raised if dataframe contains nulls
-                    or nans.
             """
             _assert_is_identifier(source_id)
             if stability < 1:
                 raise ValueError("Stability must be a positive integer.")
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = coerce_spark_schema_or_fail(
-                dataframe, allow_nan_and_null=(not validate)
-            )
-            analytics_schema = Schema(
-                spark_schema_to_analytics_columns(dataframe.schema)
-            )
-            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-                analytics_schema
-            )
-            domain = SparkDataFrameDomain(spark_columns_descriptor)
-            if validate:
-                domain.validate(dataframe)
+            dataframe = coerce_spark_schema_or_fail(dataframe)
+            domain = SparkDataFrameDomain.from_spark_schema(dataframe.schema)
             self._private_sources[source_id] = _PrivateSourceTuple(
                 dataframe, stability, domain
             )
             return self
 
         def with_public_dataframe(
-            self, source_id: str, dataframe: DataFrame, validate: bool = True
+            self, source_id: str, dataframe: DataFrame
         ) -> "Session.Builder":
             """Adds a Spark DataFrame as a public source.
 
@@ -241,24 +224,11 @@ class Session:
             Args:
                 source_id: Source id for the public data source.
                 dataframe: Public DataFrame corresponding to the source id.
-                validate: If True, an error is raised if DataFrame contains nulls or
-                    nans.
             """
             _assert_is_identifier(source_id)
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = coerce_spark_schema_or_fail(
-                dataframe, allow_nan_and_null=(not validate)
-            )
-            if validate:
-                analytics_schema = Schema(
-                    spark_schema_to_analytics_columns(dataframe.schema)
-                )
-                spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-                    analytics_schema
-                )
-                domain = SparkDataFrameDomain(spark_columns_descriptor)
-                domain.validate(dataframe)
+            dataframe = coerce_spark_schema_or_fail(dataframe)
             self._public_sources[source_id] = dataframe
             return self
 
@@ -312,7 +282,6 @@ class Session:
         privacy_budget: PrivacyBudget,
         source_id: str,
         dataframe: DataFrame,
-        validate: bool = True,
         stability: int = 1,
     ) -> "Session":
         """Initializes a DP session from a Spark dataframe.
@@ -358,7 +327,6 @@ class Session:
             source_id: The source id for the private source dataframe.
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
-            validate: If True, an error is raised if dataframe contains nulls or nans.
             stability: The maximum number of rows that could be added or removed if
                 a single individual is added or removed.
         """
@@ -367,10 +335,7 @@ class Session:
             Session.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
             .with_private_dataframe(
-                source_id=source_id,
-                dataframe=dataframe,
-                stability=stability,
-                validate=validate,
+                source_id=source_id, dataframe=dataframe, stability=stability
             )
         )
         return session_builder.build()
@@ -535,9 +500,7 @@ class Session:
 
     # pylint: disable=line-too-long
     @typechecked
-    def add_public_dataframe(
-        self, source_id: str, dataframe: DataFrame, validate: bool = True
-    ):
+    def add_public_dataframe(self, source_id: str, dataframe: DataFrame):
         """Adds a public data source to the session.
 
         Not all Spark column types are supported in public sources; see
@@ -583,7 +546,6 @@ class Session:
         Args:
             source_id: The name of the public data source.
             dataframe: The public data source corresponding to the `source_id`.
-            validate: If True, an error is raised if dataframe contains nulls or nans.
         """
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
@@ -592,18 +554,7 @@ class Session:
                 "This session already has a public source with the source_id"
                 f" {source_id}"
             )
-        dataframe = coerce_spark_schema_or_fail(
-            dataframe, allow_nan_and_null=not validate
-        )
-        if validate:
-            analytics_schema = Schema(
-                spark_schema_to_analytics_columns(dataframe.schema)
-            )
-            spark_columns_descriptor = analytics_to_spark_columns_descriptor(
-                analytics_schema
-            )
-            domain = SparkDataFrameDomain(spark_columns_descriptor)
-            domain.validate(dataframe)
+        dataframe = coerce_spark_schema_or_fail(dataframe)
         self._public_sources[source_id] = dataframe
 
     # pylint: disable=line-too-long
@@ -723,7 +674,7 @@ class Session:
             return answers[0]
         except InactiveAccountantError:
             raise RuntimeError(
-                "This session is no longer active. Either it was manually stopped"
+                "This session is no longer active. Either it was manually stopped "
                 "with session.stop(), or it was stopped indirectly by the "
                 "activity of other sessions. See partition_and_create "
                 "for more information."

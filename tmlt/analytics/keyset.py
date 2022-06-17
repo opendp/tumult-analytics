@@ -17,10 +17,7 @@ from typing import Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Typ
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import types as spark_types
 
-from tmlt.analytics._coerce_spark_schema import (
-    _fail_if_dataframe_contains_nulls_or_nans,
-    coerce_spark_schema_or_fail,
-)
+from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import Schema, spark_schema_to_analytics_columns
 from tmlt.core.transformations.spark_transformations.groupby import (
     compute_full_domain_df,
@@ -73,9 +70,7 @@ class KeySet:
         output rows.
         """
         if isinstance(dataframe, DataFrame):
-            self._dataframe = coerce_spark_schema_or_fail(
-                dataframe, allow_nan_and_null=True
-            )
+            self._dataframe = coerce_spark_schema_or_fail(dataframe)
             _check_df_schema(self._dataframe.schema)
         else:
             self._dataframe = dataframe
@@ -88,24 +83,12 @@ class KeySet:
         KeySet was constructed safely.
         """
         if callable(self._dataframe):
-            self._dataframe = coerce_spark_schema_or_fail(
-                self._dataframe(), allow_nan_and_null=True
-            )
+            self._dataframe = coerce_spark_schema_or_fail(self._dataframe())
             # Invalid column types should get caught before this, as it keeps
             # the exception closer to the user code that caused it, but in case
             # that is missed we check again here.
             _check_df_schema(self._dataframe.schema)
         return self._dataframe
-
-    def contains_nan_or_null(self) -> bool:
-        """True if the KeySet contains a nan or a null value, and False otherwise."""
-        # _fail_if_dataframe_contains_nulls_or_nans raises a ValueError
-        # if the dataframe contains a NaN or null
-        try:
-            _fail_if_dataframe_contains_nulls_or_nans(self.dataframe())
-            return False
-        except ValueError:
-            return True
 
     @classmethod
     def from_dict(
@@ -170,11 +153,7 @@ class KeySet:
         Spark session is closed, this method or any uses of the resulting
         dataframe may raise exceptions or have other unanticipated effects.
         """
-        return KeySet(
-            coerce_spark_schema_or_fail(
-                dataframe, allow_nan_and_null=True
-            ).dropDuplicates()
-        )
+        return KeySet(coerce_spark_schema_or_fail(dataframe).dropDuplicates())
 
     def filter(self, expr: Union[Column, str]) -> KeySet:
         """Filter this KeySet using some expression.
