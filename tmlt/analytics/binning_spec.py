@@ -1,6 +1,6 @@
 """A BinningSpec defines a binning operation on a column."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import bisect
 import datetime

@@ -1,6 +1,6 @@
 """Contains classes for specifying schemas and constraints for tables."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC
 from dataclasses import dataclass

@@ -4,7 +4,7 @@ The schema represents the column types of the underlying table. This allows
 for seamless transitions of the data representation type.
 """
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 from collections.abc import Mapping

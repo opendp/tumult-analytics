@@ -1,6 +1,6 @@
 """Unit tests for :mod:`~tmlt.analytics.query_builder`."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 import re

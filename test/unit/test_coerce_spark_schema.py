@@ -1,6 +1,6 @@
 """Tests for :mod:`tmlt.analytics._coerce_spark_schema`."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import pandas as pd
 from numpy import nan

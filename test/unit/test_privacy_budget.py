@@ -1,6 +1,6 @@
 """Tests for :mod:`tmlt.analytics.privacy_budget`."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 from unittest import TestCase
 
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget

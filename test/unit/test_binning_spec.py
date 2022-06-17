@@ -1,6 +1,6 @@
 """Unit tests for BinningSpec."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 from typing import Any, List

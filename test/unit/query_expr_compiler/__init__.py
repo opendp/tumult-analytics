@@ -5,4 +5,4 @@ an underscore. Don't move this folder back to `_query_expr_compiler`, or the
 tests won't run.
 """
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0

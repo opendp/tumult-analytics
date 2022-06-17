@@ -1,6 +1,6 @@
 """Defines a visitor for creating a transformation from a query expression."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import dataclasses
 import datetime

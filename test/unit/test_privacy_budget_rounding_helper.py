@@ -1,6 +1,6 @@
 """Tests for :mod:`tmlt.analytics._privacy_budget_rounding_helper`."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 from unittest import TestCase
 
 from typeguard import typechecked

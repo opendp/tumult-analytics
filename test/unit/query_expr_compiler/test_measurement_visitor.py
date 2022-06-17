@@ -1,6 +1,6 @@
 """Tests for MeasurementVisitor."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import List, Optional, Union
 from unittest import TestCase

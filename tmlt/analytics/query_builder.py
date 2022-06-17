@@ -23,7 +23,7 @@ passed to :func:`~tmlt.analytics.session.Session.evaluate` to obtain
 differentially private results to the query.
 """
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union

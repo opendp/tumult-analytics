@@ -1,6 +1,6 @@
 """Logic for coercing Spark dataframes into forms usable by Tumult Analytics."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as sf

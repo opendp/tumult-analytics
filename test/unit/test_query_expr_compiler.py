@@ -1,6 +1,6 @@
 """Tests for QueryExprCompiler."""
 
-# <placeholder: boilerplate>
+# SPDX-License-Identifier: Apache-2.0
 
 import datetime
 import unittest
