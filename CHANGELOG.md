@@ -15,10 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - *Backwards-incompatible*: Sessions no longer allow DataFrames to contain a column named `""` (the empty string).
 - *Backwards-incompatible*: You can no longer call `Session.Builder.with_privacy_budget` multiple times on the same builder.
 - *Backwards-incompatible*: You can no longer call `Session.add_private_data` multiple times with the same source id.
+- *Backwards-incompatible*: Sessions now use the DataFrame's schema to determine which columns are nullable.
 
 ### Removed
 - *Backwards-incompatible*: `Session.from_csv` and CSV-related methods on `Session.Builder` have been removed.
   Use `spark.read.csv` and `Session.from_dataframe` instead.
+- *Backwards-incompatible*: Removed `validate` option from `Session.from_dataframe`, `Session.add_public_dataframe`, `Session.Builder.with_private_dataframe`, `Session.Builder.with_public_dataframe`.
+- *Backwards-incompatible*: Removed `KeySet.contains_nan_or_null`.
 
 ## 0.3.0-alpha.1 - 2022-05-24
 ### Added

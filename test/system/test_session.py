@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pandas as pd
 from parameterized import parameterized
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import StructType
+from pyspark.sql.types import LongType, StringType, StructField, StructType
 
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -563,13 +563,23 @@ class TestEvaluate(PySparkTest):
     def setUp(self) -> None:
         """Set up test data."""
         self.sdf = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 0, 0], ["0", 0, 1], ["0", 1, 2], ["1", 0, 3]],
-                columns=["A", "B", "X"],
-            )
+            [["0", 0, 0], ["0", 0, 1], ["0", 1, 2], ["1", 0, 3]],
+            schema=StructType(
+                [
+                    StructField("A", StringType(), nullable=False),
+                    StructField("B", LongType(), nullable=False),
+                    StructField("X", LongType(), nullable=False),
+                ]
+            ),
         )
         self.join_df = self.spark.createDataFrame(
-            pd.DataFrame([["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "A+B"])
+            [["0", 0], ["0", 1], ["1", 1], ["1", 2]],
+            schema=StructType(
+                [
+                    StructField("A", StringType(), nullable=False),
+                    StructField("A+B", LongType(), nullable=False),
+                ]
+            ),
         )
         self.join_dtypes_df = self.spark.createDataFrame(
             pd.DataFrame(
@@ -1415,21 +1425,6 @@ class TestInvalidSession(PySparkTest):
             analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
         )
 
-    def test_invalid_data(self):
-        """Tests that domain validation produces an appropriate error."""
-        sdf = self.spark.createDataFrame(
-            [["0", 0, 0.0], ["0", 0, float("nan")], ["0", 1, 2.0], ["1", 0, 3.0]],
-            ["A", "B", "X"],
-        )
-        with self.assertRaisesRegex(
-            ValueError, "This DataFrame contains a null or nan value"
-        ):
-            Session.from_dataframe(
-                source_id="private_nan",
-                dataframe=sdf,
-                privacy_budget=PureDPBudget(float("inf")),
-            )
-
     @parameterized.expand(
         [
             (
@@ -1732,7 +1727,7 @@ class TestSessionWithNull(PySparkTest):
     ) -> None:
         """Test Session.replace_null_and_nan."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+            PureDPBudget(float("inf")), "private", self.sdf
         )
         session.create_view(
             QueryBuilder("private").replace_null_and_nan(cols_to_defaults),
@@ -1806,11 +1801,9 @@ class TestSessionWithNull(PySparkTest):
         using the keyset provided.
         """
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+            PureDPBudget(float("inf")), "private", self.sdf
         )
-        session.add_public_dataframe(
-            "public", self.spark.createDataFrame(public_df), validate=False
-        )
+        session.add_public_dataframe("public", self.spark.createDataFrame(public_df))
         result = session.evaluate(
             QueryBuilder("private").join_public("public").groupby(keyset).count(),
             privacy_budget=PureDPBudget(float("inf")),
@@ -1872,10 +1865,8 @@ class TestSessionWithNull(PySparkTest):
         session = (
             Session.Builder()
             .with_privacy_budget(PureDPBudget(float("inf")))
-            .with_private_dataframe("private", self.sdf, validate=False)
-            .with_private_dataframe(
-                "private2", self.spark.createDataFrame(private_df), validate=False
-            )
+            .with_private_dataframe("private", self.sdf)
+            .with_private_dataframe("private2", self.spark.createDataFrame(private_df))
             .build()
         )
         result = session.evaluate(
@@ -1927,7 +1918,7 @@ class TestSessionWithInf(PySparkTest):
     ) -> None:
         """Test replace_infinity query."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+            PureDPBudget(float("inf")), "private", self.sdf
         )
         session.create_view(
             QueryBuilder("private").replace_infinity(replace_with),
@@ -1970,7 +1961,7 @@ class TestSessionWithInf(PySparkTest):
     ) -> None:
         """Test GroupByBoundedSum after replacing infinite values."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+            PureDPBudget(float("inf")), "private", self.sdf
         )
         result = session.evaluate(
             QueryBuilder("private")
@@ -1984,7 +1975,7 @@ class TestSessionWithInf(PySparkTest):
     def test_drop_infinity(self):
         """Test GroupByBoundedSum after dropping infinite values."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf, validate=False
+            PureDPBudget(float("inf")), "private", self.sdf
         )
         result = session.evaluate(
             QueryBuilder("private")

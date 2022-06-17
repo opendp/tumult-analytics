@@ -379,7 +379,6 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=private_data,
-            ...     validate=False,
             ... )
 
         Example:
@@ -453,7 +452,6 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=private_data,
-            ...     validate=False,
             ... )
 
         Example:
@@ -531,7 +529,6 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=private_data,
-            ...     validate=False,
             ... )
 
         Example:
@@ -616,7 +613,6 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
-            ...     validate=False,
             ... )
 
         Example:
