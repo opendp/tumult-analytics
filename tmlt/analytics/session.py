@@ -12,14 +12,12 @@ A Session is initialized with a
 evaluated on the private data do not consume more than this budget. By default,
 a Session enforces this privacy guarantee at the row level: the queries prevent
 an attacker from learning whether an individual row has been added or removed in
-the private dataset, provided that the private data is not used elsewhere in the
-computation of the queries.
+each of the private tables, provided that the private data is not used elsewhere
+in the computation of the queries.
 
 More details on the exact privacy promise provided by :class:`Session` can be
 found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
-# TODO(#798): Seeded RNGs in privacy framework.
-
 # SPDX-License-Identifier: Apache-2.0
 
 from enum import Enum, auto
