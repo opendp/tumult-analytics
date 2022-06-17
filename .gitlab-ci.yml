@@ -249,8 +249,7 @@ publish:
         echo "Pyproject version $EXPECTED_TAG does not match tag version $CI_COMMIT_TAG"
         exit 1
       fi
-    - poetry config repositories.gitlab "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/pypi"
-    - poetry publish -r gitlab -u gitlab-ci-token -p "${CI_JOB_TOKEN}"
+    - poetry publish -u __token__ -p "${RELEASE_PYPI_TOKEN}"
   timeout: 3m
   rules:
     - if: '$CI_COMMIT_TAG'
