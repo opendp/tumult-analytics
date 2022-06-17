@@ -2383,7 +2383,7 @@ reference = "tumult-core"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "f78b8330bf64fae2f1c4a75e2fa04c21811594d37f8aa2833379261e83f610ac"
+content-hash = "4cfb91ec6111fe27cf067ba1762c6b2680c838e7ecdf875e562f8168747309fa"
 
 [metadata.files]
 alabaster = [
