@@ -1,39 +1,37 @@
 # Tumult Analytics
 
-The Tumult Analytics (formerly SafeTables SDK) product allows users to execute differentially private operations on
-data without having to worry about the privacy implementation which is handled
-automatically by the API.
+Tumult Analytics is a library that allows users to execute differentially private operations on
+data without having to worry about the privacy implementation, which is handled
+automatically by the API. It is built atop the [Tumult Core library](https://gitlab.com/tumult-labs/core).
 
-For more information, refer to the [software documentation](https://docs.tumultlabs.io/pkg/analytics/) and references therein.
+## Installation
 
-<placeholder: add notice if required>
+See the [installation instructions in the documentation](https://docs.tmlt.dev/analytics/latest/installation.html#prerequisites)
+for information about setting up prerequisites such as Spark and python-flint.
 
-## Overview
+Once the prerequisites are installed, you can install Tumult Analytics using [pip](https://pypi.org/project.pip).
 
-In order to write these private queries, the user may leverage the following.
-* QueryBuilder - a tool to create differentially private queries.
-* Session - an object to keep track of privacy and interactively evaluate private queries.
-
-See [CHANGELOG](CHANGELOG.md) for version number information and changes from past versions.
-
-## Testing
-
-To run the tests, install the required dependencies from the `test_requirements.txt`
-
-```
-pip install -r test_requirements.txt
+```bash
+pip install tmlt.analytics
 ```
 
-*Fast Tests:*
+## Documentation
 
-```
-nosetests test/unit test/system -a '!slow'
-```
+The full documentation is located at https://docs.tmlt.dev/analytics/latest/.
 
-*Slow Tests:*
+## Support
 
-Slow tests are tests that we run less frequently because they take a long time to run, or the functionality has been tested by other fast tests.
+If you have any questions/concerns, please [create an issue](https://gitlab.com/tumult-labs/analytics/-/issues) or reach out to [support@tmlt.io](mailto:support@tmlt.io)
 
-```
-nosetests test/unit test/system -a 'slow'
-```
+## Contributing
+
+We are not yet accepting external contributions, but please let us know at [support@tmlt.io](mailto:support@tmlt.io) if you are interested in contributing.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our development dependencies and running tests.
+
+## License
+
+
+The Tumult Platform source code is licensed under the Apache License, version 2.0 (Apache-2.0).
+The Tumult Platform documentation is licensed under 
+Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA-4.0).
