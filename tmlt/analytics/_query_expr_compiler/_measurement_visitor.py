@@ -357,9 +357,11 @@ class MeasurementVisitor(QueryExprVisitor):
 
         # If infinite values are allowed...
         if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
-            # then drop infinite values
-            # (but don't mutate the original query)
-            new_child = DropInfinity(child=query.child, columns=[query.measure_column])
+            # then clamp them (to low/high values)
+            new_child = ReplaceInfinity(
+                child=query.child,
+                replace_with={query.measure_column: (query.low, query.high)},
+            )
             query = dataclasses.replace(query, child=new_child)
             expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
 
@@ -517,12 +519,13 @@ class MeasurementVisitor(QueryExprVisitor):
 
         # If infinite values are allowed ...
         if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
-            # Those values aren't allowed! Drop them
+            # Clamp those values
             # (without mutating the original QueryExpr)
-            drop_infinity_query = DropInfinity(
-                child=query.child, columns=[query.measure_column]
+            replace_infinity_query = ReplaceInfinity(
+                child=query.child,
+                replace_with={query.measure_column: (query.low, query.high)},
             )
-            query = dataclasses.replace(query, child=drop_infinity_query)
+            query = dataclasses.replace(query, child=replace_infinity_query)
 
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)

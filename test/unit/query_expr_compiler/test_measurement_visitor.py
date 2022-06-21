@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -42,9 +42,9 @@ from tmlt.analytics.query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
-    ReplaceInfinity,
-    ReplaceNullAndNan,
 )
+from tmlt.analytics.query_expr import ReplaceInfinity as ReplaceInfExpr
+from tmlt.analytics.query_expr import ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -73,10 +73,10 @@ from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.nan import (
-    DropInfs as DropInfTransformation,
-)
 from tmlt.core.transformations.spark_transformations.nan import DropNaNs, DropNulls
+from tmlt.core.transformations.spark_transformations.nan import (
+    ReplaceInfs as ReplaceInfTransformation,
+)
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
@@ -1016,7 +1016,9 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInfExpr(child=PrivateSource("private"), columns=["inf"]),
+                ReplaceInfExpr(
+                    child=PrivateSource("private"), replace_with={"inf": (-100, 100)}
+                ),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1042,11 +1044,11 @@ class TestMeasurementVisitor(PySparkTest):
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropInfExpr(
+                ReplaceInfExpr(
                     child=DropNullAndNan(
                         child=PrivateSource("private"), columns=["null_and_nan_and_inf"]
                     ),
-                    columns=["null_and_nan_and_inf"],
+                    replace_with={"null_and_nan_and_inf": (-100, 100)},
                 ),
             ),
         ]
@@ -1072,9 +1074,9 @@ class TestMeasurementVisitor(PySparkTest):
             get_value_transformation = info.transformation
         else:
             expected_null_nan_columns: List[str] = []
-            expected_inf_columns: List[str] = []
-            if isinstance(expected_new_child, DropInfExpr):
-                expected_inf_columns = expected_new_child.columns
+            expected_inf_replace: Dict[str, Tuple[float, float]] = {}
+            if isinstance(expected_new_child, ReplaceInfExpr):
+                expected_inf_replace = expected_new_child.replace_with
                 if isinstance(expected_new_child.child, DropNullAndNan):
                     expected_null_nan_columns = expected_new_child.child.columns
             if isinstance(expected_new_child, DropNullAndNan):
@@ -1087,9 +1089,16 @@ class TestMeasurementVisitor(PySparkTest):
             get_value_transformation = transformations[0]
             got_null_nan_columns: List[str] = []
             for t in transformations[1:]:
-                self.assertIsInstance(t, (DropInfTransformation, DropNaNs, DropNulls))
-                if isinstance(t, DropInfTransformation):
-                    self.assertEqual(sorted(t.columns), sorted(expected_inf_columns))
+                self.assertIsInstance(
+                    t, (ReplaceInfTransformation, DropNaNs, DropNulls)
+                )
+                if isinstance(t, ReplaceInfTransformation):
+                    self.assertEqual(
+                        sorted(list(t.replace_map.keys())),
+                        sorted(list(expected_inf_replace)),
+                    )
+                    for k, v in t.replace_map.items():
+                        self.assertEqual(v, expected_inf_replace[k])
                 elif isinstance(t, DropNaNs):
                     got_null_nan_columns += t.columns
                 elif isinstance(t, DropNulls):
@@ -1129,17 +1138,17 @@ class TestMeasurementVisitor(PySparkTest):
         )
         if expected_new_child is not None:
             new_transform: QueryExpr = expected_new_child
-            while isinstance(new_transform, (DropInfExpr, DropNullAndNan)):
-                if isinstance(new_transform, DropInfExpr):
-                    drop_inf_expr: DropInfExpr = new_transform
-                    for col in new_transform.columns:
+            while isinstance(new_transform, (ReplaceInfExpr, DropNullAndNan)):
+                if isinstance(new_transform, ReplaceInfExpr):
+                    replace_inf_expr: ReplaceInfExpr = new_transform
+                    for col in replace_inf_expr.replace_with:
                         if isinstance(
                             expected_groupby_domain[col], SparkFloatColumnDescriptor
                         ):
                             expected_groupby_domain.schema[
                                 col
                             ] = SparkFloatColumnDescriptor(allow_inf=False)
-                            new_transform = drop_inf_expr.child
+                            new_transform = replace_inf_expr.child
                 elif isinstance(new_transform, DropNullAndNan):
                     drop_null_and_nan_expr: DropNullAndNan = new_transform
                     for col in new_transform.columns:
@@ -1579,9 +1588,9 @@ class TestMeasurementVisitor(PySparkTest):
                     quantile=0.25,
                 ),
                 PureDP(),
-                DropInfExpr(
+                ReplaceInfExpr(
                     DropNullAndNan(PrivateSource("private"), ["null_and_inf"]),
-                    ["null_and_inf"],
+                    {"null_and_inf": (123.345, 987.65)},
                 ),
             ),
             (
@@ -1606,9 +1615,9 @@ class TestMeasurementVisitor(PySparkTest):
                     high=0,
                 ),
                 RhoZCDP(),
-                DropInfExpr(
+                ReplaceInfExpr(
                     DropNullAndNan(PrivateSource("private"), ["nan_and_inf"]),
-                    ["nan_and_inf"],
+                    {"nan_and_inf": (0, 0)},
                 ),
             ),
             (
@@ -1621,7 +1630,7 @@ class TestMeasurementVisitor(PySparkTest):
                     high=0,
                 ),
                 RhoZCDP(),
-                DropInfExpr(PrivateSource("private"), ["inf"]),
+                ReplaceInfExpr(PrivateSource("private"), {"inf": (0, 0)}),
             ),
         ]
     )
@@ -1695,9 +1704,9 @@ class TestMeasurementVisitor(PySparkTest):
         # Check for the drop transformations, if expected
         if expected_new_child is not None:
             expected_null_nan_columns: List[str] = []
-            expected_inf_columns: List[str] = []
-            if isinstance(expected_new_child, DropInfExpr):
-                expected_inf_columns = expected_new_child.columns
+            expected_inf_replace: Dict[str, Tuple[float, float]] = {}
+            if isinstance(expected_new_child, ReplaceInfExpr):
+                expected_inf_replace = expected_new_child.replace_with
                 if isinstance(expected_new_child.child, DropNullAndNan):
                     expected_null_nan_columns = expected_new_child.child.columns
             elif isinstance(expected_new_child, DropNullAndNan):
@@ -1708,9 +1717,16 @@ class TestMeasurementVisitor(PySparkTest):
             self.assertIsInstance(transformations[0], GetValue)
             got_null_nan_columns: List[str] = []
             for t in transformations[1:]:
-                self.assertIsInstance(t, (DropInfTransformation, DropNaNs, DropNulls))
-                if isinstance(t, DropInfTransformation):
-                    self.assertEqual(sorted(t.columns), sorted(expected_inf_columns))
+                self.assertIsInstance(
+                    t, (ReplaceInfTransformation, DropNaNs, DropNulls)
+                )
+                if isinstance(t, ReplaceInfTransformation):
+                    self.assertEqual(
+                        sorted(list(t.replace_map.keys())),
+                        sorted(list(expected_inf_replace.keys())),
+                    )
+                    for k, v in t.replace_map.items():
+                        self.assertEqual(v, expected_inf_replace[k])
                 elif isinstance(t, DropNaNs):
                     got_null_nan_columns += t.columns
                 elif isinstance(t, DropNulls):
@@ -2205,7 +2221,7 @@ class TestMeasurementVisitor(PySparkTest):
             ),
             (JoinPublic(child=PrivateSource("private"), public_table="public"),),
             (ReplaceNullAndNan(child=PrivateSource("private")),),
-            (ReplaceInfinity(child=PrivateSource("private")),),
+            (ReplaceInfExpr(child=PrivateSource("private")),),
             (DropNullAndNan(child=PrivateSource("private")),),
             (DropInfExpr(child=PrivateSource("private")),),
         ]
