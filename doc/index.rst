@@ -85,3 +85,10 @@ New users probably want to start with the :ref:`installation instructions`.
    Additional resources include the :ref:`changelog <Changelog>`, which
    describes notable changes to the library, :ref:`contact information
    <Contact>`, as well as :ref:`license information <License>`.
+
+Documentation License
+^^^^^^^^^^^^^^^^^^^^^
+This documentation is licensed under the
+Creative Commons Attribution-ShareAlike 4.0 Unported License.
+To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
+or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
