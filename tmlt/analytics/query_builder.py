@@ -63,8 +63,14 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-# Override exported names to include ColumnType.
-__all__ = ["Row", "QueryBuilder", "GroupedQueryBuilder", "ColumnType"]
+# Override exported names to include ColumnType and ColumnDescriptor.
+__all__ = [
+    "Row",
+    "QueryBuilder",
+    "GroupedQueryBuilder",
+    "ColumnDescriptor",
+    "ColumnType",
+]
 
 Row = Dict[str, Any]
 """Type alias for a dictionary with string keys."""

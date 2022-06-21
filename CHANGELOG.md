@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Aggregations (sum, quantile, average, variance, and standard deviation) now silently drop null and NaN values before being performed.
 - Aggregations (sum, quantile, average, variance, and standard deviation) now silently clamp infinite values (+infinity and -infinity) to the query's lower and upper bounds.
 - Added a `cleanup` module with two functions: a `cleanup` function to remove the current temporary table (which should be called before `spark.stop()`), and a `remove_all_temp_tables` function that removes all temporary tables ever created by Analytics.
+- Added a topic guide in the documentation for Tumult Analytics' treatment of null, NaN, and infinite values.
 
 ### Changed
 - *Backwards-incompatible*: Sessions no longer allow DataFrames to contain a column named `""` (the empty string).
