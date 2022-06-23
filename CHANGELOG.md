@@ -1,10 +1,11 @@
 # Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 ### Added
+- Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
+- Dates may now be used in `KeySet`s.
+- Added support for DataFrames containing NaN and null values. Columns created by Map and FlatMap are now marked as potentially containing NaN and null values.
+- Added `QueryBuilder.replace_null_and_nan` function, which replaces null and NaN values with specified defaults.
 - Added `QueryBuilder.replace_infinite` function, which replaces positive and negative infinity values with specified defaults.
 - Added `QueryBuilder.drop_null_and_nan` function, which drops null and NaN values for specified columns.
 - Added `QueryBuilder.drop_infinite` function, which drops infinite values for specified columns.
@@ -20,38 +21,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - *Backwards-incompatible*: Sessions now use the DataFrame's schema to determine which columns are nullable.
 
 ### Removed
+- *Backwards-incompatible*: Removed `groupby_public_source` and `groupby_domains` from `QueryBuilder`.
 - *Backwards-incompatible*: `Session.from_csv` and CSV-related methods on `Session.Builder` have been removed.
-  Use `spark.read.csv` and `Session.from_dataframe` instead.
+  Instead, use `spark.read.csv` along with `Session.from_dataframe` and other dataframe-based methods.
 - *Backwards-incompatible*: Removed `validate` option from `Session.from_dataframe`, `Session.add_public_dataframe`, `Session.Builder.with_private_dataframe`, `Session.Builder.with_public_dataframe`.
 - *Backwards-incompatible*: Removed `KeySet.contains_nan_or_null`.
 
-## 0.3.0-alpha.1 - 2022-05-24
-### Added
-- Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
-- Dates may now be used in `KeySet`s.
-- Added support for DataFrames containing NaN and null values. Columns created by Map and FlatMap are now marked as potentially containing NaN and null values.
-- Added `QueryBuilder.replace_null_and_nan` function, which replaces null and NaN values with specified defaults.
-
 ### Fixed
-- `KeySet`s now explicitly check for and disallow the use of floats and timestamps as keys.
+- *Backwards-incompatible*: `KeySet`s now explicitly check for and disallow the use of floats and timestamps as keys.
   This has always been the intended behavior, but it was previously not checked for and could work or cause non-obvious errors depending on the situation.
 - `KeySet.dataframe()` now always returns a dataframe where all rows are distinct.
 - Under certain circumstances, evaluating a `GroupByCountDistinct` query expression used to modify the input `QueryExpr`.
   This no longer occurs.
-- It is now possible to partition on a column created by a grouping flat map (used to raise exception from Core)
+- It is now possible to partition on a column created by a grouping flat map, which used to raise exception from Core.
 
-### Removed
-- Removed `groupby_public_source` and `groupby_domains` from `QueryBuilder`.
-
-## 0.2.1 - 2022-04-14
+## 0.2.1 - 2022-04-14 (internal release)
 ### Added
-- Added support for basic operations (filter, map, etc.) on Spark date and timestamp columns. `ColumnType` has two new variants, `DATE` and `TIMESTAMP`, to support these.
-- Future documentation will include any exceptions defined in Analytics.
+- Added support for basic operations (filter, map, etc.) on Spark date and timestamp columns.
+  `ColumnType` has two new variants, `DATE` and `TIMESTAMP`, to support these.
+- Future documentation will now include any exceptions defined in Analytics.
 
 ### Changed
 - Switch session to use Persist/Unpersist instead of Cache.
 
-## 0.2.0 - 2022-03-28
+## 0.2.0 - 2022-03-28 (internal release)
 ### Removed
 - Multi-query evaluate support is entirely removed.
 - Columns that are neither floats nor doubles will no longer be checked for NaN values.
@@ -62,13 +55,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - *Backwards-incompatible*: `QueryBuilder.join_public` and the `JoinPublic` query expression can now accept public tables specified as Spark dataframes. The existing behavior using public source IDs is still supported, but the `public_id` parameter/property is now called `public_table`.
 - Installation on Python 3.7.1 through 3.7.3 is now allowed.
 - KeySets now do type coercion on creation, matching the type coercion that Sessions do for private sources.
-- Sessions created by `partition_and_create` must be used in the order they were created, and using the parent session will forcibly close all child sessions. Sessions can be manually closed with `session.stop()`.
-
+- Sessions created by `partition_and_create` must be used in the order they were created, and using the parent session will forcibly close all child sessions.
+  Sessions can be manually closed with `session.stop()`.
 
 ### Fixed
 - Joining with a public table that contains no NaNs, but has a column where NaNs are allowed, previously caused an error when compiling queries. This is now handled correctly.
 
-## 0.1.1 - 2022-02-28
+## 0.1.1 - 2022-02-28 (internal release)
 ### Added
 - Added a `KeySet` class, which will eventually be used for all GroupBy queries.
 - Added `QueryBuilder.groupby()`, a new group-by based on `KeySet`s.
@@ -84,6 +77,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `QueryBuilder.groupby_domains()` and `QueryBuilder.groupby_public_source()` are now deprecated in favor of using `QueryBuilder.groupby()` with `KeySet`s.
   They will be removed in a future version.
 
-## 0.1.0 - 2022-02-15
+## 0.1.0 - 2022-02-15 (internal release)
 ### Added
-- Initial release
+- Initial release.

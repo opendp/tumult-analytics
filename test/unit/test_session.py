@@ -169,6 +169,7 @@ class TestSession(PySparkTest):
         mock_composition_init.return_value.privacy_budget = (
             _privacy_budget_to_exact_number(budget)
         )
+        mock_composition_init.return_value.d_in = {"private": 23}
 
         Session.from_dataframe(
             privacy_budget=budget, source_id="private", dataframe=self.sdf, stability=23
