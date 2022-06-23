@@ -19,7 +19,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7.1"
 
-"tmlt.core" = "^0.3.0a4"
+"tmlt.core" = "^0.3.1"
 
 numpy = "^1.18.0,<1.19.5"
 pandas = "^1.2.0"
@@ -64,11 +64,6 @@ seaborn = "^0.11.1"
 # click 8.1.0 removes _unicodefun which breaks the CI; remove this after
 # upgrading Black.
 click = "8.0.4"
-
-[[tool.poetry.source]]
-name = "tumult-core"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-secondary = true
 
 [[tool.poetry.source]]
 name = "flint"

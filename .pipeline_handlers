@@ -107,12 +107,9 @@ function nightly_handler () {
           echo $failed_bridges_json \
             | jq -r '[.[] | "<" + .downstream_pipeline.web_url + "|" + .name + ">"] | join(", ")'
         )"
-        body_text="
-          $body_text
-          \nSome downstream pipelines are failing: $bridge_links
-          \nThis may be because of a bug, or just the result of
-          intentional backwards-incompatible changes.
-        "
+        body_text="$body_text\nSome downstream pipelines are failing: $bridge_links"
+        body_text="$body_text\nThis may be because of a bug, or just the result"
+        body_text="$body_text of intentional backwards-incompatible changes."
       fi
     else
       job_links="$(
@@ -137,9 +134,16 @@ function release_handler () {
         exit 1
     fi
 
-    # TODO: Add a link to the docs to this message as well, once we start
-    # automatically publishing them to the public site from this pipeline.
-    links="<https://gitlab.com/tumult-labs/analytics/-/packages|:package: Package Registry>    <$CI_PIPELINE_URL|:factory: Pipeline>"
+
+    links="<https://pypi.org/project/tmlt.analytics/|:package: Package Registry>"
+    # Prereleases don't have docs published for them, so skip the docs link in
+    # that case.
+    if [[ ! "$CI_COMMIT_TAG" =~ ^\d+\.\d+\.\d+-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
+        # Convert X.Y.Z semantic version to vX.Y for docs.
+        docs_version="v$(echo $CI_COMMIT_TAG | sed -E 's/^([[:digit:]]+\.[[:digit:]]+).*/\1/')"
+        links="$links    <https://docs.tmlt.dev/analytics/$docs_version|:page_facing_up: Docs>"
+    fi
+    links="$links    <$CI_PIPELINE_URL|:factory: Pipeline>"
 
     webhook_url="$RELEASE_SLACK_WEBHOOK_URL"
     message_content="*Analytics Release $CI_COMMIT_TAG*\n$links"

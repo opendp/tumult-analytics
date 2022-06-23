@@ -31,13 +31,15 @@ variables:
     - python --version
     - poetry --version
     - poetry config --list
-    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
     - |
       if [[ ! -z "$CORE_COMMIT_HASH" ]]; then
-        pip install "git+https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
+        # TODO: If the Core dependencies change significantly between releases,
+        # this may cause dependency issues because the dependencies for the old
+        # version will be used.
+        pip install --force-reinstall --no-deps "git+https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
       fi
   cache:
     - key:
@@ -70,7 +72,6 @@ setup:
     - python --version
     - poetry --version
     - poetry config --list
-    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
     - poetry install -v --remove-untracked
     # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
     - . .venv/bin/activate
@@ -221,7 +222,6 @@ test_release:
     - pip install -r test_requirements.txt
     - pip install -i https://d3p0voevd56kj6.cloudfront.net python-flint
     - pip install dist/*.whl
-          --extra-index-url "https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
     - pip freeze
     - make test-fast
   coverage: '/^TOTAL.+?(\d+\%)$/'
@@ -297,7 +297,7 @@ publish_docs:
     - git config user.email "gitlab@tmlt.io"
     - git add public
     - git diff --staged --stat
-    - git commit -m "[auto] Publish docs for $version" --author "$CI_COMMIT_AUTHOR"
+    - git commit -m "[auto] Publish docs for $version ($CI_COMMIT_SHORT_SHA)" --author "$CI_COMMIT_AUTHOR"
     - git push
   timeout: 3m
   interruptible: false
@@ -323,7 +323,6 @@ trigger_release:
         echo "RELEASER_TOKEN and/or RELEASER_TOKEN_USERNAME is unset, exiting..."
         exit 1
       fi
-    - poetry config http-basic.tumult-core "$CORE_DEPLOY_TOKEN_USERNAME" "$CORE_DEPLOY_TOKEN"
     - make prepare-release
     - git config user.name "gitlab"
     - git config user.email "gitlab@tmlt.io"

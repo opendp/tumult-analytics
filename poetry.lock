@@ -6,11 +6,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "appnope"
 version = "0.1.3"
@@ -18,11 +13,6 @@ description = "Disable App Nap on macOS >= 10.9"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "argon2-cffi"
@@ -41,11 +31,6 @@ dev = ["pre-commit", "cogapp", "tomli", "coverage[toml] (>=5.0.2)", "hypothesis"
 docs = ["sphinx", "sphinx-notfound-page", "furo"]
 tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "argon2-cffi-bindings"
 version = "21.2.0"
@@ -61,11 +46,6 @@ cffi = ">=1.0.1"
 dev = ["pytest", "cogapp", "pre-commit", "wheel"]
 tests = ["pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "astroid"
 version = "2.5"
@@ -78,11 +58,6 @@ python-versions = ">=3.6"
 lazy-object-proxy = ">=1.4.0"
 typed-ast = {version = ">=1.4.0,<1.5", markers = "implementation_name == \"cpython\" and python_version < \"3.8\""}
 wrapt = ">=1.11,<1.13"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "attrs"
@@ -98,11 +73,6 @@ docs = ["furo", "sphinx", "zope.interface", "sphinx-notfound-page"]
 tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "cloudpickle"]
 tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "cloudpickle"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "babel"
 version = "2.10.1"
@@ -114,11 +84,6 @@ python-versions = ">=3.6"
 [package.dependencies]
 pytz = ">=2015.7"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "backcall"
 version = "0.2.0"
@@ -126,11 +91,6 @@ description = "Specifications for callback functions passed in to an API"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "beautifulsoup4"
@@ -146,11 +106,6 @@ soupsieve = ">1.2"
 [package.extras]
 html5lib = ["html5lib"]
 lxml = ["lxml"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "black"
@@ -180,11 +135,6 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 python2 = ["typed-ast (>=1.4.2)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "bleach"
 version = "5.0.0"
@@ -201,11 +151,6 @@ webencodings = "*"
 css = ["tinycss2 (>=1.1.0)"]
 dev = ["pip-tools (==6.5.1)", "pytest (==7.1.1)", "flake8 (==4.0.1)", "tox (==3.24.5)", "sphinx (==4.3.2)", "twine (==4.0.0)", "wheel (==0.37.1)", "hashin (==0.17.0)", "black (==22.3.0)", "mypy (==0.942)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "certifi"
 version = "2022.5.18.1"
@@ -213,11 +158,6 @@ description = "Python package for providing Mozilla's CA Bundle."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "cffi"
@@ -230,11 +170,6 @@ python-versions = "*"
 [package.dependencies]
 pycparser = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "charset-normalizer"
 version = "2.0.12"
@@ -245,11 +180,6 @@ python-versions = ">=3.5.0"
 
 [package.extras]
 unicode_backport = ["unicodedata2"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "click"
@@ -263,11 +193,6 @@ python-versions = ">=3.6"
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "colorama"
 version = "0.4.4"
@@ -275,11 +200,6 @@ description = "Cross-platform colored terminal text."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "coverage"
@@ -292,11 +212,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 [package.extras]
 toml = ["toml"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "cycler"
 version = "0.11.0"
@@ -304,11 +219,6 @@ description = "Composable style cycles"
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "debugpy"
@@ -318,11 +228,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.7"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "decorator"
 version = "5.1.1"
@@ -330,11 +235,6 @@ description = "Decorators for Humans"
 category = "dev"
 optional = false
 python-versions = ">=3.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "defusedxml"
@@ -344,11 +244,6 @@ category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "docutils"
 version = "0.17.1"
@@ -356,11 +251,6 @@ description = "Docutils -- Python Documentation Utilities"
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "dunamai"
@@ -374,11 +264,6 @@ python-versions = ">=3.5,<4.0"
 importlib-metadata = {version = ">=1.6.0", markers = "python_version < \"3.8\""}
 packaging = ">=20.9"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "entrypoints"
 version = "0.4"
@@ -386,11 +271,6 @@ description = "Discover and load entry points from installed packages."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "fastjsonschema"
@@ -402,11 +282,6 @@ python-versions = "*"
 
 [package.extras]
 devel = ["colorama", "jsonschema", "json-spec", "pylint", "pytest", "pytest-benchmark", "pytest-cache", "validictory"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "fonttools"
@@ -430,11 +305,6 @@ ufo = ["fs (>=2.2.0,<3)"]
 unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "get-version"
 version = "3.5.4"
@@ -451,11 +321,6 @@ typing_extensions = {version = "*", markers = "python_version < \"3.8\""}
 [package.extras]
 test = ["pytest (>=6.2.5)", "pytest-black", "pytest-mypy", "pygments"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "idna"
 version = "3.3"
@@ -464,11 +329,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.5"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "imagesize"
 version = "1.3.0"
@@ -476,11 +336,6 @@ description = "Getting image size from png/jpeg/jpeg2000/gif file"
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "importlib-metadata"
@@ -499,11 +354,6 @@ docs = ["sphinx", "jaraco.packaging (>=9)", "rst.linker (>=1.9)"]
 perf = ["ipython"]
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "packaging", "pyfakefs", "flufl.flake8", "pytest-perf (>=0.9.2)", "pytest-black (>=0.3.7)", "pytest-mypy (>=0.9.1)", "importlib-resources (>=1.3)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "importlib-resources"
 version = "5.7.1"
@@ -518,11 +368,6 @@ zipp = {version = ">=3.1.0", markers = "python_version < \"3.10\""}
 [package.extras]
 docs = ["sphinx", "jaraco.packaging (>=9)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "pytest-black (>=0.3.7)", "pytest-mypy (>=0.9.1)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "ipykernel"
@@ -546,11 +391,6 @@ traitlets = ">=5.1.0"
 
 [package.extras]
 test = ["pytest (>=6.0)", "pytest-cov", "flaky", "ipyparallel", "pre-commit", "pytest-timeout"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "ipython"
@@ -584,11 +424,6 @@ parallel = ["ipyparallel"]
 qtconsole = ["qtconsole"]
 test = ["nose (>=0.10.1)", "requests", "testpath", "pygments", "nbformat", "ipykernel", "numpy (>=1.17)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "ipython-genutils"
 version = "0.2.0"
@@ -596,11 +431,6 @@ description = "Vestigial utilities from IPython"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "isort"
@@ -615,11 +445,6 @@ pipfile = ["pipreqs", "requirementslib"]
 pyproject = ["toml"]
 requirements = ["pipreqs", "pip-api"]
 xdg_home = ["appdirs (>=1.4.0)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "jedi"
@@ -636,11 +461,6 @@ parso = ">=0.8.0,<0.9.0"
 qa = ["flake8 (==3.8.3)", "mypy (==0.782)"]
 testing = ["Django (<3.1)", "colorama", "docopt", "pytest (<7.0.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "jinja2"
 version = "3.1.2"
@@ -654,11 +474,6 @@ MarkupSafe = ">=2.0"
 
 [package.extras]
 i18n = ["Babel (>=2.7)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "jsonschema"
@@ -678,11 +493,6 @@ typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 [package.extras]
 format = ["fqdn", "idna", "isoduration", "jsonpointer (>1.13)", "rfc3339-validator", "rfc3987", "uri-template", "webcolors (>=1.11)"]
 format_nongpl = ["fqdn", "idna", "isoduration", "jsonpointer (>1.13)", "rfc3339-validator", "rfc3986-validator (>0.1.0)", "uri-template", "webcolors (>=1.11)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "jupyter-client"
@@ -705,11 +515,6 @@ traitlets = "*"
 doc = ["ipykernel", "myst-parser", "sphinx (>=1.3.6)", "sphinx-rtd-theme", "sphinxcontrib-github-alt"]
 test = ["codecov", "coverage", "ipykernel (>=6.5)", "ipython", "mypy", "pre-commit", "pytest", "pytest-asyncio (>=0.18)", "pytest-cov", "pytest-timeout"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "jupyter-core"
 version = "4.10.0"
@@ -725,11 +530,6 @@ traitlets = "*"
 [package.extras]
 test = ["ipykernel", "pre-commit", "pytest", "pytest-cov", "pytest-timeout"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "jupyterlab-pygments"
 version = "0.2.2"
@@ -737,11 +537,6 @@ description = "Pygments theme using JupyterLab CSS variables"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "kiwisolver"
@@ -752,12 +547,7 @@ optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-typing_extensions = {version = "*", markers = "python_version < \"3.8\""}
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
+typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 
 [[package]]
 name = "latexcodec"
@@ -770,11 +560,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.dependencies]
 six = ">=1.4.1"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "lazy-object-proxy"
 version = "1.7.1"
@@ -783,11 +568,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.6"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "markupsafe"
 version = "2.1.1"
@@ -795,11 +575,6 @@ description = "Safely add untrusted strings to HTML/XML markup."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "matplotlib"
@@ -820,11 +595,6 @@ pyparsing = ">=2.2.1"
 python-dateutil = ">=2.7"
 setuptools_scm = ">=4"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "matplotlib-inline"
 version = "0.1.3"
@@ -836,11 +606,6 @@ python-versions = ">=3.5"
 [package.dependencies]
 traitlets = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "mccabe"
 version = "0.6.1"
@@ -849,11 +614,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "mistune"
 version = "0.8.4"
@@ -861,11 +621,6 @@ description = "The fastest markdown parser in pure Python"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "mpmath"
@@ -878,11 +633,6 @@ python-versions = "*"
 [package.extras]
 develop = ["pytest (>=4.6)", "pycodestyle", "pytest-cov", "codecov", "wheel"]
 tests = ["pytest (>=4.6)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "mypy"
@@ -903,11 +653,6 @@ dmypy = ["psutil (>=4.0)"]
 python2 = ["typed-ast (>=1.4.0,<2)"]
 reports = ["lxml"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "mypy-extensions"
 version = "0.4.3"
@@ -915,11 +660,6 @@ description = "Experimental type system extensions for programs checked with the
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "nbclient"
@@ -938,11 +678,6 @@ traitlets = ">=5.0.0"
 [package.extras]
 sphinx = ["autodoc-traits", "mock", "moto", "myst-parser", "Sphinx (>=1.7)", "sphinx-book-theme"]
 test = ["black", "check-manifest", "flake8", "ipykernel", "ipython (<8.0.0)", "ipywidgets (<8.0.0)", "mypy", "pip (>=18.1)", "pre-commit", "pytest (>=4.1)", "pytest-asyncio", "pytest-cov (>=2.6.1)", "setuptools (>=60.0)", "testpath", "twine (>=1.11.0)", "xmltodict"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "nbconvert"
@@ -977,11 +712,6 @@ serve = ["tornado (>=6.1)"]
 test = ["pytest", "pytest-cov", "pytest-dependency", "ipykernel", "ipywidgets (>=7)", "pre-commit", "pyppeteer (>=1,<1.1)"]
 webpdf = ["pyppeteer (>=1,<1.1)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "nbformat"
 version = "5.4.0"
@@ -999,11 +729,6 @@ traitlets = ">=5.1"
 [package.extras]
 test = ["check-manifest", "testpath", "pytest", "pre-commit"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "nest-asyncio"
 version = "1.5.5"
@@ -1012,11 +737,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.5"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "nose"
 version = "1.3.7"
@@ -1024,11 +744,6 @@ description = "nose extends unittest to make testing easier"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "notebook"
@@ -1060,11 +775,6 @@ docs = ["sphinx", "nbsphinx", "sphinxcontrib-github-alt", "sphinx-rtd-theme", "m
 json-logging = ["json-logging"]
 test = ["pytest", "coverage", "requests", "testpath", "nbval", "selenium", "pytest-cov", "requests-unixsocket"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "numpy"
 version = "1.19.4"
@@ -1073,11 +783,6 @@ category = "main"
 optional = false
 python-versions = ">=3.6"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "oset"
 version = "0.1.3"
@@ -1085,11 +790,6 @@ description = "Ordered Set."
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "packaging"
@@ -1101,11 +801,6 @@ python-versions = ">=3.6"
 
 [package.dependencies]
 pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pandas"
@@ -1123,11 +818,6 @@ pytz = ">=2017.3"
 [package.extras]
 test = ["hypothesis (>=3.58)", "pytest (>=6.0)", "pytest-xdist"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pandoc"
 version = "1.1.0"
@@ -1140,11 +830,6 @@ python-versions = "*"
 plumbum = "*"
 ply = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pandocfilters"
 version = "1.5.0"
@@ -1152,11 +837,6 @@ description = "Utilities for writing pandoc filters in python"
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "parameterized"
@@ -1168,11 +848,6 @@ python-versions = "*"
 
 [package.extras]
 dev = ["jinja2"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "parso"
@@ -1186,11 +861,6 @@ python-versions = ">=3.6"
 qa = ["flake8 (==3.8.3)", "mypy (==0.782)"]
 testing = ["docopt", "pytest (<6.0.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pathspec"
 version = "0.9.0"
@@ -1198,11 +868,6 @@ description = "Utility library for gitignore style pattern matching of file path
 category = "dev"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pexpect"
@@ -1215,11 +880,6 @@ python-versions = "*"
 [package.dependencies]
 ptyprocess = ">=0.5"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pickleshare"
 version = "0.7.5"
@@ -1227,11 +887,6 @@ description = "Tiny 'shelve'-like database with concurrency support"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pillow"
@@ -1245,11 +900,6 @@ python-versions = ">=3.7"
 docs = ["olefile", "sphinx (>=2.4)", "sphinx-copybutton", "sphinx-issues (>=3.0.1)", "sphinx-removed-in", "sphinx-rtd-theme (>=1.0)", "sphinxext-opengraph"]
 tests = ["check-manifest", "coverage", "defusedxml", "markdown2", "olefile", "packaging", "pyroma", "pytest", "pytest-cov", "pytest-timeout"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "platformdirs"
 version = "2.5.2"
@@ -1261,11 +911,6 @@ python-versions = ">=3.7"
 [package.extras]
 docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx-autodoc-typehints (>=1.12)", "sphinx (>=4)"]
 test = ["appdirs (==1.4.4)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)", "pytest (>=6)"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "plumbum"
@@ -1283,11 +928,6 @@ dev = ["paramiko", "psutil", "pytest", "pytest-cov", "pytest-mock", "pytest-time
 docs = ["Sphinx (>=3.0.0)", "sphinx-rtd-theme (>=0.5.0)"]
 ssh = ["paramiko"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "ply"
 version = "3.11"
@@ -1295,11 +935,6 @@ description = "Python Lex & Yacc"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "prometheus-client"
@@ -1312,11 +947,6 @@ python-versions = ">=3.6"
 [package.extras]
 twisted = ["twisted"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "prompt-toolkit"
 version = "3.0.29"
@@ -1327,11 +957,6 @@ python-versions = ">=3.6.2"
 
 [package.dependencies]
 wcwidth = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "psutil"
@@ -1344,11 +969,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.extras]
 test = ["ipaddress", "mock", "enum34", "pywin32", "wmi"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "ptyprocess"
 version = "0.7.0"
@@ -1356,11 +976,6 @@ description = "Run a subprocess in a pseudo terminal"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "py"
@@ -1370,11 +985,6 @@ category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "py4j"
 version = "0.10.9"
@@ -1382,11 +992,6 @@ description = "Enables Python programs to dynamically access arbitrary Java obje
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pyarrow"
@@ -1398,11 +1003,6 @@ python-versions = ">=3.5"
 
 [package.dependencies]
 numpy = ">=1.14"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pybtex"
@@ -1420,11 +1020,6 @@ six = "*"
 [package.extras]
 test = ["pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pybtex-docutils"
 version = "1.0.1"
@@ -1437,11 +1032,6 @@ python-versions = ">=3.6"
 docutils = ">=0.8"
 pybtex = ">=0.16"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pycparser"
 version = "2.21"
@@ -1449,11 +1039,6 @@ description = "C parser in Python"
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pydata-sphinx-theme"
@@ -1475,11 +1060,6 @@ test = ["pytest", "pydata-sphinx-theme"]
 coverage = ["pytest-cov", "codecov", "pydata-sphinx-theme"]
 dev = ["pyyaml", "pre-commit", "nox", "pydata-sphinx-theme"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pydocstyle"
 version = "6.1.1"
@@ -1494,11 +1074,6 @@ snowballstemmer = "*"
 [package.extras]
 toml = ["toml"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pygments"
 version = "2.12.0"
@@ -1506,11 +1081,6 @@ description = "Pygments is a syntax highlighting package written in Python."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pylint"
@@ -1527,11 +1097,6 @@ isort = ">=4.2.5,<5"
 mccabe = ">=0.6,<0.7"
 toml = ">=0.7.1"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pyparsing"
 version = "3.0.9"
@@ -1543,11 +1108,6 @@ python-versions = ">=3.6.8"
 [package.extras]
 diagrams = ["railroad-diagrams", "jinja2"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pyrsistent"
 version = "0.18.1"
@@ -1555,11 +1115,6 @@ description = "Persistent/Functional/Immutable data structures"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pyspark"
@@ -1579,11 +1134,6 @@ ml = ["numpy (>=1.7)"]
 mllib = ["numpy (>=1.7)"]
 sql = ["pandas (>=0.23.2)", "pyarrow (>=0.15.1)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "python-dateutil"
 version = "2.8.2"
@@ -1594,11 +1144,6 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 
 [package.dependencies]
 six = ">=1.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "python-flint"
@@ -1621,11 +1166,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pywin32"
 version = "304"
@@ -1633,11 +1173,6 @@ description = "Python for Window Extensions"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pywinpty"
@@ -1647,11 +1182,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.7"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "pyyaml"
 version = "6.0"
@@ -1659,11 +1189,6 @@ description = "YAML parser and emitter for Python"
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "pyzmq"
@@ -1677,11 +1202,6 @@ python-versions = ">=3.6"
 cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 py = {version = "*", markers = "implementation_name == \"pypy\""}
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "randomgen"
 version = "1.21.2"
@@ -1693,11 +1213,6 @@ python-versions = ">=3.6"
 [package.dependencies]
 numpy = ">=1.14"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "regex"
 version = "2022.4.24"
@@ -1705,11 +1220,6 @@ description = "Alternative regular expression module, to replace re."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "requests"
@@ -1729,11 +1239,6 @@ urllib3 = ">=1.21.1,<1.27"
 socks = ["PySocks (>=1.5.6,!=1.5.7)", "win-inet-pton"]
 use_chardet_on_py3 = ["chardet (>=3.0.2,<5)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "scanpydoc"
 version = "0.7.3"
@@ -1750,11 +1255,6 @@ sphinx = ">=3.0"
 doc = ["sphinx-autodoc-typehints (>=1.12)", "sphinx-rtd-theme"]
 test = ["pytest", "pytest-cov", "pytest-black", "typing_extensions (>=3.10)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "scipy"
 version = "1.6.0"
@@ -1765,11 +1265,6 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 numpy = ">=1.16.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "seaborn"
@@ -1785,11 +1280,6 @@ numpy = ">=1.15"
 pandas = ">=0.23"
 scipy = ">=1.0"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "send2trash"
 version = "1.8.0"
@@ -1802,11 +1292,6 @@ python-versions = "*"
 nativelib = ["pyobjc-framework-cocoa", "pywin32"]
 objc = ["pyobjc-framework-cocoa"]
 win32 = ["pywin32"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "setuptools-scm"
@@ -1824,11 +1309,6 @@ tomli = ">=1.0.0"
 test = ["pytest (>=6.2)", "virtualenv (>20)"]
 toml = ["setuptools (>=42)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "six"
 version = "1.16.0"
@@ -1836,11 +1316,6 @@ description = "Python 2 and 3 compatibility utilities"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "snowballstemmer"
@@ -1850,11 +1325,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "soupsieve"
 version = "2.3.2.post1"
@@ -1862,11 +1332,6 @@ description = "A modern CSS selector implementation for Beautiful Soup."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "sphinx"
@@ -1900,11 +1365,6 @@ docs = ["sphinxcontrib-websupport"]
 lint = ["flake8 (>=3.5.0)", "isort", "mypy (>=0.931)", "docutils-stubs", "types-typed-ast", "types-requests"]
 test = ["pytest", "pytest-cov", "html5lib", "cython", "typed-ast"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinx-autoapi"
 version = "1.8.3"
@@ -1925,11 +1385,6 @@ docs = ["sphinx", "sphinx-rtd-theme"]
 dotnet = ["sphinxcontrib-dotnetdomain"]
 go = ["sphinxcontrib-golangdomain"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinx-autodoc-typehints"
 version = "1.12.0"
@@ -1945,11 +1400,6 @@ Sphinx = ">=3.0"
 test = ["pytest (>=3.1.0)", "typing-extensions (>=3.5)", "sphobjinv (>=2.0)", "Sphinx (>=3.2.0)", "dataclasses"]
 type_comments = ["typed-ast (>=1.4.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinx-copybutton"
 version = "0.4.0"
@@ -1964,11 +1414,6 @@ sphinx = ">=1.8"
 [package.extras]
 code_style = ["pre-commit (==2.12.1)"]
 rtd = ["sphinx", "ipython", "sphinx-book-theme"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "sphinx-panels"
@@ -1988,11 +1433,6 @@ live-dev = ["sphinx-autobuild", "web-compile (>=0.2.0,<0.3.0)"]
 testing = ["pytest (>=6.0.1,<6.1.0)", "pytest-regressions (>=2.0.1,<2.1.0)"]
 themes = ["sphinx-rtd-theme", "pydata-sphinx-theme (>=0.4.0,<0.5.0)", "sphinx-book-theme (>=0.0.36,<0.1.0)", "myst-parser (>=0.12.9,<0.13.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinxcontrib-applehelp"
 version = "1.0.2"
@@ -2004,11 +1444,6 @@ python-versions = ">=3.5"
 [package.extras]
 lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "sphinxcontrib-bibtex"
@@ -2024,11 +1459,6 @@ pybtex = ">=0.20"
 pybtex-docutils = ">=0.2.0"
 Sphinx = ">=2.0"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinxcontrib-devhelp"
 version = "1.0.2"
@@ -2040,11 +1470,6 @@ python-versions = ">=3.5"
 [package.extras]
 lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "sphinxcontrib-htmlhelp"
@@ -2058,11 +1483,6 @@ python-versions = ">=3.6"
 lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest", "html5lib"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinxcontrib-jsmath"
 version = "1.0.1"
@@ -2073,11 +1493,6 @@ python-versions = ">=3.5"
 
 [package.extras]
 test = ["pytest", "flake8", "mypy"]
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "sphinxcontrib-qthelp"
@@ -2091,11 +1506,6 @@ python-versions = ">=3.5"
 lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sphinxcontrib-serializinghtml"
 version = "1.1.5"
@@ -2108,11 +1518,6 @@ python-versions = ">=3.5"
 lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "sympy"
 version = "1.9"
@@ -2123,11 +1528,6 @@ python-versions = ">=3.6"
 
 [package.dependencies]
 mpmath = ">=0.19"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "terminado"
@@ -2145,11 +1545,6 @@ tornado = ">=6.1.0"
 [package.extras]
 test = ["pre-commit", "pytest-timeout", "pytest (>=6.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "tinycss2"
 version = "1.1.1"
@@ -2165,14 +1560,9 @@ webencodings = ">=0.4"
 doc = ["sphinx", "sphinx-rtd-theme"]
 test = ["pytest", "pytest-cov", "pytest-flake8", "pytest-isort", "coverage"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "tmlt.core"
-version = "0.3.0a4"
+version = "0.3.1"
 description = "Tumult's differential privacy primitives"
 category = "main"
 optional = false
@@ -2190,11 +1580,6 @@ sympy = ">=1.8,<1.10"
 typeguard = ">=2.12.1,<2.13.0"
 typing_extensions = ">=3.10.0.0,<4.0.0.0"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "toml"
 version = "0.10.2"
@@ -2202,11 +1587,6 @@ description = "Python Library for Tom's Obvious, Minimal Language"
 category = "dev"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "tomli"
@@ -2216,11 +1596,6 @@ category = "dev"
 optional = false
 python-versions = ">=3.6"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "tornado"
 version = "6.1"
@@ -2228,11 +1603,6 @@ description = "Tornado is a Python web framework and asynchronous networking lib
 category = "dev"
 optional = false
 python-versions = ">= 3.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "traitlets"
@@ -2245,11 +1615,6 @@ python-versions = ">=3.7"
 [package.extras]
 test = ["pre-commit", "pytest"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "typed-ast"
 version = "1.4.3"
@@ -2257,11 +1622,6 @@ description = "a fork of Python 2 and 3 ast modules with type comment support"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "typeguard"
@@ -2275,11 +1635,6 @@ python-versions = ">=3.5.3"
 doc = ["sphinx-rtd-theme", "sphinx-autodoc-typehints (>=1.2.0)"]
 test = ["pytest", "typing-extensions", "mypy"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "typing-extensions"
 version = "3.10.0.2"
@@ -2288,11 +1643,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "unidecode"
 version = "1.3.4"
@@ -2300,11 +1650,6 @@ description = "ASCII transliterations of Unicode text"
 category = "dev"
 optional = false
 python-versions = ">=3.5"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "urllib3"
@@ -2319,11 +1664,6 @@ brotli = ["brotlicffi (>=0.8.0)", "brotli (>=1.0.9)", "brotlipy (>=0.6.0)"]
 secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "wcwidth"
 version = "0.2.5"
@@ -2331,11 +1671,6 @@ description = "Measures the displayed width of unicode strings in a terminal"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "webencodings"
@@ -2345,11 +1680,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [[package]]
 name = "wrapt"
 version = "1.12.1"
@@ -2357,11 +1687,6 @@ description = "Module for decorators, wrappers and monkey patching."
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
 
 [[package]]
 name = "zipp"
@@ -2375,15 +1700,10 @@ python-versions = ">=3.7"
 docs = ["sphinx", "jaraco.packaging (>=9)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy (>=0.9.1)"]
 
-[package.source]
-type = "legacy"
-url = "https://gitlab.com/api/v4/projects/34421492/packages/pypi/simple"
-reference = "tumult-core"
-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "4cfb91ec6111fe27cf067ba1762c6b2680c838e7ecdf875e562f8168747309fa"
+content-hash = "d182652aea427c611a3a1073109c076313c6faae8268d4d12fa6f7809b09796f"
 
 [metadata.files]
 alabaster = [
@@ -3544,8 +2864,8 @@ tinycss2 = [
     {file = "tinycss2-1.1.1.tar.gz", hash = "sha256:b2e44dd8883c360c35dd0d1b5aad0b610e5156c2cb3b33434634e539ead9d8bf"},
 ]
 "tmlt.core" = [
-    {file = "tmlt.core-0.3.0a4-py3-none-any.whl", hash = "sha256:7a2883d9beb50e929ef3b6b2e40f8a17342c9cd49845a4f9a717e22184bf1457"},
-    {file = "tmlt.core-0.3.0a4.tar.gz", hash = "sha256:59234c390bcf8871fbc32d15373920a4f9174e3695be5d7518b7451881a68e3b"},
+    {file = "tmlt.core-0.3.1-py3-none-any.whl", hash = "sha256:4a969b25d4dae468f0ce99bf680f6dcff16f28d528ef3a4530bdfd5faa1f7abe"},
+    {file = "tmlt.core-0.3.1.tar.gz", hash = "sha256:31f29de88c36f38c67fdecc759566dc2ece7e18fa7f0d427642f11686de183d5"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
