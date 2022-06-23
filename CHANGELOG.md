@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2022-06-23
 ### Added
 - Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.
 - Dates may now be used in `KeySet`s.
