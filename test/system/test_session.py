@@ -11,6 +11,7 @@ from parameterized import parameterized
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 
+from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -24,10 +25,12 @@ from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBu
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     AnalyticsDefault,
+    AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
     Filter,
     FlatMap,
+    GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByCount,
@@ -54,6 +57,7 @@ from tmlt.core.measurements.interactive_measurements import (
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.parameters import calculate_noise_scale
 from tmlt.core.utils.testing import PySparkTest
 
 # Shorthands for some values used in tests
@@ -718,6 +722,78 @@ class TestEvaluate(PySparkTest):
             query_expr, privacy_budget=RhoZCDPBudget(float("inf"))
         )
         self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+
+    @parameterized.expand(
+        [
+            (
+                GroupByCount(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    mechanism=CountMechanism.LAPLACE,
+                ),
+                PureDPBudget(11),
+                PureDPBudget(7),
+                [
+                    {
+                        "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                        "noise_parameter": (1.0 / 7.0),
+                    }
+                ],
+            ),
+            (
+                GroupByBoundedAverage(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    low=-111,
+                    high=234,
+                    mechanism=AverageMechanism.GAUSSIAN,
+                    measure_column="X",
+                ),
+                RhoZCDPBudget(31),
+                RhoZCDPBudget(11),
+                [
+                    # Noise for the sum query (which uses half the budget)
+                    {
+                        "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                        # the upper and lower bounds of the sum aggregation
+                        # are -173 and 172;
+                        # this is (lower - midpoint) and (upper-midpoint) respectively
+                        "noise_parameter": (
+                            calculate_noise_scale(
+                                173, ExactNumber(11) / ExactNumber(2), RhoZCDP()
+                            )
+                            ** 2
+                        ).to_float(round_up=False),
+                    },
+                    # Noise for the count query (which uses half the budget)
+                    {
+                        "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                        "noise_parameter": (
+                            calculate_noise_scale(
+                                1, ExactNumber(11) / ExactNumber(2), RhoZCDP()
+                            )
+                            ** 2
+                        ).to_float(round_up=False),
+                    },
+                ],
+            ),
+        ]
+    )
+    def test_noise_info(
+        self,
+        query_expr: QueryExpr,
+        session_budget: PrivacyBudget,
+        query_budget: PrivacyBudget,
+        expected: List[Dict[str, Any]],
+    ):
+        """Test _noise_info."""
+        session = Session.from_dataframe(
+            privacy_budget=session_budget, source_id="private", dataframe=self.sdf
+        )
+        # pylint: disable=protected-access
+        info = session._noise_info(query_expr, query_budget)
+        # pylint: enable=protected-access
+        self.assertEqual(info, expected)
 
     @parameterized.expand(
         [(PureDPBudget(float("inf")),), (RhoZCDPBudget(float("inf")),)]

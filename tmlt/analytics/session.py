@@ -21,7 +21,7 @@ found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 # SPDX-License-Identifier: Apache-2.0
 
 from enum import Enum, auto
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
@@ -36,6 +36,7 @@ from tmlt.analytics._coerce_spark_schema import (
     TYPE_COERCION_MAP,
     coerce_spark_schema_or_fail,
 )
+from tmlt.analytics._noise_info import _noise_from_measurement
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
@@ -48,6 +49,7 @@ from tmlt.analytics.query_builder import ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.interactive_measurements import (
     InactiveAccountantError,
     InsufficientBudgetError,
@@ -555,6 +557,69 @@ class Session:
         dataframe = coerce_spark_schema_or_fail(dataframe)
         self._public_sources[source_id] = dataframe
 
+    def _compile_and_get_budget(
+        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
+    ) -> Tuple[Measurement, ExactNumber]:
+        """Pre-processing needed for evaluate() and _noise_info()."""
+        check_type("query_expr", query_expr, QueryExpr)
+        check_type("privacy_budget", privacy_budget, PrivacyBudget)
+
+        self._validate_budget_type_matches_session(privacy_budget)
+        if privacy_budget == PureDPBudget(0) or privacy_budget == RhoZCDPBudget(0):
+            raise ValueError("You need a non-zero privacy budget to evaluate a query.")
+
+        adjusted_budget = self._process_requested_budget(privacy_budget)
+
+        measurement = self._compiler(
+            queries=[query_expr],
+            privacy_budget=adjusted_budget.expr,
+            stability=self._stability,
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            public_sources=self._public_sources,
+            catalog=self._catalog,
+        )
+        return (measurement, adjusted_budget)
+
+    def _noise_info(
+        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
+    ) -> List[Dict[str, Any]]:
+        """Get noise information about a query.
+
+        ..
+            >>> from tmlt.analytics.keyset import KeySet
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> # Create Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=data,
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.remaining_privacy_budget
+            PureDPBudget(epsilon=1)
+            >>> count_query = QueryBuilder("my_private_data").count()
+            >>> count_info = sess._noise_info(
+            ...     query_expr=count_query,
+            ...     privacy_budget=PureDPBudget(0.5),
+            ... )
+            >>> count_info # doctest: +NORMALIZE_WHITESPACE
+            [{'noise_mechanism': <_NoiseMechanism.GEOMETRIC: 2>, 'noise_parameter': 2}]
+        """
+        measurement, _ = self._compile_and_get_budget(query_expr, privacy_budget)
+        return _noise_from_measurement(measurement)
+
     # pylint: disable=line-too-long
     def evaluate(
         self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
@@ -610,34 +675,11 @@ class Session:
             privacy_budget: The privacy budget used for the query.
         """
         # pylint: enable=line-too-long
-        check_type("query_expr", query_expr, QueryExpr)
-        check_type("privacy_budget", privacy_budget, PrivacyBudget)
+        measurement, adjusted_budget = self._compile_and_get_budget(
+            query_expr, privacy_budget
+        )
         self._activate_accountant()
 
-        self._validate_budget_type_matches_session(privacy_budget)
-        if privacy_budget == PureDPBudget(0) or privacy_budget == RhoZCDPBudget(0):
-            raise ValueError("You need a non-zero privacy budget to evaluate a query.")
-
-        adjusted_budget = self._process_requested_budget(privacy_budget)
-
-        try:
-            measurement = self._compiler(
-                queries=[query_expr],
-                privacy_budget=adjusted_budget.expr,
-                stability=self._stability,
-                input_domain=self._input_domain,
-                input_metric=self._input_metric,
-                public_sources=self._public_sources,
-                catalog=self._catalog,
-            )
-        except RuntimeError as e:
-            if str(e) == "Nullable column does not have corresponding NumPy domain.":
-                raise RuntimeError(
-                    "You cannot aggregate a nullable column. Try performing a"
-                    " `ReplaceNullAndNan` query first - you can create one with"
-                    " `QueryBuilder.replace_null_and_nan`."
-                )
-            raise e
         try:
             if not measurement.privacy_relation(self._accountant.d_in, adjusted_budget):
                 raise ValueError(

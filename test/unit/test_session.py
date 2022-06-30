@@ -529,7 +529,8 @@ class TestSession(PySparkTest):
             RuntimeError,
             "This session is no longer active, and no new queries can be performed",
         ):
-            session.evaluate(PrivateSource(source_id="private"), PureDPBudget(1))
+            count_query = QueryBuilder("private").count()
+            session.evaluate(count_query, PureDPBudget(1))
 
         with self.assertRaisesRegex(
             RuntimeError,
