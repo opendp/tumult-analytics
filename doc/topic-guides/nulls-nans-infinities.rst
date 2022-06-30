@@ -24,7 +24,7 @@ This topic guide details how
 Constructing Sessions with Null, NaN, and infinite values
 ---------------------------------------------------------
 
-By default, Tumult Analytics will allows you to use DataFrames that contain
+By default, Tumult Analytics allows you to use DataFrames that contain
 null values, NaNs, or infinite values. Just pass in a DataFrame that
 contains those values:
 
