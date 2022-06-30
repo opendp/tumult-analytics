@@ -77,10 +77,10 @@ If a Spark session is still active when the program exits normally, this cleanup
 function will automatically delete the materialization database.
 
 If you wish to call ``spark.stop()`` before program exit, you should call
-:func:`~tmlt.core.utils.cleanup.cleanup()` first. This will delete the materialization
+:func:`~tmlt.analytics.cleanup.cleanup()` first. This will delete the materialization
 database. This function requires an active Spark session, but is otherwise safe
 to call at any time in a single-threaded program. (If
-:func:`~tmlt.core.utils.cleanup.cleanup()` is called before a materialization step,
+:func:`~tmlt.analytics.cleanup.cleanup()` is called before a materialization step,
 Core will create a new materialization database.)
 
 Finding and removing leftover temporary data
@@ -92,7 +92,12 @@ because it was terminated with Ctrl-C),
 or if the cleanup function is called without an active Spark session,
 this temporary database (and its associated folder) may not be deleted.
 
-You can delete this database by deleting its
+Analytics has a function to delete any of these folders in the current
+Spark warehouse: :func:`~tmlt.analytics.cleanup.remove_all_temp_tables`.
+As long as your program is single-threaded, it is safe to call this function
+at any time.
+
+You can also manually delete this database by deleting its
 directory from your Spark warehouse directory.
 (If you did not explicitly configure a Spark warehouse directory,
 look for a directory called ``spark-warehouse``.)
@@ -100,7 +105,7 @@ Spark represents databases as folders; the databases used
 for materialization will be folders named "``tumult_temp_<time>_<uuid>``".
 Deleting the folder will delete the database.
 
-These folders are safe to delete any time that your program is not running.
+These folders are safe to manually delete any time that your program is not running.
 
 Performance and profiling
 -------------------------
