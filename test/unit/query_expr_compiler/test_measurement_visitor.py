@@ -1,6 +1,7 @@
 """Tests for MeasurementVisitor."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 from typing import Dict, List, Optional, Tuple, Union
 from unittest import TestCase

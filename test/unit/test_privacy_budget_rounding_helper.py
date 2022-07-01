@@ -1,6 +1,7 @@
 """Tests for :mod:`tmlt.analytics._privacy_budget_rounding_helper`."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 from unittest import TestCase
 
 from typeguard import typechecked

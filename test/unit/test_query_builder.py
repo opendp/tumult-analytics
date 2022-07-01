@@ -1,6 +1,7 @@
 """Unit tests for :mod:`~tmlt.analytics.query_builder`."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 import datetime
 import re

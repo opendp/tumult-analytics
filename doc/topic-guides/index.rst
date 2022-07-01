@@ -3,6 +3,10 @@
 Topic guides
 ============
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 The following topic guides cover a variety of concepts that are fundamental
 to the Tumult Analytics library.
 

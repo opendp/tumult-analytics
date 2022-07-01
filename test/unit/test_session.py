@@ -1,6 +1,7 @@
 """Unit tests for Session."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 import re
 from typing import Any, List, Tuple, Type, Union

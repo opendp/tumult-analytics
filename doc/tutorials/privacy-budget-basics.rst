@@ -3,6 +3,11 @@
 Tutorial 2: Working with privacy budgets
 ========================================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
+
 In our :ref:`first tutorial<First steps>`, we saw how to run a simple aggregation
 query on private data. When loading the private data into a Session, we had to
 specify a *privacy budget*. This raises two kinds of questions.

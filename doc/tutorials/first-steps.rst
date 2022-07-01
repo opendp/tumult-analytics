@@ -3,6 +3,10 @@
 Tutorial 1: First steps with Tumult Analytics
 =============================================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 In this first tutorial, we will demonstrate how to load data, run a simple
 aggregation query, and get our first differentially private results. You can run
 this tutorial (as well as the next ones) as you go: simply follow the

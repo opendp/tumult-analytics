@@ -3,6 +3,10 @@
 Working with Sessions
 =====================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 This topic guide covers how to work with one of the core abstractions of Tumult
 Analytics: :class:`Session <tmlt.analytics.session.Session>`. In particular, we
 will demonstrate the different ways that a Session can be initialized and

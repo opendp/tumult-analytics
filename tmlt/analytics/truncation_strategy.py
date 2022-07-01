@@ -1,6 +1,7 @@
 """Defines strategies for performing truncation in private joins."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 from abc import ABC
 from dataclasses import dataclass

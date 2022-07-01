@@ -19,6 +19,7 @@ More details on the exact privacy promise provided by :class:`Session` can be
 found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 from enum import Enum, auto
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast

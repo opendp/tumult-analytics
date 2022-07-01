@@ -3,6 +3,10 @@
 Tutorial 5: Simple transformations
 ==================================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 So far we have learned how to perform aggregations on our data, but sometimes we need
 to transform our data before they are ready to be aggregated. In this tutorial, we'll
 demonstrate a few ways that we can transform our data using filters, maps, flat maps,

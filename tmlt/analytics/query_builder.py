@@ -24,6 +24,7 @@ differentially private results to the query.
 """
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 import datetime
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
