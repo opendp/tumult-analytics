@@ -1,6 +1,7 @@
 """Tests for QueryExpr."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 # pylint: disable=too-many-arguments
 

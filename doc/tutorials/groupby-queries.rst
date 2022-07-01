@@ -3,6 +3,10 @@
 Tutorial 4: Group-by queries
 ============================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 In all previous tutorials, all aggregations we saw were global aggregations,
 returning a single statistic for all the data. But many common data analysis
 operations are *group-by queries*: they partition the data into groups, and

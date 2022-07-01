@@ -1,9 +1,10 @@
 # pylint: skip-file
 
-import json
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
+
 import logging
 import os
-import re
 import sys
 import datetime
 

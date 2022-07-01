@@ -3,6 +3,10 @@
 Tumult Analytics' privacy promise
 =================================
 
+..
+    SPDX-License-Identifier: CC-BY-SA-4.0
+    Copyright Tumult Labs 2022
+
 This topic guide outlines the "privacy promise" provided by Tumult Analytics,
 along with its caveats. This guarantee is based on one of the core abstractions
 of Tumult Analytics: :class:`Sessions<tmlt.analytics.session.Session>`.

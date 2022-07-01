@@ -1,6 +1,7 @@
 """Tests for :mod:`tmlt.analytics.privacy_budget`."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 from unittest import TestCase
 
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget

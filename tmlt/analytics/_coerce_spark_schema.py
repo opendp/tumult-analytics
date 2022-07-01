@@ -1,6 +1,7 @@
 """Logic for coercing Spark dataframes into forms usable by Tumult Analytics."""
 
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (
