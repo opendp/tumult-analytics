@@ -204,19 +204,24 @@ function prepare-release () {
         return 1
     fi
 
-    sed -i -e "s/^## Unreleased$/## $VERSION - $DATE/" CHANGELOG.md
-    # Make sure changelog was actually updated
-    if git diff --exit-code --no-patch -- CHANGELOG.md ; then
+    # Check if this tag is a pre-release.
+    if [[ "$VERSION" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
+      echo "Version $VERSION is a pre-release, skipping updating changelog."
+    else
+      sed -i -e "s/^## Unreleased$/## $VERSION - $DATE/" CHANGELOG.md
+      # Make sure changelog was actually updated for non-prerelease version.
+      if git diff --exit-code --no-patch -- CHANGELOG.md ; then
         set +x
         echo 'Renaming of changelog "Unreleased" section failed'
         echo 'Beginning of CHANGELOG.md:'
         head -n10 CHANGELOG.md
         return 1
+      fi
+      pandoc -f markdown -t rst --wrap=preserve CHANGELOG.md -o doc/additional-resources/changelog.rst
+      # Insert a "Changelog" anchor so we can link to it correctly.
+      sed -i -e "1i .. _Changelog:\n" doc/additional-resources/changelog.rst
     fi
 
-    pandoc -f markdown -t rst --wrap=preserve CHANGELOG.md -o doc/additional-resources/changelog.rst
-    # Insert a "Changelog" anchor so we can link to it correctly.
-    sed -i -e "1i .. _Changelog:\n" doc/additional-resources/changelog.rst
     poetry lock --no-update --no-interaction
     set +x
 }
