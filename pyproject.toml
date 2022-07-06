@@ -36,7 +36,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7.1"
 
-"tmlt.core" = "^0.3.1"
+"tmlt.core" = "^0.3.3a1"
 
 numpy = "^1.18.0,<1.19.5"
 pandas = "^1.2.0"

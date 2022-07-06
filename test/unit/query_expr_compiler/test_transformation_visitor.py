@@ -243,7 +243,7 @@ class TestTransformationVisitor(PySparkTest):
     def test_invalid_private_source(self) -> None:
         """Test visiting an invalid private source."""
         query = PrivateSource(source_id="source_that_does_not_exist")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.visitor.visit_private_source(query)
 
     @parameterized.expand([({"A": "columnA"},), ({"A": "aaaaa"},)])
