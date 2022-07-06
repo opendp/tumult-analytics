@@ -194,7 +194,7 @@ class TransformationVisitor(QueryExprVisitor):
         )
         rename_transformation = RenameTransformation(
             input_domain=child.output_domain,
-            input_metric=child.output_metric,
+            metric=child.output_metric,
             rename_mapping=query.column_mapper,
         )
         return child | rename_transformation
