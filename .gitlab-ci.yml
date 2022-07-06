@@ -279,7 +279,7 @@ publish_docs:
       else
         version="$CI_COMMIT_TAG"
         # Check if this tag is a pre-release.
-        if [[ "$version" =~ ^\d+\.\d+\.\d+-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
+        if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
           echo "Version $version is a pre-release, skipping docs publication."
           exit 0
         fi

@@ -182,7 +182,7 @@ function prepare-release () {
     # Sanity check the value of $VERSION against our allowed version format --
     # this matches a subset of semantic versions, for example:
     #     0.1.2, 1.2.3-alpha.2, 1.3.0-rc.1
-    if [[ ! "$VERSION" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(alpha|beta|rc)\.(0|[1-9]\d*))?$ ]] ; then
+    if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]] ; then
         echo "Invalid \$VERSION: '$VERSION'"
         return 1
     fi
@@ -205,21 +205,21 @@ function prepare-release () {
     fi
 
     # Check if this tag is a pre-release.
-    if [[ "$VERSION" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
-      echo "Version $VERSION is a pre-release, skipping updating changelog."
+    if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
+        echo "Version $VERSION is a pre-release, skipping updating changelog."
     else
-      sed -i -e "s/^## Unreleased$/## $VERSION - $DATE/" CHANGELOG.md
-      # Make sure changelog was actually updated for non-prerelease version.
-      if git diff --exit-code --no-patch -- CHANGELOG.md ; then
-        set +x
-        echo 'Renaming of changelog "Unreleased" section failed'
-        echo 'Beginning of CHANGELOG.md:'
-        head -n10 CHANGELOG.md
-        return 1
-      fi
-      pandoc -f markdown -t rst --wrap=preserve CHANGELOG.md -o doc/additional-resources/changelog.rst
-      # Insert a "Changelog" anchor so we can link to it correctly.
-      sed -i -e "1i .. _Changelog:\n" doc/additional-resources/changelog.rst
+        sed -i -e "s/^## Unreleased$/## $VERSION - $DATE/" CHANGELOG.md
+        # Make sure changelog was actually updated for non-prerelease version.
+        if git diff --exit-code --no-patch -- CHANGELOG.md ; then
+            set +x
+            echo 'Renaming of changelog "Unreleased" section failed'
+            echo 'Beginning of CHANGELOG.md:'
+            head -n10 CHANGELOG.md
+            return 1
+        fi
+        pandoc -f markdown -t rst --wrap=preserve CHANGELOG.md -o doc/additional-resources/changelog.rst
+        # Insert a "Changelog" anchor so we can link to it correctly.
+        sed -i -e "1i .. _Changelog:\n" doc/additional-resources/changelog.rst
     fi
 
     poetry lock --no-update --no-interaction
