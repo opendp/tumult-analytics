@@ -5,7 +5,7 @@ description = "Tumult's differential privacy analytics API"
 readme = "README.md"
 authors = []
 license = "Apache-2.0"
-homepage = "www.tmlt.dev"
+homepage = "https://www.tmlt.dev/"
 repository = "https://gitlab.com/tumult-labs/analytics"
 documentation = "https://docs.tmlt.dev/analytics/latest"
 

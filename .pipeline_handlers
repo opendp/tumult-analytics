@@ -138,7 +138,7 @@ function release_handler () {
     links="<https://pypi.org/project/tmlt.analytics/|:package: Package Registry>"
     # Prereleases don't have docs published for them, so skip the docs link in
     # that case.
-    if [[ ! "$CI_COMMIT_TAG" =~ ^\d+\.\d+\.\d+-(alpha|beta|rc)\.(0|[1-9]\d*)$ ]]; then
+    if [[ ! "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
         # Convert X.Y.Z semantic version to vX.Y for docs.
         docs_version="v$(echo $CI_COMMIT_TAG | sed -E 's/^([[:digit:]]+\.[[:digit:]]+).*/\1/')"
         links="$links    <https://docs.tmlt.dev/analytics/$docs_version|:page_facing_up: Docs>"
