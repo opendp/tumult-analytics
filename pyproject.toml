@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tmlt.analytics"
-version = "0.3.0"
+version = "0.4.0-alpha.1"
 description = "Tumult's differential privacy analytics API"
 readme = "README.md"
 authors = []
