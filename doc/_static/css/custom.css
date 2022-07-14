@@ -24,3 +24,15 @@ caption {
 .tabbed-set > label {
     padding: 0.5em 0.8em;
 }
+
+/* Format for page banners. Based on the admonition styling. */
+.tmlt-banner-warning {
+  margin: 0 auto 1.5625em;
+  padding: .4rem .8rem;
+  overflow: hidden;
+  border-radius: .2rem;
+  /* from --pst-color-warning */
+  background-color: rgba(238, 144, 64, .2);
+  border-left: .2rem solid var(--pst-color-warning);
+  box-shadow: 0 .2rem .5rem var(--pst-color-shadow), 0 0 .0625rem var(--pst-color-shadow);
+}
