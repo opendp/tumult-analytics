@@ -145,7 +145,7 @@ If you encounter any issues during the installation process, please `let us know
 
     .. code-block:: bash
 
-        arch -x86_64 /usr/local/bin/brew install python@3.7
+        arch -x86_64 /usr/local/bin/brew install openjdk@8
 
     Then install python-flint with:
 
