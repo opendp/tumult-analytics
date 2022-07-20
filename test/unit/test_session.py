@@ -194,6 +194,65 @@ class TestSession(PySparkTest):
             self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
         )
 
+    @parameterized.expand(
+        [
+            (PureDPBudget(float("inf")), PureDP()),
+            (RhoZCDPBudget(float("inf")), RhoZCDP()),
+        ]
+    )
+    @patch("tmlt.analytics.session.SequentialComposition", autospec=True)
+    @patch.object(Session, "__init__", autospec=True, return_value=None)
+    def test_from_dataframe_grouped(
+        self,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        expected_output_measure: Union[PureDP, RhoZCDP],
+        mock_session_init,
+        mock_composition_init,
+    ):
+        """Tests that :func:`Session.from_dataframe` works with a grouping column."""
+        mock_composition_init.return_value = Mock(
+            spec_set=SequentialComposition,
+            return_value=Mock(
+                spec_set=SequentialComposition, output_measure=expected_output_measure
+            ),
+        )
+        mock_composition_init.return_value.privacy_budget = (
+            _privacy_budget_to_exact_number(budget)
+        )
+        mock_composition_init.return_value.d_in = {"private": 23}
+
+        Session.from_dataframe(
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            stability=23,
+            grouping_column="X",
+        )
+
+        expected_metric = (
+            IfGroupedBy("X", SumOf(SymmetricDifference()))
+            if isinstance(expected_output_measure, PureDP)
+            else IfGroupedBy("X", RootSumOfSquared(SymmetricDifference()))
+        )
+
+        mock_composition_init.assert_called_with(
+            input_domain=self.sdf_input_domain,
+            input_metric=DictMetric({"private": expected_metric}),
+            d_in={"private": 23},
+            privacy_budget=sp.oo,
+            output_measure=expected_output_measure,
+        )
+        mock_composition_init.return_value.assert_called()
+        self.assert_frame_equal_with_sort(
+            mock_composition_init.return_value.mock_calls[0][1][0][
+                "private"
+            ].toPandas(),
+            self.sdf.toPandas(),
+        )
+        mock_session_init.assert_called_with(
+            self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
+        )
+
     @patch("tmlt.analytics.session.QueryExprCompiler")
     @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_add_public_dataframe(self, mock_accountant, mock_compiler):
@@ -687,6 +746,26 @@ class TestInvalidSession(PySparkTest):
                         columns=["A", "B", ""],
                     )
                 ),
+            )
+
+    def test_invalid_grouping_column(self) -> None:
+        """Builder raises an error if table's grouping column is not in dataframe."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "Grouping column 'not_a_column' is not present in the given dataframe",
+        ):
+            Session.from_dataframe(
+                PureDPBudget(1), "private", self.sdf, grouping_column="not_a_column"
+            )
+
+        float_df = self.spark.createDataFrame(
+            pd.DataFrame({"A": [1, 2], "F": [0.1, 0.2]})
+        )
+        with self.assertRaisesRegex(
+            ValueError, "Floating-point grouping columns are not supported"
+        ):
+            Session.from_dataframe(
+                PureDPBudget(1), "private", float_df, grouping_column="F"
             )
 
     @parameterized.expand(

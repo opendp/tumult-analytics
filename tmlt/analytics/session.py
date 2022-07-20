@@ -29,6 +29,7 @@ import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
 from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
+from pyspark.sql.types import DoubleType
 from typeguard import check_type, typechecked
 
 from tmlt.analytics._catalog import Catalog
@@ -59,7 +60,13 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
 )
 from tmlt.core.measures import PureDP, RhoZCDP
-from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
+from tmlt.core.metrics import (
+    DictMetric,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
 from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
     CreateDictFromValue,
@@ -70,6 +77,7 @@ from tmlt.core.transformations.dictionary import (
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.transformations.spark_transformations.persist import Persist, Unpersist
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.type_utils import assert_never
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
@@ -80,11 +88,37 @@ class _PrivateSourceTuple(NamedTuple):
     dataframe: DataFrame
     """Private DataFrame."""
 
-    stability: int
+    stability: Union[int, float]
     """Stability of private DataFrame."""
+
+    grouping_column: Optional[str]
+    """Grouping column for the private DataFrame, if any."""
 
     domain: SparkDataFrameDomain
     """Domain of private DataFrame."""
+
+    def input_metric(
+        self, output_measure: Union[PureDP, RhoZCDP]
+    ) -> Union[SymmetricDifference, IfGroupedBy]:
+        """Build an input metric for a single private source."""
+        if self.grouping_column is None:
+            return SymmetricDifference()
+        elif isinstance(output_measure, PureDP):
+            return IfGroupedBy(self.grouping_column, SumOf(SymmetricDifference()))
+        elif isinstance(output_measure, RhoZCDP):
+            return IfGroupedBy(
+                self.grouping_column, RootSumOfSquared(SymmetricDifference())
+            )
+        else:
+            assert_never(output_measure)
+            # pylint doesn't understand assert_never, so to quiet a warning:
+            return None
+
+    def d_in(self) -> sp.Expr:
+        """Return a d_in for this private source."""
+        if isinstance(self.stability, int):
+            return sp.Integer(self.stability)
+        return sp.Rational(self.stability)
 
 
 class PrivacyDefinition(Enum):
@@ -148,18 +182,17 @@ class Session:
                 source_id: source_tuple.dataframe
                 for source_id, source_tuple in self._private_sources.items()
             }
-
             input_metric = DictMetric(
                 {
-                    source_id: SymmetricDifference()
-                    for source_id in self._private_sources
+                    source_id: source_tuple.input_metric(output_measure)
+                    for source_id, source_tuple in self._private_sources.items()
                 }
             )
             measurement = SequentialComposition(
                 input_domain=input_domain,
                 input_metric=input_metric,
                 d_in={
-                    source_id: sp.Integer(source_tuple.stability)
+                    source_id: source_tuple.d_in()
                     for source_id, source_tuple in self._private_sources.items()
                 },
                 privacy_budget=sympy_budget,
@@ -186,7 +219,11 @@ class Session:
             return self
 
         def with_private_dataframe(
-            self, source_id: str, dataframe: DataFrame, stability: int = 1
+            self,
+            source_id: str,
+            dataframe: DataFrame,
+            stability: Union[int, float] = 1,
+            grouping_column: Optional[str] = None,
         ) -> "Session.Builder":
             """Adds a Spark DataFrame as a private source.
 
@@ -198,18 +235,36 @@ class Session:
                 source_id: Source id for the private source dataframe.
                 dataframe: Private source dataframe to perform queries on,
                     corresponding to the `source_id`.
-                stability: Maximum number of rows that may be added or removed if
-                    a single individual is added or removed.
+                stability: Maximum number of rows that may be added or removed
+                    if a single individual is added or removed. If using RhoZCDP
+                    and a grouping column, this should instead be the maximum
+                    number of rows that an individual can contribute to each
+                    group times the *square root* of the maximum number of
+                    groups each user can contribute to.
+                grouping_column: An input column that must be grouped on, like
+                    those generated when calling
+                    :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`
+                    with the ``grouping`` option set.
             """
             _assert_is_identifier(source_id)
             if stability < 1:
                 raise ValueError("Stability must be a positive integer.")
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
+            if grouping_column is not None:
+                if grouping_column not in dataframe.columns:
+                    raise ValueError(
+                        f"Grouping column '{grouping_column}' is not present in the"
+                        " given dataframe"
+                    )
+                if isinstance(dataframe.schema[grouping_column].dataType, DoubleType):
+                    raise ValueError(
+                        "Floating-point grouping columns are not supported"
+                    )
             dataframe = coerce_spark_schema_or_fail(dataframe)
             domain = SparkDataFrameDomain.from_spark_schema(dataframe.schema)
             self._private_sources[source_id] = _PrivateSourceTuple(
-                dataframe, stability, domain
+                dataframe, stability, grouping_column, domain
             )
             return self
 
@@ -283,7 +338,8 @@ class Session:
         privacy_budget: PrivacyBudget,
         source_id: str,
         dataframe: DataFrame,
-        stability: int = 1,
+        stability: Union[int, float] = 1,
+        grouping_column: Optional[str] = None,
     ) -> "Session":
         """Initializes a DP session from a Spark dataframe.
 
@@ -328,15 +384,26 @@ class Session:
             source_id: The source id for the private source dataframe.
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
-            stability: The maximum number of rows that could be added or removed if
-                a single individual is added or removed.
+            stability: Maximum number of rows that may be added or removed if a
+                single individual is added or removed. If using RhoZCDP and a
+                grouping column, this should instead be the maximum number of
+                rows that an individual can contribute to each group times the
+                *square root* of the maximum number of groups each user can
+                contribute to.
+            grouping_column: An input column that must be grouped on, like those
+                generated when calling
+                :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` with
+                the ``grouping`` option set.
         """
         # pylint: enable=line-too-long
         session_builder = (
             Session.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
             .with_private_dataframe(
-                source_id=source_id, dataframe=dataframe, stability=stability
+                source_id=source_id,
+                dataframe=dataframe,
+                stability=stability,
+                grouping_column=grouping_column,
             )
         )
         return session_builder.build()
