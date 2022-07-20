@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+### Added
+- `Session.from_dataframe` and `Session.Builder.with_private_dataframe` now have a `grouping_column` option and support non-integer stabilities.
+  This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
+  This is an advanced feature, and should be used carefully.
+
 ## 0.3.0 - 2022-06-23
 ### Added
 - Added `QueryBuilder.bin_column` and an associated `BinningSpec` type.

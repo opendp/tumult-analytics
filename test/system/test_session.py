@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2022
 
 import datetime
+import math
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 from unittest.mock import patch
 
@@ -1286,6 +1287,25 @@ class TestEvaluate(PySparkTest):
 
     @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
     def test_partition_on_grouping_column(self, budget: PrivacyBudget):
+        """Tests that you can partition on grouping columns."""
+        grouping_df = self.spark.createDataFrame(pd.DataFrame({"new": [1, 2]}))
+        session = Session.from_dataframe(
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf.crossJoin(grouping_df),
+            grouping_column="new",
+        )
+        new_sessions = session.partition_and_create(
+            source_id="private",
+            privacy_budget=budget,
+            attr_name="new",
+            splits={"new1": 1, "new2": 2},
+        )
+        new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
+        new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
+
+    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    def test_partition_on_flatmap_grouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on columns created by grouping flat maps."""
         session = Session.from_dataframe(
             privacy_budget=budget, source_id="private", dataframe=self.sdf
@@ -1483,6 +1503,23 @@ class TestEvaluate(PySparkTest):
         self.assertEqual(
             len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 0
         )
+
+    def test_grouping_noninteger_stability(self) -> None:
+        """Test that zCDP grouping_column and non-integer stabilities work."""
+        grouped_df = self.spark.createDataFrame(
+            pd.DataFrame({"id": [7, 7, 8, 9], "group": [0, 1, 0, 1]})
+        )
+        ks = KeySet.from_dict({"group": [0, 1]})
+        query = QueryBuilder("id").groupby(ks).count()
+
+        sess = Session.from_dataframe(
+            RhoZCDPBudget(float("inf")),
+            "id",
+            grouped_df,
+            stability=math.sqrt(2),
+            grouping_column="group",
+        )
+        sess.evaluate(query, RhoZCDPBudget(1))
 
 
 class TestInvalidSession(PySparkTest):
