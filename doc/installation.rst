@@ -5,8 +5,6 @@ Installation instructions
 
 This guide will help you set up Tumult Analytics on your local machine.
 
-If you are interested in trying Tumult Analytics without installing to your local machine, you can try it out on Google Colab. `This notebook <https://colab.research.google.com/drive/160hHL5y3RnVB6TafIHTXvYfQfr6hA-qk?usp=sharing>`__ contains :ref:`tutorial 1 <First steps>`.
-
 Prerequisites
 ^^^^^^^^^^^^^
 

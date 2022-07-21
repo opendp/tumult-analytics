@@ -10,7 +10,7 @@ Tutorial 5: Simple transformations
 So far we have learned how to perform aggregations on our data, but sometimes we need
 to transform our data before they are ready to be aggregated. In this tutorial, we'll
 demonstrate a few ways that we can transform our data using filters, maps, flat maps,
-and public joins.
+binning, and public joins.
 
 Setup
 -----
@@ -94,15 +94,12 @@ transformations can be similarly expressed.
 Maps
 ----
 
-So far if we wanted to create a histogram of age and gender, we would have needed to use
-separate keys for each age. Instead, we will show how we can use age ranges as keys.
-
-First, we need to decide on what bins we want to use for ages. Let's use groups of
-10 years. So 0-9, 10-19, and so on.
+Suppose we want to create a histogram displaying the age each library member was when they 
+joined.
 
 To do this, we will need a mapping function that takes in a row from our data as a
-dictionary and returns a new row. In this case, the new row will have a single column
-containing the binned age.
+dictionary and returns a new row. In this case, the new row will have a different column
+containing the calculated age. 
 
 .. note::
 
@@ -112,12 +109,13 @@ containing the binned age.
 
 .. testcode::
 
-    def bin_age(row):
-        age = row["age"]
-        lower = age - age%10  # for age=37, age%10 is 7, so lower = 30
-        upper = lower + 9
-        return {"binned_age": f"{lower}-{upper}"}
-
+    from datetime import datetime as dt
+    
+    def age_joined(row):
+        year_joined = row["date_joined"][:4]
+        age_at_joining = row["age"] - (dt.today().year - int(year_joined))
+        return {"age_joined": age_at_joining}
+    
     example_row = {
         "id": 421742,
         "name": "Panfilo",
@@ -127,65 +125,62 @@ containing the binned age.
         "zip_code": 27513,
         "books_borrowed": 32,
         "favorite_genres": "Romance;Classics/Literature;Current affairs",
-        "date_joined": 2021-12-22,
+        "date_joined": "2021-12-22",
     }
-    print(bin_age(example_row))
+
+    print(age_joined(example_row))
 
 .. testoutput::
 
-    {'binned_age': '50-59'}
+    {'age_joined': 50}
 
 Now that we have our mapping function, we can use it in a query.
 
 To add the map to our query, we also need to provide the `new_column_types`. It should
 be a dictionary containing the names and types for each of the columns created by the
-map.
+map. In this case, the type is `INTEGER`. 
 
 We also set `augment=True`. This tells the query to keep the original columns in
 addition to the columns created by the map. If we used `augment=False`, the `gender`
 column would no longer be available: the only column in the transformed data would be
-`binned_age`.
+`age_joined`.
 
 .. testcode::
 
     from tmlt.analytics.query_builder import ColumnType
 
-    binned_age_gender_keys = KeySet.from_dict(
-        {
-            "binned_age": [f"{10 * i}-{10 * i + 9}" for i in range(12)],
-            "gender": ["female", "male", "nonbinary", "unspecified"],
-        }
-    )
-    binned_age_gender_count_query = (
+    ages = list(range(0, 100))  # [0, 6, ..., 99]
+    age_keys = KeySet.from_dict({"age_joined": ages})
+
+    age_joined_count_query = (
         QueryBuilder("members")
-        .map(bin_age, new_column_types={"binned_age": ColumnType.VARCHAR}, augment=True)
-        .groupby(binned_age_gender_keys)
+        .map(age_joined, new_column_types={"age_joined": ColumnType.INTEGER}, augment=True)
+        .groupby(age_keys)
         .count()
     )
-    binned_age_gender_counts = session.evaluate(
-        binned_age_gender_count_query,
+
+    age_joined_counts = session.evaluate(
+        age_joined_count_query,
         privacy_budget=PureDPBudget(epsilon=1),
     )
 
 .. code-block::
 
-   gender_order = ["female", "male", "nonbinary", "unspecified"]
-   sns.barplot(
-       x="binned_age",
-       y="count",
-       hue="gender",
-       hue_order=gender_order,
-       data=binned_age_gender_counts.toPandas()
-   )
-   plt.ylim(0, 1300)
-   plt.title("Favorite genres")
-   plt.xlabel("Age")
-   plt.ylabel("Count")
-   plt.legend(loc="upper left")
-   plt.show()
+    sns.set(rc = {'figure.figsize':(9,6)})
+    sns.barplot(
+        x="age_joined",
+        y="count",
+        data=age_joined_counts.toPandas()
+    )
+    plt.xticks([10*i for i in range(1, 10)])
+    plt.ylim(0, 1300)
+    plt.title("Age of Library Members at Joining")
+    plt.xlabel("Age")
+    plt.ylabel("Count")
+    plt.tick_params(axis='both', which='major', labelsize=10)
+    plt.show()
 
-.. image:: ../images/chart_counts_age_gender.png
-    :scale: 100%
+.. image:: ../images/chart_age_at_joining.png
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
@@ -219,7 +214,7 @@ each of their favorite genres (up to three times as many rows).
         "zip_code": 27513,
         "books_borrowed": 32,
         "favorite_genres": "Romance;Classics/Literature;Current affairs",
-        "date_joined": 2021-12-22,
+        "date_joined": "2021-12-22",
     }
     print(expand_genre(example_row))
 
@@ -295,12 +290,104 @@ there are many members with three, so we set `max_num_rows=3`.
     plt.show()
 
 .. image:: ../images/chart_favorite_genres.png
-    :scale: 100%
     :alt: A bar chart plotting the count of members favoring each genre. The chart is sorted so that the genres are in descending order of popularity, starting with "Mystery/thriller/crime"
     :align: center
 
+Binning
+-----------
+
+So far if we wanted to create a histogram of age and gender, we would have needed to use
+separate keys for each age. Instead, we will show how we can use age ranges as keys.
+
+First, we need to decide on what bins we want to use for ages. Let's use groups of
+10 years. So 0-9, 10-19, and so on.
+
+The simplest way to do this is to define a :class:`~tmlt.analytics.binning_spec.BinningSpec` object, 
+which allows us to assign values to bins based on a list of bin edges.
+
+
+.. testcode::
+    
+    from tmlt.analytics.binning_spec import BinningSpec
+    # bin edges at [0, 10, 20,...,100]
+    age_binspec = BinningSpec(bin_edges = [10*i for i in range(0, 11)]) 
+
+    example_row = {
+        "id": 421742,
+        "name": "Panfilo",
+        "age": 51,
+        "gender": "male",
+        "education_level": "doctorate-professional",
+        "zip_code": 27513,
+        "books_borrowed": 32,
+        "favorite_genres": "Romance;Classics/Literature;Current affairs",
+        "date_joined": "2021-12-22",
+    }
+    
+    
+    age = example_row["age"]
+    print(age_binspec(age))
+
+.. testoutput::
+
+    (50, 60] 
+
+Now that we have our bins specified, we can use them in a query. 
+
+To add the bins to our query, we use the :meth:`bin_column<tmlt.analytics.query_builder.QueryBuilder.bin_column>` 
+feature of the QueryBuilder interface, which creates a new column by 
+assigning the values in a given column to bins. Here, we provide the column 
+we want to bin and the BinningSpec object, as well as the optional `name` parameter
+to specify the name of the new column. 
+
+
+.. testcode::
+
+    from tmlt.analytics.query_builder import ColumnType
+
+    binned_age_gender_keys = KeySet.from_dict(
+        {
+            "binned_age": age_binspec.bins(),
+            "gender": ["female", "male", "nonbinary", "unspecified"],
+        }
+    )
+    binned_age_gender_count_query = (
+        QueryBuilder("members")
+        .bin_column("age", age_binspec, name="binned_age")
+        .groupby(binned_age_gender_keys)
+        .count()
+    )
+    binned_age_gender_counts = session.evaluate(
+        binned_age_gender_count_query,
+        privacy_budget=PureDPBudget(epsilon=1),
+    )
+
+.. code-block::
+
+    gender_order = ["female", "male", "nonbinary", "unspecified"]
+    sns.set(rc = {'figure.figsize':(9,6)})
+    sns.barplot(
+        x="binned_age",
+        y="count",
+        order = age_binspec.bins(),
+        hue="gender",
+        hue_order=gender_order,
+        data=binned_age_gender_counts.toPandas()
+    )
+    plt.ylim(0, 6000)
+    plt.title("Count of Library Members, by Age and Gender")
+    plt.xlabel("Age")
+    plt.ylabel("Count")
+    plt.tick_params(axis='both', which='major', labelsize=10)
+    plt.legend(loc="upper left")
+    plt.show()
+
+.. image:: ../images/chart_counts_age_gender.png
+    :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
+    :align: center
+
 Public joins
-------------
+--------------
 
 Another common transformation is joining our private data with public data. In this
 example, we will augment our private data with the city, count, and population for each
