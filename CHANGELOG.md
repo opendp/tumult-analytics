@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2022-07-22
 ### Added
 - `Session.from_dataframe` and `Session.Builder.with_private_dataframe` now have a `grouping_column` option and support non-integer stabilities.
   This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
