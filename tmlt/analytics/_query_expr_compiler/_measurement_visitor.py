@@ -505,7 +505,7 @@ class MeasurementVisitor(QueryExprVisitor):
             measure_desc = child_schema[query.measure_column]
         except KeyError:
             raise KeyError(
-                "Measure column '{query.measure_column}' is not in the input schema."
+                f"Measure column '{query.measure_column}' is not in the input schema."
             )
         # If null or NaN values are allowed ...
         if measure_desc.allow_null or (
