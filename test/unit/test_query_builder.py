@@ -537,6 +537,69 @@ class TestTransformations(PySparkTest):
         self.assertEqual(getattr(map_expr, "f")({"A": 0.5}), {"rounded": 0})
         self.assertEqual(getattr(map_expr, "f")({"A": 1.5}), {"rounded": 1})
 
+    def test_histogram(self):
+        """QueryBuilder.histogram works as expected."""
+        spec = BinningSpec([0, 5, 10])
+
+        query = self.root_builder.histogram("A", spec)
+
+        assert isinstance(query, GroupByCount)
+        map_expr = query.child
+        assert isinstance(map_expr, Map)
+
+        self.assertEqual(
+            map_expr.schema_new_columns,
+            Schema(
+                {
+                    "A_binned": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
+        )
+
+        self.assertTrue(map_expr.augment)
+        root_expr = map_expr.child
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        self.assertEqual(getattr(map_expr, "f")({"A": 3}), {"A_binned": "[0, 5]"})
+        self.assertEqual(getattr(map_expr, "f")({"A": 7}), {"A_binned": "(5, 10]"})
+
+    def test_histogram_options(self):
+        """QueryBuilder.histogram works as expected, with options."""
+
+        query = self.root_builder.histogram("A", [0, 5, 10], name="New")
+
+        assert isinstance(query, GroupByCount)
+        map_expr = query.child
+        assert isinstance(map_expr, Map)
+
+        self.assertEqual(
+            map_expr.schema_new_columns,
+            Schema(
+                {
+                    "New": ColumnDescriptor(
+                        ColumnType.VARCHAR,
+                        allow_null=True,
+                        allow_nan=True,
+                        allow_inf=True,
+                    )
+                }
+            ),
+        )
+
+        self.assertTrue(map_expr.augment)
+        root_expr = map_expr.child
+        assert isinstance(root_expr, PrivateSource)
+        self.assertEqual(root_expr.source_id, PRIVATE_ID)
+
+        self.assertEqual(getattr(map_expr, "f")({"A": 3}), {"New": "[0, 5]"})
+        self.assertEqual(getattr(map_expr, "f")({"A": 7}), {"New": "(5, 10]"})
+
     @parameterized.expand(
         [
             ({},),

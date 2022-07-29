@@ -87,10 +87,10 @@ class BinningSpec(Generic[BinT, BinNameT]):
     <tmlt.analytics.session.SUPPORTED_SPARK_TYPES>` can be binned using a
     BinningSpec.
 
-    Values outside the range of the provided bins are mapped to ``None``
-    (``null`` in Spark), as are ``None`` and for floats NaN (by default). Bin
-    names are generated based on the bin edges, but custom names can be provided
-    instead.
+    Values outside the range of the provided bins, ``None`` types,
+    and NaN values are all mapped to ``None`` (``null`` in Spark).
+    Bin names are generated based on the bin edges, but custom names can be provided.
+
 
     Examples:
         >>> spec = BinningSpec([0,5,10])

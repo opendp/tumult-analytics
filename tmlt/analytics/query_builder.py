@@ -32,7 +32,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
-from tmlt.analytics.binning_spec import BinningSpec
+from tmlt.analytics.binning_spec import BinningSpec, BinT
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -1093,6 +1093,78 @@ class QueryBuilder:
         return self.map(
             binning_fn, new_column_types={name: spec.output_type}, augment=True
         )
+
+    def histogram(
+        self,
+        column: str,
+        bin_edges: Union[Sequence[BinT], BinningSpec],
+        name: Optional[str] = None,
+    ) -> "QueryExpr":
+        """Returns a count query containing the frequency of values in specified column.
+
+        ..
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> from tmlt.analytics.session import Session
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.keyset import KeySet
+            >>> from pyspark.sql import SparkSession
+            >>> import pandas as pd
+            >>> spark = SparkSession.builder.getOrCreate()
+
+        Example:
+            >>> from tmlt.analytics.binning_spec import BinningSpec
+            >>> private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         {
+            ...          "income_thousands": [83, 85, 86, 73, 82, 95,
+            ...                               74, 92, 71, 86, 97]
+            ...         }
+            ...     )
+            ... )
+            >>> session = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(epsilon=float('inf')),
+            ...     source_id="private_data",
+            ...     dataframe=private_data,
+            ... )
+            >>> income_binspec = BinningSpec(
+            ...     bin_edges=[i for i in range(70,110,10)],
+            ...     include_both_endpoints=False
+            ... )
+            >>> binned_income_count_query = (
+            ...     QueryBuilder("private_data")
+            ...     .histogram("income_thousands", income_binspec, "income_binned")
+            ... )
+            >>> binned_income_counts = session.evaluate(
+            ...     binned_income_count_query,
+            ...     privacy_budget=PureDPBudget(epsilon=10),
+            ... )
+            >>> print(binned_income_counts.sort("income_binned").toPandas())
+              income_binned  count
+            0      (70, 80]      3
+            1      (80, 90]      5
+            2     (90, 100]      3
+
+        Args:
+            column: Name of the column used to assign bins.
+            bin_edges: The bin edges for the histogram; provided as either a
+                :class:`~tmlt.analytics.binning_spec.BinningSpec` or as a list of
+                :data:`supported data types
+                <tmlt.analytics.session.SUPPORTED_SPARK_TYPES>`.
+                Values outside the range of the provided bins, ``None`` types,
+                and NaN values are all mapped to ``None`` (``null`` in Spark).
+
+            name: The name of the column that will be created. If None (the default),
+                the input column name with ``_binned`` appended to it.
+        """
+        if not isinstance(bin_edges, BinningSpec):
+            spec = BinningSpec(bin_edges)
+        else:
+            spec = bin_edges
+        if not name:
+            name = column + "_binned"
+
+        keys = KeySet.from_dict({name: spec.bins()})
+        return self.bin_column(column, spec, name).groupby(keys).count()
 
     def groupby(self, keys: KeySet) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.

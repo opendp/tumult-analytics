@@ -386,6 +386,10 @@ to specify the name of the new column.
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
+Also available is the :meth:`histogram<tmlt.analytics.query_builder.QueryBuilder.histogram>` 
+method, which provides a shorthand syntax for obtaining binned counts in 
+simple cases. 
+
 Public joins
 --------------
 
