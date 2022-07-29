@@ -425,6 +425,13 @@ EVALUATE_TESTS = [
         None,
         pd.DataFrame({"X_binned": ["0,1", "2,3"], "count": [2, 2]}),
     ),
+    (  # Histogram Syntax
+        QueryBuilder("private").histogram(
+            "X", BinningSpec([0, 2, 4], names=["0,1", "2,3"], right=False)
+        ),
+        None,
+        pd.DataFrame({"X_binned": ["0,1", "2,3"], "count": [2, 2]}),
+    ),
     (  # GroupByCount Filter
         QueryBuilder("private").filter("A == '0'").count(),
         GroupByCount(

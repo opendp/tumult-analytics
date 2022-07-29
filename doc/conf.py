@@ -135,6 +135,7 @@ nitpick_ignore = [
     ("py:class", "DF"),
     ("py:class", "Row"),
     ("py:class", "BinT"),
+    ("py:class", "tmlt.analytics.binning_spec.BinT"),
     ("py:class", "BinNameT"),
     ("py:class", "Generic[BinT, BinNameT]"),
     ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),

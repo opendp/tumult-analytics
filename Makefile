@@ -52,7 +52,8 @@ endef
 
 .PHONY: clean
 clean:
-	@git clean -X -n -- $(foreach f, $(clean-files),'$(f)')
+	@set -x 
+	git clean -X -n -- $(foreach f, $(clean-files),'$(f)')
 	read -p "Cleaning would remove the above files. Continue? [y/N] " CLEAN
 	if [[ "$$CLEAN" = "y" || "$$CLEAN" = "yes" ]]; then
 		git clean -X -f -- $(foreach f, $(clean-files),'$(f)')

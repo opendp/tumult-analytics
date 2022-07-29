@@ -136,3 +136,6 @@ safetab/tmlt/safetab/input-dir/
 
 # PyCharm
 .idea/
+
+# VS Code
+.vscode/
