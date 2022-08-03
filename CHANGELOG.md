@@ -1,6 +1,7 @@
 # Changelog
 ## Unreleased
 - Added `QueryBuilder.histogram` function, which provides a shorthand for generating binned data counts.
+- Improved documentation for `QueryBuilder.map` and `QueryBuilder.flat_map`.
 
 ## 0.4.0 - 2022-07-22
 ### Added
