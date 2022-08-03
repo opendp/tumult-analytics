@@ -66,7 +66,13 @@ class ColumnType(Enum):
 class ColumnDescriptor:
     """Information about a column.
 
-    Currently contains the column's type and whether the column is nullable.
+    ColumnDescriptors have the following attributes:
+
+    Attributes:
+        column_type: A :class:`ColumnType`, specifying what type this column has.
+        allow_null: :class:`bool`. If `True`, this column allows null values.
+        allow_nan: :class:`bool`. If `True`, this column allows NaN values.
+        allow_inf: :class:`bool`. If `True`, this column allows infinite values.
     """
 
     column_type: ColumnType

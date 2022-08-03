@@ -899,8 +899,17 @@ class QueryBuilder:
 
         Args:
             f: The function to be applied to each row.
+                The function's input is a dictionary matching each column name to
+                its value for that row.
+                This function should return a dictionary, which should always
+                have the same keys regardless of input, and the values in that
+                dictionary should match the column type specified in
+                `new_column_types`. The function should not have any side effects
+                (in particular, f cannot raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
-                produced by f. Using ColumnDescriptors is preferred.
+                produced by f. Using
+                :class:`tmlt.analytics.query_builder.ColumnDescriptor`
+                is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
                      If False, make the new dataframe with schema = schema_new_columns
@@ -936,12 +945,14 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.keyset import KeySet
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
             >>> private_data = spark.createDataFrame(
             ...     pd.DataFrame(
-            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["1", 3, 1]],
+            ...         columns=["A", "B", "X"]
             ...     )
             ... )
             >>> budget = PureDPBudget(float("inf"))
@@ -960,12 +971,16 @@ class QueryBuilder:
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .flat_map(
-            ...         lambda row: [{}, {}],
-            ...         max_num_rows=2,
-            ...         new_column_types={},
+            ...         lambda row: [{"i_B": i} for i in range(int(row["B"])+1)],
+            ...         max_num_rows=3,
+            ...         new_column_types={"i_B": ColumnDescriptor(
+            ...             ColumnType.INTEGER,
+            ...             allow_null=False,
+            ...         )},
             ...         augment=True,
             ...         grouping=False
             ...     )
+            ...     .groupby(KeySet.from_dict({"B": [0, 1, 2, 3]}))
             ...     .count()
             ... )
             >>> # Answering the query with infinite privacy budget
@@ -973,15 +988,30 @@ class QueryBuilder:
             ...     query,
             ...     PureDPBudget(float("inf"))
             ... )
-            >>> answer.toPandas()
-               count
-            0      6
+            >>> answer.sort("B").toPandas()
+               B  count
+            0  0      1
+            1  1      2
+            2  2      3
+            3  3      3
 
         Args:
-            f: The function to apply to each row.
+            f: The function to be applied to each row.
+                The function's input is a dictionary matching a column name to
+                its value for that row.
+                This function should return a list of dictionaries.
+                Those dictionaries should always
+                have the same keys regardless of input, and the values in those
+                dictionaries should match the column type specified in
+                `new_column_types`. The function should not have any side effects
+                (in particular, f cannot raise exceptions).
             max_num_rows: The enforced limit on the number of rows from each f(row).
+                If f produces more rows than this, only the first `max_num_rows`
+                rows will be in the output.
             new_column_types: Mapping from column names to types, for new columns
-                produced by f. Using ColumnDescriptors is preferred.
+                produced by f. Using
+                :class:`tmlt.analytics.query_builder.ColumnDescriptor`
+                is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
                      If False, make the new dataframe with schema = schema_new_columns
