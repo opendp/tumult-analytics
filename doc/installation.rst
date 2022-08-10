@@ -61,6 +61,7 @@ If you encounter any issues during the installation process, please `let us know
     .. code-block:: bash
 
         pip3 install -i https://d3p0voevd56kj6.cloudfront.net python-flint
+    
 
 .. tabbed:: Linux (Red Hat-based)
 
@@ -157,6 +158,15 @@ If you encounter any issues during the installation process, please `let us know
 
     Once you install your preferred Linux distribution with WSL, follow the corresponding Linux installation instructions to get Tumult Core setup.
 
+
+.. note::
+    Tumult's wheels for python-flint may require a newer version of pip than is included your Python version. If you encounter an error during installation, try upgrading with:
+    
+    .. code-block:: bash
+
+        pip3 install --upgrade pip
+    
+    Then retry installation. 
 
 Installation
 ^^^^^^^^^^^^
