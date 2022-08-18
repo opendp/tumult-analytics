@@ -201,10 +201,11 @@ Now, what happens if we try to consume *more* budget than what we have left?
    )
 
 .. testoutput::
-   :options: +IGNORE_EXCEPTION_DETAIL
+   :options: +NORMALIZE_WHITESPACE
 
    Traceback (most recent call last):
-   RuntimeError: Cannot answer measurement without exceeding maximum privacy loss: it needs 1, but the remaining budget is 1/2
+   RuntimeError: Cannot answer query without exceeding privacy budget: it needs 
+   approximately 1.000, but the remaining budget is approximately 0.500 (difference: 5.000e-01)
 
 The ``evaluate`` call returns an error. This is how the Session enforces its
 privacy promise: it makes sure that the queries cannot consume more than the
