@@ -28,6 +28,9 @@ Tumult Analytics is…
 
 New users probably want to start with the :ref:`installation instructions`.
 
+Alternatively, to try Tumult Analytics *without* installing it, you can run
+`this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO?usp=sharing>`__.
+
 .. panels::
    :card: + intro-card text-center
    :column: col-lg-6 col-md-6 col-sm-6 col-xs-12 p-2
