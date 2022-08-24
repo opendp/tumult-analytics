@@ -40,7 +40,8 @@ $(foreach target, $(targets), $(eval $(call make-target,$(target))))
 ################################################################################
 
 define clean-files
-**/*.pyc
+tmlt/**/__pycache__/
+test/**/__pycache__/
 junit.xml
 coverage.xml
 .coverage
@@ -52,9 +53,8 @@ endef
 
 .PHONY: clean
 clean:
-	@set -x 
-	git clean -X -n -- $(foreach f, $(clean-files),'$(f)')
+	@git clean -x -n -- $(foreach f, $(clean-files),'$(f)')
 	read -p "Cleaning would remove the above files. Continue? [y/N] " CLEAN
 	if [[ "$$CLEAN" = "y" || "$$CLEAN" = "yes" ]]; then
-		git clean -X -f -- $(foreach f, $(clean-files),'$(f)')
+		git clean -x -f -- $(foreach f, $(clean-files),'$(f)')
 	fi

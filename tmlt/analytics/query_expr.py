@@ -494,19 +494,26 @@ class JoinPublic(QueryExpr):
             if not isinstance(other.public_table, DataFrame):
                 return False
             # Make sure both dataframes contain the same data, in any order
+            # TODO(#2107): Fix typing once Pandas has working type stubs
             self_table = self.public_table.toPandas()
             other_table = other.public_table.toPandas()
-            if sorted(self_table.columns) != sorted(other_table.columns):
+            if sorted(self_table.columns) != sorted(  # type: ignore
+                other_table.columns  # type: ignore
+            ):
                 return False
-            if not self_table.empty and not other_table.empty:
-                sort_columns = list(self_table.columns)
+            if not self_table.empty and not other_table.empty:  # type: ignore
+                sort_columns = list(self_table.columns)  # type: ignore
                 self_table = (
-                    self_table.set_index(sort_columns).sort_index().reset_index()
+                    self_table.set_index(sort_columns)  # type: ignore
+                    .sort_index()
+                    .reset_index()
                 )
                 other_table = (
-                    other_table.set_index(sort_columns).sort_index().reset_index()
+                    other_table.set_index(sort_columns)  # type: ignore
+                    .sort_index()
+                    .reset_index()
                 )
-                if not self_table.equals(other_table):
+                if not self_table.equals(other_table):  # type: ignore
                     return False
         return self.join_columns == other.join_columns and self.child == other.child
 

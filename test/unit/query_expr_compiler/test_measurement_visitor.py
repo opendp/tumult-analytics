@@ -382,7 +382,9 @@ class TestMeasurementVisitor(PySparkTest):
     ) -> None:
         """Test _pick_noise_for_count for GroupByCount query expressions."""
         query = GroupByCount(
-            child=self.base_query, groupby_keys=KeySet({}), mechanism=query_mechanism
+            child=self.base_query,
+            groupby_keys=KeySet.from_dict({}),
+            mechanism=query_mechanism,
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -420,7 +422,9 @@ class TestMeasurementVisitor(PySparkTest):
     ) -> None:
         """Test _pick_noise_for_count for GroupByCountDistinct query expressions."""
         query = GroupByCountDistinct(
-            child=self.base_query, groupby_keys=KeySet({}), mechanism=query_mechanism
+            child=self.base_query,
+            groupby_keys=KeySet.from_dict({}),
+            mechanism=query_mechanism,
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -504,7 +508,7 @@ class TestMeasurementVisitor(PySparkTest):
             low=0,
             high=0,
             mechanism=query_mechanism,
-            groupby_keys=KeySet({}),
+            groupby_keys=KeySet.from_dict({}),
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -594,7 +598,7 @@ class TestMeasurementVisitor(PySparkTest):
             low=0,
             high=0,
             mechanism=query_mechanism,
-            groupby_keys=KeySet({}),
+            groupby_keys=KeySet.from_dict({}),
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -684,7 +688,7 @@ class TestMeasurementVisitor(PySparkTest):
             low=0,
             high=0,
             mechanism=query_mechanism,
-            groupby_keys=KeySet({}),
+            groupby_keys=KeySet.from_dict({}),
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -774,7 +778,7 @@ class TestMeasurementVisitor(PySparkTest):
             low=0,
             high=0,
             mechanism=query_mechanism,
-            groupby_keys=KeySet({}),
+            groupby_keys=KeySet.from_dict({}),
         )
         self.visitor.output_measure = output_measure
         # pylint: disable=protected-access
@@ -819,7 +823,7 @@ class TestMeasurementVisitor(PySparkTest):
                 low=0,
                 high=0,
                 mechanism=mechanism,
-                groupby_keys=KeySet({}),
+                groupby_keys=KeySet.from_dict({}),
             )
         elif isinstance(mechanism, StdevMechanism):
             query = GroupByBoundedSTDEV(
@@ -828,7 +832,7 @@ class TestMeasurementVisitor(PySparkTest):
                 low=0,
                 high=0,
                 mechanism=mechanism,
-                groupby_keys=KeySet({}),
+                groupby_keys=KeySet.from_dict({}),
             )
         elif isinstance(mechanism, SumMechanism):
             query = GroupByBoundedSum(
@@ -837,7 +841,7 @@ class TestMeasurementVisitor(PySparkTest):
                 low=0,
                 high=0,
                 mechanism=mechanism,
-                groupby_keys=KeySet({}),
+                groupby_keys=KeySet.from_dict({}),
             )
         elif isinstance(mechanism, VarianceMechanism):
             query = GroupByBoundedVariance(
@@ -846,7 +850,7 @@ class TestMeasurementVisitor(PySparkTest):
                 low=0,
                 high=0,
                 mechanism=mechanism,
-                groupby_keys=KeySet({}),
+                groupby_keys=KeySet.from_dict({}),
             )
         else:
             assert_never(mechanism)
