@@ -16,6 +16,7 @@ from typing import Mapping as MappingType
 from typing import Optional, Union, cast
 
 from pyspark.sql.types import (
+    DataType,
     DateType,
     DoubleType,
     FloatType,
@@ -208,7 +209,7 @@ class Schema(Mapping):
         return f"Schema({self.column_descs})"
 
 
-_SPARK_TO_ANALYTICS = {
+_SPARK_TO_ANALYTICS: Dict[DataType, ColumnType] = {
     IntegerType(): ColumnType.INTEGER,
     LongType(): ColumnType.INTEGER,
     DoubleType(): ColumnType.DECIMAL,

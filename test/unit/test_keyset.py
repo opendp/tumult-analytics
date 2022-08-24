@@ -421,13 +421,14 @@ class TestKeySet(PySparkTest):
     # parameterized for the same reason as test_filter_expr.
     def test_filter_to_empty(self) -> None:
         """Test when KeySet.filter should return an empty dataframe, it does"""
+        # TODO(#2107): Fix typing once Pandas has working type stubs
         keyset = KeySet.from_dict({"A": [-1, -2, -3]})
         filtered = keyset.filter("A > 0")
-        self.assertTrue(filtered.dataframe().toPandas().empty)
+        self.assertTrue(filtered.dataframe().toPandas().empty)  # type: ignore
 
         keyset2 = KeySet.from_dict({"A": ["a1", "a2", "a3"], "B": ["irrelevant"]})
         filtered2 = keyset2.filter(keyset2.dataframe().A == "string that is not there")
-        self.assertTrue(filtered2.dataframe().toPandas().empty)
+        self.assertTrue(filtered2.dataframe().toPandas().empty)  # type: ignore
 
     @parameterized.expand(
         [

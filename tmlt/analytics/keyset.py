@@ -70,6 +70,7 @@ class KeySet:
         constructing KeySets skips checks that guarantee the uniqueness of
         output rows.
         """
+        self._dataframe: Union[DataFrame, Callable[[], DataFrame]]
         if isinstance(dataframe, DataFrame):
             self._dataframe = coerce_spark_schema_or_fail(dataframe)
             _check_df_schema(self._dataframe.schema)
@@ -268,15 +269,22 @@ class KeySet:
         """
         if not isinstance(other, KeySet):
             return False
+        # TODO(#2107): Fix typing once Pandas has working type stubs
         self_df = self.dataframe().toPandas()
         other_df = other.dataframe().toPandas()
-        if sorted(self_df.columns) != sorted(other_df.columns):
+        if sorted(self_df.columns) != sorted(other_df.columns):  # type: ignore
             return False
-        if self_df.empty and other_df.empty:
+        if self_df.empty and other_df.empty:  # type: ignore
             return True
-        sorted_columns = sorted(self_df.columns)
-        self_df_sorted = self_df.set_index(sorted_columns).sort_index().reset_index()
-        other_df_sorted = other_df.set_index(sorted_columns).sort_index().reset_index()
+        sorted_columns = sorted(self_df.columns)  # type: ignore
+        self_df_sorted = (
+            self_df.set_index(sorted_columns).sort_index().reset_index()  # type: ignore
+        )
+        other_df_sorted = (
+            other_df.set_index(sorted_columns)  # type: ignore
+            .sort_index()
+            .reset_index()
+        )
         return self_df_sorted.equals(other_df_sorted)
 
     def schema(self) -> Schema:
@@ -290,8 +298,9 @@ class KeySet:
             ... }
             >>> keyset = KeySet.from_dict(domains)
             >>> schema = keyset.schema()
-            >>> schema
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False), 'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)})
+            >>> schema # doctest: +NORMALIZE_WHITESPACE
+            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False),
+                    'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)})
         """
         # pylint: enable=line-too-long
         return Schema(spark_schema_to_analytics_columns(self.dataframe().schema))

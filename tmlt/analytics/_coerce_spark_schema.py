@@ -3,8 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
 
+from typing import Dict
+
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (
+    DataType,
     DateType,
     DoubleType,
     FloatType,
@@ -55,7 +58,10 @@ Columns with unsupported types must be dropped or converted to supported ones
 before loading the data into Analytics.
 """
 
-TYPE_COERCION_MAP = {IntegerType(): LongType(), FloatType(): DoubleType()}
+TYPE_COERCION_MAP: Dict[DataType, DataType] = {
+    IntegerType(): LongType(),
+    FloatType(): DoubleType(),
+}
 """Mapping describing how Spark's data types are coerced by Tumult Analytics."""
 
 

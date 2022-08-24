@@ -8,7 +8,6 @@ import datetime
 from typing import Any, Dict, Optional, Union
 
 from pyspark.sql import DataFrame
-from pyspark.sql.types import StructType
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
@@ -255,7 +254,6 @@ class TransformationVisitor(QueryExprVisitor):
                 query.schema_new_columns
             ).items()
         }
-        output_schema: StructType
         if query.augment:
             output_schema = {
                 **transformer_input_domain.schema,
@@ -309,7 +307,6 @@ class TransformationVisitor(QueryExprVisitor):
                 query.schema_new_columns
             ).items()
         }
-        output_schema: StructType
         if query.augment:
             output_schema = {
                 **transformer_input_domain.schema,
