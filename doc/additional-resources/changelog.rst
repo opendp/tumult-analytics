@@ -3,8 +3,30 @@
 Changelog
 =========
 
+0.4.1 - 2022-08-25
+------------------
+
+Added
+~~~~~
+
+-  Added ``QueryBuilder.histogram`` function, which provides a shorthand for generating binned data counts.
+
+Changed
+~~~~~~~
+
+-  Improved documentation for ``QueryBuilder.map`` and ``QueryBuilder.flat_map``.
+
+Fixed
+~~~~~
+
+-  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
+
+.. _section-1:
+
 0.4.0 - 2022-07-22
 ------------------
+
+.. _added-1:
 
 Added
 ~~~~~
@@ -13,12 +35,12 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-1:
+.. _section-2:
 
 0.3.0 - 2022-06-23
 ------------------
 
-.. _added-1:
+.. _added-2:
 
 Added
 ~~~~~
@@ -34,6 +56,8 @@ Added
 -  Aggregations (sum, quantile, average, variance, and standard deviation) now silently clamp infinite values (+infinity and -infinity) to the query’s lower and upper bounds.
 -  Added a ``cleanup`` module with two functions: a ``cleanup`` function to remove the current temporary table (which should be called before ``spark.stop()``), and a ``remove_all_temp_tables`` function that removes all temporary tables ever created by Analytics.
 -  Added a topic guide in the documentation for Tumult Analytics’ treatment of null, NaN, and infinite values.
+
+.. _changed-1:
 
 Changed
 ~~~~~~~
@@ -52,6 +76,8 @@ Removed
 -  *Backwards-incompatible*: Removed ``validate`` option from ``Session.from_dataframe``, ``Session.add_public_dataframe``, ``Session.Builder.with_private_dataframe``, ``Session.Builder.with_public_dataframe``.
 -  *Backwards-incompatible*: Removed ``KeySet.contains_nan_or_null``.
 
+.. _fixed-1:
+
 Fixed
 ~~~~~
 
@@ -65,7 +91,7 @@ Fixed
 0.2.1 - 2022-04-14 (internal release)
 -------------------------------------
 
-.. _added-2:
+.. _added-3:
 
 Added
 ~~~~~
@@ -74,7 +100,7 @@ Added
    ``ColumnType`` has two new variants, ``DATE`` and ``TIMESTAMP``, to support these.
 -  Future documentation will now include any exceptions defined in Analytics.
 
-.. _changed-1:
+.. _changed-2:
 
 Changed
 ~~~~~~~
@@ -95,7 +121,7 @@ Removed
 -  Columns that are neither floats nor doubles will no longer be checked for NaN values.
 -  The ``BIT`` variant of the ``ColumnType`` enum was removed, as it was not supported elsewhere in Analytics.
 
-.. _changed-2:
+.. _changed-3:
 
 Changed
 ~~~~~~~
@@ -107,7 +133,7 @@ Changed
 -  Sessions created by ``partition_and_create`` must be used in the order they were created, and using the parent session will forcibly close all child sessions.
    Sessions can be manually closed with ``session.stop()``.
 
-.. _fixed-1:
+.. _fixed-2:
 
 Fixed
 ~~~~~
@@ -119,7 +145,7 @@ Fixed
 0.1.1 - 2022-02-28 (internal release)
 -------------------------------------
 
-.. _added-3:
+.. _added-4:
 
 Added
 ~~~~~
@@ -127,7 +153,7 @@ Added
 -  Added a ``KeySet`` class, which will eventually be used for all GroupBy queries.
 -  Added ``QueryBuilder.groupby()``, a new group-by based on ``KeySet``\ s.
 
-.. _changed-3:
+.. _changed-4:
 
 Changed
 ~~~~~~~
@@ -149,7 +175,7 @@ Deprecated
 0.1.0 - 2022-02-15 (internal release)
 -------------------------------------
 
-.. _added-4:
+.. _added-5:
 
 Added
 ~~~~~
