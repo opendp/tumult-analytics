@@ -1,5 +1,5 @@
 # Changelog
-## Unreleased
+## 0.4.1 - 2022-08-25
 ### Added
 - Added `QueryBuilder.histogram` function, which provides a shorthand for generating binned data counts.
 
