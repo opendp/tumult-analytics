@@ -158,7 +158,8 @@ html_theme_options = {
         "json_url": "https://docs.tmlt.dev/analytics/versions.json",
         "version_match": version,
     },
-    "gitlab_url": "https://gitlab.com/tumult-labs/analytics",
+    "gitlab_url": "https://gitlab.com/tumult-labs/analytics"
+
 }
 html_context = {
     "default_mode": "light",

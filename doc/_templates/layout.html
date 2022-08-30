@@ -1,0 +1,9 @@
+{% extends "!layout.html" %}
+{# pydata-sphinx-theme currently only supports Google Analytics. 
+    This is a workaround until pydata-sphinx-theme v0.10.0 is released, 
+    which adds Plausible support 
+#}
+{% block extrahead %}
+    <script defer data-domain="tmlt.dev" src="https://plausible.io/js/plausible.exclusions.js", data-exclude="/-/analytics/**, /-/core/**"></script>
+    {{ super() }}
+{% endblock %}

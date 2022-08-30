@@ -11,3 +11,4 @@ Additional resources
    changelog
    contact
    license
+   privacy_policy
