@@ -89,19 +89,24 @@ class QueryBuilder:
         >>> import pandas as pd
         >>> from pyspark.sql import SparkSession
         >>> spark = SparkSession.builder.getOrCreate()
-        >>> private_data = spark.createDataFrame(
+        >>> my_private_data = spark.createDataFrame(
         ...     pd.DataFrame(
         ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
         ...     )
         ... )
+
+    Example:
         >>> budget = PureDPBudget(float("inf"))
         >>> sess = tmlt.analytics.session.Session.from_dataframe(
         ...     privacy_budget=budget,
         ...     source_id="my_private_data",
-        ...     dataframe=private_data,
+        ...     dataframe=my_private_data,
         ... )
-
-    Example:
+        >>> my_private_data.toPandas()
+           A  B  X
+        0  0  1  0
+        1  1  0  1
+        2  1  2  1
         >>> sess.private_sources
         ['my_private_data']
         >>> sess.get_schema("my_private_data").column_types
@@ -174,7 +179,7 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
@@ -184,18 +189,19 @@ class QueryBuilder:
             ...         [["0", 0], ["0", 1], ["1", 1], ["1", 2]], columns=["A", "C"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> public_data.toPandas()
                A  C
             0  0  0
@@ -274,20 +280,25 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
             >>> from tmlt.analytics.query_builder import TruncationStrategy
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -375,20 +386,25 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [[None, 0, 0.0], ["1", None, 1.1], ["2", 2, None]],
             ...         columns=["A", "B", "X"],
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+                  A    B    X
+            0  None  0.0  0.0
+            1     1  NaN  1.1
+            2     2  2.0  NaN
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -444,7 +460,7 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [
             ...             ["a1", 0, 0.0],
@@ -454,14 +470,19 @@ class QueryBuilder:
             ...         columns=["A", "B", "X"],
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+                A    B    X
+            0  a1  0.0  0.0
+            1  a1  NaN -inf
+            2  a2  2.0  inf
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -523,7 +544,7 @@ class QueryBuilder:
             ...     StructType,
             ... )
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     [["a1", 2, 0.0], ["a1", None, 1.1], ["a2", 2, None]],
             ...     schema=StructType([
             ...         StructField("A", StringType(), nullable=True),
@@ -531,14 +552,19 @@ class QueryBuilder:
             ...         StructField("X", DoubleType(), nullable=True),
             ...     ])
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+                A    B    X
+            0  a1  2.0  0.0
+            1  a1  NaN  1.1
+            2  a2  2.0  NaN
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -560,8 +586,7 @@ class QueryBuilder:
             1  a1  2.0      1
             2  a2  NaN      0
             3  a2  2.0      1
-
-            >>> # Building a query with a  transformation
+            >>> # Building a query with a transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .drop_null_and_nan(columns=["B"])
@@ -615,21 +640,21 @@ class QueryBuilder:
             ...         StructField("X", DoubleType(), nullable=True),
             ...     ])
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
             ... )
-
-        Example:
-            >>> sess.private_sources
-            ['my_private_data']
             >>> my_private_data.sort("A", "B", "X").toPandas()
                 A  B    X
             0  a1  1  1.1
             1  a1  2  0.0
             2  a2  2  inf
+            >>> sess.private_sources
+            ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
             {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'DECIMAL'}
             >>> # Count query on the original data
@@ -687,19 +712,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -751,19 +781,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -802,19 +837,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -856,19 +896,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -949,20 +994,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["1", 3, 1]],
             ...         columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
+            3  1  3  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1060,10 +1111,7 @@ class QueryBuilder:
             >>> from pyspark.sql import SparkSession
             >>> import pandas as pd
             >>> spark = SparkSession.builder.getOrCreate()
-
-        Example:
-            >>> from tmlt.analytics.binning_spec import BinningSpec
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         {
             ...             "age": [11, 17, 30, 18, 59, 48, 76, 91, 48, 53],
@@ -1071,9 +1119,26 @@ class QueryBuilder:
             ...         }
             ...     )
             ... )
+
+        Example:
+            >>> from tmlt.analytics.binning_spec import BinningSpec
             >>> sess = Session.from_dataframe(
-            ...     PureDPBudget(float("inf")), "private_data", private_data
+            ...     PureDPBudget(float("inf")),
+            ...     source_id="private_data",
+            ...     dataframe=my_private_data
             ... )
+            >>> my_private_data.toPandas()
+               age  income
+            0   11       0
+            1   17       6
+            2   30      54
+            3   18      14
+            4   59     126
+            5   48     163
+            6   76     151
+            7   91      18
+            8   48      97
+            9   53      85
             >>> age_binspec = BinningSpec(
             ...     [0, 18, 65, 100], include_both_endpoints=False
             ... )
@@ -1205,20 +1270,25 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Examples:
+            >>> from tmlt.analytics.keyset import KeySet
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Examples:
-            >>> from tmlt.analytics.keyset import KeySet
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1343,19 +1413,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1409,20 +1484,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["0", 1, 0], ["1", 0, 1], ["1", 2, 1]],
             ...         columns=["A", "B", "X"],
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  0  1  0
+            2  1  0  1
+            3  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1488,21 +1569,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER = '1.331107'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1550,21 +1636,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER = '0.213415'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1610,21 +1701,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER='2.331871'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1670,21 +1766,26 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER='1.221197'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1746,19 +1847,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1821,19 +1927,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1896,19 +2007,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -1971,19 +2087,24 @@ class QueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2050,19 +2171,24 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2112,20 +2238,26 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["0", 1, 0], ["1", 0, 1], ["1", 2, 1]],
             ...         columns=["A", "B", "X"],
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  0  1  0
+            2  1  0  1
+            3  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2193,21 +2325,26 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER = '1.331107'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2266,21 +2403,26 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER = '0.213415'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2332,21 +2474,26 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER='2.331871'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2398,21 +2545,26 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
-            ... )
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=private_data,
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER='1.221197'
 
         Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2476,19 +2628,24 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2562,19 +2719,24 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2648,19 +2810,24 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
@@ -2734,19 +2901,24 @@ class GroupedQueryBuilder:
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
-            >>> private_data = spark.createDataFrame(
+            >>> my_private_data = spark.createDataFrame(
             ...     pd.DataFrame(
             ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
             ...     )
             ... )
+
+        Example:
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
-            ...     dataframe=private_data,
+            ...     dataframe=my_private_data,
             ... )
-
-        Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
