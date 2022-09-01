@@ -1,4 +1,9 @@
 # Changelog
+
+## Unreleased
+### Fixed
+- Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
+
 ## 0.4.1 - 2022-08-25
 ### Added
 - Added `QueryBuilder.histogram` function, which provides a shorthand for generating binned data counts.
