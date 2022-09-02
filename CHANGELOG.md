@@ -7,6 +7,7 @@
 ## 0.4.1 - 2022-08-25
 ### Added
 - Added `QueryBuilder.histogram` function, which provides a shorthand for generating binned data counts.
+- Analytics now checks to see if the user is running Java 11 or higher. If they are, Analytics either sets the appropriate Spark options (if Spark is not yet running) or raises an informative exception (if Spark is running and configured incorrectly).
 
 ### Changed
 - Improved documentation for `QueryBuilder.map` and `QueryBuilder.flat_map`.

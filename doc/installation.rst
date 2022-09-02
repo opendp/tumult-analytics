@@ -32,8 +32,9 @@ Only the x86_64 processor architecture is officially supported at present. Apple
 
 .. note::
     When using Java 11, Spark requires that Java be passed the ``-Dio.netty.tryReflectionSetAccessible=true`` option.
-    This can be achieved by adding that option to Spark's ``spark.driver.extraJavaOptions`` and ``spark.executor.extraJavaOptions`` configurations.
-    An example of how to set these values when initializing Spark is :ref:`included in the first tutorial <Java 11 configuration example>`.
+    Analytics attempts to set these options automatically by running :py:func:`tmlt.core.utils.configuration.check_java11()` (from `Tumult Core <https://docs.tmlt.dev/core/latest/reference/tmlt/core/utils/configuration/index.html>`__). You can also use the configuration provided by :py:func:`tmlt.core.utils.configuration.get_java11_config()` when initializing Spark.
+
+    An example of how to set these values manually when initializing Spark is :ref:`included in the first tutorial <Java 11 configuration example>`.
     Not doing this before making calls to Tumult Analytics will result in Spark raising ``java.lang.UnsupportedOperationException: sun.misc.Unsafe or java.nio.DirectByteBuffer.(long, int) not available`` when evaluating queries.
 
 Below are instructions for installing these prerequisites on several common platforms.
