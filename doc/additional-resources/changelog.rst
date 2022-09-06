@@ -3,6 +3,16 @@
 Changelog
 =========
 
+0.4.2 - 2022-09-06
+------------------
+
+Fixed
+~~~~~
+
+-  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
+
+.. _section-1:
+
 0.4.1 - 2022-08-25
 ------------------
 
@@ -10,18 +20,21 @@ Added
 ~~~~~
 
 -  Added ``QueryBuilder.histogram`` function, which provides a shorthand for generating binned data counts.
+-  Analytics now checks to see if the user is running Java 11 or higher. If they are, Analytics either sets the appropriate Spark options (if Spark is not yet running) or raises an informative exception (if Spark is running and configured incorrectly).
 
 Changed
 ~~~~~~~
 
 -  Improved documentation for ``QueryBuilder.map`` and ``QueryBuilder.flat_map``.
 
+.. _fixed-1:
+
 Fixed
 ~~~~~
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
-.. _section-1:
+.. _section-2:
 
 0.4.0 - 2022-07-22
 ------------------
@@ -35,7 +48,7 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-2:
+.. _section-3:
 
 0.3.0 - 2022-06-23
 ------------------
@@ -76,7 +89,7 @@ Removed
 -  *Backwards-incompatible*: Removed ``validate`` option from ``Session.from_dataframe``, ``Session.add_public_dataframe``, ``Session.Builder.with_private_dataframe``, ``Session.Builder.with_public_dataframe``.
 -  *Backwards-incompatible*: Removed ``KeySet.contains_nan_or_null``.
 
-.. _fixed-1:
+.. _fixed-2:
 
 Fixed
 ~~~~~
@@ -133,7 +146,7 @@ Changed
 -  Sessions created by ``partition_and_create`` must be used in the order they were created, and using the parent session will forcibly close all child sessions.
    Sessions can be manually closed with ``session.stop()``.
 
-.. _fixed-2:
+.. _fixed-3:
 
 Fixed
 ~~~~~

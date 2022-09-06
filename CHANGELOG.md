@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 - 2022-09-06
 ### Fixed
 - Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
 
