@@ -460,8 +460,6 @@ Now we can join the public data and then count how many members are in each city
        privacy_budget=PureDPBudget(epsilon=1),
     )
 
-    from pyspark.sql.functions import col
-
     members_per_city_df = members_per_city_df.orderBy("count", ascending=False)
     members_per_city_df.show(10)
 
