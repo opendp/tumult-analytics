@@ -195,7 +195,7 @@ class KeySet:
         """
         return KeySet(self.dataframe().filter(expr))
 
-    def __getitem__(self, cols: Union[str, Tuple[str, ...], List[str]]) -> KeySet:
+    def __getitem__(self, columns: Union[str, Tuple[str, ...], List[str]]) -> KeySet:
         """`KeySet[col, col, ...]` returns a KeySet with those columns only.
 
         The returned KeySet contains all unique combinations of values in the
@@ -229,9 +229,9 @@ class KeySet:
             0  a1
             1  a2
         """
-        if isinstance(cols, str):
-            cols = (cols,)
-        return KeySet(self.dataframe().select(*cols).dropDuplicates())
+        if isinstance(columns, str):
+            columns = (columns,)
+        return KeySet(self.dataframe().select(*columns).dropDuplicates())
 
     def __mul__(self, other: KeySet) -> KeySet:
         """A product (`KeySet * KeySet`) returns the cross-product of both KeySets.
