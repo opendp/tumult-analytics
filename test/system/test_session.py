@@ -556,7 +556,7 @@ EVALUATE_TESTS = [
     (  # GroupByCountDistinct checking distinctness of dates
         QueryBuilder("private")
         .join_public("join_dtypes")
-        .count_distinct(cols=["DATE"]),
+        .count_distinct(columns=["DATE"]),
         GroupByCountDistinct(
             child=JoinPublic(
                 child=PrivateSource("private"), public_table="join_dtypes"

@@ -27,6 +27,7 @@ differentially private results to the query.
 # Copyright Tumult Labs 2022
 
 import datetime
+import warnings
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from pyspark.sql import DataFrame
@@ -1468,9 +1469,10 @@ class QueryBuilder:
 
     def count_distinct(
         self,
-        cols: Optional[List[str]] = None,
+        columns: Optional[List[str]] = None,
         name: Optional[str] = None,
         mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
+        cols: Optional[List[str]] = None,
     ) -> QueryExpr:
         """Returns a count_distinct query that is ready to be evaluated.
 
@@ -1535,16 +1537,17 @@ class QueryBuilder:
             0               3
 
         Args:
-            cols: Columns in which to count distinct values. If none are provided,
+            columns: Columns in which to count distinct values. If none are provided,
                 the query will count every distinct row.
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
+            cols: Deprecated; use `columns` instead.
         """
         return self.groupby(KeySet.from_dict({})).count_distinct(
-            cols=cols, name=name, mechanism=mechanism
+            columns=columns, name=name, mechanism=mechanism, cols=cols
         )
 
     def quantile(
@@ -2226,9 +2229,10 @@ class GroupedQueryBuilder:
 
     def count_distinct(
         self,
-        cols: Optional[List[str]] = None,
+        columns: Optional[List[str]] = None,
         name: Optional[str] = None,
         mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
+        cols: Optional[List[str]] = None,
     ) -> QueryExpr:
         """Returns a count_distinct query that is ready to be evaluated.
 
@@ -2279,17 +2283,29 @@ class GroupedQueryBuilder:
             1  1                     2
 
         Args:
-            cols: Columns in which to count distinct values. If none are provided,
+            columns: Columns in which to count distinct values. If none are provided,
                 the query will count every distinct row.
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
+            cols: Deprecated; use `columns` instead.
         """
+        if cols is not None:
+            warnings.warn(
+                "The `cols` argument is deprecated; use `columns` instead",
+                DeprecationWarning,
+            )
+            if columns is not None:
+                raise ValueError(
+                    "cannot provide both `cols` and `columns` arguments to"
+                    " count_distinct"
+                )
+            columns = cols
         columns_to_count: Optional[List[str]] = None
-        if cols is not None and len(cols) > 0:
-            columns_to_count = list(cols)
+        if columns is not None and len(columns) > 0:
+            columns_to_count = list(columns)
         if not name:
             if columns_to_count:
                 name = f"count_distinct({', '.join(columns_to_count)})"

@@ -139,12 +139,11 @@ nitpick_ignore = [
     ("py:class", "BinNameT"),
     ("py:class", "Generic[BinT, BinNameT]"),
     ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),
+    ("py:class", "sympy.core.expr.Expr"),
 ]
 
 # Remove this after intersphinx can use core
-nitpick_ignore_regex = [
-    (r"py:.*", r"tmlt.core.*"),
-]
+nitpick_ignore_regex = [(r"py:.*", r"tmlt.core.*")]
 
 # Theme settings
 templates_path = ["_templates"]
@@ -158,8 +157,7 @@ html_theme_options = {
         "json_url": "https://docs.tmlt.dev/analytics/versions.json",
         "version_match": version,
     },
-    "gitlab_url": "https://gitlab.com/tumult-labs/analytics"
-
+    "gitlab_url": "https://gitlab.com/tumult-labs/analytics",
 }
 html_context = {
     "default_mode": "light",
@@ -173,12 +171,7 @@ html_logo = "_static/logo.png"
 html_favicon = "_static/favicon.ico"
 html_show_sourcelink = False
 html_sidebars = {
-    "**": [
-        "package-name",
-        "version-switcher",
-        "search-field",
-        "sidebar-nav-bs",
-    ]
+    "**": ["package-name", "version-switcher", "search-field", "sidebar-nav-bs"]
 }
 
 # Intersphinx mapping

@@ -831,10 +831,40 @@ class TestAggregations(PySparkTest):
         self, name: Optional[str], expected_name: str, columns: List[str]
     ):
         """Query returned by ungrouped count_distinct is correct."""
-        query = self.root_builder.count_distinct(cols=columns, name=name)
+        query = self.root_builder.count_distinct(columns=columns, name=name)
         self._assert_count_distinct_query_correct(
             query, self._keys_from_pandas(pd.DataFrame()), columns, expected_name
         )
+
+    @parameterized.expand([(["A"],), (["col1", "col2"],)])
+    def test_count_distinct_raises_warnings(self, columns: List[str]):
+        """Test that count_distinct raises warning when `cols` is provided."""
+        with self.assertWarnsRegex(
+            DeprecationWarning, re.escape("`cols` argument is deprecated")
+        ):
+            self.root_builder.count_distinct(cols=columns)
+
+        keys = KeySet.from_dict({e: ["a"] for e in columns})
+        with self.assertWarnsRegex(
+            DeprecationWarning, re.escape("`cols` argument is deprecated")
+        ):
+            self.root_builder.groupby(keys).count_distinct(cols=columns)
+
+    @parameterized.expand([(["A"],), (["col1", "col2"],)])
+    def test_count_distinct_raises_error(self, columns: List[str]):
+        """Test that count_distinct raises error with both `cols` and `columns`."""
+        with self.assertRaisesRegex(
+            ValueError, re.escape("cannot provide both `cols` and `columns` arguments")
+        ):
+            self.root_builder.count_distinct(columns=columns, cols=columns)
+
+        keys = KeySet.from_dict({e: ["a"] for e in columns})
+        with self.assertRaisesRegex(
+            ValueError, re.escape("cannot provide both `cols` and `columns` arguments")
+        ):
+            self.root_builder.groupby(keys).count_distinct(
+                columns=columns, cols=columns
+            )
 
     @parameterized.expand(
         (keys_df, *options)
@@ -854,7 +884,9 @@ class TestAggregations(PySparkTest):
     ):
         """Query returned by groupby with KeySet and count_distinct is correct."""
         keys = self._keys_from_pandas(keys_df)
-        query = self.root_builder.groupby(keys).count_distinct(cols=columns, name=name)
+        query = self.root_builder.groupby(keys).count_distinct(
+            columns=columns, name=name
+        )
         self._assert_count_distinct_query_correct(query, keys, columns, expected_name)
 
     def _assert_common_query_fields_correct(
