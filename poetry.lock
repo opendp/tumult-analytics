@@ -1512,6 +1512,18 @@ test = ["html5lib", "pytest"]
 lint = ["docutils-stubs", "mypy", "flake8"]
 
 [[package]]
+name = "sphinxcontrib-images"
+version = "0.9.4"
+description = "Sphinx extension for thumbnails"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+requests = ">2.2,<3"
+sphinx = {version = ">=2.0", markers = "python_version >= \"3.0\""}
+
+[[package]]
 name = "sphinxcontrib-jsmath"
 version = "1.0.1"
 description = "A sphinx extension which renders display math in HTML via JavaScript"
@@ -1731,7 +1743,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "9cf92c0d7ff6b63c57fe4176f5aad4687f180ffe28a65fa9c8b3d68bafba81f6"
+content-hash = "de30dbd789177a6b1ee2f734e113f34777c1257e918f20d3b8644111aa8cec12"
 
 [metadata.files]
 alabaster = []
@@ -1853,6 +1865,7 @@ sphinxcontrib-applehelp = []
 sphinxcontrib-bibtex = []
 sphinxcontrib-devhelp = []
 sphinxcontrib-htmlhelp = []
+sphinxcontrib-images = []
 sphinxcontrib-jsmath = []
 sphinxcontrib-qthelp = []
 sphinxcontrib-serializinghtml = []

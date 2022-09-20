@@ -143,3 +143,10 @@ Exceptions
 {% endif %}
 
 {% endblock %}
+
+{% if obj.name == package_name %}
+This diagram shows the basic workflow for most Analytics operations. (Click
+to see full-size image.)
+
+.. thumbnail:: ../../../images/api_diagram.svg
+{% endif %}
