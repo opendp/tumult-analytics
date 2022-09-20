@@ -71,6 +71,7 @@ sphinx-copybutton = "^0.4.0"
 sphinx-panels = "^0.6.0"
 sphinxcontrib-bibtex = "^1.0.0"
 pydata-sphinx-theme = "0.9.0"
+sphinxcontrib-images = "^0.9.4"
 
 # Needed for examples, and for testing examples
 notebook = "^6.1.6"

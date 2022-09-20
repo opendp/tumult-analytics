@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+### Added
+- Added a diagram to the API reference page.
+
 ### Changed
 - *Backwards-incompatible*: Changed argument names for `QueryBuilder.count_distinct` and `KeySet.__getitem__` from `cols` to `columns`, for consistency. The old argument has been deprecated, but is still available.
 

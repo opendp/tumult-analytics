@@ -45,6 +45,7 @@ linkcheck_ignore = ["https://github.com/fredrik-johansson/python-flint/#"]
 extensions = [
     "autoapi.extension",
     "scanpydoc.elegant_typehints",
+    "sphinxcontrib.images",
     "sphinx_copybutton",
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
