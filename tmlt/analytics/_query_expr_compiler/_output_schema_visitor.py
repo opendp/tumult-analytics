@@ -328,9 +328,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
         )
         try:
             test_df.filter(expr.predicate)
-        except:
+        except Exception as e:
             raise ValueError(
-                f"Invalid filter expression: '{expr.predicate}' in Filter query."
+                f"Invalid filter expression: '{expr.predicate}' in Filter query: {e}"
             )
         return input_schema
 
