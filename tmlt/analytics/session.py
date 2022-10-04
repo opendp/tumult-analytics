@@ -76,6 +76,7 @@ from tmlt.core.transformations.dictionary import (
 )
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.transformations.spark_transformations.persist import Persist, Unpersist
+from tmlt.core.utils.configuration import SparkConfigError, check_java11
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
@@ -308,6 +309,20 @@ class Session:
             compiler: Compiles queries into Measurements,
                 which the queryable uses for evaluation.
         """
+        # ensure the session is created with java 11
+        try:
+            check_java11()
+        except SparkConfigError as exc:
+            raise RuntimeError(
+                """It looks like the configuration of your Spark session is
+             incompatible with Tumult Analytics. When running Spark on Java 11 or
+             higher, you need to set up your Spark session with specific configuration
+             options *before* you start Spark. Analytics automatically sets these
+             options if you import Analytics before you build your session. For
+             troubleshooting information, see our Spark topic guide:
+             https://docs.tmlt.dev/analytics/latest/topic-guides/spark.html """
+            ) from exc
+
         check_type("accountant", accountant, PrivacyAccountant)
         check_type("public_sources", public_sources, Dict[str, DataFrame])
         check_type("compiler", compiler, Optional[QueryExprCompiler])

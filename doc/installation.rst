@@ -30,13 +30,6 @@ currently supported.
 
 Only the x86_64 processor architecture is officially supported at present. Apple silicon is supported through binary translation with Rosetta 2.
 
-.. note::
-    When using Java 11, Spark requires that Java be passed the ``-Dio.netty.tryReflectionSetAccessible=true`` option.
-    Analytics attempts to set these options automatically by running :py:func:`tmlt.core.utils.configuration.check_java11()` (from `Tumult Core <https://docs.tmlt.dev/core/latest/reference/tmlt/core/utils/configuration/index.html>`__). You can also use the configuration provided by :py:func:`tmlt.core.utils.configuration.get_java11_config()` when initializing Spark.
-
-    An example of how to set these values manually when initializing Spark is :ref:`included in the first tutorial <Java 11 configuration example>`.
-    Not doing this before making calls to Tumult Analytics will result in Spark raising ``java.lang.UnsupportedOperationException: sun.misc.Unsafe or java.nio.DirectByteBuffer.(long, int) not available`` when evaluating queries.
-
 Below are instructions for installing these prerequisites on several common platforms.
 If none of these apply to you, install Python 3 and Java from your OS package manager, or use the "Manual Installation" section to obtain installers or source distributions and build instructions for your platform.
 If you encounter any issues during the installation process, please `let us know <https://gitlab.com/tumult-labs/analytics/-/issues>`__!

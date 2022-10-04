@@ -1,21 +1,11 @@
 """Cleanup functions for Analytics."""
+# pylint: disable=unused-import
+import warnings
 
-from tmlt.core.utils import cleanup as core_cleanup
+from tmlt.analytics.utils import cleanup, remove_all_temp_tables
 
-
-def cleanup():
-    """Cleanup the temporary table currently in use.
-
-    If you call `spark.stop()`, you should call this function first.
-    """
-    core_cleanup.cleanup()
-
-
-def remove_all_temp_tables():
-    """Remove all temporary tables created by Analytics.
-
-    This will remove all Analytics-created temporary tables in the current
-    Spark data warehouse, whether those tables were created by the current
-    Analytics session or previous Analytics sessions.
-    """
-    core_cleanup.remove_all_temp_tables()
+warnings.warn(
+    "The contents of the cleanup module have been moved to tmlt.analytics.utils.",
+    DeprecationWarning,
+    stacklevel=2,
+)

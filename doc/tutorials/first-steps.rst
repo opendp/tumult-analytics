@@ -45,27 +45,14 @@ First, let's import some Python packages.
 
 Next, we initialize the Spark session.
 
-.. _Java 11 configuration example:
-
 .. testcode::
 
    spark = SparkSession.builder.getOrCreate()
 
+This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark Topic Guide<Spark>`.
 
-.. note::
 
-   When using Java 11, some additional configuration must be passed to Spark, so the previous code block would instead be:
-
-   .. code-block::
-
-      spark = (
-          SparkSession.builder
-          .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-          .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-          .getOrCreate()
-      )
-
-Then, we need to load our first dataset, containing information about the
+Now, we need to load our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``
 repository, and load it into a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
 
