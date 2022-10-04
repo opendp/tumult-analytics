@@ -28,6 +28,44 @@ then before running Analytics code, you should create that Spark session:
 
 As long as this session is active, Analytics will use it.
 
+.. dropdown:: Trouble Using Java 11 or higher?
+    :container: + shadow
+    :title: font-weight-bold text-danger text-center
+    :body: bg-light
+    :animate: fade-in-slide-down
+    
+    When using Java 11, Spark requires that Java be passed some additional configuration options.
+
+    Not doing this before making calls to Tumult Analytics, or overwriting these configurations with your own, 
+    will result in Spark raising ``java.lang.UnsupportedOperationException: sun.misc.Unsafe`` or ``java.nio.DirectByteBuffer.(long, int) not available`` 
+    when evaluating queries. 
+    
+    Analytics attempts to set these options automatically, but if you are encountering issues, you may want to try:
+
+    .. code-block::
+
+        from tmlt.analytics.utils import get_java11_config
+
+        spark = SparkSession.builder.config(conf=get_java11_config()).getOrCreate()
+
+    instead of:
+
+    .. code-block::
+
+        spark = SparkSession.builder.getOrCreate()
+
+    when initializing Spark. This is equivalent to:
+
+    .. code-block::
+
+        spark = (
+            SparkSession.builder
+            .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+            .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+            .getOrCreate()
+        )
+
+
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
 
@@ -81,10 +119,10 @@ If a Spark session is still active when the program exits normally, this cleanup
 function will automatically delete the materialization database.
 
 If you wish to call ``spark.stop()`` before program exit, you should call
-:func:`~tmlt.analytics.cleanup.cleanup()` first. This will delete the materialization
+:func:`~tmlt.analytics.utils.cleanup()` first. This will delete the materialization
 database. This function requires an active Spark session, but is otherwise safe
 to call at any time in a single-threaded program. (If
-:func:`~tmlt.analytics.cleanup.cleanup()` is called before a materialization step,
+:func:`~tmlt.analytics.utils.cleanup()` is called before a materialization step,
 Core will create a new materialization database.)
 
 Finding and removing leftover temporary data
@@ -97,7 +135,7 @@ or if the cleanup function is called without an active Spark session,
 this temporary database (and its associated folder) may not be deleted.
 
 Analytics has a function to delete any of these folders in the current
-Spark warehouse: :func:`~tmlt.analytics.cleanup.remove_all_temp_tables`.
+Spark warehouse: :func:`~tmlt.analytics.utils.remove_all_temp_tables`.
 As long as your program is single-threaded, it is safe to call this function
 at any time.
 

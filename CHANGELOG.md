@@ -3,10 +3,14 @@
 ## Unreleased
 ### Added
 - Added a diagram to the API reference page.
+- Analytics now does an additional Spark configuration check for users running Java 11+ at the time of Analytics Session initialization. If the user is running Java 11 or higher with an incorrect Spark configuration, Analytics raises an informative exception.
 
 ### Changed
 - *Backwards-incompatible*: Changed argument names for `QueryBuilder.count_distinct` and `KeySet.__getitem__` from `cols` to `columns`, for consistency. The old argument has been deprecated, but is still available.
 - Improved the error message shown when a filter expression is invalid.
+
+### Deprecated
+- The contents of the `cleanup` module have been moved to the `utils` module. The `cleanup` module will be removed in a future version.
 
 ## 0.4.2 - 2022-09-06
 ### Fixed
