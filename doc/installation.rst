@@ -9,7 +9,9 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 Tumult Analytics is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
-Only Python 3.7 is officially supported at present, though newer versions likely work.
+Only Python 3.7 is officially supported at present; newer versions are not yet supported.
+
+Only the x86_64 processor architecture is officially supported at present. Apple silicon is supported through binary translation with Rosetta 2.
 
 ..
     TODO: Update this once we support PySpark >3.1.0, as the requirements change.
@@ -17,18 +19,10 @@ Only Python 3.7 is officially supported at present, though newer versions likely
 Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.0.0/index.html#downloading>`__.
 
 
-You may also need to configure pyspark to use the intended Python installation. You can do this by setting the `PYSPARK_PYTHON` environment variable. For example:
-
-    .. code-block:: bash
-
-        export PYSPARK_PYTHON=/usr/bin/python3
-
 Tumult Analytics uses `python-flint <https://github.com/fredrik-johansson/python-flint/>`__
 for some mathematical functions, so ``python-flint`` is also required.
 Only Tumult's wheels (located at ``https://d3p0voevd56kj6.cloudfront.net``) are
 currently supported.
-
-Only the x86_64 processor architecture is officially supported at present. Apple silicon is supported through binary translation with Rosetta 2.
 
 Below are instructions for installing these prerequisites on several common platforms.
 If none of these apply to you, install Python 3 and Java from your OS package manager, or use the "Manual Installation" section to obtain installers or source distributions and build instructions for your platform.
