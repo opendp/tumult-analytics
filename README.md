@@ -7,7 +7,7 @@ automatically by the API. It is built atop the [Tumult Core library](https://git
 ## Installation
 
 See the [installation instructions in the documentation](https://docs.tmlt.dev/analytics/latest/installation.html#prerequisites)
-for information about setting up prerequisites such as Spark and python-flint.
+for information about setting up prerequisites such as Spark.
 
 Once the prerequisites are installed, you can install Tumult Analytics using [pip](https://pypi.org/project.pip).
 
@@ -34,5 +34,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our deve
 Copyright Tumult Labs 2022
 
 The Tumult Platform source code is licensed under the Apache License, version 2.0 (Apache-2.0).
-The Tumult Platform documentation is licensed under 
+The Tumult Platform documentation is licensed under
 Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA-4.0).

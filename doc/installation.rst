@@ -19,11 +19,6 @@ Only the x86_64 processor architecture is officially supported at present. Apple
 Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.0.0/index.html#downloading>`__.
 
 
-Tumult Analytics uses `python-flint <https://github.com/fredrik-johansson/python-flint/>`__
-for some mathematical functions, so ``python-flint`` is also required.
-Only Tumult's wheels (located at ``https://d3p0voevd56kj6.cloudfront.net``) are
-currently supported.
-
 Below are instructions for installing these prerequisites on several common platforms.
 If none of these apply to you, install Python 3 and Java from your OS package manager, or use the "Manual Installation" section to obtain installers or source distributions and build instructions for your platform.
 If you encounter any issues during the installation process, please `let us know <https://gitlab.com/tumult-labs/analytics/-/issues>`__!
@@ -44,12 +39,6 @@ If you encounter any issues during the installation process, please `let us know
 
         apt install openjdk-8-jre-headless
 
-    Then install python-flint with
-
-    .. code-block:: bash
-
-        pip3 install -i https://d3p0voevd56kj6.cloudfront.net python-flint
-    
 
 .. tabbed:: Linux (Red Hat-based)
 
@@ -68,12 +57,6 @@ If you encounter any issues during the installation process, please `let us know
         yum install java-1.8.0-openjdk-headless
 
     Note that despite the package name, this will install Java 8.
-
-    Then install python-flint with
-
-    .. code-block:: bash
-
-        pip3 install -i https://d3p0voevd56kj6.cloudfront.net python-flint
 
 
 .. tabbed:: macOS (Intel)
@@ -98,12 +81,6 @@ If you encounter any issues during the installation process, please `let us know
     .. code-block:: bash
 
         brew install openjdk@8
-
-    Then install python-flint with:
-
-    .. code-block:: bash
-
-        pip3 install -i https://d3p0voevd56kj6.cloudfront.net python-flint
 
 
 .. tabbed:: macOS (Apple silicon)
@@ -134,11 +111,6 @@ If you encounter any issues during the installation process, please `let us know
 
         arch -x86_64 /usr/local/bin/brew install openjdk@8
 
-    Then install python-flint with:
-
-    .. code-block:: bash
-
-        pip3 install -i https://d3p0voevd56kj6.cloudfront.net python-flint
 
 .. tabbed:: Windows
 
@@ -146,15 +118,6 @@ If you encounter any issues during the installation process, please `let us know
 
     Once you install your preferred Linux distribution with WSL, follow the corresponding Linux installation instructions to get Tumult Core setup.
 
-
-.. note::
-    Tumult's wheels for python-flint may require a newer version of pip than is included your Python version. If you encounter an error during installation, try upgrading with:
-    
-    .. code-block:: bash
-
-        pip3 install --upgrade pip
-    
-    Then retry installation. 
 
 Installation
 ^^^^^^^^^^^^

@@ -10,9 +10,6 @@ import datetime
 
 _logger = logging.getLogger(__name__)
 
-sys.path.insert(0, os.path.abspath(".."))
-
-
 # Project information
 
 project = "Tumult Analytics"
@@ -35,10 +32,6 @@ commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
 build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 
 linkcheck_mode_url_prefix = os.getenv("BASE_URL_OVERRIDE")
-# Linkcheck fails to check anchors in Github
-# See https://github.com/sphinx-doc/sphinx/issues/9016 and also
-# https://sphinx-doc.org/en/master/usage/configuration.html
-linkcheck_ignore = ["https://github.com/fredrik-johansson/python-flint/#"]
 
 # Sphinx configuration
 
