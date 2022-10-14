@@ -15,7 +15,6 @@ stages:
   - lint
   - test
   - docs
-  - package
   - test-release
   - release
   - handler
@@ -23,31 +22,27 @@ stages:
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
 
 .base:
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   before_script:
     - java -version
     - python --version
-    - poetry --version
-    - poetry config --list
-    - poetry install -v --remove-untracked
-    # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
-    - . .venv/bin/activate
-    - |
-      if [[ ! -z "$CORE_COMMIT_HASH" ]]; then
-        # TODO: If the Core dependencies change significantly between releases,
-        # this may cause dependency issues because the dependencies for the old
-        # version will be used.
-        pip install --force-reinstall --no-deps "git+https://${CORE_DEPLOY_TOKEN_USERNAME}:${CORE_DEPLOY_TOKEN}@gitlab.com/tumult-labs/core.git@$CORE_COMMIT_HASH"
-      fi
+    - poetry self show
+    # TODO(#2140): This could be done more cleanly using Poetry 1.2 dependency
+    #              groups with `--only` instead of using --constraint.
+    - pip install nox nox-poetry --constraint=<(poetry export --dev -f constraints.txt --without-hashes)
+  artifacts:
+    expire_in: 1 week
   cache:
+    # Cache the pip cache. While the cache could be persisted across changes to
+    # the Poetry lock file, clearing it when that changes provides a good way to
+    # keep the cache from growing too large due to old packages.
     - key:
         files: ["poetry.lock"]
-      paths:
-        - .venv
-        - .cache/pip
-      policy: pull
+      paths: [".cache/pip"]
   tags: [aws-small]
   interruptible: true
 
@@ -61,66 +56,53 @@ prevent_dev_interrupt:
     GIT_STRATEGY: none
   timeout: 1m
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
 
-# Install dependencies
-setup:
+package:
   extends: .base
   stage: setup
-  before_script:
-    - java -version
-    - python --version
-    - poetry --version
-    - poetry config --list
-    - poetry install -v --remove-untracked
-    # `poetry shell` is inherently interactive, so the virtualenv must be activated manually
-    - . .venv/bin/activate
-    # Don't bother reinstalling Core here if CORE_COMMIT_HASH is set -- it will
-    # get reinstalled again in the before_script for each job because they run
-    # poetry install again.
+  needs: []
+  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   script:
-    - echo "setup"
-  cache:
-    # As long as poetry.lock remains the same, the virtual environment can
-    # be reused -- even across branches.
-    - key:
-        files: ["poetry.lock"]
-      paths: [".venv"]
-      policy: pull-push
-  timeout: 10m
-  tags: [aws-small]
+    - nox -s build
+  artifacts:
+    paths: ["dist/"]
+  timeout: 5m
   interruptible: true
+  tags: [aws-small]
 
 lint:
   extends: .base
   stage: lint
-  needs:
-    - job: setup
-      artifacts: false
+  needs: ["package"]
   script:
-    - make lint
+    - nox -t lint -- --check
   timeout: 12m
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - when: on_success
 
 test:
   extends: .base
   stage: test
-  needs:
-    - job: setup
-      artifacts: false
+  needs: ["package"]
   script:
-    - make test-fast
+    # Run doctest first so that it doesn't overwrite the coverage report
+    # from test_fast.
+    - nox -s test_doctest test_fast
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
+    paths: ["coverage/"]
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
       junit: junit.xml
-    expire_in: 1 week
+    when: always
+    expose_as: "Coverage"
   timeout: 1h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG'
@@ -131,19 +113,10 @@ test:
       allow_failure: true
   tags: [aws-large]
 
-test_examples:
-  extends: test
-  script:
-    - make test-examples
-  coverage: null
-  artifacts: null
-  timeout: 15m
-  tags: [aws-small]
-
 test_nightly:
   extends: test
   script:
-    - make test-slow
+    - nox -s test_slow
   timeout: 23h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -151,6 +124,15 @@ test_nightly:
       when: never
     - when: manual
       allow_failure: true
+
+test_examples:
+  extends: test
+  script:
+    - nox -s test_examples
+  coverage: null
+  artifacts: null
+  timeout: 15m
+  tags: [aws-small]
 
 # Requires the following CI variables to be set:
 # * NIGHTLY_HANDLER_TOKEN, a GitLab project access token with the read_api permission
@@ -173,18 +155,13 @@ nightly_handler:
 docs:
   extends: .base
   stage: docs
-  needs:
-    - job: setup
-      artifacts: false
+  needs: ["package"]
   script:
-    - make docs-linkcheck docs-doctest
-    - rm -rf public
-    - make docs
+    - nox -t docs
   artifacts:
     paths:
       - public/
-    expire_in: 1 week
-    expose_as: 'Documentation'
+    expose_as: "Documentation"
   timeout: 15m
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
@@ -195,35 +172,13 @@ docs:
     - when: manual
       allow_failure: true
 
-package:
-  stage: package
-  needs: []
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
-  script:
-    - make package
-  artifacts:
-    paths:
-      - dist/
-    expire_in: 1 week
-  timeout: 3m
-  rules:
-    - if: '$CI_COMMIT_TAG'
-  interruptible: true
-
-test_release:
+test_release_linux:
+  extends: .base
   stage: test-release
-  needs:
-    - job: package
-      artifacts: true
+  needs: ["package"]
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   script:
-    - virtualenv .venv
-    - . .venv/bin/activate
-    - pip install -r test_requirements.txt
-    - pip install -i https://d3p0voevd56kj6.cloudfront.net python-flint
-    - pip install dist/*.whl
-    - pip freeze
-    - make test-fast
+    - nox -s release_smoketest release_test
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     reports:
@@ -231,10 +186,11 @@ test_release:
         coverage_format: cobertura
         path: coverage.xml
       junit: junit.xml
-    expire_in: 1 week
   timeout: 1h
   rules:
     - if: '$CI_COMMIT_TAG'
+    - when: manual
+      allow_failure: true
   tags: [aws-large]
 
 publish:
@@ -242,13 +198,6 @@ publish:
   dependencies: [package]
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   script:
-    - cd $CI_PROJECT_DIR/$PACKAGE_DIR
-    - export EXPECTED_TAG="$(poetry version -s)"
-    - |
-      if [ "$EXPECTED_TAG" != "$CI_COMMIT_TAG" ]; then
-        echo "Pyproject version $EXPECTED_TAG does not match tag version $CI_COMMIT_TAG"
-        exit 1
-      fi
     - poetry publish -u __token__ -p "${RELEASE_PYPI_TOKEN}"
   timeout: 3m
   rules:
@@ -305,9 +254,6 @@ publish_docs:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_TAG'
 
-# For reasons that are somewhat unclear, at the time of writing this job runs
-# out of memory when executed on the aws-small runner type, so it is run on
-# GitLab's shared runners instead.
 # Requires the following CI variables to be set:
 # * VERSION, the semantic version number to be given to the release. This would
 #   typically be specified when launching the manual job.
@@ -315,15 +261,15 @@ publish_docs:
 #   (and an associated username) with the api permission and the ability to push
 #   tags.
 trigger_release:
+  extends: .base
   stage: handler
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   script:
     - |
       if [[ -z "$RELEASER_TOKEN_USERNAME" || -z "$RELEASER_TOKEN" ]]; then
         echo "RELEASER_TOKEN and/or RELEASER_TOKEN_USERNAME is unset, exiting..."
         exit 1
       fi
-    - make prepare-release
+    - nox -s prepare_release
     - git config user.name "gitlab"
     - git config user.email "gitlab@tmlt.io"
     - git checkout -B "release/$VERSION"
@@ -362,7 +308,7 @@ trigger_release:
         echo "Got unexpected HTTP status $http_status, exiting..."
         exit 1
       fi
-  timeout: 40m
+  timeout: 5m
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual

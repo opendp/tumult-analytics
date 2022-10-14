@@ -8,6 +8,8 @@
 ### Changed
 - *Backwards-incompatible*: Changed argument names for `QueryBuilder.count_distinct` and `KeySet.__getitem__` from `cols` to `columns`, for consistency. The old argument has been deprecated, but is still available.
 - Improved the error message shown when a filter expression is invalid.
+- Updated to Tumult Core 0.5.0.
+  As a result, `python-flint` is no longer a transitive dependency, simplifying the Analytics installation process.
 
 ### Deprecated
 - The contents of the `cleanup` module have been moved to the `utils` module. The `cleanup` module will be removed in a future version.

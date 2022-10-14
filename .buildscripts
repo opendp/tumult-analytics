@@ -1,8 +1,0 @@
-#!/bin/bash
-
-SOURCE_DIR="tmlt/analytics"
-TAG_PREFIX="tmlt.analytics"
-
-PYDOCSTYLE_ENABLE="true"
-
-SPHINX_EXTRA_OPTS="-n -W --keep-going"
