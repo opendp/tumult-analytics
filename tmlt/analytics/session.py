@@ -18,9 +18,9 @@ in the computation of the queries.
 More details on the exact privacy promise provided by :class:`Session` can be
 found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
-# SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
 
+# Copyright Tumult Labs 2022
+# SPDX-License-Identifier: Apache-2.0
 from enum import Enum, auto
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
@@ -37,6 +37,12 @@ from tmlt.analytics._coerce_spark_schema import (
     SUPPORTED_SPARK_TYPES,
     TYPE_COERCION_MAP,
     coerce_spark_schema_or_fail,
+)
+from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
+from tmlt.analytics._neighboring_relations import (
+    AddRemoveRows,
+    AddRemoveRowsAcrossGroups,
+    Conjunction,
 )
 from tmlt.analytics._noise_info import _noise_from_measurement
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
@@ -131,6 +137,7 @@ class PrivacyDefinition(Enum):
     """Zero-concentrated DP."""
 
 
+# TODO(#2172):replace old source indexing method with use of new lookup feature
 class Session:
     """Allows differentially private query evaluation on sensitive data.
 
@@ -172,30 +179,39 @@ class Session:
                     f" Found {type(self._privacy_budget)}"
                 )
 
-            compiler = QueryExprCompiler(output_measure=output_measure)
-            input_domain = DictDomain(
-                {
-                    source_id: source_tuple.domain
-                    for source_id, source_tuple in self._private_sources.items()
-                }
-            )
-            dataframes = {
+            tables = {
                 source_id: source_tuple.dataframe
                 for source_id, source_tuple in self._private_sources.items()
             }
-            input_metric = DictMetric(
-                {
-                    source_id: source_tuple.input_metric(output_measure)
-                    for source_id, source_tuple in self._private_sources.items()
-                }
+            visitor = NeighboringRelationCoreVisitor(tables, output_measure)
+            relations = []
+            for source_id, source_tuple in self._private_sources.items():
+                # Neighboring relation to use here with CoreVisitor?
+                relation: Union[AddRemoveRows, AddRemoveRowsAcrossGroups]
+                if source_tuple.grouping_column is None:
+                    # we know to build an AddRemoveRows relation if no grouping
+                    relation = AddRemoveRows(source_id, source_tuple.stability)
+                else:
+                    # build an AddRemoveAcrossGroups (pergroup = stability)
+                    relation = AddRemoveRowsAcrossGroups(
+                        source_id,
+                        source_tuple.grouping_column,
+                        source_tuple.stability,
+                        1,
+                    )
+                relations.append(relation)
+
+            # Build a conjunction, use output of accept to build dictionaries
+            conjunction = Conjunction(relations)
+            input_domain, input_metric, distance, dataframes = conjunction.accept(
+                visitor
             )
+
+            compiler = QueryExprCompiler(output_measure=output_measure)
             measurement = SequentialComposition(
                 input_domain=input_domain,
                 input_metric=input_metric,
-                d_in={
-                    source_id: source_tuple.d_in()
-                    for source_id, source_tuple in self._private_sources.items()
-                },
+                d_in=distance,
                 privacy_budget=sympy_budget,
                 output_measure=output_measure,
             )
@@ -496,6 +512,7 @@ class Session:
             source_id: The ID for the data source whose column types
                 are being retrieved.
         """
+        # TODO(#2172):replace old source indexing method with use of new lookup feature
         if source_id in self._input_domain.key_to_domain:
             return Schema(
                 spark_dataframe_domain_to_analytics_columns(
