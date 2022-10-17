@@ -3,6 +3,30 @@
 Changelog
 =========
 
+0.5.0 - 2022-10-17
+------------------
+
+Added
+~~~~~
+
+-  Added a diagram to the API reference page.
+-  Analytics now does an additional Spark configuration check for users running Java 11+ at the time of Analytics Session initialization. If the user is running Java 11 or higher with an incorrect Spark configuration, Analytics raises an informative exception.
+
+Changed
+~~~~~~~
+
+-  *Backwards-incompatible*: Changed argument names for ``QueryBuilder.count_distinct`` and ``KeySet.__getitem__`` from ``cols`` to ``columns``, for consistency. The old argument has been deprecated, but is still available.
+-  Improved the error message shown when a filter expression is invalid.
+-  Updated to Tumult Core 0.5.0.
+   As a result, ``python-flint`` is no longer a transitive dependency, simplifying the Analytics installation process.
+
+Deprecated
+~~~~~~~~~~
+
+-  The contents of the ``cleanup`` module have been moved to the ``utils`` module. The ``cleanup`` module will be removed in a future version.
+
+.. _section-1:
+
 0.4.2 - 2022-09-06
 ------------------
 
@@ -11,16 +35,20 @@ Fixed
 
 -  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
 
-.. _section-1:
+.. _section-2:
 
 0.4.1 - 2022-08-25
 ------------------
+
+.. _added-1:
 
 Added
 ~~~~~
 
 -  Added ``QueryBuilder.histogram`` function, which provides a shorthand for generating binned data counts.
 -  Analytics now checks to see if the user is running Java 11 or higher. If they are, Analytics either sets the appropriate Spark options (if Spark is not yet running) or raises an informative exception (if Spark is running and configured incorrectly).
+
+.. _changed-1:
 
 Changed
 ~~~~~~~
@@ -34,12 +62,12 @@ Fixed
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
-.. _section-2:
+.. _section-3:
 
 0.4.0 - 2022-07-22
 ------------------
 
-.. _added-1:
+.. _added-2:
 
 Added
 ~~~~~
@@ -48,12 +76,12 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-3:
+.. _section-4:
 
 0.3.0 - 2022-06-23
 ------------------
 
-.. _added-2:
+.. _added-3:
 
 Added
 ~~~~~
@@ -70,7 +98,7 @@ Added
 -  Added a ``cleanup`` module with two functions: a ``cleanup`` function to remove the current temporary table (which should be called before ``spark.stop()``), and a ``remove_all_temp_tables`` function that removes all temporary tables ever created by Analytics.
 -  Added a topic guide in the documentation for Tumult Analytics’ treatment of null, NaN, and infinite values.
 
-.. _changed-1:
+.. _changed-2:
 
 Changed
 ~~~~~~~
@@ -104,7 +132,7 @@ Fixed
 0.2.1 - 2022-04-14 (internal release)
 -------------------------------------
 
-.. _added-3:
+.. _added-4:
 
 Added
 ~~~~~
@@ -113,7 +141,7 @@ Added
    ``ColumnType`` has two new variants, ``DATE`` and ``TIMESTAMP``, to support these.
 -  Future documentation will now include any exceptions defined in Analytics.
 
-.. _changed-2:
+.. _changed-3:
 
 Changed
 ~~~~~~~
@@ -134,7 +162,7 @@ Removed
 -  Columns that are neither floats nor doubles will no longer be checked for NaN values.
 -  The ``BIT`` variant of the ``ColumnType`` enum was removed, as it was not supported elsewhere in Analytics.
 
-.. _changed-3:
+.. _changed-4:
 
 Changed
 ~~~~~~~
@@ -158,7 +186,7 @@ Fixed
 0.1.1 - 2022-02-28 (internal release)
 -------------------------------------
 
-.. _added-4:
+.. _added-5:
 
 Added
 ~~~~~
@@ -166,7 +194,7 @@ Added
 -  Added a ``KeySet`` class, which will eventually be used for all GroupBy queries.
 -  Added ``QueryBuilder.groupby()``, a new group-by based on ``KeySet``\ s.
 
-.. _changed-4:
+.. _changed-5:
 
 Changed
 ~~~~~~~
@@ -176,6 +204,8 @@ Changed
 -  The various ``Session`` methods for loading in data from CSV no longer support loading the data’s schema from a file.
 -  Made Session return a more user-friendly error message when the user provides a privacy budget of 0.
 -  Removed all instances of the old name of this library, and replaced them with “Analytics”
+
+.. _deprecated-1:
 
 Deprecated
 ~~~~~~~~~~
@@ -188,7 +218,7 @@ Deprecated
 0.1.0 - 2022-02-15 (internal release)
 -------------------------------------
 
-.. _added-5:
+.. _added-6:
 
 Added
 ~~~~~
