@@ -148,8 +148,12 @@ class TransformationVisitor(QueryExprVisitor):
                 "please let us know about it so we can fix it!"
             )
 
+    # TODO(#2172): update so it no longer assumes source ID is in domain
     def visit_private_source(self, expr: PrivateSource) -> Transformation:
         """Create a transformation from a PrivateSource query expression."""
+        # check if the source ID is in the input domain's keys. If not,
+        # it likely exists in a dict one level into the input domain
+        # if expr.source_id in self.input_domain.key_to_domain:
         return GetValue(self.input_domain, self.input_metric, expr.source_id)
 
     def _visit_child(self, child: QueryExpr) -> Transformation:
