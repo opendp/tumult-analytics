@@ -2,10 +2,10 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
-
+# pylint: disable=no-self-use
 import datetime
 
-from parameterized import parameterized
+import pytest
 from pyspark.sql import types as spark_types
 
 from tmlt.analytics._schema import (
@@ -27,10 +27,9 @@ from tmlt.core.domains.spark_domains import (
     SparkStringColumnDescriptor,
     SparkTimestampColumnDescriptor,
 )
-from tmlt.core.utils.testing import PySparkTest
 
 
-class TestSchemaConversions(PySparkTest):
+class TestSchemaConversions:
     """Unit tests for schema conversions."""
 
     def test_analytics_to_py_types(self) -> None:
@@ -43,11 +42,11 @@ class TestSchemaConversions(PySparkTest):
             "5": "TIMESTAMP",
         }
         py_columns = analytics_to_py_types(Schema(columns))
-        self.assertEqual(py_columns["1"], int)
-        self.assertEqual(py_columns["2"], float)
-        self.assertEqual(py_columns["3"], str)
-        self.assertEqual(py_columns["4"], datetime.date)
-        self.assertEqual(py_columns["5"], datetime.datetime)
+        assert py_columns["1"] == int
+        assert py_columns["2"] == float
+        assert py_columns["3"] == str
+        assert py_columns["4"] == datetime.date
+        assert py_columns["5"] == datetime.datetime
 
     def test_analytics_to_spark_schema(self):
         """Make sure conversion to Spark schema works properly."""
@@ -72,7 +71,7 @@ class TestSchemaConversions(PySparkTest):
             ]
         )
         actual_spark_schema = analytics_to_spark_schema(analytics_schema)
-        self.assertEqual(actual_spark_schema, expected_spark_schema)
+        assert actual_spark_schema == expected_spark_schema
 
     def test_analytics_to_spark_schema_with_null(self):
         """Test conversion to Spark schema with allow_null=True."""
@@ -97,9 +96,10 @@ class TestSchemaConversions(PySparkTest):
             ]
         )
         actual_spark_schema = analytics_to_spark_schema(analytics_schema)
-        self.assertEqual(actual_spark_schema, expected_spark_schema)
+        assert actual_spark_schema == expected_spark_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "analytics_schema,expected",
         [
             (
                 Schema(
@@ -167,7 +167,7 @@ class TestSchemaConversions(PySparkTest):
                     ),
                 },
             ),
-        ]
+        ],
     )
     def test_analytics_to_spark_columns_descriptor_schema(
         self, analytics_schema: Schema, expected: SparkColumnsDescriptor
@@ -179,9 +179,9 @@ class TestSchemaConversions(PySparkTest):
         # Since we don't care if the dictionaries have the same keys in the
         # same order, we can't use dictionary equality here
         for k in list(expected.keys()):
-            self.assertTrue(k in spark_columns_descriptor)
+            assert k in spark_columns_descriptor
         for k in list(expected.keys()):
-            self.assertEqual(expected[k], spark_columns_descriptor[k])
+            assert expected[k] == spark_columns_descriptor[k]
 
     def test_spark_conversions(self) -> None:
         """Make sure conversion from Spark schema/domain to Analytics works."""
@@ -210,12 +210,12 @@ class TestSchemaConversions(PySparkTest):
 
         # First test the schema --> columns conversion
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
-        self.assertEqual(expected, analytics_columns_1)
+        assert expected == analytics_columns_1
 
         # Now test the domain --> columns conversion
         domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
-        self.assertEqual(expected, analytics_columns_2)
+        assert expected == analytics_columns_2
 
     def test_spark_conversions_with_null(self) -> None:
         """Test that conversion from Spark to Analytics works with allow_null=True."""
@@ -247,12 +247,12 @@ class TestSchemaConversions(PySparkTest):
         }
         # First test the schema --> columns conversion
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
-        self.assertEqual(expected, analytics_columns_1)
+        assert expected == analytics_columns_1
 
         # Now test the domain --> columns conversion
         domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
-        self.assertEqual(expected, analytics_columns_2)
+        assert expected == analytics_columns_2
 
     def test_domain_conversion(self) -> None:
         """Test conversion to and from a SparkDataFrameDomain."""
@@ -292,9 +292,9 @@ class TestSchemaConversions(PySparkTest):
         }
         # First test the schema -> SparkColumnsDescriptor conversion
         got = analytics_to_spark_columns_descriptor(analytics_columns_1)
-        self.assertEqual(got, expected)
+        assert got == expected
         # Now test SparkDataFrameDomain -> Analytics conversion
         analytics_columns_2 = Schema(
             spark_dataframe_domain_to_analytics_columns(SparkDataFrameDomain(got))
         )
-        self.assertEqual(analytics_columns_2, analytics_columns_1)
+        assert analytics_columns_2 == analytics_columns_1

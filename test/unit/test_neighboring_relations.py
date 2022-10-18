@@ -3,6 +3,7 @@
 from cmath import inf, pi
 
 import pandas as pd
+import pytest
 import sympy as sp
 
 from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
@@ -22,57 +23,64 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.testing import PySparkTest
 
 
-class TestNeighboringRelations(PySparkTest):
+@pytest.fixture(name="test_data", scope="class")
+def setup_test_data(request, spark) -> None:
+    """Set up test data."""
+    table1 = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["1", 2, 0]],
+            columns=["A", "B", "X"],
+        )
+    )
+    request.cls.table1 = table1
+
+    table2 = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["2", 1, 0], ["0", 1, 2]],
+            columns=["A", "B", "X"],
+        )
+    )
+    request.cls.table2 = table2
+
+    table3 = spark.createDataFrame(
+        pd.DataFrame(
+            [
+                [float(inf), 1, 0],
+                [float(-inf), 0, 1],
+                [float(-inf), 2, 1],
+                [float(pi), 1, 0],
+                [float(-pi), 1, 2],
+            ],
+            columns=["A", "B", "X"],
+        )
+    )
+    request.cls.table3 = table3
+    request.cls.testdfsdict = {"table1": table1, "table2": table2}
+    request.cls.testdfsdictgrouping = {
+        "table1": table1,
+        "table2": table2,
+        "table3": table3,
+    }
+
+
+@pytest.mark.usefixtures("test_data")
+class TestNeighboringRelations:
     """Tests for the AddRemoveRows NeighboringRelation."""
-
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.table1 = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["1", 2, 0]],
-                columns=["A", "B", "X"],
-            )
-        )
-        self.table2 = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 1, 0], ["1", 0, 1], ["1", 2, 1], ["2", 1, 0], ["0", 1, 2]],
-                columns=["A", "B", "X"],
-            )
-        )
-        self.table3 = self.spark.createDataFrame(
-            pd.DataFrame(
-                [
-                    [float(inf), 1, 0],
-                    [float(-inf), 0, 1],
-                    [float(-inf), 2, 1],
-                    [float(pi), 1, 0],
-                    [float(-pi), 1, 2],
-                ],
-                columns=["A", "B", "X"],
-            )
-        )
-        self.testdfsdict = {"table1": self.table1, "table2": self.table2}
-        self.testdfsdictgrouping = {
-            "table1": self.table1,
-            "table2": self.table2,
-            "table3": self.table3,
-        }
 
     def test_add_remove_rows_validation(self):
         """Test that validate works as expected for AddRemoveRows."""
-        valid_dict = {"table1": self.testdfsdict["table1"]}
+        valid_dict = {"table1": self.table1}
         assert AddRemoveRows("table1", n=1).validate_input(valid_dict)
         # table doesn't exist in dict
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             AddRemoveRows("table2", n=1).validate_input(valid_dict)
         # dict is too 'long' for this relation
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             AddRemoveRows("table1", n=1).validate_input(self.testdfsdict)
         # table's value is of wrong type
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             AddRemoveRows("table1", n=1).validate_input(
                 {"table1": ["a", "random", "list"]}
             )
@@ -83,51 +91,51 @@ class TestNeighboringRelations(PySparkTest):
             self.testdfsdict, output_measure=PureDP()
         )
         assert AddRemoveRows("table1", n=5).accept(pure_visitor) == (
-            SparkDataFrameDomain.from_spark_schema(self.testdfsdict["table1"].schema),
+            SparkDataFrameDomain.from_spark_schema(self.table1.schema),
             SymmetricDifference(),
             ExactNumber(5),
-            self.testdfsdict["table1"],
+            self.table1,
         )
 
         rho_visitor = NeighboringRelationCoreVisitor(
             self.testdfsdict, output_measure=RhoZCDP()
         )
         assert AddRemoveRows("table2", n=5).accept(rho_visitor) == (
-            SparkDataFrameDomain.from_spark_schema(self.testdfsdict["table2"].schema),
+            SparkDataFrameDomain.from_spark_schema(self.table2.schema),
             SymmetricDifference(),
             ExactNumber(5),
-            self.testdfsdict["table2"],
+            self.table2,
         )
 
     def test_add_remove_rows_across_groups_validation(self):
         """Tests that validate_input works as expected for AddRemoveRowsAcrossGroups"""
         assert AddRemoveRowsAcrossGroups("table1", "A", 1, 1).validate_input(
-            {"table1": self.testdfsdictgrouping["table1"]}
+            {"table1": self.table1}
         )
         # table doesn't exist in dict
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             AddRemoveRowsAcrossGroups("table2", "A", 1, 1).validate_input(
-                {"table1": self.testdfsdictgrouping["table1"]}
+                {"table1": self.table1}
             )
         # input dict contains too many elements
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             AddRemoveRowsAcrossGroups("table1", "A", 1, 1).validate_input(
                 self.testdfsdictgrouping
             )
         # table's value is not a DataFrame
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             AddRemoveRowsAcrossGroups("table1", "B", 1, 1).validate_input(
                 {"table1": ["a", "random", "list"]}
             )
         # table contains values not supported in grouping operations
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             AddRemoveRowsAcrossGroups("table3", "A", 1, 1).validate_input(
-                {"table3": self.testdfsdictgrouping["table3"]}
+                {"table3": self.table3}
             )
         # grouping column doesn't exist in table
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             AddRemoveRowsAcrossGroups("table1", "Q", 1, 1).validate_input(
-                {"table1": self.testdfsdictgrouping["table1"]}
+                {"table1": self.table1}
             )
 
     def test_add_remove_rows_across_groups_accept(self):
@@ -140,17 +148,17 @@ class TestNeighboringRelations(PySparkTest):
         rho_visitor = NeighboringRelationCoreVisitor(self.testdfsdict, RhoZCDP())
 
         assert AddRemoveRowsAcrossGroups("table1", "A", 2, 2).accept(rho_visitor) == (
-            SparkDataFrameDomain.from_spark_schema(self.testdfsdict["table1"].schema),
+            SparkDataFrameDomain.from_spark_schema(self.table1.schema),
             IfGroupedBy("A", RootSumOfSquared(SymmetricDifference())),
             ExactNumber(4),
-            self.testdfsdict["table1"],
+            self.table1,
         )
 
         assert AddRemoveRowsAcrossGroups("table2", "B", 2, 6).accept(pure_visitor) == (
-            SparkDataFrameDomain.from_spark_schema(self.testdfsdict["table2"].schema),
+            SparkDataFrameDomain.from_spark_schema(self.table2.schema),
             IfGroupedBy("B", SumOf(SymmetricDifference())),
             ExactNumber(2 * sp.sqrt(6)),
-            self.testdfsdict["table2"],
+            self.table2,
         )
 
     #### Tests for Conjunction ####
@@ -209,33 +217,19 @@ class TestNeighboringRelations(PySparkTest):
         """Tests that validate_input works as expected for Conjunction."""
         assert Conjunction(
             AddRemoveRowsAcrossGroups("table1", "A", 1, 1), AddRemoveRows("table2", n=1)
-        ).validate_input(
-            {
-                "table1": self.testdfsdictgrouping["table1"],
-                "table2": self.testdfsdictgrouping["table2"],
-            }
-        )
+        ).validate_input({"table1": self.table1, "table2": self.table2})
         # duplicate table name usage should throw exception
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             Conjunction(
                 AddRemoveRowsAcrossGroups("table1", "A", 1, 1),
                 AddRemoveRows("table2", n=1),
                 AddRemoveRows("table2", n=1),
-            ).validate_input(
-                {
-                    "table1": self.testdfsdictgrouping["table1"],
-                    "table2": self.testdfsdictgrouping["table2"],
-                }
-            )
+            ).validate_input({"table1": self.table1, "table2": self.table2})
         # not every table is used in the relation
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             Conjunction(
                 AddRemoveRowsAcrossGroups("table1", "A", 1, 1),
                 AddRemoveRows("table2", n=1),
             ).validate_input(
-                {
-                    "table1": self.testdfsdictgrouping["table1"],
-                    "table2": self.testdfsdictgrouping["table2"],
-                    "table3": self.testdfsdictgrouping["table3"],
-                }
+                {"table1": self.table1, "table2": self.table2, "table3": self.table3}
             )

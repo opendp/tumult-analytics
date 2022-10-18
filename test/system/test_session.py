@@ -1,15 +1,17 @@
+# type: ignore[attr-defined]
 """System tests for Session."""
-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
+# pylint: disable=no-member, no-self-use
+
 
 import datetime
 import math
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
-from unittest.mock import patch
+from unittest.mock import Mock
 
 import pandas as pd
-from parameterized import parameterized
+import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 
@@ -60,7 +62,8 @@ from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
-from tmlt.core.utils.testing import PySparkTest
+
+from ..conftest import assert_frame_equal_with_sort  # pylint: disable=no-name-in-module
 
 # Shorthands for some values used in tests
 _DATE1 = datetime.date.fromisoformat("2022-01-01")
@@ -570,52 +573,73 @@ EVALUATE_TESTS = [
 ]
 
 
-class TestEvaluate(PySparkTest):
-    """Tests for evaluate."""
+###TESTS FOR EVALUATE###
+@pytest.fixture(name="session_data", scope="class")
+def dfs_setup(spark, request):
+    """Fixture defining test dataframes in a dictionary."""
 
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.sdf = self.spark.createDataFrame(
-            [["0", 0, 0], ["0", 0, 1], ["0", 1, 2], ["1", 0, 3]],
-            schema=StructType(
-                [
-                    StructField("A", StringType(), nullable=False),
-                    StructField("B", LongType(), nullable=False),
-                    StructField("X", LongType(), nullable=False),
-                ]
-            ),
-        )
-        self.join_df = self.spark.createDataFrame(
-            [["0", 0], ["0", 1], ["1", 1], ["1", 2]],
-            schema=StructType(
-                [
-                    StructField("A", StringType(), nullable=False),
-                    StructField("A+B", LongType(), nullable=False),
-                ]
-            ),
-        )
-        self.join_dtypes_df = self.spark.createDataFrame(
-            pd.DataFrame(
-                [[0, _DATE1], [1, _DATE1], [2, _DATE1], [3, _DATE2]],
-                columns=["X", "DATE"],
-            )
-        )
-        self.groupby_two_columns_df = self.spark.createDataFrame(
-            pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
-        )
-        self.groupby_one_column_df = self.spark.createDataFrame(
-            pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
-        )
-        self.groupby_with_duplicates_df = self.spark.createDataFrame(
-            pd.DataFrame([["0"], ["0"], ["1"], ["1"], ["2"], ["2"]], columns=["A"])
-        )
-        self.groupby_empty_df = self.spark.createDataFrame([], schema=StructType())
-        self.sdf_col_types = {"A": "VARCHAR", "B": "INTEGER", "X": "DECIMAL"}
-        self.sdf_input_domain = SparkDataFrameDomain(
-            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
-        )
+    sdf = spark.createDataFrame(
+        [["0", 0, 0], ["0", 0, 1], ["0", 1, 2], ["1", 0, 3]],
+        schema=StructType(
+            [
+                StructField("A", StringType(), nullable=False),
+                StructField("B", LongType(), nullable=False),
+                StructField("X", LongType(), nullable=False),
+            ]
+        ),
+    )
+    request.cls.sdf = sdf
+    join_df = spark.createDataFrame(
+        [["0", 0], ["0", 1], ["1", 1], ["1", 2]],
+        schema=StructType(
+            [
+                StructField("A", StringType(), nullable=False),
+                StructField("A+B", LongType(), nullable=False),
+            ]
+        ),
+    )
+    request.cls.join_df = join_df
 
-    @parameterized.expand(EVALUATE_TESTS)
+    join_dtypes_df = spark.createDataFrame(
+        pd.DataFrame(
+            [[0, _DATE1], [1, _DATE1], [2, _DATE1], [3, _DATE2]], columns=["X", "DATE"]
+        )
+    )
+    request.cls.join_dtypes_df = join_dtypes_df
+
+    groupby_two_columns_df = spark.createDataFrame(
+        pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
+    )
+    request.cls.groupby_two_columns_df = groupby_two_columns_df
+
+    groupby_one_column_df = spark.createDataFrame(
+        pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
+    )
+    request.cls.groupby_one_column_df = groupby_one_column_df
+
+    groupby_with_duplicates_df = spark.createDataFrame(
+        pd.DataFrame([["0"], ["0"], ["1"], ["1"], ["2"], ["2"]], columns=["A"])
+    )
+    request.cls.groupby_with_duplicates_df = groupby_with_duplicates_df
+
+    groupby_empty_df = spark.createDataFrame([], schema=StructType())
+    request.cls.groupby_empty_df = groupby_empty_df
+
+    sdf_col_types = {"A": "VARCHAR", "B": "INTEGER", "X": "DECIMAL"}
+
+    request.cls.sdf_col_types = sdf_col_types
+
+    sdf_input_domain = SparkDataFrameDomain(
+        analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
+    )
+    request.cls.sdf_input_domain = sdf_input_domain
+
+
+@pytest.mark.usefixtures("session_data")
+class TestSession:
+    """Tests for Valid Sessions."""
+
+    @pytest.mark.parametrize("query_expr,expected_expr,expected_df", EVALUATE_TESTS)
     def test_queries_privacy_budget_infinity_puredp(
         self,
         query_expr: QueryExpr,
@@ -630,7 +654,7 @@ class TestEvaluate(PySparkTest):
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            self.assertEqual(query_expr, expected_expr)
+            assert query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
@@ -656,9 +680,10 @@ class TestEvaluate(PySparkTest):
         actual_sdf = session.evaluate(
             query_expr, privacy_budget=PureDPBudget(float("inf"))
         )
-        self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_expr,expected_expr,expected_df",
         EVALUATE_TESTS
         + [
             (  # Total with GAUSSIAN
@@ -688,7 +713,7 @@ class TestEvaluate(PySparkTest):
                 ),
                 pd.DataFrame({"A": ["0", "1"], "B_stdev": [0.471405, 0.0]}),
             ),
-        ]
+        ],
     )
     def test_queries_privacy_budget_infinity_rhozcdp(
         self,
@@ -704,7 +729,7 @@ class TestEvaluate(PySparkTest):
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            self.assertEqual(query_expr, expected_expr)
+            assert query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=RhoZCDPBudget(float("inf")),
             source_id="private",
@@ -730,9 +755,10 @@ class TestEvaluate(PySparkTest):
         actual_sdf = session.evaluate(
             query_expr, privacy_budget=RhoZCDPBudget(float("inf"))
         )
-        self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_expr,session_budget,query_budget,expected",
         [
             (
                 GroupByCount(
@@ -786,7 +812,7 @@ class TestEvaluate(PySparkTest):
                     },
                 ],
             ),
-        ]
+        ],
     )
     def test_noise_info(
         self,
@@ -802,10 +828,10 @@ class TestEvaluate(PySparkTest):
         # pylint: disable=protected-access
         info = session._noise_info(query_expr, query_budget)
         # pylint: enable=protected-access
-        self.assertEqual(info, expected)
+        assert info == expected
 
-    @parameterized.expand(
-        [(PureDPBudget(float("inf")),), (RhoZCDPBudget(float("inf")),)]
+    @pytest.mark.parametrize(
+        "privacy_budget", [(PureDPBudget(float("inf"))), (RhoZCDPBudget(float("inf")))]
     )
     def test_private_join_privacy_budget_infinity(self, privacy_budget: PrivacyBudget):
         """Session :func:`evaluate` returns correct result for private join, eps=inf."""
@@ -838,9 +864,11 @@ class TestEvaluate(PySparkTest):
             cache=False,
         )
         actual_sdf = session.evaluate(query_expr, privacy_budget=privacy_budget)
-        self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand([(CountMechanism.DEFAULT,), (CountMechanism.LAPLACE,)])
+    @pytest.mark.parametrize(
+        "mechanism", [(CountMechanism.DEFAULT), (CountMechanism.LAPLACE)]
+    )
     def test_interactivity_puredp(self, mechanism: CountMechanism):
         """Test that interactivity works with PureDP."""
         query_expr = GroupByCount(
@@ -854,16 +882,13 @@ class TestEvaluate(PySparkTest):
             privacy_budget=PureDPBudget(10), source_id="private", dataframe=self.sdf
         )
         session.evaluate(query_expr, privacy_budget=PureDPBudget(5))
-        self.assertEqual(session.remaining_privacy_budget, PureDPBudget(5))
+        assert session.remaining_privacy_budget == PureDPBudget(5)
         session.evaluate(query_expr, privacy_budget=PureDPBudget(5))
-        self.assertEqual(session.remaining_privacy_budget, PureDPBudget(0))
+        assert session.remaining_privacy_budget == PureDPBudget(0)
 
-    @parameterized.expand(
-        [
-            (CountMechanism.DEFAULT,),
-            (CountMechanism.LAPLACE,),
-            (CountMechanism.GAUSSIAN,),
-        ]
+    @pytest.mark.parametrize(
+        "mechanism",
+        [(CountMechanism.DEFAULT), (CountMechanism.LAPLACE), (CountMechanism.GAUSSIAN)],
     )
     def test_interactivity_zcdp(self, mechanism: CountMechanism):
         """Test that interactivity works with RhoZCDP."""
@@ -878,11 +903,11 @@ class TestEvaluate(PySparkTest):
             privacy_budget=RhoZCDPBudget(10), source_id="private", dataframe=self.sdf
         )
         session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
-        self.assertEqual(session.remaining_privacy_budget, RhoZCDPBudget(5))
+        assert session.remaining_privacy_budget == RhoZCDPBudget(5)
         session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
-        self.assertEqual(session.remaining_privacy_budget, RhoZCDPBudget(0))
+        assert session.remaining_privacy_budget == RhoZCDPBudget(0)
 
-    @parameterized.expand([(PureDPBudget(1),), (RhoZCDPBudget(1),)])
+    @pytest.mark.parametrize("budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
     def test_zero_budget(self, budget: PrivacyBudget):
         """Test that a call to `evaluate` raises a ValueError if budget is 0."""
         query_expr = GroupByCount(
@@ -899,12 +924,13 @@ class TestEvaluate(PySparkTest):
             zero_budget = PureDPBudget(0)
         else:
             zero_budget = RhoZCDPBudget(0)
-        with self.assertRaisesRegex(
-            ValueError, "You need a non-zero privacy budget to evaluate a query."
+        with pytest.raises(
+            ValueError, match="You need a non-zero privacy budget to evaluate a query."
         ):
             session.evaluate(query_expr, privacy_budget=zero_budget)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "privacy_budget,expected",
         [
             (  # GEOMETRIC noise since integer measure_column and PureDP
                 PureDPBudget(10000),
@@ -914,7 +940,7 @@ class TestEvaluate(PySparkTest):
                 RhoZCDPBudget(10000),
                 pd.DataFrame({"sum": [12]}),
             ),
-        ]
+        ],
     )
     def test_create_view_with_stability(
         self, privacy_budget: PrivacyBudget, expected: pd.DataFrame
@@ -943,10 +969,11 @@ class TestEvaluate(PySparkTest):
             high=3,
         )
         actual = session.evaluate(sum_query, privacy_budget)
-        self.assert_frame_equal_with_sort(actual.toPandas(), expected, rtol=1)
+        assert_frame_equal_with_sort(actual.toPandas(), expected, rtol=1)
 
-    @parameterized.expand(
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))]
+    @pytest.mark.parametrize(
+        "starting_budget,partition_budget",
+        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
     )
     def test_partition_and_create(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -964,34 +991,21 @@ class TestEvaluate(PySparkTest):
         )
         session2 = sessions["private0"]
         session3 = sessions["private1"]
-        self.assertEqual(session1.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.private_sources, ["private0"])
-        self.assertEqual(
-            session2.get_schema("private0"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session1.remaining_privacy_budget == partition_budget
+        assert session2.remaining_privacy_budget == partition_budget
+        assert session2.private_sources == ["private0"]
+        assert session2.get_schema("private0") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        self.assertEqual(session3.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session3.private_sources, ["private1"])
-        self.assertEqual(
-            session3.get_schema("private1"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session3.remaining_privacy_budget == partition_budget
+        assert session3.private_sources == ["private1"]
+        assert session3.get_schema("private1") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
-    @parameterized.expand(
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))]
+    @pytest.mark.parametrize(
+        "starting_budget,partition_budget",
+        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
     )
     def test_partition_and_create_query(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -1018,42 +1032,29 @@ class TestEvaluate(PySparkTest):
         )
         session2 = sessions["private0"]
         session3 = sessions["private1"]
-        self.assertEqual(session1.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.private_sources, ["private0"])
-        self.assertEqual(
-            session2.get_schema("private0"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session1.remaining_privacy_budget == partition_budget
+        assert session2.remaining_privacy_budget == partition_budget
+        assert session2.private_sources == ["private0"]
+        assert session2.get_schema("private0") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        self.assertEqual(session3.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session3.private_sources, ["private1"])
-        self.assertEqual(
-            session3.get_schema("private1"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session3.remaining_privacy_budget == partition_budget
+        assert session3.private_sources == ["private1"]
+        assert session3.get_schema("private1") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
         query = GroupByCount(
             child=PrivateSource("private0"), groupby_keys=KeySet.from_dict({})
         )
         session2.evaluate(query, partition_budget)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "inf_budget,mechanism",
         [
             (PureDPBudget(float("inf")), CountMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), CountMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), CountMechanism.GAUSSIAN),
-        ]
+        ],
     )
     def test_partition_and_create_correct_answer(
         self, inf_budget: PrivacyBudget, mechanism: CountMechanism
@@ -1077,7 +1078,7 @@ class TestEvaluate(PySparkTest):
             ),
             inf_budget,
         )
-        self.assert_frame_equal_with_sort(
+        assert_frame_equal_with_sort(
             answer_session2.toPandas(), pd.DataFrame({"count": [3]})
         )
         answer_session3 = session3.evaluate(
@@ -1086,11 +1087,11 @@ class TestEvaluate(PySparkTest):
             ),
             inf_budget,
         )
-        self.assert_frame_equal_with_sort(
+        assert_frame_equal_with_sort(
             answer_session3.toPandas(), pd.DataFrame({"count": [1]})
         )
 
-    @parameterized.expand([(PureDP(),), (RhoZCDP(),)])
+    @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
     def test_partitions_composed(self, output_measure: Union[PureDP, RhoZCDP]):
         """Smoke test for composing :func:`partition_and_create`."""
         starting_budget: Union[PureDPBudget, RhoZCDPBudget]
@@ -1108,7 +1109,7 @@ class TestEvaluate(PySparkTest):
             second_partition_budget = RhoZCDPBudget(5)
             final_evaluate_budget = RhoZCDPBudget(2)
         else:
-            self.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
+            pytest.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
 
         session1 = Session.from_dataframe(
             privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
@@ -1134,30 +1135,16 @@ class TestEvaluate(PySparkTest):
         )
         session2 = sessions["private0"]
         session3 = sessions["private1"]
-        self.assertEqual(session1.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.private_sources, ["private0"])
-        self.assertEqual(
-            session2.get_schema("private0"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session1.remaining_privacy_budget == partition_budget
+        assert session2.remaining_privacy_budget == partition_budget
+        assert session2.private_sources == ["private0"]
+        assert session2.get_schema("private0") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        self.assertEqual(session3.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session3.private_sources, ["private1"])
-        self.assertEqual(
-            session3.get_schema("private1"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session3.remaining_privacy_budget == partition_budget
+        assert session3.private_sources == ["private1"]
+        assert session3.get_schema("private1") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
         transformation_query2 = ReplaceNullAndNan(
@@ -1180,30 +1167,16 @@ class TestEvaluate(PySparkTest):
         )
         session4 = sessions["private0"]
         session5 = sessions["private1"]
-        self.assertEqual(session2.remaining_privacy_budget, second_partition_budget)
-        self.assertEqual(session4.remaining_privacy_budget, second_partition_budget)
-        self.assertEqual(session4.private_sources, ["private0"])
-        self.assertEqual(
-            session4.get_schema("private0"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session2.remaining_privacy_budget == second_partition_budget
+        assert session4.remaining_privacy_budget == second_partition_budget
+        assert session4.private_sources == ["private0"]
+        assert session4.get_schema("private0") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        self.assertEqual(session5.remaining_privacy_budget, second_partition_budget)
-        self.assertEqual(session5.private_sources, ["private1"])
-        self.assertEqual(
-            session5.get_schema("private1"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session5.remaining_privacy_budget == second_partition_budget
+        assert session5.private_sources == ["private1"]
+        assert session5.get_schema("private1") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
         query = GroupByCount(
@@ -1211,8 +1184,9 @@ class TestEvaluate(PySparkTest):
         )
         session4.evaluate(query_expr=query, privacy_budget=final_evaluate_budget)
 
-    @parameterized.expand(
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))]
+    @pytest.mark.parametrize(
+        "starting_budget,partition_budget",
+        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
     )
     def test_partition_execution_order(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -1230,72 +1204,58 @@ class TestEvaluate(PySparkTest):
         )
         session2 = sessions["private0"]
         session3 = sessions["private1"]
-        self.assertEqual(session1.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session2.private_sources, ["private0"])
-        self.assertEqual(
-            session2.get_schema("private0"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session1.remaining_privacy_budget == partition_budget
+        assert session2.remaining_privacy_budget == partition_budget
+        assert session2.private_sources == ["private0"]
+        assert session2.get_schema("private0") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        self.assertEqual(session3.remaining_privacy_budget, partition_budget)
-        self.assertEqual(session3.private_sources, ["private1"])
-        self.assertEqual(
-            session3.get_schema("private1"),
-            Schema(
-                {
-                    "A": ColumnType.VARCHAR,
-                    "B": ColumnType.INTEGER,
-                    "X": ColumnType.INTEGER,
-                }
-            ),
+        assert session3.remaining_privacy_budget == partition_budget
+        assert session3.private_sources == ["private1"]
+        assert session3.get_schema("private1") == Schema(
+            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
         # pylint: disable=protected-access
-        self.assertEqual(
-            session1._accountant.state, PrivacyAccountantState.WAITING_FOR_CHILDREN
-        )
-        self.assertEqual(session2._accountant.state, PrivacyAccountantState.ACTIVE)
-        self.assertEqual(
-            session3._accountant.state, PrivacyAccountantState.WAITING_FOR_SIBLING
-        )
+        assert session1._accountant.state == PrivacyAccountantState.WAITING_FOR_CHILDREN
+        assert session2._accountant.state == PrivacyAccountantState.ACTIVE
+        assert session3._accountant.state == PrivacyAccountantState.WAITING_FOR_SIBLING
 
         # This should work, but it should also retire session2
         select_query3 = Select(columns=["A"], child=PrivateSource(source_id="private1"))
         session3.create_view(select_query3, "select_view", cache=False)
-        self.assertEqual(session2._accountant.state, PrivacyAccountantState.RETIRED)
+        assert session2._accountant.state == PrivacyAccountantState.RETIRED
 
         # Now trying to do operations on session2 should raise an error
         select_query2 = Select(columns=["A"], child=PrivateSource(source_id="private0"))
-        with self.assertRaisesRegex(
+        with pytest.raises(
             RuntimeError,
-            "This session is no longer active, and no new queries can be performed",
+            match=(
+                "This session is no longer active, and no new queries can be performed"
+            ),
         ):
             session2.create_view(select_query2, "select_view", cache=False)
 
         # This should work, but it should also retire session3
         select_query1 = Select(columns=["A"], child=PrivateSource(source_id="private"))
         session1.create_view(select_query1, "select_view", cache=False)
-        self.assertEqual(session3._accountant.state, PrivacyAccountantState.RETIRED)
+        assert session3._accountant.state == PrivacyAccountantState.RETIRED
 
         # Now trying to do operations on session3 should raise an error
-        with self.assertRaisesRegex(
+        with pytest.raises(
             RuntimeError,
-            "This session is no longer active, and no new queries can be performed",
+            match=(
+                "This session is no longer active, and no new queries can be performed"
+            ),
         ):
             session3.create_view(select_query3, "select_view_again", cache=False)
 
         # pylint: enable=protected-access
 
-    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
-    def test_partition_on_grouping_column(self, budget: PrivacyBudget):
+    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
+    def test_partition_on_grouping_column(self, spark, budget: PrivacyBudget):
         """Tests that you can partition on grouping columns."""
-        grouping_df = self.spark.createDataFrame(pd.DataFrame({"new": [1, 2]}))
+        grouping_df = spark.createDataFrame(pd.DataFrame({"new": [1, 2]}))
         session = Session.from_dataframe(
             privacy_budget=budget,
             source_id="private",
@@ -1311,7 +1271,7 @@ class TestEvaluate(PySparkTest):
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
         new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
 
-    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
     def test_partition_on_flatmap_grouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on columns created by grouping flat maps."""
         session = Session.from_dataframe(
@@ -1334,7 +1294,7 @@ class TestEvaluate(PySparkTest):
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
         new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
 
-    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
     def test_partition_on_nongrouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on other columns after grouping flat maps."""
         session = Session.from_dataframe(
@@ -1360,7 +1320,7 @@ class TestEvaluate(PySparkTest):
         )
         new_sessions["one"].evaluate(QueryBuilder("one").groupby(keys).count(), budget)
 
-    @parameterized.expand([(PureDPBudget(20),), (RhoZCDPBudget(20),)])
+    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
     def test_create_view_composed(self, budget: PrivacyBudget):
         """Composing views with :func:`create_view` works."""
 
@@ -1375,9 +1335,7 @@ class TestEvaluate(PySparkTest):
             augment=True,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
-        self.assertEqual(
-            session._stability["flatmap1"], 2  # pylint: disable=protected-access
-        )
+        assert session._stability["flatmap1"] == 2  # pylint: disable=protected-access
 
         transformation_query2 = FlatMap(
             child=PrivateSource("flatmap1"),
@@ -1387,11 +1345,9 @@ class TestEvaluate(PySparkTest):
             augment=True,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
-        self.assertEqual(
-            session._stability["flatmap2"], 6  # pylint: disable=protected-access
-        )
+        assert session._stability["flatmap2"] == 6  # pylint: disable=protected-access
 
-    @parameterized.expand([(PureDPBudget(10),), (RhoZCDPBudget(10),)])
+    @pytest.mark.parametrize("budget", [(PureDPBudget(10)), (RhoZCDPBudget(10))])
     def test_create_view_composed_query(self, budget: PrivacyBudget):
         """Smoke test for composing views and querying."""
         session = Session.from_dataframe(
@@ -1425,12 +1381,13 @@ class TestEvaluate(PySparkTest):
         )
         session.evaluate(query_expr=sum_query, privacy_budget=budget)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "inf_budget,mechanism",
         [
             (PureDPBudget(float("inf")), SumMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), SumMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), SumMechanism.GAUSSIAN),
-        ]
+        ],
     )
     def test_create_view_composed_correct_answer(
         self, inf_budget: PrivacyBudget, mechanism: SumMechanism
@@ -1468,9 +1425,9 @@ class TestEvaluate(PySparkTest):
         )
         answer = session.evaluate(sum_query, inf_budget).toPandas()
         expected = pd.DataFrame({"sum": [9]})
-        self.assert_frame_equal_with_sort(answer, expected)
+        assert_frame_equal_with_sort(answer, expected)
 
-    def test_caching(self):
+    def test_caching(self, spark):
         """Tests that caching works as expected."""
         # pylint: disable=protected-access
         session = Session.from_dataframe(
@@ -1478,42 +1435,35 @@ class TestEvaluate(PySparkTest):
             source_id="private",
             dataframe=self.sdf,
         )
+        # we need to add this to clear the cache in the spark session, since
+        # with the addition of pytest all tests in a module share the same
+        # spark context. Since there are views created in the previous test
+        # the first assertion here will fail unless we clear the cache
+        spark.catalog.clearCache()
         view1_query = QueryBuilder("private").filter("B = 0")
         view2_query = QueryBuilder("private").join_public(self.join_df)
         session.create_view(view1_query, "view1", cache=True)
         session.create_view(view2_query, "view2", cache=True)
         # Views have been created, but are lazy - nothing in cache yet
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 0
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 0
         # Evaluate a query on view1
         session.evaluate(QueryBuilder("view1").count(), privacy_budget=PureDPBudget(1))
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 1
         # Evaluate another query on view1
         session.evaluate(QueryBuilder("view1").count(), privacy_budget=PureDPBudget(1))
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 1
         # Evaluate a query on view2
         session.evaluate(QueryBuilder("view2").count(), privacy_budget=PureDPBudget(1))
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 2
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 2
         # Delete views
         session.delete_view("view1")
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 1
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 1
         session.delete_view("view2")
-        self.assertEqual(
-            len(list(self.spark.sparkContext._jsc.sc().getRDDStorageInfo())), 0
-        )
+        assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 0
 
-    def test_grouping_noninteger_stability(self) -> None:
+    def test_grouping_noninteger_stability(self, spark) -> None:
         """Test that zCDP grouping_column and non-integer stabilities work."""
-        grouped_df = self.spark.createDataFrame(
+        grouped_df = spark.createDataFrame(
             pd.DataFrame({"id": [7, 7, 8, 9], "group": [0, 1, 0, 1]})
         )
         ks = KeySet.from_dict({"group": [0, 1]})
@@ -1529,24 +1479,33 @@ class TestEvaluate(PySparkTest):
         sess.evaluate(query, RhoZCDPBudget(1))
 
 
-class TestInvalidSession(PySparkTest):
-    """Tests for invalid session."""
-
-    def setUp(self) -> None:
-        """Set up test data."""
-        # pylint: disable=no-member
-        self.sdf = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],
-                columns=["A", "B", "X"],
-            )
+###TESTS FOR INVALID SESSION###
+@pytest.fixture(name="invalid_session_data", scope="class")
+def invalid_dfs_setup(spark, request) -> Dict[str, Union[Dict, DataFrame]]:
+    """Set up test data."""
+    sdf = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],
+            columns=["A", "B", "X"],
         )
-        self.sdf_col_types = {"A": "VARCHAR", "B": "INTEGER", "X": "DECIMAL"}
-        self.sdf_input_domain = SparkDataFrameDomain(
-            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
-        )
+    )
+    request.cls.sdf = sdf
 
-    @parameterized.expand(
+    sdf_col_types = {"A": "VARCHAR", "B": "INTEGER", "X": "DECIMAL"}
+    request.cls.sdf_col_types = sdf_col_types
+
+    sdf_input_domain = SparkDataFrameDomain(
+        analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
+    )
+    request.cls.sdf_input_domain = sdf_input_domain
+
+
+@pytest.mark.usefixtures("invalid_session_data")
+class TestInvalidSession:
+    """Tests for Invalid Sessions."""
+
+    @pytest.mark.parametrize(
+        "query_expr,error_type,expected_error_msg",
         [
             (
                 GroupByCount(
@@ -1556,17 +1515,16 @@ class TestInvalidSession(PySparkTest):
                 ValueError,
                 "Query references invalid source 'private_source_not_in_catalog'.",
             )
-        ]
+        ],
     )
-    @patch("tmlt.core.measurements.interactive_measurements.PrivacyAccountant")
     def test_invalid_queries_evaluate(
         self,
         query_expr: QueryExpr,
         error_type: Type[Exception],
         expected_error_msg: str,
-        mock_accountant,
     ):
         """evaluate raises error on invalid queries."""
+        mock_accountant = Mock()
         mock_accountant.output_measure = PureDP()
         mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
         mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
@@ -1575,10 +1533,10 @@ class TestInvalidSession(PySparkTest):
 
         session = Session(accountant=mock_accountant, public_sources=dict())
         session.create_view(PrivateSource("private"), "view", cache=False)
-        with self.assertRaisesRegex(error_type, expected_error_msg):
+        with pytest.raises(error_type, match=expected_error_msg):
             session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
 
-    @parameterized.expand([(PureDP(),), (RhoZCDP(),)])
+    @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
     def test_invalid_privacy_budget_evaluate_and_create(
         self, output_measure: Union[PureDP, RhoZCDP]
     ):
@@ -1592,7 +1550,7 @@ class TestInvalidSession(PySparkTest):
             one_budget = RhoZCDPBudget(1)
             two_budget = RhoZCDPBudget(2)
         else:
-            self.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
+            pytest.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
 
         query_expr = GroupByCount(
             child=PrivateSource("private"),
@@ -1601,16 +1559,16 @@ class TestInvalidSession(PySparkTest):
         session = Session.from_dataframe(
             privacy_budget=one_budget, source_id="private", dataframe=self.sdf
         )
-        with self.assertRaisesRegex(
+        with pytest.raises(
             RuntimeError,
-            "Cannot answer query without exceeding privacy budget: "
+            match="Cannot answer query without exceeding privacy budget: "
             "it needs approximately 2.000, but the remaining budget is "
             r"approximately 1.000 \(difference: 1.000e\+00\)",
         ):
             session.evaluate(query_expr, privacy_budget=two_budget)
-        with self.assertRaisesRegex(
+        with pytest.raises(
             RuntimeError,
-            "Cannot perform this partition without exceeding privacy budget: "
+            match="Cannot perform this partition without exceeding privacy budget: "
             "it needs approximately 2.000, but the remaining budget is approximately "
             r"1.000 \(difference: 1.000e\+00\)",
         ):
@@ -1642,10 +1600,12 @@ class TestInvalidSession(PySparkTest):
             cache=False,
         )
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             ValueError,
-            "Column produced by grouping transformation 'repeated' is not in "
-            "groupby columns",
+            match=(
+                "Column produced by grouping transformation 'repeated' is not in "
+                "groupby columns"
+            ),
         ):
             session.evaluate(
                 query_expr=GroupByBoundedSum(
@@ -1685,68 +1645,50 @@ class TestInvalidSession(PySparkTest):
             augment=True,
         )
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             ValueError,
-            "Multiple grouping transformations are used in this query. "
-            "Only one grouping transformation is allowed.",
+            match=(
+                "Multiple grouping transformations are used in this query. "
+                "Only one grouping transformation is allowed."
+            ),
         ):
             session.create_view(grouping_flatmap_2, "grouping_flatmap_2", cache=False)
 
 
-class TestSessionWithNull(PySparkTest):
-    """Test Sessions that allow null values."""
+@pytest.fixture(name="null_session_data", scope="class")
+def null_setup(spark, request):
+    """Set up test data for sessions with nulls."""
+    pdf = pd.DataFrame(
+        [
+            ["a0", 0, 0.0, datetime.date(2000, 1, 1), datetime.datetime(2020, 1, 1)],
+            [None, 1, 1.0, datetime.date(2001, 1, 1), datetime.datetime(2021, 1, 1)],
+            ["a2", None, 2.0, datetime.date(2002, 1, 1), datetime.datetime(2022, 1, 1)],
+            ["a3", 3, None, datetime.date(2003, 1, 1), datetime.datetime(2023, 1, 1)],
+            ["a4", 4, 4.0, None, datetime.datetime(2024, 1, 1)],
+            ["a5", 5, 5.0, datetime.date(2005, 1, 1), None],
+        ],
+        columns=["A", "I", "X", "D", "T"],
+    )
 
-    def setUp(self) -> None:
-        """Set up tests"""
-        self.pdf = pd.DataFrame(
-            [
-                [
-                    "a0",
-                    0,
-                    0.0,
-                    datetime.date(2000, 1, 1),
-                    datetime.datetime(2020, 1, 1),
-                ],
-                [
-                    None,
-                    1,
-                    1.0,
-                    datetime.date(2001, 1, 1),
-                    datetime.datetime(2021, 1, 1),
-                ],
-                [
-                    "a2",
-                    None,
-                    2.0,
-                    datetime.date(2002, 1, 1),
-                    datetime.datetime(2022, 1, 1),
-                ],
-                [
-                    "a3",
-                    3,
-                    None,
-                    datetime.date(2003, 1, 1),
-                    datetime.datetime(2023, 1, 1),
-                ],
-                ["a4", 4, 4.0, None, datetime.datetime(2024, 1, 1)],
-                ["a5", 5, 5.0, datetime.date(2005, 1, 1), None],
-            ],
-            columns=["A", "I", "X", "D", "T"],
-        )
+    request.cls.pdf = pdf
 
-        self.sdf_col_types = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-            "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-            "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-            "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
-        }
-        self.sdf = self.spark.createDataFrame(
-            self.pdf, schema=analytics_to_spark_schema(Schema(self.sdf_col_types))
-        )
-        self.sdf_input_domain = SparkDataFrameDomain(
-            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
-        )
+    sdf_col_types = {
+        "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+        "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+        "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+    }
+
+    sdf = spark.createDataFrame(
+        pdf, schema=analytics_to_spark_schema(Schema(sdf_col_types))
+    )
+    request.cls.sdf = sdf
+
+
+@pytest.mark.usefixtures("null_session_data")
+class TestSessionWithNulls:
+    """Tests for sessions with Nulls."""
 
     def _expected_replace(self, d: Mapping[str, Any]) -> pd.DataFrame:
         """The expected value if you replace None with default values in d."""
@@ -1822,13 +1764,14 @@ class TestSessionWithNull(PySparkTest):
             ],
             columns=["A", "I", "X", "D", "T"],
         )
-        self.assert_frame_equal_with_sort(self.pdf, self._expected_replace({}))
-        self.assert_frame_equal_with_sort(expected, self._expected_replace(d))
+        assert_frame_equal_with_sort(self.pdf, self._expected_replace({}))
+        assert_frame_equal_with_sort(expected, self._expected_replace(d))
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "cols_to_defaults",
         [
-            ({"A": "aaaaaaa"},),
-            ({"I": 999},),
+            ({"A": "aaaaaaa"}),
+            ({"I": 999}),
             (
                 {
                     "A": "aaa",
@@ -1836,9 +1779,9 @@ class TestSessionWithNull(PySparkTest):
                     "X": -99.9,
                     "D": datetime.date.fromtimestamp(0),
                     "T": datetime.datetime.fromtimestamp(0),
-                },
+                }
             ),
-        ]
+        ],
     )
     def test_replace_null_and_nan(
         self,
@@ -1857,19 +1800,17 @@ class TestSessionWithNull(PySparkTest):
         )
         # pylint: disable=protected-access
         queryable = session._accountant._queryable
-        self.assertIsInstance(queryable, SequentialQueryable)
         assert isinstance(queryable, SequentialQueryable)
         data = queryable._data
-        self.assertIsInstance(data, dict)
         assert isinstance(data, dict)
-        self.assertIsInstance(data["replaced"], DataFrame)
         assert isinstance(data["replaced"], DataFrame)
         # pylint: enable=protected-access
-        self.assert_frame_equal_with_sort(
+        assert_frame_equal_with_sort(
             data["replaced"].toPandas(), self._expected_replace(cols_to_defaults)
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "public_df,keyset,expected",
         [
             (
                 pd.DataFrame(
@@ -1911,10 +1852,10 @@ class TestSessionWithNull(PySparkTest):
                     columns=["D", "count"],
                 ),
             ),
-        ]
+        ],
     )
     def test_join_public(
-        self, public_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
+        self, spark, public_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
     ) -> None:
         """Test that join_public creates the correct results.
 
@@ -1924,14 +1865,15 @@ class TestSessionWithNull(PySparkTest):
         session = Session.from_dataframe(
             PureDPBudget(float("inf")), "private", self.sdf
         )
-        session.add_public_dataframe("public", self.spark.createDataFrame(public_df))
+        session.add_public_dataframe("public", spark.createDataFrame(public_df))
         result = session.evaluate(
             QueryBuilder("private").join_public("public").groupby(keyset).count(),
             privacy_budget=PureDPBudget(float("inf")),
         )
-        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+        assert_frame_equal_with_sort(result.toPandas(), expected)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "private_df,keyset,expected",
         [
             (
                 pd.DataFrame(
@@ -1973,10 +1915,10 @@ class TestSessionWithNull(PySparkTest):
                     columns=["D", "count"],
                 ),
             ),
-        ]
+        ],
     )
     def test_join_private(
-        self, private_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
+        self, spark, private_df: pd.DataFrame, keyset: KeySet, expected: pd.DataFrame
     ) -> None:
         """Test that join_private creates the correct results.
 
@@ -1987,7 +1929,7 @@ class TestSessionWithNull(PySparkTest):
             Session.Builder()
             .with_privacy_budget(PureDPBudget(float("inf")))
             .with_private_dataframe("private", self.sdf)
-            .with_private_dataframe("private2", self.spark.createDataFrame(private_df))
+            .with_private_dataframe("private2", spark.createDataFrame(private_df))
             .build()
         )
         result = session.evaluate(
@@ -2001,38 +1943,40 @@ class TestSessionWithNull(PySparkTest):
             .count(),
             PureDPBudget(float("inf")),
         )
-        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+        assert_frame_equal_with_sort(result.toPandas(), expected)
 
 
-class TestSessionWithInf(PySparkTest):
-    """Test Sessions that allow infinite values."""
+###TESTS FOR SESSIONS WITH INF VALUES###
+@pytest.fixture(name="infs_test_data", scope="class")
+def infs_setup(spark, request):
+    """Set up tests."""
+    pdf = pd.DataFrame(
+        {"A": ["a0", "a0", "a1", "a1"], "B": [float("-inf"), 2.0, 5.0, float("inf")]}
+    )
+    request.cls.pdf = pdf
 
-    def setUp(self) -> None:
-        """Set up tests."""
-        self.pdf = pd.DataFrame(
-            {
-                "A": ["a0", "a0", "a1", "a1"],
-                "B": [float("-inf"), 2.0, 5.0, float("inf")],
-            }
-        )
-        self.sdf_col_types = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR),
-            "B": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
-        }
-        self.sdf = self.spark.createDataFrame(
-            self.pdf, schema=analytics_to_spark_schema(Schema(self.sdf_col_types))
-        )
-        self.sdf_input_domain = SparkDataFrameDomain(
-            analytics_to_spark_columns_descriptor(Schema(self.sdf_col_types))
-        )
+    sdf_col_types = {
+        "A": ColumnDescriptor(ColumnType.VARCHAR),
+        "B": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+    }
+    sdf = spark.createDataFrame(
+        pdf, schema=analytics_to_spark_schema(Schema(sdf_col_types))
+    )
+    request.cls.sdf = sdf
 
-    @parameterized.expand(
+
+@pytest.mark.usefixtures("infs_test_data")
+class TestSessionWithInfs:
+    """Tests for Sessions with Infs."""
+
+    @pytest.mark.parametrize(
+        "replace_with,",
         [
-            ({},),
-            ({"B": (-100.0, 100.0)},),
-            ({"B": (123.45, 678.90)},),
-            ({"B": (999.9, 111.1)},),
-        ]
+            ({}),
+            ({"B": (-100.0, 100.0)}),
+            ({"B": (123.45, 678.90)}),
+            ({"B": (999.9, 111.1)}),
+        ],
     )
     def test_replace_infinity(
         self, replace_with: Dict[str, Tuple[float, float]]
@@ -2048,12 +1992,9 @@ class TestSessionWithInf(PySparkTest):
         )
         # pylint: disable=protected-access
         queryable = session._accountant._queryable
-        self.assertIsInstance(queryable, SequentialQueryable)
         assert isinstance(queryable, SequentialQueryable)
         data = queryable._data
-        self.assertIsInstance(data, dict)
         assert isinstance(data, dict)
-        self.assertIsInstance(data["replaced"], DataFrame)
         assert isinstance(data["replaced"], DataFrame)
         # pylint: enable=protected-access
         (replace_negative, replace_positive) = replace_with.get(
@@ -2062,9 +2003,10 @@ class TestSessionWithInf(PySparkTest):
         expected = self.pdf.replace(float("-inf"), replace_negative).replace(
             float("inf"), replace_positive
         )
-        self.assert_frame_equal_with_sort(data["replaced"].toPandas(), expected)
+        assert_frame_equal_with_sort(data["replaced"].toPandas(), expected)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "replace_with,expected",
         [
             ({}, pd.DataFrame([["a0", 2.0], ["a1", 5.0]], columns=["A", "sum"])),
             (
@@ -2075,7 +2017,7 @@ class TestSessionWithInf(PySparkTest):
                 {"B": (500.0, 100.0)},
                 pd.DataFrame([["a0", 502.0], ["a1", 105.0]], columns=["A", "sum"]),
             ),
-        ]
+        ],
     )
     def test_sum(
         self, replace_with: Dict[str, Tuple[float, float]], expected: pd.DataFrame
@@ -2091,7 +2033,7 @@ class TestSessionWithInf(PySparkTest):
             .sum("B", low=-1000, high=1000, name="sum"),
             PureDPBudget(float("inf")),
         )
-        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+        assert_frame_equal_with_sort(result.toPandas(), expected)
 
     def test_drop_infinity(self):
         """Test GroupByBoundedSum after dropping infinite values."""
@@ -2106,4 +2048,4 @@ class TestSessionWithInf(PySparkTest):
             PureDPBudget(float("inf")),
         )
         expected = pd.DataFrame([["a0", 2.0], ["a1", 5.0]], columns=["A", "sum"])
-        self.assert_frame_equal_with_sort(result.toPandas(), expected)
+        assert_frame_equal_with_sort(result.toPandas(), expected)

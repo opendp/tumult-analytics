@@ -248,8 +248,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = PrivateSource("private")
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'B': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER'}
         """
         if expr.source_id not in self._catalog.tables:
             raise ValueError(f"Query references invalid source '{expr.source_id}'.")
@@ -277,8 +277,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Rename(PrivateSource("private"), {"B": "C"})
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'C': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'C': 'INTEGER'}
         """
         input_schema = expr.child.accept(self)
         grouping_column = input_schema.grouping_column
@@ -318,8 +318,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Filter(PrivateSource("private"), 'B > 10')
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'B': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER'}
         """
         input_schema = expr.child.accept(self)
         spark = SparkSession.builder.getOrCreate()
@@ -350,8 +350,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Select(PrivateSource("private"), ["A"])
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR'}
         """
         input_schema = expr.child.accept(self)
         grouping_column = input_schema.grouping_column
@@ -395,8 +395,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     ),
             ...     augment=False,
             ... )
-            >>> query1.accept(output_schema_visitor)
-            Schema({'C': 'INTEGER', 'D': 'VARCHAR'})
+            >>> query1.accept(output_schema_visitor).column_types
+            {'C': 'INTEGER', 'D': 'VARCHAR'}
             >>> query2 = Map( # Augment = True example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: {"C": row["B"] + 1, "D": "A"},
@@ -405,8 +405,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     ),
             ...     augment=True,
             ... )
-            >>> query2.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER', 'D': 'VARCHAR'})
+            >>> query2.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER', 'D': 'VARCHAR'}
         """
         input_schema = expr.child.accept(self)
         # Make a deep copy -  that way we don't modify the schema that the
@@ -450,8 +450,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
             ...     augment=False,
             ... )
-            >>> query1.accept(output_schema_visitor)
-            Schema({'C': 'INTEGER'})
+            >>> query1.accept(output_schema_visitor).column_types
+            {'C': 'INTEGER'}
             >>> query2 = FlatMap( # Augment = True example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
@@ -459,8 +459,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
             ...     augment=True,
             ... )
-            >>> query2.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'})
+            >>> query2.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
             >>> query3 = FlatMap( # Grouping example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
@@ -470,8 +470,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     ),
             ...     augment=True,
             ... )
-            >>> query3.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}, grouping_column='C')
+            >>> query3.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
         """
         input_schema = expr.child.accept(self)
         if expr.schema_new_columns.grouping_column is None:
@@ -550,8 +550,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     truncation_strategy_left=TruncationStrategy.DropExcess(1),
             ...     truncation_strategy_right=TruncationStrategy.DropExcess(1),
             ... )
-            >>> query1.accept(output_schema_visitor)
-            Schema({'common1': 'INTEGER', 'common2': 'VARCHAR', 'common3': 'INTEGER', 'left_only': 'DECIMAL', 'right_only': 'VARCHAR'})
+            >>> query1.accept(output_schema_visitor).column_types
+            {'common1': 'INTEGER', 'common2': 'VARCHAR', 'common3': 'INTEGER', 'left_only': 'DECIMAL', 'right_only': 'VARCHAR'}
             >>> query2 = JoinPrivate(
             ...     child=PrivateSource("left_source"),
             ...     right_operand_expr=PrivateSource("right_source"),
@@ -559,8 +559,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     truncation_strategy_right=TruncationStrategy.DropExcess(1),
             ...     join_columns=["common3"],
             ... )
-            >>> query2.accept(output_schema_visitor)
-            Schema({'common3': 'INTEGER', 'left_only': 'DECIMAL', 'common1_left': 'INTEGER', 'common2_left': 'VARCHAR', 'common1_right': 'INTEGER', 'common2_right': 'VARCHAR', 'right_only': 'VARCHAR'})
+            >>> query2.accept(output_schema_visitor).column_types
+            {'common3': 'INTEGER', 'left_only': 'DECIMAL', 'common1_left': 'INTEGER', 'common2_left': 'VARCHAR', 'common1_right': 'INTEGER', 'common2_right': 'VARCHAR', 'right_only': 'VARCHAR'}
         """
         return _output_schema_for_join(
             left_schema=expr.child.accept(self),
@@ -592,8 +592,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query = JoinPublic(
             ...    child=PrivateSource("private"), public_table="public"
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'B': 'INTEGER', 'A': 'VARCHAR', 'C': 'DECIMAL'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'B': 'INTEGER', 'A': 'VARCHAR', 'C': 'DECIMAL'}
         """
         input_schema = expr.child.accept(self)
         if isinstance(expr.public_table, str):
@@ -804,8 +804,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
             ...     output_column="count",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'count': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'count': 'INTEGER'}
         """
         return _validate_groupby(expr, self)
 
@@ -830,8 +830,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
             ...     output_column="count_distinct",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'count_distinct': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'count_distinct': 'INTEGER'}
         """
         return _validate_groupby(expr, self)
 
@@ -860,8 +860,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     high=10,
             ...     output_column="quantile",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'quantile': 'DECIMAL'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'quantile': 'DECIMAL'}
         """
         return _validate_groupby(expr, self)
 
@@ -889,8 +889,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     high=10,
             ...     output_column="sum",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'sum': 'INTEGER'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'sum': 'INTEGER'}
         """
         return _validate_groupby(expr, self)
 
@@ -918,8 +918,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     high=10,
             ...     output_column="average",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'average': 'DECIMAL'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'average': 'DECIMAL'}
         """
         return _validate_groupby(expr, self)
 
@@ -947,8 +947,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     high=10,
             ...     output_column="variance",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'variance': 'DECIMAL'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'variance': 'DECIMAL'}
         """
         return _validate_groupby(expr, self)
 
@@ -976,7 +976,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...     high=10,
             ...     output_column="stdev",
             ... )
-            >>> query.accept(output_schema_visitor)
-            Schema({'A': 'VARCHAR', 'stdev': 'DECIMAL'})
+            >>> query.accept(output_schema_visitor).column_types
+            {'A': 'VARCHAR', 'stdev': 'DECIMAL'}
         """
         return _validate_groupby(expr, self)

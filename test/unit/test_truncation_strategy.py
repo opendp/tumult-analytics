@@ -2,27 +2,24 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
+# pylint: disable=pointless-string-statement
 
-import unittest
-
-from parameterized import parameterized
+import pytest
 
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 
-class TestAttributes(unittest.TestCase):
-    """Tests valid and invalid attributes on TruncationStrategy variants."""
+@pytest.mark.parametrize("threshold", [(1), (8)])
+def test_dropexcess(threshold: int):
+    """Tests that DropExcess works for valid thresholds."""
+    ts = TruncationStrategy.DropExcess(threshold)
+    assert ts.max_records == threshold
 
-    @parameterized.expand([(1,), (8,)])
-    def test_dropexcess(self, threshold: int):
-        """Tests that DropExcess works for valid thresholds."""
-        ts = TruncationStrategy.DropExcess(threshold)
-        self.assertEqual(ts.max_records, threshold)
 
-    @parameterized.expand([(-1,), (0,)])
-    def test_invalid_dropexcess(self, threshold: int):
-        """Tests that invalid private source errors on post-init."""
-        with self.assertRaisesRegex(
-            ValueError, "At least one record must be kept for each join key."
-        ):
-            TruncationStrategy.DropExcess(threshold)
+@pytest.mark.parametrize("threshold", [(-1), (0)])
+def test_invalid_dropexcess(threshold: int):
+    """Tests that invalid private source errors on post-init."""
+    with pytest.raises(
+        ValueError, match="At least one record must be kept for each join key."
+    ):
+        TruncationStrategy.DropExcess(threshold)

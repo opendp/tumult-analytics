@@ -92,14 +92,11 @@ test:
   script:
     # Run doctest first so that it doesn't overwrite the coverage report
     # from test_fast.
-    - nox -s test_doctest test_fast
+    - nox -s test_doctest test_fast 
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     paths: ["coverage/"]
     reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
       junit: junit.xml
     when: always
     expose_as: "Coverage"
