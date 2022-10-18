@@ -2,10 +2,9 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
+# pylint: disable=no-self-use
 
-import unittest
-
-from parameterized import parameterized
+import pytest
 
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.keyset import KeySet
@@ -96,81 +95,68 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         return "GroupByBoundedSTDEV"
 
 
-class TestQueryExprVisitor(unittest.TestCase):
-    """Tests for QueryExprVisitor."""
-
-    @parameterized.expand(
-        [
-            (PrivateSource("P"), "PrivateSource"),
-            (Rename(PrivateSource("P"), {"A": "B"}), "Rename"),
-            (Filter(PrivateSource("P"), "A<B"), "Filter"),
-            (Select(PrivateSource("P"), ["A"]), "Select"),
-            (
-                Map(PrivateSource("P"), lambda r: r, Schema({"A": "VARCHAR"}), True),
-                "Map",
+@pytest.mark.parametrize(
+    "expr,expected",
+    [
+        (PrivateSource("P"), "PrivateSource"),
+        (Rename(PrivateSource("P"), {"A": "B"}), "Rename"),
+        (Filter(PrivateSource("P"), "A<B"), "Filter"),
+        (Select(PrivateSource("P"), ["A"]), "Select"),
+        (Map(PrivateSource("P"), lambda r: r, Schema({"A": "VARCHAR"}), True), "Map"),
+        (
+            FlatMap(
+                PrivateSource("P"), lambda r: [r], 1, Schema({"A": "VARCHAR"}), True
             ),
-            (
-                FlatMap(
-                    PrivateSource("P"), lambda r: [r], 1, Schema({"A": "VARCHAR"}), True
-                ),
-                "FlatMap",
+            "FlatMap",
+        ),
+        (
+            JoinPrivate(
+                PrivateSource("P"),
+                PrivateSource("Q"),
+                TruncationStrategy.DropNonUnique(),
+                TruncationStrategy.DropNonUnique(),
             ),
-            (
-                JoinPrivate(
-                    PrivateSource("P"),
-                    PrivateSource("Q"),
-                    TruncationStrategy.DropNonUnique(),
-                    TruncationStrategy.DropNonUnique(),
-                ),
-                "JoinPrivate",
-            ),
-            (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
-            (
-                ReplaceNullAndNan(PrivateSource("P"), {"column": "default"}),
-                "ReplaceNullAndNan",
-            ),
-            (
-                ReplaceInfinity(PrivateSource("P"), {"column": (-100.0, 100.0)}),
-                "ReplaceInfinity",
-            ),
-            (DropInfinity(PrivateSource("P"), ["column"]), "DropInfinity"),
-            (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
-            (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
-            (
-                GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),
-                "GroupByCountDistinct",
-            ),
-            (
-                GroupByQuantile(
-                    PrivateSource("P"), KeySet.from_dict({}), "A", 0.5, 0, 1
-                ),
-                "GroupByQuantile",
-            ),
-            (
-                GroupByBoundedSum(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
-                "GroupByBoundedSum",
-            ),
-            (
-                GroupByBoundedAverage(
-                    PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1
-                ),
-                "GroupByBoundedAverage",
-            ),
-            (
-                GroupByBoundedVariance(
-                    PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1
-                ),
-                "GroupByBoundedVariance",
-            ),
-            (
-                GroupByBoundedSTDEV(
-                    PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1
-                ),
-                "GroupByBoundedSTDEV",
-            ),
-        ]
-    )
-    def test_visitor(self, expr: QueryExpr, expected: str):
-        """Verify that QueryExprs dispatch the correct methods in QueryExprVisitor."""
-        visitor = QueryExprIdentifierVisitor()
-        self.assertEqual(expr.accept(visitor), expected)
+            "JoinPrivate",
+        ),
+        (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
+        (
+            ReplaceNullAndNan(PrivateSource("P"), {"column": "default"}),
+            "ReplaceNullAndNan",
+        ),
+        (
+            ReplaceInfinity(PrivateSource("P"), {"column": (-100.0, 100.0)}),
+            "ReplaceInfinity",
+        ),
+        (DropInfinity(PrivateSource("P"), ["column"]), "DropInfinity"),
+        (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
+        (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
+        (
+            GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),
+            "GroupByCountDistinct",
+        ),
+        (
+            GroupByQuantile(PrivateSource("P"), KeySet.from_dict({}), "A", 0.5, 0, 1),
+            "GroupByQuantile",
+        ),
+        (
+            GroupByBoundedSum(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            "GroupByBoundedSum",
+        ),
+        (
+            GroupByBoundedAverage(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            "GroupByBoundedAverage",
+        ),
+        (
+            GroupByBoundedVariance(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            "GroupByBoundedVariance",
+        ),
+        (
+            GroupByBoundedSTDEV(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            "GroupByBoundedSTDEV",
+        ),
+    ],
+)
+def test_visitor(expr: QueryExpr, expected: str):
+    """Verify that QueryExprs dispatch the correct methods in QueryExprVisitor."""
+    visitor = QueryExprIdentifierVisitor()
+    assert expr.accept(visitor) == expected

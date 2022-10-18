@@ -1,15 +1,17 @@
+# type: ignore[attr-defined]
 """Tests for MeasurementVisitor."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
+# pylint: disable=protected-access, pointless-string-statement, no-member, no-self-use
+
 
 from typing import Dict, List, Optional, Tuple, Union
-from unittest import TestCase
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 import sympy as sp
-from parameterized import parameterized
 from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 
@@ -82,8 +84,11 @@ from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
 from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.testing import PySparkTest
 from tmlt.core.utils.type_utils import assert_never
+
+from ...conftest import (  # pylint: disable=no-name-in-module
+    assert_frame_equal_with_sort,
+)
 
 
 def chain_to_list(t: ChainTT) -> List[Transformation]:
@@ -101,270 +106,300 @@ def chain_to_list(t: ChainTT) -> List[Transformation]:
     return left + right
 
 
-class TestGetQueryBounds(TestCase):
-    """Tests just for _get_query_bounds."""
-
-    @parameterized.expand([(0,), (-123456,), (7899000,)])
-    def test_equal_upper_and_lower_average(self, bound: float) -> None:
-        """Test _get_query_bounds on Average query expr, with lower=upper."""
-        average = GroupByBoundedAverage(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=bound,
-            high=bound,
-        )
-        (low, high) = _get_query_bounds(average)
-        self.assertEqual(low, high)
-        expected = ExactNumber.from_float(bound, round_up=True)
-        self.assertEqual(low, expected)
-        self.assertEqual(high, expected)
-
-    @parameterized.expand([(0,), (-123456,), (7899000,)])
-    def test_equal_upper_and_lower_stdev(self, bound: float) -> None:
-        """Test _get_query_bounds on STDEV query expr, with lower=upper."""
-        stdev = GroupByBoundedSTDEV(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=bound,
-            high=bound,
-        )
-        (low, high) = _get_query_bounds(stdev)
-        self.assertEqual(low, high)
-        expected = ExactNumber.from_float(bound, round_up=True)
-        self.assertEqual(low, expected)
-        self.assertEqual(high, expected)
-
-    @parameterized.expand([(0,), (-123456,), (7899000,)])
-    def test_equal_upper_and_lower_sum(self, bound: float) -> None:
-        """Test _get_query_bounds on Sum query expr, with lower=upper."""
-        sum_query = GroupByBoundedSum(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=bound,
-            high=bound,
-        )
-        (low, high) = _get_query_bounds(sum_query)
-        self.assertEqual(low, high)
-        expected = ExactNumber.from_float(bound, round_up=True)
-        self.assertEqual(low, expected)
-        self.assertEqual(high, expected)
-
-    @parameterized.expand([(0,), (-123456,), (7899000,)])
-    def test_equal_upper_and_lower_variance(self, bound: float) -> None:
-        """Test _get_query_bounds on Variance query expr, with lower=upper."""
-        variance = GroupByBoundedVariance(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=bound,
-            high=bound,
-        )
-        (low, high) = _get_query_bounds(variance)
-        self.assertEqual(low, high)
-        expected = ExactNumber.from_float(bound, round_up=True)
-        self.assertEqual(low, expected)
-        self.assertEqual(high, expected)
-
-    @parameterized.expand([(0,), (-123456,), (7899000,)])
-    def test_equal_upper_and_lower_quantile(self, bound: float) -> None:
-        """Test _get_query_bounds on Quantile query expr, with lower=upper."""
-        quantile = GroupByQuantile(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=bound,
-            high=bound,
-            quantile=0.5,
-        )
-        (low, high) = _get_query_bounds(quantile)
-        self.assertEqual(low, high)
-        expected = ExactNumber.from_float(bound, round_up=True)
-        self.assertEqual(low, expected)
-        self.assertEqual(high, expected)
-
-    @parameterized.expand([(0, 1), (-123456, 0), (7899000, 9999999)])
-    def test_average(self, lower: float, upper: float) -> None:
-        """Test _get_query_bounds on Average query expr, with lower!=upper."""
-        average = GroupByBoundedAverage(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=lower,
-            high=upper,
-        )
-        (low, high) = _get_query_bounds(average)
-        self.assertEqual(low, ExactNumber.from_float(lower, round_up=True))
-        self.assertEqual(high, ExactNumber.from_float(upper, round_up=False))
-
-    @parameterized.expand([(0, 1), (-123456, 0), (7899000, 9999999)])
-    def test_stdev(self, lower: float, upper: float) -> None:
-        """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
-        stdev = GroupByBoundedSTDEV(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=lower,
-            high=upper,
-        )
-        (low, high) = _get_query_bounds(stdev)
-        self.assertEqual(low, ExactNumber.from_float(lower, round_up=True))
-        self.assertEqual(high, ExactNumber.from_float(upper, round_up=False))
-
-    @parameterized.expand([(0, 1), (-123456, 0), (7899000, 9999999)])
-    def test_sum(self, lower: float, upper: float) -> None:
-        """Test _get_query_bounds on Sum query expr, with lower!=upper."""
-        sum_query = GroupByBoundedSum(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=lower,
-            high=upper,
-        )
-        (low, high) = _get_query_bounds(sum_query)
-        self.assertEqual(low, ExactNumber.from_float(lower, round_up=True))
-        self.assertEqual(high, ExactNumber.from_float(upper, round_up=False))
-
-    @parameterized.expand([(0, 1), (-123456, 0), (7899000, 9999999)])
-    def test_variance(self, lower: float, upper: float) -> None:
-        """Test _get_query_bounds on Variance query expr, with lower!=upper."""
-        variance = GroupByBoundedVariance(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=lower,
-            high=upper,
-        )
-        (low, high) = _get_query_bounds(variance)
-        self.assertEqual(low, ExactNumber.from_float(lower, round_up=True))
-        self.assertEqual(high, ExactNumber.from_float(upper, round_up=False))
-
-    @parameterized.expand([(0, 1), (-123456, 0), (7899000, 9999999)])
-    def test_quantile(self, lower: float, upper: float) -> None:
-        """Test _get_query_bounds on Quantile query expr, with lower!=upper."""
-        quantile = GroupByQuantile(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="",
-            low=lower,
-            high=upper,
-            quantile=0.5,
-        )
-        (low, high) = _get_query_bounds(quantile)
-        self.assertEqual(low, ExactNumber.from_float(lower, round_up=True))
-        self.assertEqual(high, ExactNumber.from_float(upper, round_up=True))
+"""Tests just for _get_query_bounds."""
 
 
-class TestMeasurementVisitor(PySparkTest):
-    """Test MeasurementVisitor."""
+@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
+def test_equal_upper_and_lower_average(bound: float) -> None:
+    """Test _get_query_bounds on Average query expr, with lower=upper."""
+    average = GroupByBoundedAverage(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=bound,
+        high=bound,
+    )
+    (low, high) = _get_query_bounds(average)
+    assert low == high
+    expected = ExactNumber.from_float(bound, round_up=True)
+    assert low == expected
+    assert high == expected
 
-    def setUp(self) -> None:
-        """Setup tests."""
-        input_domain = DictDomain(
-            {
-                "private": SparkDataFrameDomain(
-                    {
-                        "A": SparkStringColumnDescriptor(),
-                        "B": SparkIntegerColumnDescriptor(),
-                        "X": SparkFloatColumnDescriptor(),
-                        "null": SparkFloatColumnDescriptor(allow_null=True),
-                        "nan": SparkFloatColumnDescriptor(allow_nan=True),
-                        "inf": SparkFloatColumnDescriptor(allow_inf=True),
-                        "null_and_nan": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_nan=True
-                        ),
-                        "null_and_inf": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_inf=True
-                        ),
-                        "nan_and_inf": SparkFloatColumnDescriptor(
-                            allow_nan=True, allow_inf=True
-                        ),
-                        "null_and_nan_and_inf": SparkFloatColumnDescriptor(
-                            allow_null=True, allow_nan=True, allow_inf=True
-                        ),
-                    }
-                ),
-                "private_2": SparkDataFrameDomain(
-                    {
-                        "A": SparkStringColumnDescriptor(),
-                        "C": SparkIntegerColumnDescriptor(),
-                    }
-                ),
-            }
-        )
-        input_metric = DictMetric(
-            {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
-        )
-        public_sources = {
-            "public": self.spark.createDataFrame(
-                pd.DataFrame({"A": ["zero", "one"], "B": [0, 1]}),
-                schema=StructType(
-                    [
-                        StructField("A", StringType(), False),
-                        StructField("B", LongType(), False),
-                    ]
-                ),
-            )
+
+@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
+def test_equal_upper_and_lower_stdev(bound: float) -> None:
+    """Test _get_query_bounds on STDEV query expr, with lower=upper."""
+    stdev = GroupByBoundedSTDEV(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=bound,
+        high=bound,
+    )
+    (low, high) = _get_query_bounds(stdev)
+    assert low == high
+    expected = ExactNumber.from_float(bound, round_up=True)
+    assert low == expected
+    assert high == expected
+
+
+@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
+def test_equal_upper_and_lower_sum(bound: float) -> None:
+    """Test _get_query_bounds on Sum query expr, with lower=upper."""
+    sum_query = GroupByBoundedSum(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=bound,
+        high=bound,
+    )
+    (low, high) = _get_query_bounds(sum_query)
+    assert low == high
+    expected = ExactNumber.from_float(bound, round_up=True)
+    assert low == expected
+    assert high == expected
+
+
+@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
+def test_equal_upper_and_lower_variance(bound: float) -> None:
+    """Test _get_query_bounds on Variance query expr, with lower=upper."""
+    variance = GroupByBoundedVariance(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=bound,
+        high=bound,
+    )
+    (low, high) = _get_query_bounds(variance)
+    assert low == high
+    expected = ExactNumber.from_float(bound, round_up=True)
+    assert low == expected
+    assert high == expected
+
+
+@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
+def test_equal_upper_and_lower_quantile(bound: float) -> None:
+    """Test _get_query_bounds on Quantile query expr, with lower=upper."""
+    quantile = GroupByQuantile(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=bound,
+        high=bound,
+        quantile=0.5,
+    )
+    (low, high) = _get_query_bounds(quantile)
+    assert low == high
+    expected = ExactNumber.from_float(bound, round_up=True)
+    assert low == expected
+    assert high == expected
+
+
+@pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
+def test_average(lower: float, upper: float) -> None:
+    """Test _get_query_bounds on Average query expr, with lower!=upper."""
+    average = GroupByBoundedAverage(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=lower,
+        high=upper,
+    )
+    (low, high) = _get_query_bounds(average)
+    assert low == ExactNumber.from_float(lower, round_up=True)
+    assert high == ExactNumber.from_float(upper, round_up=False)
+
+
+@pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
+def test_stdev(lower: float, upper: float) -> None:
+    """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
+    stdev = GroupByBoundedSTDEV(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=lower,
+        high=upper,
+    )
+    (low, high) = _get_query_bounds(stdev)
+    assert low == ExactNumber.from_float(lower, round_up=True)
+    assert high == ExactNumber.from_float(upper, round_up=False)
+
+
+@pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
+def test_sum(lower: float, upper: float) -> None:
+    """Test _get_query_bounds on Sum query expr, with lower!=upper."""
+    sum_query = GroupByBoundedSum(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=lower,
+        high=upper,
+    )
+    (low, high) = _get_query_bounds(sum_query)
+    assert low == ExactNumber.from_float(lower, round_up=True)
+    assert high == ExactNumber.from_float(upper, round_up=False)
+
+
+@pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
+def test_variance(lower: float, upper: float) -> None:
+    """Test _get_query_bounds on Variance query expr, with lower!=upper."""
+    variance = GroupByBoundedVariance(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=lower,
+        high=upper,
+    )
+    (low, high) = _get_query_bounds(variance)
+    assert low == ExactNumber.from_float(lower, round_up=True)
+    assert high == ExactNumber.from_float(upper, round_up=False)
+
+
+@pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
+def test_quantile(lower: float, upper: float) -> None:
+    """Test _get_query_bounds on Quantile query expr, with lower!=upper."""
+    quantile = GroupByQuantile(
+        child=PrivateSource("private"),
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="",
+        low=lower,
+        high=upper,
+        quantile=0.5,
+    )
+    (low, high) = _get_query_bounds(quantile)
+    assert low == ExactNumber.from_float(lower, round_up=True)
+    assert high == ExactNumber.from_float(upper, round_up=True)
+
+
+###Prepare Data for Tests###
+
+
+@pytest.fixture(name="test_data", scope="class")
+def prepare_visitor(spark, request):
+    """Setup tests."""
+    input_domain = DictDomain(
+        {
+            "private": SparkDataFrameDomain(
+                {
+                    "A": SparkStringColumnDescriptor(),
+                    "B": SparkIntegerColumnDescriptor(),
+                    "X": SparkFloatColumnDescriptor(),
+                    "null": SparkFloatColumnDescriptor(allow_null=True),
+                    "nan": SparkFloatColumnDescriptor(allow_nan=True),
+                    "inf": SparkFloatColumnDescriptor(allow_inf=True),
+                    "null_and_nan": SparkFloatColumnDescriptor(
+                        allow_null=True, allow_nan=True
+                    ),
+                    "null_and_inf": SparkFloatColumnDescriptor(
+                        allow_null=True, allow_inf=True
+                    ),
+                    "nan_and_inf": SparkFloatColumnDescriptor(
+                        allow_nan=True, allow_inf=True
+                    ),
+                    "null_and_nan_and_inf": SparkFloatColumnDescriptor(
+                        allow_null=True, allow_nan=True, allow_inf=True
+                    ),
+                }
+            ),
+            "private_2": SparkDataFrameDomain(
+                {
+                    "A": SparkStringColumnDescriptor(),
+                    "C": SparkIntegerColumnDescriptor(),
+                }
+            ),
         }
-        self.base_query = PrivateSource(source_id="private")
+    )
 
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-                "X": ColumnDescriptor(ColumnType.DECIMAL),
-                "null": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                "nan": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
-                "inf": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
-                "null_and_nan": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_nan=True
-                ),
-                "null_and_inf": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_inf=True
-                ),
-                "nan_and_inf": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_nan=True, allow_inf=True
-                ),
-                "null_and_nan_and_inf": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
-                ),
-            },
-            stability=3,
-        )
-        self.catalog.add_private_view(
-            "private_2",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "C": ColumnDescriptor(ColumnType.INTEGER),
-            },
-            stability=3,
-        )
-        self.catalog.add_public_source(
-            "public",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-            },
-        )
+    input_metric = DictMetric(
+        {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
+    )
 
-        budget = ExactNumber(10).expr
-        stability = {"private": ExactNumber(3).expr, "private_2": ExactNumber(3).expr}
-        self.visitor = MeasurementVisitor(
-            per_query_privacy_budget=budget,
-            stability=stability,
-            input_domain=input_domain,
-            input_metric=input_metric,
-            output_measure=PureDP(),
-            default_mechanism=NoiseMechanism.LAPLACE,
-            public_sources=public_sources,
-            catalog=self.catalog,
+    public_sources = {
+        "public": spark.createDataFrame(
+            pd.DataFrame({"A": ["zero", "one"], "B": [0, 1]}),
+            schema=StructType(
+                [
+                    StructField("A", StringType(), False),
+                    StructField("B", LongType(), False),
+                ]
+            ),
         )
+    }
+    request.cls.base_query = PrivateSource(source_id="private")
 
-    @parameterized.expand(
+    catalog = Catalog()
+    catalog.add_private_source(
+        "private",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.DECIMAL),
+            "null": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+            "nan": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+            "inf": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+            "null_and_nan": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True
+            ),
+            "null_and_inf": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_inf=True
+            ),
+            "nan_and_inf": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_nan=True, allow_inf=True
+            ),
+            "null_and_nan_and_inf": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            ),
+        },
+        stability=3,
+    )
+    catalog.add_private_view(
+        "private_2",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "C": ColumnDescriptor(ColumnType.INTEGER),
+        },
+        stability=3,
+    )
+    catalog.add_public_source(
+        "public",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    )
+    request.cls.catalog = catalog
+
+    budget = ExactNumber(10).expr
+    stability = {"private": ExactNumber(3).expr, "private_2": ExactNumber(3).expr}
+    request.cls.visitor = MeasurementVisitor(
+        per_query_privacy_budget=budget,
+        stability=stability,
+        input_domain=input_domain,
+        input_metric=input_metric,
+        output_measure=PureDP(),
+        default_mechanism=NoiseMechanism.LAPLACE,
+        public_sources=public_sources,
+        catalog=catalog,
+    )
+    # for the methods which alter the output measure of a visitor.
+    request.cls.pick_noise_visitor = MeasurementVisitor(
+        per_query_privacy_budget=budget,
+        stability=stability,
+        input_domain=input_domain,
+        input_metric=input_metric,
+        output_measure=PureDP(),
+        default_mechanism=NoiseMechanism.LAPLACE,
+        public_sources=public_sources,
+        catalog=catalog,
+    )
+
+
+@pytest.mark.usefixtures("test_data")
+class TestMeasurementVisitor:
+    """Tests for Measurement Visitor."""
+
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,expected_mechanism",
         [
             (CountMechanism.DEFAULT, PureDP(), NoiseMechanism.GEOMETRIC),
             (CountMechanism.DEFAULT, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
@@ -372,7 +407,7 @@ class TestMeasurementVisitor(PySparkTest):
             (CountMechanism.LAPLACE, RhoZCDP(), NoiseMechanism.GEOMETRIC),
             (CountMechanism.GAUSSIAN, PureDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
             (CountMechanism.GAUSSIAN, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
-        ]
+        ],
     )
     def test_pick_noise_for_count(
         self,
@@ -386,13 +421,14 @@ class TestMeasurementVisitor(PySparkTest):
             groupby_keys=KeySet.from_dict({}),
             mechanism=query_mechanism,
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
-        got_mechanism = self.visitor._pick_noise_for_count(query)
+        got_mechanism = self.pick_noise_visitor._pick_noise_for_count(query)
         # pylint: enable=protected-access
-        self.assertEqual(got_mechanism, expected_mechanism)
+        assert got_mechanism == expected_mechanism
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,expected_mechanism",
         [
             (CountDistinctMechanism.DEFAULT, PureDP(), NoiseMechanism.GEOMETRIC),
             (
@@ -412,7 +448,7 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-        ]
+        ],
     )
     def test_pick_noise_for_count_distinct(
         self,
@@ -426,13 +462,14 @@ class TestMeasurementVisitor(PySparkTest):
             groupby_keys=KeySet.from_dict({}),
             mechanism=query_mechanism,
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
-        got_mechanism = self.visitor._pick_noise_for_count(query)
+        got_mechanism = self.pick_noise_visitor._pick_noise_for_count(query)
         # pylint: enable=protected-access
-        self.assertEqual(got_mechanism, expected_mechanism)
+        assert got_mechanism == expected_mechanism
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
         [
             (
                 AverageMechanism.DEFAULT,
@@ -491,7 +528,7 @@ class TestMeasurementVisitor(PySparkTest):
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
             (AverageMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
-        ]
+        ],
     )
     def test_pick_noise_for_average(
         self,
@@ -510,19 +547,22 @@ class TestMeasurementVisitor(PySparkTest):
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.visitor._pick_noise_for_non_count(
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
                 query, measure_column_type
             )
-            self.assertEqual(got_mechanism, expected_mechanism)
+            assert got_mechanism == expected_mechanism
         else:
-            with self.assertRaises(NotImplementedError):
-                self.visitor._pick_noise_for_non_count(query, measure_column_type)
+            with pytest.raises(NotImplementedError):
+                self.pick_noise_visitor._pick_noise_for_non_count(
+                    query, measure_column_type
+                )
         # pylint: enable=protected-access
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
         [
             (
                 SumMechanism.DEFAULT,
@@ -581,7 +621,7 @@ class TestMeasurementVisitor(PySparkTest):
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
             (SumMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
-        ]
+        ],
     )
     def test_pick_noise_for_sum(
         self,
@@ -600,19 +640,22 @@ class TestMeasurementVisitor(PySparkTest):
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.visitor._pick_noise_for_non_count(
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
                 query, measure_column_type
             )
-            self.assertEqual(got_mechanism, expected_mechanism)
+            assert got_mechanism == expected_mechanism
         else:
-            with self.assertRaises(NotImplementedError):
-                self.visitor._pick_noise_for_non_count(query, measure_column_type)
+            with pytest.raises(NotImplementedError):
+                self.pick_noise_visitor._pick_noise_for_non_count(
+                    query, measure_column_type
+                )
         # pylint: enable=protected-access
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
         [
             (
                 VarianceMechanism.DEFAULT,
@@ -671,7 +714,7 @@ class TestMeasurementVisitor(PySparkTest):
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
             (VarianceMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
-        ]
+        ],
     )
     def test_pick_noise_for_variance(
         self,
@@ -690,19 +733,22 @@ class TestMeasurementVisitor(PySparkTest):
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.visitor._pick_noise_for_non_count(
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
                 query, measure_column_type
             )
-            self.assertEqual(got_mechanism, expected_mechanism)
+            assert got_mechanism == expected_mechanism
         else:
-            with self.assertRaises(NotImplementedError):
-                self.visitor._pick_noise_for_non_count(query, measure_column_type)
+            with pytest.raises(NotImplementedError):
+                self.pick_noise_visitor._pick_noise_for_non_count(
+                    query, measure_column_type
+                )
         # pylint: enable=protected-access
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
         [
             (
                 StdevMechanism.DEFAULT,
@@ -761,7 +807,7 @@ class TestMeasurementVisitor(PySparkTest):
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
             (StdevMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
-        ]
+        ],
     )
     def test_pick_noise_for_stdev(
         self,
@@ -780,25 +826,28 @@ class TestMeasurementVisitor(PySparkTest):
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
-        self.visitor.output_measure = output_measure
+        self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.visitor._pick_noise_for_non_count(
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
                 query, measure_column_type
             )
-            self.assertEqual(got_mechanism, expected_mechanism)
+            assert got_mechanism == expected_mechanism
         else:
-            with self.assertRaises(NotImplementedError):
-                self.visitor._pick_noise_for_non_count(query, measure_column_type)
+            with pytest.raises(NotImplementedError):
+                self.pick_noise_visitor._pick_noise_for_non_count(
+                    query, measure_column_type
+                )
         # pylint: enable=protected-access
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "mechanism",
         [
-            (AverageMechanism.LAPLACE,),
-            (StdevMechanism.LAPLACE,),
-            (SumMechanism.LAPLACE,),
-            (VarianceMechanism.LAPLACE,),
-        ]
+            (AverageMechanism.LAPLACE),
+            (StdevMechanism.LAPLACE),
+            (SumMechanism.LAPLACE),
+            (VarianceMechanism.LAPLACE),
+        ],
     )
     def test_pick_noise_invalid_column(
         self,
@@ -854,14 +903,15 @@ class TestMeasurementVisitor(PySparkTest):
             )
         else:
             assert_never(mechanism)
-        with self.assertRaisesRegex(
-            AssertionError, "Query's measure column should be numeric."
+        with pytest.raises(
+            AssertionError, match="Query's measure column should be numeric."
         ):
             # pylint: disable=protected-access
             self.visitor._pick_noise_for_non_count(query, SparkStringColumnDescriptor())
             # pylint: enable=protected-access
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "input_metric,mechanism,expected_output_metric",
         [
             (HammingDistance(), NoiseMechanism.LAPLACE, SumOf(SymmetricDifference())),
             (HammingDistance(), NoiseMechanism.GEOMETRIC, SumOf(SymmetricDifference())),
@@ -902,7 +952,7 @@ class TestMeasurementVisitor(PySparkTest):
                 NoiseMechanism.DISCRETE_GAUSSIAN,
                 RootSumOfSquared(SymmetricDifference()),
             ),
-        ]
+        ],
     )
     def test_build_groupby(
         self,
@@ -926,24 +976,24 @@ class TestMeasurementVisitor(PySparkTest):
             mechanism=mechanism,
         )
         # pylint: enable=protected-access
-        self.assertEqual(got.input_domain, input_domain)
-        self.assertEqual(got.input_metric, input_metric)
-        self.assert_frame_equal_with_sort(
+        assert got.input_domain == input_domain
+        assert got.input_metric == input_metric
+        assert_frame_equal_with_sort(
             got.group_keys.toPandas(), keyset.dataframe().toPandas()
         )
         expected_output_domain = SparkGroupedDataFrameDomain(
             schema=input_domain.schema, group_keys=keyset.dataframe()
         )
-        self.assertIsInstance(got.output_domain, SparkGroupedDataFrameDomain)
         assert isinstance(got.output_domain, SparkGroupedDataFrameDomain)
-        self.assertEqual(got.output_domain.schema, expected_output_domain.schema)
-        self.assert_frame_equal_with_sort(
+        assert got.output_domain.schema == expected_output_domain.schema
+        assert_frame_equal_with_sort(
             got.output_domain.group_keys.toPandas(),
             expected_output_domain.group_keys.toPandas(),
         )
-        self.assertEqual(got.output_metric, expected_output_metric)
+        assert got.output_metric == expected_output_metric
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_mid_stability,expected_mechanism,expected_new_child",
         [
             (
                 GroupByBoundedAverage(
@@ -1056,7 +1106,7 @@ class TestMeasurementVisitor(PySparkTest):
                     replace_with={"null_and_nan_and_inf": (-100, 100)},
                 ),
             ),
-        ]
+        ],
     )
     def test_build_common(
         self,
@@ -1074,7 +1124,6 @@ class TestMeasurementVisitor(PySparkTest):
         info = self.visitor._build_common(query)  # pylint: disable=protected-access
         get_value_transformation: GetValue
         if expected_new_child is None:
-            self.assertIsInstance(info.transformation, GetValue)
             assert isinstance(info.transformation, GetValue)
             get_value_transformation = info.transformation
         else:
@@ -1086,59 +1135,47 @@ class TestMeasurementVisitor(PySparkTest):
                     expected_null_nan_columns = expected_new_child.child.columns
             if isinstance(expected_new_child, DropNullAndNan):
                 expected_null_nan_columns = expected_new_child.columns
-            self.assertIsInstance(info.transformation, ChainTT)
             assert isinstance(info.transformation, ChainTT)
             transformations = chain_to_list(info.transformation)
-            self.assertIsInstance(transformations[0], GetValue)
             assert isinstance(transformations[0], GetValue)
             get_value_transformation = transformations[0]
             got_null_nan_columns: List[str] = []
             for t in transformations[1:]:
-                self.assertIsInstance(
-                    t, (ReplaceInfTransformation, DropNaNs, DropNulls)
-                )
+                assert isinstance(t, (ReplaceInfTransformation, DropNaNs, DropNulls))
                 if isinstance(t, ReplaceInfTransformation):
-                    self.assertEqual(
-                        sorted(list(t.replace_map.keys())),
-                        sorted(list(expected_inf_replace)),
+                    assert sorted(list(t.replace_map.keys())) == sorted(
+                        list(expected_inf_replace)
                     )
                     for k, v in t.replace_map.items():
-                        self.assertEqual(v, expected_inf_replace[k])
+                        assert v == expected_inf_replace[k]
                 elif isinstance(t, DropNaNs):
                     got_null_nan_columns += t.columns
                 elif isinstance(t, DropNulls):
                     got_null_nan_columns += t.columns
-            self.assertEqual(
-                sorted(list(set(got_null_nan_columns))),
-                sorted(expected_null_nan_columns),
+            assert sorted(list(set(got_null_nan_columns))) == sorted(
+                expected_null_nan_columns
             )
-        self.assertEqual(get_value_transformation.key, "private")
-        self.assertEqual(
-            get_value_transformation.input_domain, self.visitor.input_domain
+        assert get_value_transformation.key == "private"
+        assert get_value_transformation.input_domain == self.visitor.input_domain
+        assert get_value_transformation.input_metric == self.visitor.input_metric
+        assert (
+            get_value_transformation.output_domain
+            == self.visitor.input_domain["private"]
         )
-        self.assertEqual(
-            get_value_transformation.input_metric, self.visitor.input_metric
-        )
-        self.assertEqual(
-            get_value_transformation.output_domain, self.visitor.input_domain["private"]
-        )
-        self.assertEqual(
-            get_value_transformation.output_metric, self.visitor.input_metric["private"]
+        assert (
+            get_value_transformation.output_metric
+            == self.visitor.input_metric["private"]
         )
 
-        self.assertEqual(info.mechanism, expected_mechanism)
-        self.assertEqual(info.mid_stability, expected_mid_stability)
-        self.assertEqual(
-            info.lower_bound, ExactNumber.from_float(query.low, round_up=True)
-        )
-        self.assertEqual(
-            info.upper_bound, ExactNumber.from_float(query.high, round_up=False)
-        )
+        assert info.mechanism == expected_mechanism
+        assert info.mid_stability == expected_mid_stability
+        assert info.lower_bound == ExactNumber.from_float(query.low, round_up=True)
+        assert info.upper_bound == ExactNumber.from_float(query.high, round_up=False)
 
-        self.assertIsInstance(info.groupby, GroupBy)
+        assert isinstance(info.groupby, GroupBy)
         assert isinstance(self.visitor.input_domain["private"], SparkDataFrameDomain)
         expected_groupby_domain = SparkGroupedDataFrameDomain(
-            schema=self.visitor.input_domain["private"].schema,
+            schema=self.visitor.input_domain["private"].schema.copy(),
             group_keys=query.groupby_keys.dataframe(),
         )
         if expected_new_child is not None:
@@ -1153,7 +1190,7 @@ class TestMeasurementVisitor(PySparkTest):
                             expected_groupby_domain.schema[
                                 col
                             ] = SparkFloatColumnDescriptor(allow_inf=False)
-                            new_transform = replace_inf_expr.child
+                    new_transform = replace_inf_expr.child
                 elif isinstance(new_transform, DropNullAndNan):
                     drop_null_and_nan_expr: DropNullAndNan = new_transform
                     for col in new_transform.columns:
@@ -1170,35 +1207,36 @@ class TestMeasurementVisitor(PySparkTest):
                                 col
                             ] = SparkIntegerColumnDescriptor(allow_null=False)
                     new_transform = drop_null_and_nan_expr.child
-        self.assertIsInstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
-        self.assertEqual(
-            info.groupby.output_domain.schema, expected_groupby_domain.schema
-        )
-        self.assert_frame_equal_with_sort(
+        assert info.groupby.output_domain.schema == expected_groupby_domain.schema
+        assert_frame_equal_with_sort(
             info.groupby.output_domain.group_keys.toPandas(),
             expected_groupby_domain.group_keys.toPandas(),
         )
-        self.assertEqual(info.new_child, expected_new_child)
+        assert info.new_child == expected_new_child
 
-    @patch("tmlt.core.measurements.base.Measurement", autospec=True)
-    def test_validate_measurement(self, mock_measurement):
+    def test_validate_measurement(self):
         """Test _validate_measurement."""
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mid_stability = ExactNumber(2).expr
-        # This should finish without raising an error
-        # pylint: disable=protected-access
-        self.visitor._validate_measurement(mock_measurement, mid_stability)
-
-        # Change it so that the privacy function returns something else
-        mock_measurement.privacy_function.return_value = ExactNumber(-10).expr
-        with self.assertRaisesRegex(
-            AssertionError, "Privacy function does not match per-query privacy budget."
-        ):
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement:
+            mock_measurement.privacy_function.return_value = self.visitor.budget
+            mid_stability = ExactNumber(2).expr
+            # This should finish without raising an error
+            # pylint: disable=protected-access
             self.visitor._validate_measurement(mock_measurement, mid_stability)
-        # pylint: enable=protected-access
 
-    def check_measurement(
+            # Change it so that the privacy function returns something else
+            mock_measurement.privacy_function.return_value = ExactNumber(-10).expr
+            with pytest.raises(
+                AssertionError,
+                match="Privacy function does not match per-query privacy budget.",
+            ):
+                self.visitor._validate_measurement(mock_measurement, mid_stability)
+            # pylint: enable=protected-access
+
+    def _check_measurement(
         self, measurement: Measurement, child_is_base_query: bool = True
     ):
         """Check the basic attributes of a measurement (for all query exprs).
@@ -1210,38 +1248,32 @@ class TestMeasurementVisitor(PySparkTest):
         `child_transformation | mock_measurement`
         so extensive testing of the latter is likely to be counterproductive.
         """
-        self.assertIsInstance(measurement, ChainTM)
         assert isinstance(measurement, ChainTM)
 
         if child_is_base_query:
-            self.assertIsInstance(measurement.transformation, GetValue)
             assert isinstance(measurement.transformation, GetValue)
-            self.assertEqual(measurement.transformation.key, "private")
+            assert measurement.transformation.key == "private"
 
-        self.assertEqual(
-            measurement.transformation.input_domain, self.visitor.input_domain
-        )
-        self.assertEqual(
-            measurement.transformation.input_metric, self.visitor.input_metric
-        )
-        self.assertIsInstance(
+        assert measurement.transformation.input_domain == self.visitor.input_domain
+        assert measurement.transformation.input_metric == self.visitor.input_metric
+        assert isinstance(
             measurement.transformation.output_domain, SparkDataFrameDomain
         )
-        self.assertEqual(
-            measurement.transformation.output_domain,
-            measurement.measurement.input_domain,
+        assert (
+            measurement.transformation.output_domain
+            == measurement.measurement.input_domain
         )
-        self.assertIsInstance(
+        assert isinstance(
             measurement.transformation.output_metric,
             (IfGroupedBy, HammingDistance, SymmetricDifference),
         )
-        self.assertEqual(
-            measurement.transformation.output_metric,
-            measurement.measurement.input_metric,
+        assert (
+            measurement.transformation.output_metric
+            == measurement.measurement.input_metric
         )
 
-    @staticmethod
     def check_mock_groupby_call(
+        self,
         mock_groupby,
         transformation: Transformation,
         keys: KeySet,
@@ -1256,7 +1288,7 @@ class TestMeasurementVisitor(PySparkTest):
             group_keys=groupby_df,
         )
 
-    def setup_mock_measurement(
+    def _setup_mock_measurement(
         self,
         mock_measurement,
         child_query: QueryExpr,
@@ -1272,7 +1304,8 @@ class TestMeasurementVisitor(PySparkTest):
         mock_measurement.input_metric = transformation.output_metric
         mock_measurement.privacy_function.return_value = self.visitor.budget
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByCount(
@@ -1321,62 +1354,59 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.GEOMETRIC,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_count_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_count(
         self,
         query: GroupByCount,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_count,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_count."""
-        self.visitor.output_measure = output_measure
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
-        mock_create_count.return_value = mock_measurement
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_count_measurement",
+            autospec=True,
+        ) as mock_create_count:
 
-        measurement = self.visitor.visit_groupby_count(query)
+            self.visitor.output_measure = output_measure
+            self._setup_mock_measurement(
+                mock_measurement, query.child, expected_mechanism
+            )
+            mock_create_count.return_value = mock_measurement
 
-        self.check_measurement(measurement, query.child == self.base_query)
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            measurement = self.visitor.visit_groupby_count(query)
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        mock_create_count.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            count_column=query.output_column,
-        )
+            self._check_measurement(measurement, query.child == self.base_query)
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-    @parameterized.expand(
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            mock_create_count.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                count_column=query.output_column,
+            )
+
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByCountDistinct(
@@ -1434,114 +1464,109 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.GEOMETRIC,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_count_distinct_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_count_distinct(
         self,
         query: GroupByCountDistinct,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_count_distinct,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_count_distinct."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_count_distinct_measurement",
+            autospec=True,
+        ) as mock_create_count_distinct:
 
-        mock_measurement.privacy_function.return_value = self.visitor.budget
-        mock_create_count_distinct.return_value = mock_measurement
-        # Sometimes a CountDistinct query needs to know which columns to select
-        query_needs_columns_selected = (
-            query.columns_to_count is not None and len(query.columns_to_count) > 0
-        )
+            self.visitor.output_measure = output_measure
 
-        expected_child_query: QueryExpr
-        expected_child_query = query.child
-        # If it is expected that a query will need a specific set of columns selected,
-        # make that expected Select query now
-        # (since the function modifies the query)
-        if query_needs_columns_selected:
-            # Build the list of columns that we're expecting to group by
-            groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
-            # There is literally no way this cannot be true,
-            # but if you leave this out then MyPy will complain.
-            assert query.columns_to_count is not None
-            expected_child_query = SelectExpr(
-                child=query.child, columns=query.columns_to_count + groupby_columns
+            mock_measurement.privacy_function.return_value = self.visitor.budget
+            mock_create_count_distinct.return_value = mock_measurement
+            # Sometimes a CountDistinct query needs to know which columns to select
+            query_needs_columns_selected = (
+                query.columns_to_count is not None and len(query.columns_to_count) > 0
             )
-        self.setup_mock_measurement(
-            mock_measurement, expected_child_query, expected_mechanism
-        )
 
-        measurement = self.visitor.visit_groupby_count_distinct(query)
-
-        self.check_measurement(
-            measurement,
-            (query.child == self.base_query and not query_needs_columns_selected),
-        )
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        if query_needs_columns_selected:
-            self.assertIsInstance(measurement.transformation, ChainTT)
-            assert isinstance(measurement.transformation, ChainTT)
-            if query.child == self.base_query:
-                self.assertIsInstance(
-                    measurement.transformation.transformation1, GetValue
+            expected_child_query: QueryExpr
+            expected_child_query = query.child
+            # If it is expected that a query will need a
+            # specific set of columns selected,
+            # make that expected Select query now
+            # (since the function modifies the query)
+            if query_needs_columns_selected:
+                # Build the list of columns that we're expecting to group by
+                groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
+                # There is literally no way this cannot be true,
+                # but if you leave this out then MyPy will complain.
+                assert query.columns_to_count is not None
+                expected_child_query = SelectExpr(
+                    child=query.child, columns=query.columns_to_count + groupby_columns
                 )
-                get_value = measurement.transformation.transformation1
-                assert isinstance(get_value, GetValue)
-                self.assertEqual(get_value.key, "private")
-            self.assertIsInstance(
-                measurement.transformation.transformation2, SelectTransformation
-            )
-            select_transformation = measurement.transformation.transformation2
-            assert isinstance(select_transformation, SelectTransformation)
-            assert isinstance(expected_child_query, SelectExpr)
-            self.assertEqual(
-                select_transformation.columns, expected_child_query.columns
+            self._setup_mock_measurement(
+                mock_measurement, expected_child_query, expected_mechanism
             )
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
+            measurement = self.visitor.visit_groupby_count_distinct(query)
 
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            self._check_measurement(
+                measurement,
+                (query.child == self.base_query and not query_needs_columns_selected),
+            )
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            if query_needs_columns_selected:
+                assert isinstance(measurement.transformation, ChainTT)
+                if query.child == self.base_query:
+                    assert isinstance(
+                        measurement.transformation.transformation1, GetValue
+                    )
+                    get_value = measurement.transformation.transformation1
+                    assert isinstance(get_value, GetValue)
+                    assert get_value.key == "private"
+                assert isinstance(
+                    measurement.transformation.transformation2, SelectTransformation
+                )
+                select_transformation = measurement.transformation.transformation2
+                assert isinstance(select_transformation, SelectTransformation)
+                assert isinstance(expected_child_query, SelectExpr)
+                assert select_transformation.columns == expected_child_query.columns
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
 
-        mock_create_count_distinct.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            count_column=query.output_column,
-        )
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-    @parameterized.expand(
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+
+            mock_create_count_distinct.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                count_column=query.output_column,
+            )
+
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_new_child",
         [
             (
                 GroupByQuantile(
@@ -1637,111 +1662,105 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 ReplaceInfExpr(PrivateSource("private"), {"inf": (0, 0)}),
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_quantile_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_quantile(
         self,
         query: GroupByQuantile,
         output_measure: Union[PureDP, RhoZCDP],
         expected_new_child: Optional[QueryExpr],
-        mock_create_quantile,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_quantile."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_quantile_measurement",
+            autospec=True,
+        ) as mock_create_quantile:
+            self.visitor.output_measure = output_measure
 
-        expected_mechanism = self.visitor.default_mechanism
-        expected_child_query: QueryExpr
-        if expected_new_child is not None:
-            expected_child_query = expected_new_child
-        else:
-            expected_child_query = query.child
-        self.setup_mock_measurement(
-            mock_measurement, expected_child_query, expected_mechanism
-        )
-        mock_create_quantile.return_value = mock_measurement
+            expected_mechanism = self.visitor.default_mechanism
+            expected_child_query: QueryExpr
+            if expected_new_child is not None:
+                expected_child_query = expected_new_child
+            else:
+                expected_child_query = query.child
+            self._setup_mock_measurement(
+                mock_measurement, expected_child_query, expected_mechanism
+            )
+            mock_create_quantile.return_value = mock_measurement
 
-        measurement = self.visitor.visit_groupby_quantile(query)
+            measurement = self.visitor.visit_groupby_quantile(query)
 
-        self.check_measurement(
-            measurement, query.child == self.base_query and expected_new_child is None
-        )
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
-
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        mock_create_quantile.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            quantile=query.quantile,
-            lower=query.low,
-            upper=query.high,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            quantile_column=query.output_column,
-        )
-
-        # Check for the drop transformations, if expected
-        if expected_new_child is not None:
-            expected_null_nan_columns: List[str] = []
-            expected_inf_replace: Dict[str, Tuple[float, float]] = {}
-            if isinstance(expected_new_child, ReplaceInfExpr):
-                expected_inf_replace = expected_new_child.replace_with
-                if isinstance(expected_new_child.child, DropNullAndNan):
-                    expected_null_nan_columns = expected_new_child.child.columns
-            elif isinstance(expected_new_child, DropNullAndNan):
-                expected_null_nan_columns = expected_new_child.columns
-            self.assertIsInstance(measurement.transformation, ChainTT)
-            assert isinstance(measurement.transformation, ChainTT)
-            transformations = chain_to_list(measurement.transformation)
-            self.assertIsInstance(transformations[0], GetValue)
-            got_null_nan_columns: List[str] = []
-            for t in transformations[1:]:
-                self.assertIsInstance(
-                    t, (ReplaceInfTransformation, DropNaNs, DropNulls)
-                )
-                if isinstance(t, ReplaceInfTransformation):
-                    self.assertEqual(
-                        sorted(list(t.replace_map.keys())),
-                        sorted(list(expected_inf_replace.keys())),
-                    )
-                    for k, v in t.replace_map.items():
-                        self.assertEqual(v, expected_inf_replace[k])
-                elif isinstance(t, DropNaNs):
-                    got_null_nan_columns += t.columns
-                elif isinstance(t, DropNulls):
-                    got_null_nan_columns += t.columns
-            self.assertEqual(
-                sorted(list(set(got_null_nan_columns))),
-                sorted(expected_null_nan_columns),
+            self._check_measurement(
+                measurement,
+                query.child == self.base_query and expected_new_child is None,
+            )
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
             )
 
-    @parameterized.expand(
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            mock_create_quantile.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                measure_column=query.measure_column,
+                quantile=query.quantile,
+                lower=query.low,
+                upper=query.high,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                quantile_column=query.output_column,
+            )
+
+            # Check for the drop transformations, if expected
+            if expected_new_child is not None:
+                expected_null_nan_columns: List[str] = []
+                expected_inf_replace: Dict[str, Tuple[float, float]] = {}
+                if isinstance(expected_new_child, ReplaceInfExpr):
+                    expected_inf_replace = expected_new_child.replace_with
+                    if isinstance(expected_new_child.child, DropNullAndNan):
+                        expected_null_nan_columns = expected_new_child.child.columns
+                elif isinstance(expected_new_child, DropNullAndNan):
+                    expected_null_nan_columns = expected_new_child.columns
+                assert isinstance(measurement.transformation, ChainTT)
+                transformations = chain_to_list(measurement.transformation)
+                assert isinstance(transformations[0], GetValue)
+                got_null_nan_columns: List[str] = []
+                for t in transformations[1:]:
+                    assert isinstance(
+                        t, (ReplaceInfTransformation, DropNaNs, DropNulls)
+                    )
+                    if isinstance(t, ReplaceInfTransformation):
+                        assert sorted(list(t.replace_map.keys())) == sorted(
+                            list(expected_inf_replace.keys())
+                        )
+                        for k, v in t.replace_map.items():
+                            assert v == expected_inf_replace[k]
+                    elif isinstance(t, DropNaNs):
+                        got_null_nan_columns += t.columns
+                    elif isinstance(t, DropNulls):
+                        got_null_nan_columns += t.columns
+                assert sorted(list(set(got_null_nan_columns))) == sorted(
+                    expected_null_nan_columns
+                )
+
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByBoundedSum(
@@ -1794,67 +1813,65 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_sum_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_bounded_sum(
         self,
         query: GroupByBoundedSum,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_sum,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_bounded_sum."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_sum_measurement",
+            autospec=True,
+        ) as mock_create_sum:
+            self.visitor.output_measure = output_measure
 
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
-        mock_create_sum.return_value = mock_measurement
+            self._setup_mock_measurement(
+                mock_measurement, query.child, expected_mechanism
+            )
+            mock_create_sum.return_value = mock_measurement
 
-        measurement = self.visitor.visit_groupby_bounded_sum(query)
+            measurement = self.visitor.visit_groupby_bounded_sum(query)
 
-        self.check_measurement(measurement, query.child == self.base_query)
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            self._check_measurement(measurement, query.child == self.base_query)
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        lower, upper = _get_query_bounds(query)
-        mock_create_sum.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            lower=lower,
-            upper=upper,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            sum_column=query.output_column,
-        )
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            lower, upper = _get_query_bounds(query)
+            mock_create_sum.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                measure_column=query.measure_column,
+                lower=lower,
+                upper=upper,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                sum_column=query.output_column,
+            )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByBoundedAverage(
@@ -1907,67 +1924,65 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_average_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_bounded_average(
         self,
         query: GroupByBoundedAverage,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_average,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_bounded_average."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_average_measurement",
+            autospec=True,
+        ) as mock_create_average:
+            self.visitor.output_measure = output_measure
 
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
-        mock_create_average.return_value = mock_measurement
+            self._setup_mock_measurement(
+                mock_measurement, query.child, expected_mechanism
+            )
+            mock_create_average.return_value = mock_measurement
 
-        measurement = self.visitor.visit_groupby_bounded_average(query)
+            measurement = self.visitor.visit_groupby_bounded_average(query)
 
-        self.check_measurement(measurement, query.child == self.base_query)
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            self._check_measurement(measurement, query.child == self.base_query)
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        lower, upper = _get_query_bounds(query)
-        mock_create_average.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            lower=lower,
-            upper=upper,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            average_column=query.output_column,
-        )
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            lower, upper = _get_query_bounds(query)
+            mock_create_average.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                measure_column=query.measure_column,
+                lower=lower,
+                upper=upper,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                average_column=query.output_column,
+            )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByBoundedVariance(
@@ -2020,67 +2035,65 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_variance_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_bounded_variance(
         self,
         query: GroupByBoundedVariance,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_variance,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_bounded_variance."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_variance_measurement",
+            autospec=True,
+        ) as mock_create_variance:
+            self.visitor.output_measure = output_measure
 
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
-        mock_create_variance.return_value = mock_measurement
+            self._setup_mock_measurement(
+                mock_measurement, query.child, expected_mechanism
+            )
+            mock_create_variance.return_value = mock_measurement
 
-        measurement = self.visitor.visit_groupby_bounded_variance(query)
+            measurement = self.visitor.visit_groupby_bounded_variance(query)
 
-        self.check_measurement(measurement, query.child == self.base_query)
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            self._check_measurement(measurement, query.child == self.base_query)
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        lower, upper = _get_query_bounds(query)
-        mock_create_variance.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            lower=lower,
-            upper=upper,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            variance_column=query.output_column,
-        )
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            lower, upper = _get_query_bounds(query)
+            mock_create_variance.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                measure_column=query.measure_column,
+                lower=lower,
+                upper=upper,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                variance_column=query.output_column,
+            )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,output_measure,expected_mechanism",
         [
             (
                 GroupByBoundedSTDEV(
@@ -2133,79 +2146,78 @@ class TestMeasurementVisitor(PySparkTest):
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
-        autospec=True,
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler."
-        "_measurement_visitor.create_standard_deviation_measurement",
-        autospec=True,
+        ],
     )
     def test_visit_groupby_bounded_stdev(
         self,
         query: GroupByBoundedSTDEV,
         output_measure: Union[PureDP, RhoZCDP],
         expected_mechanism: NoiseMechanism,
-        mock_create_stdev,
-        mock_groupby,
-        mock_measurement,
     ) -> None:
         """Test visit_groupby_bounded_stdev."""
-        self.visitor.output_measure = output_measure
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            autospec=True,
+        ) as mock_groupby, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
+            autospec=True,
+        ) as mock_measurement, patch(
+            "tmlt.analytics._query_expr_compiler."
+            + "_measurement_visitor.create_standard_deviation_measurement",
+            autospec=True,
+        ) as mock_create_stdev:
+            self.visitor.output_measure = output_measure
+            self.visitor.output_measure = output_measure
 
-        self.setup_mock_measurement(mock_measurement, query.child, expected_mechanism)
-        mock_create_stdev.return_value = mock_measurement
+            self._setup_mock_measurement(
+                mock_measurement, query.child, expected_mechanism
+            )
+            mock_create_stdev.return_value = mock_measurement
 
-        measurement = self.visitor.visit_groupby_bounded_stdev(query)
+            measurement = self.visitor.visit_groupby_bounded_stdev(query)
 
-        self.check_measurement(measurement, query.child == self.base_query)
-        assert isinstance(measurement, ChainTM)
-        self.assertEqual(measurement.measurement, mock_measurement)
-        self.check_mock_groupby_call(
-            mock_groupby,
-            measurement.transformation,
-            query.groupby_keys,
-            expected_mechanism,
-        )
+            self._check_measurement(measurement, query.child == self.base_query)
+            assert isinstance(measurement, ChainTM)
+            assert measurement.measurement == mock_measurement
+            self.check_mock_groupby_call(
+                mock_groupby,
+                measurement.transformation,
+                query.groupby_keys,
+                expected_mechanism,
+            )
 
-        mid_stability = measurement.transformation.stability_function(
-            self.visitor.stability
-        )
-        lower, upper = _get_query_bounds(query)
-        mock_create_stdev.assert_called_with(
-            input_domain=measurement.transformation.output_domain,
-            input_metric=measurement.transformation.output_metric,
-            measure_column=query.measure_column,
-            lower=lower,
-            upper=upper,
-            noise_mechanism=expected_mechanism,
-            d_in=mid_stability,
-            d_out=self.visitor.budget,
-            output_measure=self.visitor.output_measure,
-            groupby_transformation=mock_groupby.return_value,
-            standard_deviation_column=query.output_column,
-        )
+            mid_stability = measurement.transformation.stability_function(
+                self.visitor.stability
+            )
+            lower, upper = _get_query_bounds(query)
+            mock_create_stdev.assert_called_with(
+                input_domain=measurement.transformation.output_domain,
+                input_metric=measurement.transformation.output_metric,
+                measure_column=query.measure_column,
+                lower=lower,
+                upper=upper,
+                noise_mechanism=expected_mechanism,
+                d_in=mid_stability,
+                d_out=self.visitor.budget,
+                output_measure=self.visitor.output_measure,
+                groupby_transformation=mock_groupby.return_value,
+                standard_deviation_column=query.output_column,
+            )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query",
         [
-            (PrivateSource("private"),),
-            (Rename(child=PrivateSource("private"), column_mapper={"A": "A2"}),),
-            (Filter(child=PrivateSource("private"), predicate="B > 2"),),
-            (SelectExpr(child=PrivateSource("private"), columns=["A"]),),
+            (PrivateSource("private")),
+            (Rename(child=PrivateSource("private"), column_mapper={"A": "A2"})),
+            (Filter(child=PrivateSource("private"), predicate="B > 2")),
+            (SelectExpr(child=PrivateSource("private"), columns=["A"])),
             (
                 Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": "c" + str(row["B"])},
                     schema_new_columns=Schema({"C": "VARCHAR"}),
                     augment=True,
-                ),
+                )
             ),
             (
                 FlatMap(
@@ -2214,7 +2226,7 @@ class TestMeasurementVisitor(PySparkTest):
                     max_num_rows=11,
                     schema_new_columns=Schema({"i": "DECIMAL"}),
                     augment=False,
-                ),
+                )
             ),
             (
                 JoinPrivate(
@@ -2222,16 +2234,16 @@ class TestMeasurementVisitor(PySparkTest):
                     right_operand_expr=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
-                ),
+                )
             ),
-            (JoinPublic(child=PrivateSource("private"), public_table="public"),),
-            (ReplaceNullAndNan(child=PrivateSource("private")),),
-            (ReplaceInfExpr(child=PrivateSource("private")),),
-            (DropNullAndNan(child=PrivateSource("private")),),
-            (DropInfExpr(child=PrivateSource("private")),),
-        ]
+            (JoinPublic(child=PrivateSource("private"), public_table="public")),
+            (ReplaceNullAndNan(child=PrivateSource("private"))),
+            (ReplaceInfExpr(child=PrivateSource("private"))),
+            (DropNullAndNan(child=PrivateSource("private"))),
+            (DropInfExpr(child=PrivateSource("private"))),
+        ],
     )
     def test_visit_transformations(self, query: QueryExpr):
         """Test that visiting transformations returns an error."""
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             query.accept(self.visitor)

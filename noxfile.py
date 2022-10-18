@@ -201,7 +201,7 @@ def black(session):
 
 @poetry_session(tags=["lint"], python="3.7")
 @install_package
-@install("isort[pyproject]", "nose", "parameterized")
+@install("isort[pyproject]", "pytest")
 @show_installed
 def isort(session):
     """Run isort. If the --check argument is given, only check, don't make changes."""
@@ -218,7 +218,7 @@ def mypy(session):
 
 @poetry_session(tags=["lint"], python="3.7")
 @install_package
-@install("pylint", "nose", "parameterized")
+@install("pylint", "pytest")
 @show_installed
 def pylint(session):
     """Run pylint."""
@@ -235,7 +235,7 @@ def pydocstyle(session):
 #### Tests ####
 
 @install_package
-@install("nose", "parameterized", "coverage")
+@install("pytest", "coverage")
 @show_installed
 @with_clean_workdir
 def _test(
@@ -246,17 +246,14 @@ def _test(
 ):
     test_paths = test_dirs or CODE_DIRS
     extra_args = extra_args or []
-    test_options = [
-        "--verbosity=2", "--nocapture", "--logging-level=INFO",
-        "--with-xunit", f"--xunit-file={CWD}/junit.xml",
-        "--with-coverage", f"--cover-min-percentage={min_coverage}%",
-        f"--cover-package={PACKAGE_NAME}", "--cover-branches",
-        "--cover-xml", f"--cover-xml-file={CWD}/coverage.xml",
-        "--cover-html", f"--cover-html-dir={CWD}/coverage/",
+    test_options = ["-rfs",
+     "--disable-warnings", f"--junitxml={CWD}/junit.xml",
         *extra_args,
         *[str(p) for p in test_paths],
     ]
-    session.run("nosetests", *test_options)
+    session.run("coverage", "run", "--branch", "-m", "pytest", *test_options)
+    session.run("coverage", "html", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*", f"--directory={CWD}/coverage/")
+    session.run("coverage", "report", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*", f"--fail-under={min_coverage}")
 
 # Only this session, test_doctest, and test_examples one get the 'test' tag,
 # because the others are just subsets of this session so there's no need to run
@@ -269,19 +266,19 @@ def test(session):
 @poetry_session(python="3.7")
 def test_fast(session):
     """Run tests without the slow attribute."""
-    _test(session, extra_args=["-a", "!slow"])
+    _test(session, extra_args=["-m", "not slow"])
 
 @poetry_session(python="3.7")
 def test_slow(session):
     """Run tests with the slow attribute."""
-    _test(session, extra_args=["-a", "slow"], min_coverage=0)
+    _test(session, extra_args=['-m', 'slow'])
 
 @poetry_session(tags=["test"], python="3.7")
 def test_doctest(session):
     """Run doctest on code examples in docstrings."""
     _test(
         session, test_dirs=[Path(PACKAGE_SOURCE_DIR).resolve()],
-        min_coverage=0, extra_args=["--with-doctest"]
+        min_coverage=0, extra_args=["--doctest-modules"]
     )
 
 @poetry_session(tags=["test"], python="3.7")
@@ -426,7 +423,7 @@ def release_test(session):
     Note: This session doesn't do anything useful when run with the `--no-venv`
           option, as it requires a clean environment to install things in.
     """
-    _test(session, extra_args=["-a", "!slow"], show_installed=True)
+    _test(session, extra_args=["-m", "not slow"], show_installed=True)
 
 
 #### Project-specific sessions ####

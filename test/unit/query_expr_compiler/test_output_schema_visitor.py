@@ -1,9 +1,11 @@
+# type: ignore[attr-defined]
+# pylint: disable=no-self-use, protected-access, no-member
 """Tests for OutputSchemaVisitor."""
 import datetime
 import re
 from typing import Dict, List, Type
 
-from parameterized import parameterized
+import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 
@@ -41,7 +43,6 @@ from tmlt.analytics.query_expr import (
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.utils.testing import PySparkTest
 
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
@@ -294,59 +295,68 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
 ]
 
+###TESTS FOR QUERY VALIDATION###
 
-class TestOutputSchemaVisitor(PySparkTest):
-    """Unit tests for query validation."""
 
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-                "X": ColumnDescriptor(ColumnType.DECIMAL),
-                "D": ColumnDescriptor(ColumnType.DATE),
-                "T": ColumnDescriptor(ColumnType.TIMESTAMP),
-            },
-            stability=1,
-        )
-        self.catalog.add_public_source(
-            "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema)
-        )
-        self.catalog.add_public_source(
-            "groupby_column_a",
-            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_A().schema),
-        )
-        self.catalog.add_public_source(
-            "groupby_column_b",
-            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_B().schema),
-        )
-        self.catalog.add_public_source(
-            "groupby_non_existing_column",
-            spark_schema_to_analytics_columns(GET_GROUPBY_NON_EXISTING_COLUMN().schema),
-        )
-        self.catalog.add_public_source(
-            "groupby_column_wrong_type",
-            spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
-        )
-        self.catalog.add_private_view(
-            "groupby_one_column_private",
-            {"A": ColumnDescriptor(ColumnType.VARCHAR)},
-            stability=1,
-        )
-        self.visitor = OutputSchemaVisitor(self.catalog)
+@pytest.fixture(name="validation_visitor", scope="class")
+def setup_validation(request):
+    """Set up test data."""
+    catalog = Catalog()
+    catalog.add_private_source(
+        "private",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.DECIMAL),
+            "D": ColumnDescriptor(ColumnType.DATE),
+            "T": ColumnDescriptor(ColumnType.TIMESTAMP),
+        },
+        stability=1,
+    )
+    catalog.add_public_source(
+        "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema)
+    )
+    catalog.add_public_source(
+        "groupby_column_a",
+        spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_A().schema),
+    )
+    catalog.add_public_source(
+        "groupby_column_b",
+        spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_B().schema),
+    )
+    catalog.add_public_source(
+        "groupby_non_existing_column",
+        spark_schema_to_analytics_columns(GET_GROUPBY_NON_EXISTING_COLUMN().schema),
+    )
+    catalog.add_public_source(
+        "groupby_column_wrong_type",
+        spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
+    )
+    catalog.add_private_view(
+        "groupby_one_column_private",
+        {"A": ColumnDescriptor(ColumnType.VARCHAR)},
+        stability=1,
+    )
+    visitor = OutputSchemaVisitor(catalog)
+    request.cls.visitor = visitor
 
-    @parameterized.expand(OUTPUT_SCHEMA_INVALID_QUERY_TESTS)
+
+@pytest.mark.usefixtures("validation_visitor")
+class TestValidation:
+    """Test Validation with Visitor."""
+
+    @pytest.mark.parametrize(
+        "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS
+    )
     def test_invalid_query_expr(
         self, query_expr: QueryExpr, expected_error_msg: str
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
-        with self.assertRaisesRegex(ValueError, expected_error_msg):
+        with pytest.raises(ValueError, match=expected_error_msg):
             query_expr.accept(self.visitor)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "groupby_keys,exception_type,expected_error_msg",
         [
             (
                 KeySet.from_dict({"A": [0, 1]}),
@@ -376,7 +386,7 @@ class TestOutputSchemaVisitor(PySparkTest):
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
             ),
-        ]
+        ],
     )
     def test_invalid_group_by_count(
         self,
@@ -385,10 +395,11 @@ class TestOutputSchemaVisitor(PySparkTest):
         expected_error_msg: str,
     ) -> None:
         """Test invalid measurement QueryExpr."""
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
+        with pytest.raises(exception_type, match=expected_error_msg):
             GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "groupby_keys,exception_type,expected_error_msg",
         [
             (
                 KeySet.from_dict({"B": [0, 1]}),
@@ -422,7 +433,7 @@ class TestOutputSchemaVisitor(PySparkTest):
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
             ),
-        ]
+        ],
     )
     def test_invalid_group_by_aggregations(
         self,
@@ -437,66 +448,71 @@ class TestOutputSchemaVisitor(PySparkTest):
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ]:
-            with self.assertRaisesRegex(exception_type, expected_error_msg):
+            with pytest.raises(exception_type, match=expected_error_msg):
                 DataClass(  # type: ignore
                     PrivateSource("private"), groupby_keys, "B", 1.0, 5.0
                 ).accept(self.visitor)
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
+        with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
             ).accept(self.visitor)
 
 
-class TestOutputSchemaVisitorWithNulls(PySparkTest):
-    """Unit tests for query validation."""
+###QUERY VALIDATION WITH NULLS###
+@pytest.fixture(name="test_data_nulls", scope="class")
+def setup_visitor_with_nulls(request):
+    """Set up test data."""
+    catalog = Catalog()
+    catalog.add_private_source(
+        "private",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "X": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_inf=True, allow_nan=True
+            ),
+            "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+            "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+        },
+        stability=1,
+    )
+    catalog.add_public_source(
+        "public",
+        {
+            "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+        },
+    )
+    catalog.add_public_source(
+        "groupby_column_a", {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+    )
+    catalog.add_public_source(
+        "groupby_column_b", {"B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}
+    )
+    catalog.add_public_source(
+        "groupby_non_existing_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
+    )
+    catalog.add_public_source(
+        "groupby_column_wrong_type", {"A": ColumnDescriptor(ColumnType.INTEGER)}
+    )
+    catalog.add_private_view(
+        "groupby_one_column_private",
+        {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
+        stability=1,
+    )
+    visitor = OutputSchemaVisitor(catalog)
+    request.cls.visitor = visitor
 
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "X": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_null=True, allow_inf=True, allow_nan=True
-                ),
-                "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-                "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
-                "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-            },
-            stability=1,
-        )
-        self.catalog.add_public_source(
-            "public",
-            {
-                "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            },
-        )
-        self.catalog.add_public_source(
-            "groupby_column_a",
-            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
-        )
-        self.catalog.add_public_source(
-            "groupby_column_b",
-            {"B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
-        )
-        self.catalog.add_public_source(
-            "groupby_non_existing_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
-        )
-        self.catalog.add_public_source(
-            "groupby_column_wrong_type", {"A": ColumnDescriptor(ColumnType.INTEGER)}
-        )
-        self.catalog.add_private_view(
-            "groupby_one_column_private",
-            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
-            stability=1,
-        )
-        self.visitor = OutputSchemaVisitor(self.catalog)
 
-    @parameterized.expand(OUTPUT_SCHEMA_INVALID_QUERY_TESTS)
-    def test_invalid_query_expr(
+@pytest.mark.usefixtures("test_data_nulls")
+class TestValidationWithNulls:
+    """Test Validation with Nulls."""
+
+    @pytest.mark.parametrize(
+        "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS
+    )
+    def test_invalid_query_expr_null(
         self, query_expr: QueryExpr, expected_error_msg: str
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
@@ -510,15 +526,15 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
             and expected_error_msg == "Tables have no common columns to join on."
         ):
             # Help whoever is debugging this, if the isinstance assertion ever fails
-            self.assertIsInstance(query_expr.right_operand_expr, Rename)
-            # type assertion for mypy's benefit
             assert isinstance(query_expr.right_operand_expr, Rename)
+            # type assertion for mypy's benefit
             # rename the NOTNULL column too
             query_expr.right_operand_expr.column_mapper["NOTNULL"] = "ZNOTNULL"
-        with self.assertRaisesRegex(ValueError, expected_error_msg):
+        with pytest.raises(ValueError, match=expected_error_msg):
             query_expr.accept(self.visitor)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "groupby_keys,exception_type,expected_error_msg",
         [
             (
                 KeySet.from_dict({"A": [0, 1]}),
@@ -542,19 +558,20 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
             ),
-        ]
+        ],
     )
-    def test_invalid_group_by_count(
+    def test_invalid_group_by_count_null(
         self,
         groupby_keys: KeySet,
         exception_type: Type[Exception],
         expected_error_msg: str,
     ) -> None:
         """Test invalid measurement QueryExpr."""
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
+        with pytest.raises(exception_type, match=expected_error_msg):
             GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "groupby_keys,exception_type,expected_error_msg",
         [
             (
                 KeySet.from_dict({"B": [0, 1]}),
@@ -588,9 +605,9 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 "Groupby column 'A' has type 'INTEGER', but the column "
                 "with the same name in the input data has type 'VARCHAR' instead.",
             ),
-        ]
+        ],
     )
-    def test_invalid_group_by_aggregations(
+    def test_invalid_group_by_aggregations_null(
         self,
         groupby_keys: KeySet,
         exception_type: Type[Exception],
@@ -603,11 +620,11 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ]:
-            with self.assertRaisesRegex(exception_type, expected_error_msg):
+            with pytest.raises(exception_type, match=expected_error_msg):
                 DataClass(  # type: ignore
                     PrivateSource("private"), groupby_keys, "B", 1.0, 5.0
                 ).accept(self.visitor)
-        with self.assertRaisesRegex(exception_type, expected_error_msg):
+        with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
             ).accept(self.visitor)
@@ -616,9 +633,15 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
         """Test visit_private_source."""
         query = PrivateSource("private")
         schema = self.visitor.visit_private_source(query)
-        self.assertEqual(schema, self.catalog.tables["private"].schema)
+        assert (
+            schema
+            == self.visitor._catalog.tables[  # pylint: disable=protected-access
+                "private"
+            ].schema
+        )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "column_mapper,expected_schema",
         [
             (
                 {"A": "AAA"},
@@ -682,7 +705,7 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_rename(
         self, column_mapper: Dict[str, str], expected_schema: Schema
@@ -690,16 +713,22 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
         """Test visit_rename."""
         query = Rename(child=PrivateSource("private"), column_mapper=column_mapper)
         schema = self.visitor.visit_rename(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand([("B > X",), ("X < 500",), ("NOTNULL < 30",)])
+    @pytest.mark.parametrize("predicate", ["B > X", "X < 500", "NOTNULL < 30"])
     def test_visit_filter(self, predicate: str) -> None:
         """Test visit_filter."""
         query = Filter(child=PrivateSource("private"), predicate=predicate)
         schema = self.visitor.visit_filter(query)
-        self.assertEqual(schema, self.catalog.tables["private"].schema)
+        assert (
+            schema
+            == self.visitor._catalog.tables[  # pylint: disable=protected-access
+                "private"
+            ].schema
+        )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "columns,expected_schema",
         [
             (
                 ["A"],
@@ -716,15 +745,16 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_select(self, columns: List[str], expected_schema: Schema) -> None:
         """Test visit_select."""
         query = Select(child=PrivateSource("private"), columns=columns)
         schema = self.visitor.visit_select(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 Map(
@@ -855,14 +885,15 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 ),
                 Schema({"ABC": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}),
             ),
-        ]
+        ],
     )
     def test_visit_map(self, query: Map, expected_schema: Schema) -> None:
         """Test visit_map."""
         schema = self.visitor.visit_map(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 FlatMap(
@@ -905,14 +936,15 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                 ),
                 Schema({"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}),
             ),
-        ]
+        ],
     )
     def test_visit_flat_map(self, query: FlatMap, expected_schema: Schema) -> None:
         """Test visit_flat_map."""
         schema = self.visitor.visit_flat_map(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 JoinPrivate(
@@ -939,16 +971,17 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             )
-        ]
+        ],
     )
     def test_visit_join_private(
         self, query: JoinPrivate, expected_schema: Schema
     ) -> None:
         """Test visit_join_private."""
         schema = self.visitor.visit_join_private(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 JoinPublic(
@@ -972,16 +1005,17 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             )
-        ]
+        ],
     )
     def test_visit_join_public(
         self, query: JoinPublic, expected_schema: Schema
     ) -> None:
         """Test visit_join_public."""
         schema = self.visitor.visit_join_public(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 ReplaceNullAndNan(child=PrivateSource("private"), replace_with={}),
@@ -1054,16 +1088,17 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_replace_null_and_nan(
         self, query: ReplaceNullAndNan, expected_schema: Schema
     ) -> None:
         """Test visit_replace_null_and_nan."""
         schema = self.visitor.visit_replace_null_and_nan(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 DropNullAndNan(child=PrivateSource("private"), columns=[]),
@@ -1138,16 +1173,17 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_drop_null_and_nan(
         self, query: DropNullAndNan, expected_schema: Schema
     ) -> None:
         """Test visit_drop_null_and_nan."""
         schema = self.visitor.visit_drop_null_and_nan(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 DropInfinity(child=PrivateSource("private"), columns=[]),
@@ -1222,16 +1258,17 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_drop_infinity(
         self, query: DropInfinity, expected_schema: Schema
     ) -> None:
         """Test visit_drop_infinity."""
         schema = self.visitor.visit_drop_infinity(query)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,expected_schema",
         [
             (
                 GroupByCount(
@@ -1360,11 +1397,11 @@ class TestOutputSchemaVisitorWithNulls(PySparkTest):
                     }
                 ),
             ),
-        ]
+        ],
     )
     def test_visit_groupby_queries(
         self, query: QueryExpr, expected_schema: Schema
     ) -> None:
         """Test visit_groupby_*."""
         schema = query.accept(self.visitor)
-        self.assertEqual(schema, expected_schema)
+        assert schema == expected_schema

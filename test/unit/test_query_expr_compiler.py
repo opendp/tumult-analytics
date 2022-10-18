@@ -1,16 +1,17 @@
+# type: ignore[attr-defined]
 """Tests for QueryExprCompiler."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
+# pylint: disable= no-member, protected-access, no-self-use
 
 import datetime
-import unittest
 from typing import List, Union
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 import sympy as sp
-from parameterized import parameterized
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col  # pylint: disable=no-name-in-module
 from pyspark.sql.types import (
@@ -67,7 +68,11 @@ from tmlt.core.domains.spark_domains import (
 from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
-from tmlt.core.utils.testing import PySparkTest, create_mock_measurement
+
+from ..conftest import (  # pylint: disable=no-name-in-module
+    assert_frame_equal_with_sort,
+    create_mock_measurement,
+)
 
 GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
 GROUPBY_TWO_SCHEMA = StructType(
@@ -458,139 +463,161 @@ _TIMESTAMP1 = datetime.datetime.fromisoformat("2022-01-01T12:30:00")
 _TIMESTAMP2 = datetime.datetime.fromisoformat("2022-01-01T12:45:00")
 
 
-class TestQueryExprCompiler(PySparkTest):
+@pytest.fixture(name="test_data", scope="class")
+def setup(spark, request) -> None:
+    "Set up test data."
+    sdf = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],
+            columns=["A", "B", "X"],
+        ),
+        schema=StructType(
+            [
+                StructField("A", StringType(), False),
+                StructField("B", LongType(), False),
+                StructField("X", DoubleType(), False),
+            ]
+        ),
+    )
+    request.cls.sdf = sdf
+
+    join_df = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 0, 0], ["0", 1, 1], ["1", 0, 1], ["1", 1, 2]],
+            columns=["A", "B", "A+B"],
+        ),
+        schema=StructType(
+            [
+                StructField("A", StringType(), False),
+                StructField("B", LongType(), False),
+                StructField("A+B", LongType(), False),
+            ]
+        ),
+    )
+    request.cls.join_df = join_df
+
+    dtypes_df = spark.createDataFrame(
+        pd.DataFrame(
+            [["0", 0, 0.1, _DATE1, _TIMESTAMP1], ["1", 1, 0.2, _DATE2, _TIMESTAMP2]]
+        ),
+        schema=StructType(
+            [
+                StructField("A", StringType(), False),
+                StructField("int", LongType(), False),
+                StructField("float", DoubleType(), False),
+                StructField("date", DateType(), False),
+                StructField("timestamp", TimestampType(), False),
+            ]
+        ),
+    )
+    request.cls.dtypes_df = dtypes_df
+
+    groupby_two_columns_df = spark.createDataFrame(
+        pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"]),
+        schema=StructType(
+            [StructField("A", StringType(), False), StructField("B", LongType(), False)]
+        ),
+    )
+    request.cls.groupby_two_columns_df = groupby_two_columns_df
+
+    groupby_one_column_df = spark.createDataFrame(
+        pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"]),
+        schema=StructType([StructField("A", StringType(), False)]),
+    )
+    request.cls.groupby_one_column_df = groupby_one_column_df
+
+    stability = {"private": sp.Integer(3), "private_2": sp.Integer(3)}
+
+    request.cls.stability = stability
+
+    input_domain = DictDomain(
+        {
+            "private": SparkDataFrameDomain(
+                {
+                    "A": SparkStringColumnDescriptor(),
+                    "B": SparkIntegerColumnDescriptor(),
+                    "X": SparkFloatColumnDescriptor(),
+                }
+            ),
+            "private_2": SparkDataFrameDomain(
+                {
+                    "A": SparkStringColumnDescriptor(),
+                    "C": SparkIntegerColumnDescriptor(),
+                }
+            ),
+        }
+    )
+
+    request.cls.input_domain = input_domain
+
+    catalog = Catalog()
+    catalog.add_private_source(
+        "private",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.DECIMAL),
+        },
+        stability=3,
+    )
+    catalog.add_private_view(
+        "private_2",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "C": ColumnDescriptor(ColumnType.INTEGER),
+        },
+        stability=3,
+    )
+    catalog.add_public_source(
+        "public",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    )
+    catalog.add_public_source(
+        "dtypes",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "int": ColumnDescriptor(ColumnType.INTEGER),
+            "float": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_nan=True, allow_inf=True
+            ),
+            "date": ColumnDescriptor(ColumnType.DATE),
+            "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
+        },
+    )
+    catalog.add_public_source(
+        "groupby_two_columns",
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    )
+    catalog.add_public_source(
+        "groupby_one_column", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+    )
+
+    request.cls.catalog = catalog
+
+    input_metric = DictMetric(
+        {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
+    )
+    request.cls.input_metric = input_metric
+
+    request.cls.compiler = QueryExprCompiler()
+
+
+@pytest.mark.usefixtures("test_data")
+class TestQueryExprCompiler:
     """Unit tests for class QueryExprCompiler.
 
     Tests :class:`~tmlt.analytics._query_expr_compiler.QueryExprCompiler`.
     """
 
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.sdf = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],
-                columns=["A", "B", "X"],
-            ),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("B", LongType(), False),
-                    StructField("X", DoubleType(), False),
-                ]
-            ),
-        )
-        self.join_df = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 0, 0], ["0", 1, 1], ["1", 0, 1], ["1", 1, 2]],
-                columns=["A", "B", "A+B"],
-            ),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("B", LongType(), False),
-                    StructField("A+B", LongType(), False),
-                ]
-            ),
-        )
-        self.dtypes_df = self.spark.createDataFrame(
-            pd.DataFrame(
-                [["0", 0, 0.1, _DATE1, _TIMESTAMP1], ["1", 1, 0.2, _DATE2, _TIMESTAMP2]]
-            ),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("int", LongType(), False),
-                    StructField("float", DoubleType(), False),
-                    StructField("date", DateType(), False),
-                    StructField("timestamp", TimestampType(), False),
-                ]
-            ),
-        )
-        self.groupby_two_columns_df = self.spark.createDataFrame(
-            pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"]),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("B", LongType(), False),
-                ]
-            ),
-        )
-        self.groupby_one_column_df = self.spark.createDataFrame(
-            pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"]),
-            schema=StructType([StructField("A", StringType(), False)]),
-        )
-        self.stability = {"private": sp.Integer(3), "private_2": sp.Integer(3)}
-        self.input_domain = DictDomain(
-            {
-                "private": SparkDataFrameDomain(
-                    {
-                        "A": SparkStringColumnDescriptor(),
-                        "B": SparkIntegerColumnDescriptor(),
-                        "X": SparkFloatColumnDescriptor(),
-                    }
-                ),
-                "private_2": SparkDataFrameDomain(
-                    {
-                        "A": SparkStringColumnDescriptor(),
-                        "C": SparkIntegerColumnDescriptor(),
-                    }
-                ),
-            }
-        )
-        self.catalog = Catalog()
-        self.catalog.add_private_source(
-            "private",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-                "X": ColumnDescriptor(ColumnType.DECIMAL),
-            },
-            stability=3,
-        )
-        self.catalog.add_private_view(
-            "private_2",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "C": ColumnDescriptor(ColumnType.INTEGER),
-            },
-            stability=3,
-        )
-        self.catalog.add_public_source(
-            "public",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-                "A+B": ColumnDescriptor(ColumnType.INTEGER),
-            },
-        )
-        self.catalog.add_public_source(
-            "dtypes",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "int": ColumnDescriptor(ColumnType.INTEGER),
-                "float": ColumnDescriptor(
-                    ColumnType.DECIMAL, allow_nan=True, allow_inf=True
-                ),
-                "date": ColumnDescriptor(ColumnType.DATE),
-                "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
-            },
-        )
-        self.catalog.add_public_source(
-            "groupby_two_columns",
-            {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-            },
-        )
-        self.catalog.add_public_source(
-            "groupby_one_column", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
-        )
-        self.input_metric = DictMetric(
-            {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
-        )
-        self.compiler = QueryExprCompiler()
-
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_expr,expected",
         [
             (
                 GroupByCountDistinct(
@@ -641,16 +668,11 @@ class TestQueryExprCompiler(PySparkTest):
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [2, 1, 0]}),
             ),
-        ]
+        ],
     )
-    def test_count_distinct(self, query_expr: QueryExpr, expected: pd.DataFrame):
-        """Test that count_distinct works correctly.
-
-        Args:
-            query_expr: The query to evaluate.
-            expected: The expected answer.
-        """
-        count_distinct_df = self.spark.createDataFrame(
+    def test_count_distinct(self, spark, query_expr: QueryExpr, expected: pd.DataFrame):
+        """Test that count_distinct works correctly."""
+        count_distinct_df = spark.createDataFrame(
             pd.DataFrame(
                 [
                     ["0", 0, 0.0],
@@ -676,10 +698,10 @@ class TestQueryExprCompiler(PySparkTest):
             catalog=self.catalog,
         )
         actual = measurement({"private": count_distinct_df})
-        self.assertEqual(len(actual), 1)
-        self.assert_frame_equal_with_sort(actual[0].toPandas(), expected)
+        assert len(actual) == 1
+        assert_frame_equal_with_sort(actual[0].toPandas(), expected)
 
-    @parameterized.expand(QUERY_EXPR_COMPILER_TESTS)
+    @pytest.mark.parametrize("query_exprs,expected", QUERY_EXPR_COMPILER_TESTS)
     def test_queries(self, query_exprs: List[QueryExpr], expected: List[pd.DataFrame]):
         """Tests that compiled measurement produces correct results.
 
@@ -702,11 +724,12 @@ class TestQueryExprCompiler(PySparkTest):
             catalog=self.catalog,
         )
         actual = measurement({"private": self.sdf})
-        self.assertEqual(len(actual), len(expected))
+        assert len(actual) == len(expected)
         for actual_sdf, expected_df in zip(actual, expected):
-            self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query,output_measure,expected",
         [
             (  # Total with LAPLACE (Geometric noise gets applied)
                 GroupByCount(
@@ -909,7 +932,7 @@ class TestQueryExprCompiler(PySparkTest):
                 PureDP(),
                 [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
             ),
-        ]
+        ],
     )
     def test_noise_param_combinations(
         self,
@@ -929,11 +952,12 @@ class TestQueryExprCompiler(PySparkTest):
             catalog=self.catalog,
         )
         actual = measurement({"private": self.sdf})
-        self.assertEqual(len(actual), len(expected))
+        assert len(actual) == len(expected)
         for actual_sdf, expected_df in zip(actual, expected):
-            self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_exprs",
         [
             (  # BoundedAverage with floating-point valued measure column with GAUSSIAN
                 [
@@ -945,7 +969,7 @@ class TestQueryExprCompiler(PySparkTest):
                         high=1.0,
                         mechanism=AverageMechanism.GAUSSIAN,
                     )
-                ],
+                ]
             ),
             (  # BoundedSTDEV on floating-point valued measure column with GAUSSIAN
                 [
@@ -957,7 +981,7 @@ class TestQueryExprCompiler(PySparkTest):
                         high=1.0,
                         mechanism=StdevMechanism.GAUSSIAN,
                     )
-                ],
+                ]
             ),
             (  # BoundedVariance on floating-point valued measure column with GAUSSIAN
                 [
@@ -970,7 +994,7 @@ class TestQueryExprCompiler(PySparkTest):
                         output_column="var",
                         mechanism=VarianceMechanism.GAUSSIAN,
                     )
-                ],
+                ]
             ),
             (  # BoundedSum on floating-point valued measure column with GAUSSIAN
                 [
@@ -983,7 +1007,7 @@ class TestQueryExprCompiler(PySparkTest):
                         output_column="sum",
                         mechanism=SumMechanism.GAUSSIAN,
                     )
-                ],
+                ]
             ),
             (  # Grouping flat map with GAUSSIAN
                 [
@@ -1016,16 +1040,16 @@ class TestQueryExprCompiler(PySparkTest):
                         high=3.0,
                         mechanism=SumMechanism.GAUSSIAN,
                     )
-                ],
+                ]
             ),
-        ]
+        ],
     )
     def test_gaussian_noise_param_on_float_errors(self, query_exprs: List[QueryExpr]):
         """Tests that Gaussian noise with floating-point values errors."""
         compiler = QueryExprCompiler(output_measure=RhoZCDP())
-        with self.assertRaisesRegex(
+        with pytest.raises(
             NotImplementedError,
-            "GAUSSIAN noise is not yet compatible with floating-point values.",
+            match="GAUSSIAN noise is not yet compatible with floating-point values.",
         ):
             compiler(
                 query_exprs,
@@ -1037,13 +1061,13 @@ class TestQueryExprCompiler(PySparkTest):
                 catalog=self.catalog,
             )
 
-    def test_join_public_dataframe(self):
+    def test_join_public_dataframe(self, spark):
         """Public join works with public tables given as Spark dataframes."""
         # This sets up a DF with a column that Spark thinks could contain NaNs,
         # but which doesn't actually contain any. This is allowed by Analytics,
         # but it has caused some bugs in the past which this test should
         # detect.
-        public_sdf = self.spark.createDataFrame(
+        public_sdf = spark.createDataFrame(
             pd.DataFrame({"A": ["0", "1"], "Y": [0.1, float("nan")]})
         ).fillna(0)
 
@@ -1055,7 +1079,7 @@ class TestQueryExprCompiler(PySparkTest):
             catalog=self.catalog,
         )({"private": self.sdf})
 
-        self.assert_frame_equal_with_sort(
+        assert_frame_equal_with_sort(
             output_sdf.toPandas(),
             pd.DataFrame(
                 [
@@ -1068,9 +1092,9 @@ class TestQueryExprCompiler(PySparkTest):
             ),
         )
 
-    def test_join_private(self):
+    def test_join_private(self, spark):
         """Tests that join private works."""
-        sdf_2 = self.spark.createDataFrame(  # pylint: disable=no-member
+        sdf_2 = spark.createDataFrame(  # pylint: disable=no-member
             pd.DataFrame(
                 [["0", 0], ["0", 2], ["1", 2], ["0", 0], ["1", 4]], columns=["A", "C"]
             )
@@ -1088,7 +1112,7 @@ class TestQueryExprCompiler(PySparkTest):
             catalog=self.catalog,
         )({"private": self.sdf, "private_2": sdf_2})
 
-        self.assert_frame_equal_with_sort(
+        assert_frame_equal_with_sort(
             output_sdf.toPandas(),
             pd.DataFrame(
                 [
@@ -1108,7 +1132,8 @@ class TestQueryExprCompiler(PySparkTest):
             ),
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "join_query,expected_output_stability",
         [
             (
                 JoinPrivate(
@@ -1155,7 +1180,7 @@ class TestQueryExprCompiler(PySparkTest):
                 ),
                 6,  # 1 * (1 * 3) + 1 * (1 * 3)
             ),
-        ]
+        ],
     )
     def test_join_private_output_stability(self, join_query, expected_output_stability):
         """Tests that join private gives correct output stability."""
@@ -1166,8 +1191,9 @@ class TestQueryExprCompiler(PySparkTest):
             public_sources={},
             catalog=self.catalog,
         )
-        self.assertEqual(
-            transformation.stability_function(self.stability), expected_output_stability
+        assert (
+            transformation.stability_function(self.stability)
+            == expected_output_stability
         )
 
     def test_join_private_invalid_truncation_strategy(self):
@@ -1185,7 +1211,7 @@ class TestQueryExprCompiler(PySparkTest):
         expected_error_msg = (
             f"Truncation strategy type {Strategy.__qualname__} is not supported."
         )
-        with self.assertRaisesRegex(ValueError, expected_error_msg):
+        with pytest.raises(ValueError, match=expected_error_msg):
             self.compiler.build_transformation(
                 query,
                 input_domain=self.input_domain,
@@ -1194,7 +1220,8 @@ class TestQueryExprCompiler(PySparkTest):
                 catalog=self.catalog,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "flatmap_query,measure,expected_output_stability",
         [
             (
                 FlatMap(
@@ -1218,7 +1245,7 @@ class TestQueryExprCompiler(PySparkTest):
                 PureDP(),
                 6,
             ),
-        ]
+        ],
     )
     def test_flatmap_output_stability(
         self, flatmap_query, measure, expected_output_stability
@@ -1232,13 +1259,14 @@ class TestQueryExprCompiler(PySparkTest):
             public_sources={},
             catalog=self.catalog,
         )
-        self.assertEqual(
-            transformation.stability_function(self.stability), expected_output_stability
+        assert (
+            transformation.stability_function(self.stability)
+            == expected_output_stability
         )
 
-    def test_float_groupby_sum(self):
+    def test_float_groupby_sum(self, spark):
         """Tests that groupby sum on floating-point-valued column uses laplace."""
-        sdf_float = self.spark.createDataFrame(
+        sdf_float = spark.createDataFrame(
             pd.DataFrame(
                 [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],
                 columns=["A", "B", "X"],
@@ -1267,9 +1295,10 @@ class TestQueryExprCompiler(PySparkTest):
         actual = measurement({"private": sdf_float})
         expected = [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})]
         for actual_sdf, expected_df in zip(actual, expected):
-            self.assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_exprs",
         [
             (
                 # Top-level query needs to be instance of measurement QueryExpr
@@ -1281,7 +1310,7 @@ class TestQueryExprCompiler(PySparkTest):
                         schema_new_columns=Schema({}),
                         augment=True,
                     )
-                ],
+                ]
             ),
             (  # Query's child has to be transformation QueryExpr
                 [
@@ -1297,13 +1326,13 @@ class TestQueryExprCompiler(PySparkTest):
                         low=0,
                         high=3,
                     )
-                ],
+                ]
             ),
-        ]
+        ],
     )
     def test_invalid_queries(self, query_exprs: List[QueryExpr]):
         """QueryExprCompiler raises error on unsupported queries."""
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             self.compiler(
                 query_exprs,
                 privacy_budget=sp.oo,
@@ -1350,12 +1379,12 @@ class TestQueryExprCompiler(PySparkTest):
             public_sources={"public": self.join_df},
             catalog=self.catalog,
         )
-        self.assertTrue(measurement.privacy_relation(stability, sp.Integer(10)))
+        assert measurement.privacy_relation(stability, sp.Integer(10))
 
     def test_call_no_queries(self):
         """`__call__` raises error if the sequence of queries has length 0."""
-        with self.assertRaisesRegex(
-            ValueError, r"At least one query needs to be provided"
+        with pytest.raises(
+            ValueError, match=r"At least one query needs to be provided"
         ):
             self.compiler(
                 queries=[],
@@ -1368,7 +1397,7 @@ class TestQueryExprCompiler(PySparkTest):
             )
 
 
-class TestCompileGroupByQuantile(PySparkTest):
+class TestCompileGroupByQuantile:
     """Test compiling GroupByQuantile.
 
     This is separate from other tests because some noise is added even when
@@ -1376,10 +1405,12 @@ class TestCompileGroupByQuantile(PySparkTest):
     the output is within a range, rather than asserting the exact output.
     """
 
-    @parameterized.expand([(PureDP(),), (RhoZCDP(),)])
-    def test_compile_groupby_quantile(self, output_measure: Union[PureDP, RhoZCDP]):
+    @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
+    def test_compile_groupby_quantile(
+        self, spark, output_measure: Union[PureDP, RhoZCDP]
+    ):
         """GroupByQuantile is compiles correctly."""
-        sdf = self.spark.createDataFrame(
+        sdf = spark.createDataFrame(
             pd.DataFrame(
                 [
                     ["F", 28],
@@ -1435,46 +1466,46 @@ class TestCompileGroupByQuantile(PySparkTest):
             public_sources={},
             catalog=catalog,
         )
-        self.assertEqual(measurement.input_domain, input_domain)
-        self.assertEqual(measurement.input_metric, input_metric)
-        self.assertEqual(measurement.output_measure, output_measure)
-        self.assertEqual(measurement.privacy_function(stability), sp.Integer(1000))
+        assert measurement.input_domain == input_domain
+        assert measurement.input_metric == input_metric
+        assert measurement.output_measure == output_measure
+        assert measurement.privacy_function(stability) == sp.Integer(1000)
 
         [actual] = measurement({"private": sdf})
 
-        self.assertTrue(
-            26 < actual.filter(col("Gender") == "F").collect()[0]["out"] <= 28
-        )
-        self.assertTrue(
-            22 < actual.filter(col("Gender") == "M").collect()[0]["out"] <= 24
-        )
+        assert 26 < actual.filter(col("Gender") == "F").collect()[0]["out"] <= 28
+        assert 22 < actual.filter(col("Gender") == "M").collect()[0]["out"] <= 24
 
 
-class TestComponentIsUsed(unittest.TestCase):
+@pytest.fixture(name="test_component_data", scope="class")
+def setup_components(request):
+    """Set up test."""
+    request.cls._stability = {"test": sp.Integer(3)}
+    request.cls._privacy_budget = sp.Integer(5)
+    request.cls._input_domain = DictDomain(
+        {
+            "test": SparkDataFrameDomain(
+                analytics_to_spark_columns_descriptor(
+                    Schema({"A": "VARCHAR", "X": "INTEGER"})
+                )
+            )
+        }
+    )
+    request.cls._input_metric = DictMetric({"test": SymmetricDifference()})
+    request.cls._catalog = Catalog()
+    request.cls._catalog.add_private_source(
+        source_id="test",
+        col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER},
+        stability=3,
+    )
+
+
+@pytest.mark.usefixtures("test_component_data")
+class TestComponentIsUsed:
     """Tests that specific components are used inside of compiled measurements."""
 
-    def setUp(self):
-        """Set up test."""
-        self._stability = {"test": sp.Integer(3)}
-        self._privacy_budget = sp.Integer(5)
-        self._input_domain = DictDomain(
-            {
-                "test": SparkDataFrameDomain(
-                    analytics_to_spark_columns_descriptor(
-                        Schema({"A": "VARCHAR", "X": "INTEGER"})
-                    )
-                )
-            }
-        )
-        self._input_metric = DictMetric({"test": SymmetricDifference()})
-        self._catalog = Catalog()
-        self._catalog.add_private_source(
-            source_id="test",
-            col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER},
-            stability=3,
-        )
-
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "output_measure,query_expr,column,preprocessing_stability",
         [
             (output_measure, query_expr, column, preprocessing_stability)
             for output_measure in [PureDP(), RhoZCDP()]
@@ -1559,31 +1590,7 @@ class TestComponentIsUsed(unittest.TestCase):
                     "quantile",
                 ),
             ]
-        ]
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_quantile_measurement"
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_standard_deviation_measurement"
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_variance_measurement"
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_average_measurement"
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_sum_measurement"
-    )
-    @patch(
-        "tmlt.analytics._query_expr_compiler._measurement_visitor."
-        "create_count_measurement"
+        ],
     )
     def test_used_create_measurement(
         self,
@@ -1591,54 +1598,68 @@ class TestComponentIsUsed(unittest.TestCase):
         query_expr: QueryExpr,
         column: str,
         preprocessing_stability: int,
-        mock_create_count_measurement,
-        mock_create_sum_measurement,
-        mock_create_average_measurement,
-        mock_create_variance_measurement,
-        mock_create_standard_deviation_measurement,
-        mock_create_quantile_measurement,
     ):
         """Compiled measurements contain aggregations with the expected noise scale."""
-        d_in = sp.Integer(3)
-        d_out = sp.Integer(5)
-        compiler = QueryExprCompiler(output_measure=output_measure)
-        mock_create_measurement_dict = {
-            "count": mock_create_count_measurement,
-            "sum": mock_create_sum_measurement,
-            "average": mock_create_average_measurement,
-            "variance": mock_create_variance_measurement,
-            "standard deviation": mock_create_standard_deviation_measurement,
-            "quantile": mock_create_quantile_measurement,
-        }
-        mock_create_measurement = mock_create_measurement_dict[column]
-        mock_create_measurement.return_value = create_mock_measurement(
-            input_domain=self._input_domain["test"],
-            input_metric=self._input_metric["test"],
-            output_measure=output_measure,
-            privacy_function_return_value=d_out,
-            privacy_function_implemented=True,
-        )
-        _ = compiler(
-            [query_expr],
-            privacy_budget=self._privacy_budget,
-            stability=self._stability,
-            input_domain=self._input_domain,
-            input_metric=self._input_metric,
-            public_sources={},
-            catalog=self._catalog,
-        )
-        expected_arguments = {  # Other arguments are not checked
-            "input_domain": self._input_domain["test"],
-            "input_metric": self._input_metric["test"],
-            "d_in": d_in * preprocessing_stability,
-            "d_out": d_out,
-        }
-        if column != "quantile":
-            expected_arguments["noise_mechanism"] = (
-                NoiseMechanism.GEOMETRIC
-                if isinstance(output_measure, PureDP)
-                else NoiseMechanism.DISCRETE_GAUSSIAN
+        with patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_quantile_measurement"
+        ) as mock_create_quantile_measurement, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_standard_deviation_measurement"
+        ) as mock_create_standard_deviation_measurement, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_variance_measurement"
+        ) as mock_create_variance_measurement, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_average_measurement"
+        ) as mock_create_average_measurement, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_sum_measurement"
+        ) as mock_create_sum_measurement, patch(
+            "tmlt.analytics._query_expr_compiler._measurement_visitor."
+            "create_count_measurement"
+        ) as mock_create_count_measurement:
+
+            d_in = sp.Integer(3)
+            d_out = sp.Integer(5)
+            compiler = QueryExprCompiler(output_measure=output_measure)
+            mock_create_measurement_dict = {
+                "count": mock_create_count_measurement,
+                "sum": mock_create_sum_measurement,
+                "average": mock_create_average_measurement,
+                "variance": mock_create_variance_measurement,
+                "standard deviation": mock_create_standard_deviation_measurement,
+                "quantile": mock_create_quantile_measurement,
+            }
+            mock_create_measurement = mock_create_measurement_dict[column]
+            mock_create_measurement.return_value = create_mock_measurement(
+                input_domain=self._input_domain["test"],
+                input_metric=self._input_metric["test"],
+                output_measure=output_measure,
+                privacy_function_return_value=d_out,
+                privacy_function_implemented=True,
             )
-        _, kwargs = mock_create_measurement.call_args_list[-1]
-        for kwarg, value in expected_arguments.items():
-            self.assertEqual(kwargs[kwarg], value)
+            _ = compiler(
+                [query_expr],
+                privacy_budget=self._privacy_budget,
+                stability=self._stability,
+                input_domain=self._input_domain,
+                input_metric=self._input_metric,
+                public_sources={},
+                catalog=self._catalog,
+            )
+            expected_arguments = {  # Other arguments are not checked
+                "input_domain": self._input_domain["test"],
+                "input_metric": self._input_metric["test"],
+                "d_in": d_in * preprocessing_stability,
+                "d_out": d_out,
+            }
+            if column != "quantile":
+                expected_arguments["noise_mechanism"] = (
+                    NoiseMechanism.GEOMETRIC
+                    if isinstance(output_measure, PureDP)
+                    else NoiseMechanism.DISCRETE_GAUSSIAN
+                )
+            _, kwargs = mock_create_measurement.call_args_list[-1]
+            for kwarg, value in expected_arguments.items():
+                assert kwargs[kwarg] == value
