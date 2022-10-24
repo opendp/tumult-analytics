@@ -570,6 +570,53 @@ EVALUATE_TESTS = [
         ),
         pd.DataFrame({"count_distinct(DATE)": [2]}),
     ),
+    pytest.param(
+        QueryBuilder("private")
+        .join_public("public")
+        .join_public("public", ["A"])
+        .join_public("public", ["A"])
+        .groupby(
+            KeySet.from_dict(
+                {"A+B": [0, 1, 2], "A+B_left": [0, 1, 2], "A+B_right": [0, 1, 2]}
+            )
+        )
+        .count(),
+        None,
+        pd.DataFrame(
+            [
+                (0, 0, 0, 3),
+                (0, 0, 1, 3),
+                (0, 1, 0, 3),
+                (0, 1, 1, 3),
+                (1, 0, 0, 3),
+                (1, 0, 1, 3),
+                (1, 1, 0, 3),
+                (1, 1, 1, 4),
+                (1, 1, 2, 1),
+                (1, 2, 1, 1),
+                (1, 2, 2, 1),
+                (2, 1, 1, 1),
+                (2, 1, 2, 1),
+                (2, 2, 1, 1),
+                (2, 2, 2, 1),
+                (0, 0, 2, 0),
+                (0, 1, 2, 0),
+                (0, 2, 0, 0),
+                (0, 2, 1, 0),
+                (0, 2, 2, 0),
+                (1, 0, 2, 0),
+                (1, 2, 0, 0),
+                (2, 0, 0, 0),
+                (2, 0, 1, 0),
+                (2, 0, 2, 0),
+                (2, 1, 0, 0),
+                (2, 2, 0, 0),
+            ],
+            columns=["A+B", "A+B_left", "A+B_right", "count"],
+        ),
+        id="public_join_disambiguation",
+        marks=pytest.mark.slow,
+    ),
 ]
 
 

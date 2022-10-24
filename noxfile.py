@@ -246,8 +246,10 @@ def _test(
 ):
     test_paths = test_dirs or CODE_DIRS
     extra_args = extra_args or []
-    test_options = ["-rfs",
-     "--disable-warnings", f"--junitxml={CWD}/junit.xml",
+    test_options = [
+        "-rfs", "--disable-warnings", f"--junitxml={CWD}/junit.xml",
+        # Show runtimes of the 10 slowest tests, for later comparison if needed.
+        "--durations=10",
         *extra_args,
         *[str(p) for p in test_paths],
     ]
@@ -271,7 +273,7 @@ def test_fast(session):
 @poetry_session(python="3.7")
 def test_slow(session):
     """Run tests with the slow attribute."""
-    _test(session, extra_args=['-m', 'slow'])
+    _test(session, min_coverage=0, extra_args=['-m', 'slow'])
 
 @poetry_session(tags=["test"], python="3.7")
 def test_doctest(session):
