@@ -953,13 +953,15 @@ class Session:
         self._accountant.transform_in_place(transformation, d_out)
 
     # pylint: disable=line-too-long
+    # TODO(#2199): remove the attr_name argument
     @typechecked
     def partition_and_create(
         self,
         source_id: str,
         privacy_budget: PrivacyBudget,
-        attr_name: str,
-        splits: Union[Dict[str, str], Dict[str, int]],
+        column: Optional[str] = None,
+        splits: Optional[Union[Dict[str, str], Dict[str, int]]] = None,
+        attr_name: Optional[str] = None,
     ) -> Dict[str, "Session"]:
         """Returns new sessions from a partition mapped to split name/`source_id`.
 
@@ -1003,7 +1005,7 @@ class Session:
             >>> new_sessions = sess.partition_and_create(
             ...     "my_private_data",
             ...     privacy_budget=PureDPBudget(0.75),
-            ...     attr_name="A",
+            ...     column="A",
             ...     splits={"part0":"0", "part1":"1"}
             ... )
             >>> sess.remaining_privacy_budget
@@ -1039,11 +1041,35 @@ class Session:
         Args:
             source_id: The private source to partition.
             privacy_budget: Amount of privacy budget to pass to each new session.
-            attr_name: The name of the column partitioning on.
+            column: The name of the column partitioning on.
             splits: Mapping of split name to value of partition.
                 Split name is `source_id` in new session.
+            attr_name: Deprecated synonym for `column`. Using the `column` argument
+                is preferred.
         """
         # pylint: enable=line-too-long
+        if column is None and attr_name is None:
+            raise ValueError("Please specify a column using the column parameter")
+        if column is not None and attr_name is not None:
+            raise ValueError("You cannot specify both a column and an attr_name")
+        if attr_name is not None:
+            warn(
+                "The attr_name argument is deprecated and will be removed in a future"
+                " release",
+                DeprecationWarning,
+            )
+            column = attr_name
+        if splits is None:
+            raise ValueError(
+                "You must provide a dictionary mapping split names (new source_ids) to"
+                " values on which to partition"
+            )
+        # If you remove this if-block, mypy will complain
+        if column is None:
+            raise AssertionError(
+                "column is None, even though either column or attr_name were provided."
+                " This is probably a bug; please let us know about it so we can fix it!"
+            )
         self._validate_budget_type_matches_session(privacy_budget)
         self._activate_accountant()
 
@@ -1068,10 +1094,10 @@ class Session:
         transformation_domain = cast(SparkDataFrameDomain, transformation.output_domain)
 
         try:
-            attr_type = transformation_domain.schema[attr_name]
+            attr_type = transformation_domain.schema[column]
         except KeyError:
             raise KeyError(
-                f"'{attr_name}' not present in transformed dataframe's columns; "
+                f"'{column}' not present in transformed dataframe's columns; "
                 "schema of transformed dataframe is "
                 f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
             )
@@ -1090,7 +1116,7 @@ class Session:
                 )
             if not attr_type.valid_py_value(split_val):
                 raise TypeError(
-                    f"'{attr_name}' column is of type '{attr_type.data_type}'; "
+                    f"'{column}' column is of type '{attr_type.data_type}'; "
                     f"'{attr_type.data_type}' column not compatible with splits "
                     f"value type '{type(split_val).__name__}'"
                 )
@@ -1099,7 +1125,7 @@ class Session:
         element_metric: Union[IfGroupedBy, SymmetricDifference]
         if (
             isinstance(transformation.output_metric, IfGroupedBy)
-            and attr_name != transformation.output_metric.column
+            and column != transformation.output_metric.column
         ):
             element_metric = transformation.output_metric
         else:
@@ -1108,7 +1134,7 @@ class Session:
             input_domain=transformation_domain,
             input_metric=transformation.output_metric,
             use_l2=isinstance(self._compiler.output_measure, RhoZCDP),
-            keys=[attr_name],
+            keys=[column],
             list_values=split_vals,
         )
         chained_partition = transformation | partition_transformation

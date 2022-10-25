@@ -986,7 +986,7 @@ class TestSession:
         sessions = session1.partition_and_create(
             source_id="private",
             privacy_budget=partition_budget,
-            attr_name="A",
+            column="A",
             splits={"private0": "0", "private1": "1"},
         )
         session2 = sessions["private0"]
@@ -1199,7 +1199,7 @@ class TestSession:
         sessions = session1.partition_and_create(
             source_id="private",
             privacy_budget=partition_budget,
-            attr_name="A",
+            column="A",
             splits={"private0": "0", "private1": "1"},
         )
         session2 = sessions["private0"]
@@ -1265,7 +1265,7 @@ class TestSession:
         new_sessions = session.partition_and_create(
             source_id="private",
             privacy_budget=budget,
-            attr_name="new",
+            column="new",
             splits={"new1": 1, "new2": 2},
         )
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
@@ -1288,7 +1288,7 @@ class TestSession:
         new_sessions = session.partition_and_create(
             source_id="duplicated",
             privacy_budget=budget,
-            attr_name="new",
+            column="new",
             splits={"new1": 1, "new2": 2},
         )
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
@@ -1311,7 +1311,7 @@ class TestSession:
         new_sessions = session.partition_and_create(
             source_id="duplicated",
             privacy_budget=budget,
-            attr_name="A",
+            column="A",
             splits={"zero": "0", "one": "1"},
         )
         keys = KeySet.from_dict({"new": [1, 2]})
@@ -1575,7 +1575,7 @@ class TestInvalidSession:
             session.partition_and_create(
                 "private",
                 privacy_budget=two_budget,
-                attr_name="A",
+                column="A",
                 splits={"part_0": "0", "part_1": "1"},
             )
 

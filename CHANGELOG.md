@@ -7,6 +7,7 @@
 
 ### Changed
 - *Backwards-incompatible*: Changed argument names for `QueryBuilder.count_distinct` and `KeySet.__getitem__` from `cols` to `columns`, for consistency. The old argument has been deprecated, but is still available.
+- *Backwards-incompatible*: Changed the argument name for `Session.partition_and_create` from `attr_name` to `column`. The old argument has been deprecated, but is still available.
 - Improved the error message shown when a filter expression is invalid.
 - Updated to Tumult Core 0.5.0.
   As a result, `python-flint` is no longer a transitive dependency, simplifying the Analytics installation process.

@@ -573,47 +573,85 @@ class TestSession:
 
             session = Session(accountant=mock_accountant, public_sources=dict())
 
-            new_sessions = session.partition_and_create(
+        # Test that you need exactly one of column, attr_name
+        with pytest.raises(ValueError, match="Please specify a column"):
+            session.partition_and_create(
+                source_id="private",
+                privacy_budget=PureDPBudget(10),
+                splits={"part0": "0", "part1": "1"},
+            )
+        with pytest.raises(
+            ValueError, match="You cannot specify both a column and an attr_name"
+        ):
+            session.partition_and_create(
+                source_id="private",
+                privacy_budget=PureDPBudget(10),
+                column="A",
+                attr_name="A",
+                splits={"part0": "0", "part1": "1"},
+            )
+        # Test that you need to provide splits
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "You must provide a dictionary mapping split names (new source_ids) to"
+                " values on which to partition"
+            ),
+        ):
+            session.partition_and_create(
+                source_id="private", privacy_budget=PureDPBudget(10), column="A"
+            )
+
+        # Make a new session so that testing for warnings doesn't
+        # impact the later tests
+        warn_session = Session(accountant=mock_accountant, public_sources=dict())
+        with pytest.warns(DeprecationWarning, match="attr_name argument is deprecated"):
+            warn_session.partition_and_create(
                 source_id="private",
                 privacy_budget=PureDPBudget(10),
                 attr_name="A",
                 splits={"part0": "0", "part1": "1"},
             )
 
-            partition_query = mock_accountant.mock_calls[-1][1][0]
-            assert isinstance(partition_query, Transformation)
-            assert isinstance(partition_query, ChainTT)
+        new_sessions = session.partition_and_create(
+            source_id="private",
+            privacy_budget=PureDPBudget(10),
+            column="A",
+            splits={"part0": "0", "part1": "1"},
+        )
 
-            assert isinstance(partition_query.transformation1, GetValue)
-            assert (
-                partition_query.transformation1.input_domain
-                == mock_accountant.input_domain
-            )
-            assert (
-                partition_query.transformation1.input_metric
-                == mock_accountant.input_metric
-            )
-            assert partition_query.transformation1.key == "private"
-            assert isinstance(partition_query.transformation2, PartitionByKeys)
-            assert (
-                partition_query.transformation2.input_domain
-                == self.sdf_input_domain["private"]
-            )
-            assert partition_query.transformation2.input_metric == SymmetricDifference()
-            assert partition_query.transformation2.output_metric == SumOf(
-                SymmetricDifference()
-            )
-            assert partition_query.transformation2.keys == ["A"]
-            assert partition_query.transformation2.list_values == [("0",), ("1",)]
+        partition_query = mock_accountant.mock_calls[-1][1][0]
+        assert isinstance(partition_query, Transformation)
+        assert isinstance(partition_query, ChainTT)
 
-            mock_accountant.split.assert_called_with(
-                partition_query, privacy_budget=ExactNumber(10)
-            )
+        assert isinstance(partition_query.transformation1, GetValue)
+        assert (
+            partition_query.transformation1.input_domain == mock_accountant.input_domain
+        )
+        assert (
+            partition_query.transformation1.input_metric == mock_accountant.input_metric
+        )
+        assert partition_query.transformation1.key == "private"
+        assert isinstance(partition_query.transformation2, PartitionByKeys)
+        assert (
+            partition_query.transformation2.input_domain
+            == self.sdf_input_domain["private"]
+        )
+        assert partition_query.transformation2.input_metric == SymmetricDifference()
+        assert partition_query.transformation2.output_metric == SumOf(
+            SymmetricDifference()
+        )
+        assert partition_query.transformation2.keys == ["A"]
+        assert partition_query.transformation2.list_values == [("0",), ("1",)]
 
-            assert isinstance(new_sessions, dict)
-            for new_session_name, new_session in new_sessions.items():
-                assert isinstance(new_session_name, str)
-                assert isinstance(new_session, Session)
+        mock_accountant.split.assert_called_with(
+            partition_query, privacy_budget=ExactNumber(10)
+        )
+
+        assert isinstance(new_sessions, dict)
+        for new_session_name, new_session in new_sessions.items():
+            assert isinstance(new_session_name, str)
+            assert isinstance(new_session, Session)
 
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
@@ -1038,8 +1076,8 @@ class TestInvalidSession:
             with pytest.raises(exception_type, match=expected_error_msg):
                 session.create_view(query_expr, source_id="view", cache=True)
 
-    def test_invalid_attr_name(self):
-        """Tests that invalid column name for attr_name errors."""
+    def test_invalid_column(self):
+        """Tests that invalid column name for column errors."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant, patch(
@@ -1086,7 +1124,7 @@ class TestInvalidSession:
                 session.partition_and_create(
                     "private",
                     privacy_budget=PureDPBudget(1),
-                    attr_name="T",
+                    column="T",
                     splits={"private0": "0", "private1": "1"},
                 )
 
@@ -1131,7 +1169,7 @@ class TestInvalidSession:
                 session.partition_and_create(
                     "private",
                     privacy_budget=PureDPBudget(1),
-                    attr_name="A",
+                    column="A",
                     splits={" ": 0, "space present": 1, "2startsWithNumber": 2},
                 )
 
@@ -1177,7 +1215,7 @@ class TestInvalidSession:
                 session.partition_and_create(
                     "private",
                     privacy_budget=PureDPBudget(1),
-                    attr_name="A",
+                    column="A",
                     splits={"private0": 0, "private1": 1},
                 )
 
