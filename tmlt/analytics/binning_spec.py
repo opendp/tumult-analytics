@@ -6,13 +6,42 @@
 import bisect
 import datetime
 import math
-from typing import Generic, List, Optional, Sequence, TypeVar, cast
+from typing import Any, Generic, List, Optional, Sequence, TypeVar, cast
 
-from tmlt.analytics._schema import ColumnType
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
 from tmlt.core.utils.type_utils import get_element_type
 
 BinT = TypeVar("BinT", str, int, float, datetime.date, datetime.datetime)
 BinNameT = TypeVar("BinNameT", str, int, float, datetime.date, datetime.datetime)
+
+
+def _get_column_descriptor(
+    bin_names: Sequence[Any], nan_bin: Optional[BinNameT]
+) -> ColumnDescriptor:
+    """Return the ColumnDescriptor for the non-``None`` elements of a list.
+
+    allow_nan is True if any bin_names element either matches nan_bin, or isnan.
+    allow_inf is True if any bin_names element matches float("inf") or float("-inf").
+    allow_null is True if any bin_names element when lowercased matches "null".
+    """
+    allow_null = False
+    allow_nan = False
+    allow_inf = False
+
+    for bin_name in bin_names:
+        if not allow_null and str(bin_name).lower() == "null":
+            allow_null = True
+        elif not allow_nan and (
+            bin_name == nan_bin
+            or (isinstance(bin_name, float) and math.isnan(bin_name))
+        ):
+            allow_nan = True
+        elif not allow_inf and bin_name == float("inf") or bin_name == float("-inf"):
+            allow_inf = True
+
+    column_type = ColumnType(get_element_type(bin_names, allow_none=False))
+
+    return ColumnDescriptor(column_type, allow_null, allow_nan, allow_inf)
 
 
 def _edges_as_str(bin_edges: List[BinT]) -> List[str]:
@@ -168,7 +197,7 @@ class BinningSpec(Generic[BinT, BinNameT]):
             self._bin_names: List[BinNameT] = list(names)  # type: ignore
 
         try:
-            output_type = get_element_type(self._bin_names, allow_none=False)
+            column_descriptor = _get_column_descriptor(self._bin_names, nan_bin)
         except ValueError as e:
             raise ValueError(f"Invalid bin names: {e}") from e
         # This typecheck cannot be done safely with isinstance because datetime
@@ -176,12 +205,12 @@ class BinningSpec(Generic[BinT, BinNameT]):
         if (
             # pylint: disable=unidiomatic-typecheck
             nan_bin is not None
-            and type(nan_bin) != output_type
+            and type(nan_bin) != column_type_to_py_type(column_descriptor.column_type)
         ):
             raise ValueError("NaN bin name must have the same type as other bin names")
 
         self._nan_bin: Optional[BinNameT] = nan_bin  # type: ignore
-        self._output_type = ColumnType(output_type)
+        self._column_descriptor = column_descriptor
         self._right = right
         self._include_both_endpoints = include_both_endpoints
 
@@ -191,9 +220,9 @@ class BinningSpec(Generic[BinT, BinNameT]):
         return self._input_type
 
     @property
-    def output_type(self) -> ColumnType:
-        """Return the ColumnType that results from applying this binning."""
-        return self._output_type
+    def column_descriptor(self) -> ColumnDescriptor:
+        """Return the ColumnDescriptor that results from applying this binning."""
+        return self._column_descriptor
 
     def bins(self, include_null: bool = False) -> List[Optional[BinNameT]]:
         """Return a list of all the bin names that could result from the binning.
