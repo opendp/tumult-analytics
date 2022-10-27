@@ -87,7 +87,7 @@ def test_binning() -> None:
         "(15, 20]",
         None,
     ]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {
         2: "[0, 5]",
         7: "(5, 10]",
@@ -154,10 +154,45 @@ def test_input_type(edges: List[Any], ty: ColumnType):
         ),
     ],
 )
-def test_output_type(names: List[Any], ty: ColumnType):
-    """BinningSpec.output_type works as expected."""
+def test_column_type(names: List[Any], ty: ColumnType):
+    """BinningSpec.column_descriptor.column_type works as expected."""
     spec = BinningSpec([0, 1, 2], names=names)
-    assert spec.output_type == ty
+    assert spec.column_descriptor.column_type == ty
+
+
+def test_binning_allow_nan() -> None:
+    """BinningSpec sets allow_nan as expected."""
+    edges = [0, 5, 10]
+    spec = BinningSpec(edges, names=[float("NaN"), float("0")])
+    assert spec.column_descriptor.allow_nan
+    spec = BinningSpec(edges, names=[float("-NaN"), float("0")])
+    assert spec.column_descriptor.allow_nan
+    spec = BinningSpec(edges, names=[float("0"), float("5")])
+    assert not spec.column_descriptor.allow_nan
+
+
+def test_binning_allow_null() -> None:
+    """BinningSpec sets allow_null as expected."""
+    edges = [0, 5, 10]
+    spec = BinningSpec(edges, names=["null", "5"])
+    assert spec.column_descriptor.allow_null
+    spec = BinningSpec(edges, names=["NULL", "5"])
+    assert spec.column_descriptor.allow_null
+    spec = BinningSpec(edges, names=["Null", "5"])
+    assert spec.column_descriptor.allow_null
+    spec = BinningSpec(edges, names=["0", "5"])
+    assert not spec.column_descriptor.allow_null
+
+
+def test_binning_allow_inf() -> None:
+    """BinningSpec sets allow_inf as expected."""
+    edges = [float("0"), float("5"), float("10")]
+    spec = BinningSpec(edges, names=[float("0"), float("inf")])
+    assert spec.column_descriptor.allow_inf
+    spec = BinningSpec(edges, names=[float("0"), float("-inf")])
+    assert spec.column_descriptor.allow_inf
+    spec = BinningSpec(edges, names=[float("0"), float("5")])
+    assert not spec.column_descriptor.allow_inf
 
 
 def test_binning_noninclusive() -> None:
@@ -176,7 +211,7 @@ def test_binning_names() -> None:
     """BinningSpec with custom bin names works as expected."""
     spec = BinningSpec([0, 64, 69, 79, 89, 100], names=["F", "D", "C", "B", "A"])
     assert spec.bins() == ["F", "D", "C", "B", "A"]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {0: "F", 10: "F", 75: "C", 100: "A", None: None}
     for val, expected_bin in bin_tests.items():
         assert spec(val) == expected_bin
@@ -187,12 +222,13 @@ def test_binning_repeated_names() -> None:
     spec = BinningSpec([-15, -5, 5, 15], names=["high", "low", "high"])
     assert spec.bins() == ["high", "low"]
     assert spec.bins(include_null=True) == ["high", "low", None]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {-16: None, -15: "high", -5: "high", -4: "low", 4: "low", 10: "high"}
     for val, expected_bin in bin_tests.items():
         assert spec(val) == expected_bin
 
 
+# TODO Binning: add tests somwhere around here
 def test_binning_inf_nan() -> None:
     """Binning infinite/NaN values works as expected."""
     spec = BinningSpec(
@@ -201,7 +237,7 @@ def test_binning_inf_nan() -> None:
         names=["negative", "nonnegative"],
     )
     assert spec.bins() == ["negative", "nonnegative"]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {
         -1.0: "negative",
         0.0: "nonnegative",
@@ -224,7 +260,7 @@ def test_binning_nan_bin() -> None:
         nan_bin="NaN",
     )
     assert spec.bins() == ["negative", "nonnegative", "NaN"]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {
         1.0: "nonnegative",
         float("inf"): "nonnegative",
@@ -244,7 +280,7 @@ def test_binning_nan_bin_matching() -> None:
         nan_bin="nonnegative",
     )
     assert spec.bins() == ["negative", "nonnegative"]
-    assert spec.output_type == ColumnType.VARCHAR
+    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
     bin_tests = {
         1.0: "nonnegative",
         float("inf"): "nonnegative",
@@ -262,7 +298,7 @@ def test_binning_date_names() -> None:
         names=[datetime.date(2022, 1, day) for day in range(1, 9)],
         right=False,
     )
-    assert spec.output_type == ColumnType.DATE
+    assert spec.column_descriptor.column_type == ColumnType.DATE
     bin_tests = {
         datetime.datetime.fromisoformat("2022-01-02"): datetime.date(2022, 1, 2),
         datetime.datetime.fromisoformat("2022-01-02 00:00"): datetime.date(2022, 1, 2),

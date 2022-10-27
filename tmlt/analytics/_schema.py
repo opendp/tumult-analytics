@@ -242,6 +242,11 @@ More information regarding Spark columns descriptor can be found in
 :class:`~tmlt.core.domains.spark_domains.SparkColumnDescriptor`"""
 
 
+def column_type_to_py_type(column_type: ColumnType) -> type:
+    """Converts a ColumnType to a python type."""
+    return column_type.value
+
+
 def analytics_to_py_types(analytics_schema: Schema) -> Dict[str, type]:
     """Returns the mapping from column names to supported python types."""
     return {
