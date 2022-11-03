@@ -5,6 +5,8 @@
 **Steps to Reproduce**: Can you get this bug to happen consistently? If so, how?
 Code snippets are encouraged here.
 
+Does [https://docs.tmlt.dev/analytics/dev/reference/tmlt/analytics/utils/index.html#tmlt.analytics.utils.check_installation](check_installation()) run successfully?
+
 **Analytics Version**: The version of Analytics on which you found this bug (e.g. 0.4.0).
 
 **Python version**: The version of Python on which you found this bug (e.g. 3.7).

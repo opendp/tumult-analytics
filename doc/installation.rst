@@ -131,3 +131,15 @@ Once the above prerequisites are installed, Tumult Analytics can be installed us
 This will automatically install all of its Python dependencies as well.
 
 It is recommended, though not required, to install Tumult Analytics in a `virtual environment <https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments>`__ to minimize interactions with your system Python environment.
+
+Optional: checking your installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Once you've installed Tumult Analytics, you can run this command to
+check that basic functionality works:
+
+.. code-block:: bash
+
+    python3 -c "from tmlt.analytics.utils import check_installation; check_installation()"
+
+If Analytics has been installed correctly, this command should finish successfully.
