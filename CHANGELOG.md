@@ -4,6 +4,7 @@
 ### Added
 - Added a diagram to the API reference page.
 - Analytics now does an additional Spark configuration check for users running Java 11+ at the time of Analytics Session initialization. If the user is running Java 11 or higher with an incorrect Spark configuration, Analytics raises an informative exception.
+- Added a method to check that basic Analytics functionality works (`tmlt.analytics.utils.check_installation`).
 
 ### Changed
 - *Backwards-incompatible*: Changed argument names for `QueryBuilder.count_distinct` and `KeySet.__getitem__` from `cols` to `columns`, for consistency. The old argument has been deprecated, but is still available.
