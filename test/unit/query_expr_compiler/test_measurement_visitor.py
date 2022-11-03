@@ -1183,30 +1183,25 @@ class TestMeasurementVisitor:
             while isinstance(new_transform, (ReplaceInfExpr, DropNullAndNan)):
                 if isinstance(new_transform, ReplaceInfExpr):
                     replace_inf_expr: ReplaceInfExpr = new_transform
+                    schema = expected_groupby_domain.schema
                     for col in replace_inf_expr.replace_with:
-                        if isinstance(
-                            expected_groupby_domain[col], SparkFloatColumnDescriptor
-                        ):
-                            expected_groupby_domain.schema[
-                                col
-                            ] = SparkFloatColumnDescriptor(allow_inf=False)
+                        if isinstance(schema[col], SparkFloatColumnDescriptor):
+                            schema[col] = SparkFloatColumnDescriptor(allow_inf=False)
                     new_transform = replace_inf_expr.child
                 elif isinstance(new_transform, DropNullAndNan):
                     drop_null_and_nan_expr: DropNullAndNan = new_transform
+                    schema = expected_groupby_domain.schema
                     for col in new_transform.columns:
-                        if isinstance(
-                            expected_groupby_domain[col], SparkFloatColumnDescriptor
-                        ):
-                            expected_groupby_domain.schema[
-                                col
-                            ] = SparkFloatColumnDescriptor(
+                        if isinstance(schema[col], SparkFloatColumnDescriptor):
+                            schema[col] = SparkFloatColumnDescriptor(
                                 allow_null=False, allow_nan=False
                             )
                         else:
-                            expected_groupby_domain.schema[
-                                col
-                            ] = SparkIntegerColumnDescriptor(allow_null=False)
+                            schema[col] = SparkIntegerColumnDescriptor(allow_null=False)
                     new_transform = drop_null_and_nan_expr.child
+                expected_groupby_domain = SparkGroupedDataFrameDomain(
+                    schema=schema, group_keys=query.groupby_keys.dataframe()
+                )
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert info.groupby.output_domain.schema == expected_groupby_domain.schema
         assert_frame_equal_with_sort(
