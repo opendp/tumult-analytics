@@ -27,9 +27,13 @@ Tumult Analytics is…
   functions, data transformation operators, and privacy definitions.
 
 New users probably want to start with the :ref:`installation instructions`.
+Alternatively, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO?usp=sharing>`__.
+demonstrates basic features of the library without requiring any installation.
 
-Alternatively, to try Tumult Analytics *without* installing it, you can run
-`this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO?usp=sharing>`__.
+No prior expertise in differential privacy is needed to use Tumult Analytics.
+Users who still wish to learn more about the fundamentals of differential privacy can consult
+`this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
+or `this longer introduction <https://privacytools.seas.harvard.edu/files/privacytools/files/pedagogical-document-dp_0.pdf>`__.
 
 .. panels::
    :card: + intro-card text-center
