@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+### Changed
+- Updated to Tumult Core 0.6.0.
+
 ## 0.5.0 - 2022-10-17
 ### Added
 - Added a diagram to the API reference page.

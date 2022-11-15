@@ -8,6 +8,12 @@ from typing import Any, Dict, List, Set, Tuple, Union
 from pyspark.sql import DataFrame
 
 from tmlt.core.measurements.base import Measurement
+from tmlt.core.measurements.noise_mechanisms import (
+    AddDiscreteGaussianNoise,
+    AddGeometricNoise,
+    AddLaplaceNoise,
+)
+from tmlt.core.measurements.pandas_measurements.series import NoisyQuantile
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.utils.exact_number import ExactNumber
 
@@ -17,6 +23,19 @@ class _NoiseMechanism(Enum):
     GEOMETRIC = 2
     DISCRETE_GAUSSIAN = 3
     EXPONENTIAL = 4
+
+    def to_cls(self):
+        """Returns the appropriate measurement class for this enum value."""
+        # pylint: disable=comparison-with-callable
+        if self.value == _NoiseMechanism.LAPLACE.value:
+            return AddLaplaceNoise
+        if self.value == _NoiseMechanism.GEOMETRIC.value:
+            return AddGeometricNoise
+        if self.value == _NoiseMechanism.DISCRETE_GAUSSIAN.value:
+            return AddDiscreteGaussianNoise
+        if self.value == _NoiseMechanism.EXPONENTIAL.value:
+            return NoisyQuantile
+        raise KeyError("Unknown measurement type.")
 
 
 @singledispatch
@@ -86,6 +105,17 @@ def _noise_from_measurement(m: Measurement) -> List[Dict[str, Any]]:
     {"noise_mechanism": _NoiseMechanism.LAPLACE, "noise_parameter": 1}
     """
     return _noise_from_info(_get_info(m))
+
+
+def _inverse_cdf(noise_info: Dict[str, Any], p: float) -> float:
+    """Get the inverse cdf of a measurement at a probability.
+
+    Args:
+        noise_info: A dictionary of the type returned by _noise_from_measurement.
+        p: The probability at which to calculate the inverse cdf.
+    """
+    noise_cls = noise_info["noise_mechanism"].to_cls()
+    return noise_cls.inverse_cdf(noise_info["noise_parameter"], p)
 
 
 @singledispatch
