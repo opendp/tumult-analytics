@@ -3,6 +3,16 @@
 Changelog
 =========
 
+0.5.1 - 2022-11-16
+------------------
+
+Changed
+~~~~~~~
+
+-  Updated to Tumult Core 0.6.0.
+
+.. _section-1:
+
 0.5.0 - 2022-10-17
 ------------------
 
@@ -11,11 +21,15 @@ Added
 
 -  Added a diagram to the API reference page.
 -  Analytics now does an additional Spark configuration check for users running Java 11+ at the time of Analytics Session initialization. If the user is running Java 11 or higher with an incorrect Spark configuration, Analytics raises an informative exception.
+-  Added a method to check that basic Analytics functionality works (``tmlt.analytics.utils.check_installation``).
+
+.. _changed-1:
 
 Changed
 ~~~~~~~
 
 -  *Backwards-incompatible*: Changed argument names for ``QueryBuilder.count_distinct`` and ``KeySet.__getitem__`` from ``cols`` to ``columns``, for consistency. The old argument has been deprecated, but is still available.
+-  *Backwards-incompatible*: Changed the argument name for ``Session.partition_and_create`` from ``attr_name`` to ``column``. The old argument has been deprecated, but is still available.
 -  Improved the error message shown when a filter expression is invalid.
 -  Updated to Tumult Core 0.5.0.
    As a result, ``python-flint`` is no longer a transitive dependency, simplifying the Analytics installation process.
@@ -25,7 +39,7 @@ Deprecated
 
 -  The contents of the ``cleanup`` module have been moved to the ``utils`` module. The ``cleanup`` module will be removed in a future version.
 
-.. _section-1:
+.. _section-2:
 
 0.4.2 - 2022-09-06
 ------------------
@@ -35,7 +49,7 @@ Fixed
 
 -  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
 
-.. _section-2:
+.. _section-3:
 
 0.4.1 - 2022-08-25
 ------------------
@@ -48,7 +62,7 @@ Added
 -  Added ``QueryBuilder.histogram`` function, which provides a shorthand for generating binned data counts.
 -  Analytics now checks to see if the user is running Java 11 or higher. If they are, Analytics either sets the appropriate Spark options (if Spark is not yet running) or raises an informative exception (if Spark is running and configured incorrectly).
 
-.. _changed-1:
+.. _changed-2:
 
 Changed
 ~~~~~~~
@@ -62,7 +76,7 @@ Fixed
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
-.. _section-3:
+.. _section-4:
 
 0.4.0 - 2022-07-22
 ------------------
@@ -76,7 +90,7 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-4:
+.. _section-5:
 
 0.3.0 - 2022-06-23
 ------------------
@@ -98,7 +112,7 @@ Added
 -  Added a ``cleanup`` module with two functions: a ``cleanup`` function to remove the current temporary table (which should be called before ``spark.stop()``), and a ``remove_all_temp_tables`` function that removes all temporary tables ever created by Analytics.
 -  Added a topic guide in the documentation for Tumult Analytics’ treatment of null, NaN, and infinite values.
 
-.. _changed-2:
+.. _changed-3:
 
 Changed
 ~~~~~~~
@@ -141,7 +155,7 @@ Added
    ``ColumnType`` has two new variants, ``DATE`` and ``TIMESTAMP``, to support these.
 -  Future documentation will now include any exceptions defined in Analytics.
 
-.. _changed-3:
+.. _changed-4:
 
 Changed
 ~~~~~~~
@@ -162,7 +176,7 @@ Removed
 -  Columns that are neither floats nor doubles will no longer be checked for NaN values.
 -  The ``BIT`` variant of the ``ColumnType`` enum was removed, as it was not supported elsewhere in Analytics.
 
-.. _changed-4:
+.. _changed-5:
 
 Changed
 ~~~~~~~
@@ -194,7 +208,7 @@ Added
 -  Added a ``KeySet`` class, which will eventually be used for all GroupBy queries.
 -  Added ``QueryBuilder.groupby()``, a new group-by based on ``KeySet``\ s.
 
-.. _changed-5:
+.. _changed-6:
 
 Changed
 ~~~~~~~
