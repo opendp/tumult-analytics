@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 - 2022-11-16
 ### Changed
 - Updated to Tumult Core 0.6.0.
 
