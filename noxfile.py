@@ -49,6 +49,7 @@ MIN_COVERAGE = 75
 """For test suites where we track coverage (i.e. the fast tests and the full
 test suite), fail if test coverage falls below this percentage."""
 
+
 DEPENDENCY_OVERRIDES: Dict[str, Dict] = {
     "CORE_COMMIT_HASH": {
         "package": "git+https://gitlab.com/tumult-labs/core.git@{commit_hash}",
@@ -264,6 +265,62 @@ def _test(
 def test(session):
     """Run all tests."""
     _test(session)
+
+### Test various dependency configurations ###
+# Test each with oldest and newest allowable deps. Typeguard and typing-extensions
+# excluded because all of the allowed versions in pyproject.toml claim support
+# for all allowable python versions.
+@nox_session
+@install("pytest", "coverage")
+@with_clean_workdir
+@nox.parametrize(
+    "python,pyspark,sympy,pandas,core",
+[
+    ("3.7", "3.0.0", "1.8", "1.2.0", "==0.6.0"),
+    ("3.7", "3.1.1", "1.9", "1.3.5", ">=0.6.0,<0.7.0"),
+    ("3.7", "3.2.0", "1.9", "1.3.5", ">=0.6.0,<0.7.0"),
+    ("3.7", "3.3.1", "1.9", "1.3.5", ">=0.6.0,<0.7.0"),
+    ("3.8", "3.0.0", "1.8", "1.2.0", "==0.6.0"),
+    ("3.8", "3.3.1", "1.9", "1.5.1", ">=0.6.0,<0.7.0"),
+    ("3.9", "3.0.0", "1.8", "1.2.0", "==0.6.0"),
+    ("3.9", "3.3.1", "1.9", "1.5.1", ">=0.6.0,<0.7.0"),
+    ("3.10", "3.0.0", "1.8", "1.3.5", "==0.6.0"),
+    ("3.10", "3.3.1", "1.9", "1.5.1", ">=0.6.0,<0.7.0"),
+],
+ids= [
+"3.7-oldest",
+"3.7-pyspark3.1",
+"3.7-pyspark3.2",
+"3.7-newest",
+"3.8-oldest",
+"3.8-newest",
+"3.9-oldest",
+"3.9-newest",
+"3.10-oldest",
+"3.10-newest"],
+)
+def test_multi_deps(session, pyspark, sympy, pandas, core):
+    """Run tests using various dependencies."""
+    session.install(
+                f"{PACKAGE_NAME}=={PACKAGE_VERSION}",
+                "--find-links", f"{CWD}/dist/", "--only-binary", PACKAGE_NAME
+            )
+    session.install("tmlt.core>0.5.0")
+    session.install(f"pyspark=={pyspark}", f"sympy=={sympy}", f"pandas=={pandas}",
+    f"tmlt.core{core}")
+    session.run("pip", "freeze")
+    test_options = [
+        "-rfs", "--disable-warnings", f"--junitxml={CWD}/junit.xml",
+        # Show runtimes of the 10 slowest tests, for later comparison if needed.
+        "--durations=10",
+        "-m", "not slow",
+        *[str(p) for p in CODE_DIRS],
+    ]
+    session.run("coverage", "run", "--branch", "-m", "pytest", *test_options)
+    session.run("coverage", "html", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*",
+     f"--directory={CWD}/coverage/")
+    session.run("coverage", "report", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*",
+     "--fail-under=75")
 
 @poetry_session(python="3.7")
 def test_fast(session):
