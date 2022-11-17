@@ -14,6 +14,7 @@ stages:
   - setup
   - lint
   - test
+  - test-dependency-matrix
   - docs
   - test-release
   - release
@@ -108,7 +109,7 @@ test:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
       allow_failure: true
-  tags: [aws-large]
+  tags: [aws-c6a.xlarge]
 
 test_nightly:
   extends: test
@@ -188,7 +189,29 @@ test_release_linux:
     - if: '$CI_COMMIT_TAG'
     - when: manual
       allow_failure: true
-  tags: [aws-large]
+  tags: [aws-c6a.xlarge]
+
+test_dep_matrix: 
+  extends: .base
+  needs: ["package"]
+  stage: test-dependency-matrix
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10"]
+        TEST_TYPE: ["oldest", "newest"]
+      - PYTHON_VERSION: ["3.7"]
+        TEST_TYPE: ["pyspark3.1", "pyspark3.2"]
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION} 
+  rules:
+    - when: manual
+      allow_failure: true
+  script:
+    - pip install -U pip setuptools
+    - nox -s "test_multi_deps(${PYTHON_VERSION}-${TEST_TYPE})"
+  timeout: 2h
+  tags: [aws-c6a.xlarge]
+  interruptible: true
+  
 
 publish:
   stage: release
