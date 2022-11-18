@@ -433,28 +433,24 @@ def prepare_release(session):
     # a hyphen can appear in the version number, so just checking for that
     # indicates whether a version is a prerelease.
     if "-" not in version:
-        with Path("CHANGELOG.md").open("r") as fp:
-            changelog_md_content = fp.readlines()
-        for i in range(len(changelog_md_content)):
-            if re.match('^## Unreleased$', changelog_md_content[i]):
-                changelog_md_content[i] = f'## {version} - {datetime.date.today()}\n'
+        session.log("Updating CHANGELOG.rst unreleased version...")
+        with Path("CHANGELOG.rst").open("r") as fp:
+            changelog_content = fp.readlines()
+        for i in range(len(changelog_content)):
+            if re.match('^Unreleased$', changelog_content[i]):
+                version_header = f'{version} - {datetime.date.today()}'
+                changelog_content[i] = version_header + "\n"
+                changelog_content[i+1] = "-" * len(version_header) + "\n"
                 break
         else:
             session.error(
                 "Renaming unreleased section in changelog failed, "
                 "unable to find matching line"
             )
-        with Path("CHANGELOG.md").open("w") as fp:
-            fp.writelines(changelog_md_content)
-
-    # Convert changelog to RST for docs and insert anchor for linking to it.
-    session.run("pandoc", "--wrap=preserve", "CHANGELOG.md", "-o", "doc/additional-resources/changelog.rst", external=True)
-    with Path("doc/additional-resources/changelog.rst").open("r") as fp:
-        changelog_rst_content = fp.read()
-    with Path("doc/additional-resources/changelog.rst").open("w") as fp:
-        fp.write(".. _Changelog:\n\n" + changelog_rst_content)
-
-    session.run("poetry", "lock", "--no-update", "--no-interaction", external=True)
+        with Path("CHANGELOG.rst").open("w") as fp:
+            fp.writelines(changelog_content)
+    else:
+        session.log("Prerelease, skipping CHANGELOG.rst update...")
 
 @nox_session()
 @install_package
