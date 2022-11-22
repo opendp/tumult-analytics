@@ -9,6 +9,5 @@ Additional resources
    :maxdepth: 1
 
    changelog
-   contact
    license
    privacy_policy
