@@ -90,8 +90,14 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
    ^^^^^^^^^^^^^^^^^^^^^^^^
 
    Additional resources include the :ref:`changelog <Changelog>`, which
-   describes notable changes to the library, :ref:`contact information
-   <Contact>`, as well as :ref:`license information <License>`.
+   describes notable changes to the library, as well as 
+   :ref:`license information <License>`.
+
+Contact Information
+^^^^^^^^^^^^^^^^^^^
+The best place to ask questions, file feature requests, or give feedback about Tumult Analytics
+is our `Slack server <https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#>`__.
+We also use it for announcements of new releases and feature additions.
 
 Documentation License
 ^^^^^^^^^^^^^^^^^^^^^

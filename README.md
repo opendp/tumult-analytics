@@ -21,11 +21,11 @@ The full documentation is located at https://docs.tmlt.dev/analytics/latest/.
 
 ## Support
 
-If you have any questions/concerns, please [create an issue](https://gitlab.com/tumult-labs/analytics/-/issues) or reach out to [support@tmlt.io](mailto:support@tmlt.io)
+If you have any questions/concerns, please [create an issue](https://gitlab.com/tumult-labs/analytics/-/issues) or reach out to us on [Slack](https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#).
 
 ## Contributing
 
-We are not yet accepting external contributions, but please let us know at [support@tmlt.io](mailto:support@tmlt.io) if you are interested in contributing.
+We are not yet accepting external contributions, but please let us know if you are interested in contributing [via Slack](https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our development dependencies and running tests.
 
