@@ -1,6 +1,7 @@
 # Contributing
 
-We are not yet accepting external contributions, but please let us know at [support@tmlt.io](mailto:support@tmlt.io) if you are interested in contributing.
+We do not yet have a process to accept external contributions.
+If you are interested in contributing, you can let us know on our [Slack workspace](https://join.slack.com/t/tmltdev/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg) or by email at [support@tmlt.io](mailto:support@tmlt.io).
 
 ## Local development
 
