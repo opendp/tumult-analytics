@@ -21,7 +21,6 @@ found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 
 # Copyright Tumult Labs 2022
 # SPDX-License-Identifier: Apache-2.0
-from enum import Enum, auto
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
 
@@ -29,7 +28,6 @@ import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
 from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DoubleType
 from typeguard import check_type, typechecked
 
 from tmlt.analytics._catalog import Catalog
@@ -43,6 +41,7 @@ from tmlt.analytics._neighboring_relations import (
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
+    NeighboringRelation,
 )
 from tmlt.analytics._noise_info import _noise_from_measurement
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
@@ -53,6 +52,12 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.protected_change import (
+    AddMaxRows,
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    ProtectedChange,
+)
 from tmlt.analytics.query_builder import ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
 from tmlt.core.domains.collections import DictDomain
@@ -66,13 +71,7 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
 )
 from tmlt.core.measures import PureDP, RhoZCDP
-from tmlt.core.metrics import (
-    DictMetric,
-    IfGroupedBy,
-    RootSumOfSquared,
-    SumOf,
-    SymmetricDifference,
-)
+from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
 from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
     CreateDictFromValue,
@@ -84,7 +83,6 @@ from tmlt.core.transformations.spark_transformations.partition import PartitionB
 from tmlt.core.transformations.spark_transformations.persist import Persist, Unpersist
 from tmlt.core.utils.configuration import SparkConfigError, check_java11
 from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.type_utils import assert_never
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
@@ -95,49 +93,37 @@ class _PrivateSourceTuple(NamedTuple):
     dataframe: DataFrame
     """Private DataFrame."""
 
-    stability: Union[int, float]
-    """Stability of private DataFrame."""
-
-    grouping_column: Optional[str]
-    """Grouping column for the private DataFrame, if any."""
+    protected_change: ProtectedChange
+    """Protected change for this private source."""
 
     domain: SparkDataFrameDomain
     """Domain of private DataFrame."""
 
-    def input_metric(
-        self, output_measure: Union[PureDP, RhoZCDP]
-    ) -> Union[SymmetricDifference, IfGroupedBy]:
-        """Build an input metric for a single private source."""
-        if self.grouping_column is None:
-            return SymmetricDifference()
-        elif isinstance(output_measure, PureDP):
-            return IfGroupedBy(self.grouping_column, SumOf(SymmetricDifference()))
-        elif isinstance(output_measure, RhoZCDP):
-            return IfGroupedBy(
-                self.grouping_column, RootSumOfSquared(SymmetricDifference())
+
+def _generate_neighboring_relation(
+    sources: Dict[str, _PrivateSourceTuple]
+) -> Conjunction:
+    """Convert a collection of private source tuples into a neighboring relation."""
+    relations: List[NeighboringRelation] = []
+    for name, (_, protected_change, _) in sources.items():
+        if isinstance(protected_change, AddMaxRows):
+            relations.append(AddRemoveRows(name, protected_change.max_rows))
+        elif isinstance(protected_change, AddMaxRowsInMaxGroups):
+            relations.append(
+                AddRemoveRowsAcrossGroups(
+                    name,
+                    protected_change.grouping_column,
+                    max_groups=protected_change.max_groups,
+                    per_group=protected_change.max_rows_per_group,
+                )
             )
         else:
-            assert_never(output_measure)
-            # pylint doesn't understand assert_never, so to quiet a warning:
-            return None
-
-    def d_in(self) -> sp.Expr:
-        """Return a d_in for this private source."""
-        if isinstance(self.stability, int):
-            return sp.Integer(self.stability)
-        return sp.Rational(self.stability)
+            raise ValueError(
+                f"Unsupported ProtectedChange type: {type(protected_change)}"
+            )
+    return Conjunction(relations)
 
 
-class PrivacyDefinition(Enum):
-    """Supported privacy definitions."""
-
-    PUREDP = auto()
-    """Pure DP."""
-    ZCDP = auto()
-    """Zero-concentrated DP."""
-
-
-# TODO(#2172):replace old source indexing method with use of new lookup feature
 class Session:
     """Allows differentially private query evaluation on sensitive data.
 
@@ -175,42 +161,22 @@ class Session:
                 ).expr
             else:
                 raise ValueError(
-                    "Unsupported variant of PrivacyBudget."
-                    f" Found {type(self._privacy_budget)}"
+                    f"Unsupported PrivacyBudget variant: {type(self._privacy_budget)}"
                 )
 
+            neighboring_relation = _generate_neighboring_relation(self._private_sources)
             tables = {
                 source_id: source_tuple.dataframe
                 for source_id, source_tuple in self._private_sources.items()
             }
-            visitor = NeighboringRelationCoreVisitor(tables, output_measure)
-            relations = []
-            for source_id, source_tuple in self._private_sources.items():
-                # Neighboring relation to use here with CoreVisitor?
-                relation: Union[AddRemoveRows, AddRemoveRowsAcrossGroups]
-                if source_tuple.grouping_column is None:
-                    # we know to build an AddRemoveRows relation if no grouping
-                    relation = AddRemoveRows(source_id, source_tuple.stability)
-                else:
-                    # build an AddRemoveAcrossGroups (pergroup = stability)
-                    relation = AddRemoveRowsAcrossGroups(
-                        source_id,
-                        source_tuple.grouping_column,
-                        source_tuple.stability,
-                        1,
-                    )
-                relations.append(relation)
-
-            # Build a conjunction, use output of accept to build dictionaries
-            conjunction = Conjunction(relations)
-            input_domain, input_metric, distance, dataframes = conjunction.accept(
-                visitor
+            domain, metric, distance, dataframes = neighboring_relation.accept(
+                NeighboringRelationCoreVisitor(tables, output_measure)
             )
 
             compiler = QueryExprCompiler(output_measure=output_measure)
             measurement = SequentialComposition(
-                input_domain=input_domain,
-                input_metric=input_metric,
+                input_domain=domain,
+                input_metric=metric,
                 d_in=distance,
                 privacy_budget=sympy_budget,
                 output_measure=output_measure,
@@ -239,8 +205,9 @@ class Session:
             self,
             source_id: str,
             dataframe: DataFrame,
-            stability: Union[int, float] = 1,
+            stability: Optional[Union[int, float]] = None,
             grouping_column: Optional[str] = None,
+            protected_change: Optional[ProtectedChange] = None,
         ) -> "Session.Builder":
             """Adds a Spark DataFrame as a private source.
 
@@ -251,37 +218,68 @@ class Session:
             Args:
                 source_id: Source id for the private source dataframe.
                 dataframe: Private source dataframe to perform queries on,
-                    corresponding to the `source_id`.
-                stability: Maximum number of rows that may be added or removed
-                    if a single individual is added or removed. If using RhoZCDP
-                    and a grouping column, this should instead be the maximum
-                    number of rows that an individual can contribute to each
-                    group times the *square root* of the maximum number of
-                    groups each user can contribute to.
-                grouping_column: An input column that must be grouped on, like
-                    those generated when calling
-                    :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`
-                    with the ``grouping`` option set.
+                    corresponding to the ``source_id``.
+                stability: Use ``protected_change`` instead, see
+                    :ref:`changelog<changelog#protected-change>`.
+                grouping_column: Use ``protected_change`` instead, see
+                    :ref:`changelog<changelog#protected-change>`.
+                protected_change: A
+                    :class:`~tmlt.analytics.protected_change.ProtectedChange`
+                    specifying what changes to the input data the resulting
+                    :class:`Session` should protect.
             """
             _assert_is_identifier(source_id)
-            if stability < 1:
-                raise ValueError("Stability must be a positive integer.")
             if source_id in self._private_sources or source_id in self._public_sources:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
-            if grouping_column is not None:
-                if grouping_column not in dataframe.columns:
-                    raise ValueError(
-                        f"Grouping column '{grouping_column}' is not present in the"
-                        " given dataframe"
-                    )
-                if isinstance(dataframe.schema[grouping_column].dataType, DoubleType):
-                    raise ValueError(
-                        "Floating-point grouping columns are not supported"
-                    )
+
             dataframe = coerce_spark_schema_or_fail(dataframe)
             domain = SparkDataFrameDomain.from_spark_schema(dataframe.schema)
+
+            if protected_change is not None:
+                if stability is not None:
+                    raise ValueError(
+                        "stability must not be specified when using protected_change."
+                    )
+                if grouping_column is not None:
+                    raise ValueError(
+                        "grouping_column must not be specified when using"
+                        " protected_change."
+                    )
+                self._private_sources[source_id] = _PrivateSourceTuple(
+                    dataframe, protected_change, domain
+                )
+                return self
+
+            # TODO(#2302): All paths through the below need deprecation
+            #     warnings, for either the use of stability/grouping_column or
+            #     the assumption of AddOneRow() if no stability is specified.
+            if stability is None:
+                if grouping_column is None:
+                    protected_change = AddOneRow()
+                else:
+                    protected_change = AddMaxRowsInMaxGroups(grouping_column, 1, 1)
+                    grouping_column = None
+            else:
+                if stability < 1:
+                    raise ValueError("Stability must be a positive integer.")
+
+                if grouping_column is None:
+                    if not isinstance(stability, int):
+                        raise ValueError(
+                            "stability must be an integer when no grouping column is"
+                            " specified"
+                        )
+                    protected_change = AddMaxRows(stability)
+                else:
+                    if not isinstance(stability, (int, float)):
+                        raise ValueError("stability must be a numeric value")
+                    protected_change = AddMaxRowsInMaxGroups(
+                        grouping_column, max_groups=1, max_rows_per_group=stability
+                    )
+                    grouping_column = None
+
             self._private_sources[source_id] = _PrivateSourceTuple(
-                dataframe, stability, grouping_column, domain
+                dataframe, protected_change, domain
             )
             return self
 
@@ -369,8 +367,9 @@ class Session:
         privacy_budget: PrivacyBudget,
         source_id: str,
         dataframe: DataFrame,
-        stability: Union[int, float] = 1,
+        stability: Optional[Union[int, float]] = None,
         grouping_column: Optional[str] = None,
+        protected_change: Optional[ProtectedChange] = None,
     ) -> "Session":
         """Initializes a DP session from a Spark dataframe.
 
@@ -404,6 +403,7 @@ class Session:
             ...     privacy_budget=session_budget,
             ...     source_id="my_private_data",
             ...     dataframe=spark_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> sess.private_sources
             ['my_private_data']
@@ -415,16 +415,14 @@ class Session:
             source_id: The source id for the private source dataframe.
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
-            stability: Maximum number of rows that may be added or removed if a
-                single individual is added or removed. If using RhoZCDP and a
-                grouping column, this should instead be the maximum number of
-                rows that an individual can contribute to each group times the
-                *square root* of the maximum number of groups each user can
-                contribute to.
-            grouping_column: An input column that must be grouped on, like those
-                generated when calling
-                :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` with
-                the ``grouping`` option set.
+            stability: Use ``protected_change`` instead, see
+                :ref:`changelog<changelog#protected-change>`
+            grouping_column: Use ``protected_change`` instead, see
+                :ref:`changelog<changelog#protected-change>`
+            protected_change: A
+                :class:`~tmlt.analytics.protected_change.ProtectedChange`
+                specifying what changes to the input data the resulting
+                :class:`Session` should protect.
         """
         # pylint: enable=line-too-long
         session_builder = (
@@ -435,6 +433,7 @@ class Session:
                 dataframe=dataframe,
                 stability=stability,
                 grouping_column=grouping_column,
+                protected_change=protected_change,
             )
         )
         return session_builder.build()
@@ -625,6 +624,7 @@ class Session:
             ...     privacy_budget=PureDPBudget(1),
             ...     source_id="my_private_data",
             ...     dataframe=private_data,
+            ...     protected_change=AddOneRow(),
             ... )
 
         Example:
@@ -700,6 +700,7 @@ class Session:
             ...     privacy_budget=PureDPBudget(1),
             ...     source_id="my_private_data",
             ...     dataframe=data,
+            ...     protected_change=AddOneRow(),
             ... )
 
         Example:
@@ -744,6 +745,7 @@ class Session:
             ...     privacy_budget=PureDPBudget(1),
             ...     source_id="my_private_data",
             ...     dataframe=data,
+            ...     protected_change=AddOneRow(),
             ... )
 
         Example:
@@ -845,6 +847,7 @@ class Session:
             ...     privacy_budget=PureDPBudget(1),
             ...     source_id="my_private_data",
             ...     dataframe=private_data,
+            ...     protected_change=AddOneRow(),
             ... )
 
         Example:
@@ -985,6 +988,7 @@ class Session:
             ...     privacy_budget=PureDPBudget(1),
             ...     source_id="my_private_data",
             ...     dataframe=data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> import doctest
             >>> doctest.ELLIPSIS_MARKER = '...'

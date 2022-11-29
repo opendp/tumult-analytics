@@ -6,6 +6,21 @@ Changelog
 Unreleased
 ----------
 
+.. _changelog#protected-change:
+
+This release introduces a new way to specify what unit of data is protected by the privacy guarantee of a :class:`~tmlt.analytics.session.Session`.
+A new ``protected_change`` parameter is available when creating a :class:`~tmlt.analytics.session.Session`, taking an instance of the new :class:`~tmlt.analytics.protected_change.ProtectedChange` class which describes the largest unit of data in the resulting table on which the differential privacy guarantee will hold.
+See the documentation for the :mod:`~tmlt.analytics.protected_change` module for more information about the available protected changes and how to use them.
+
+The ``stability`` and ``grouping_column`` parameters which were used to specify this information are still accepted, and work as before, but they will be deprecated and eventually removed in future releases.
+The default behavior of assuming ``stability=1`` if no other information is given will also be deprecated and removed, on a similar timeline to ``stability`` and ``grouping_column``; instead, explicitly specify ``protected_change=AddOneRow()``.
+These changes should make the privacy guarantees provided by the :class:`~tmlt.analytics.session.Session` interface easier to understand and harder to misuse, and allow for future support for other units of privacy that are not representable with the current API.
+
+Added
+~~~~~
+- As described above, :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` and :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` now have a new parameter, ``protected_change``.
+  This parameter takes an instance of one of the classes defined in the new :mod:`~tmlt.analytics.protected_change` module, specifying the unit of data in the corresponding table to be protected.
+
 0.5.1 - 2022-11-16
 ------------------
 

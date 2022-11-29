@@ -34,6 +34,7 @@ in detail in the :ref:`privacy promise topic guide<Privacy promise>`.
     import tempfile
     from pyspark.sql import SparkSession
     from tmlt.analytics.privacy_budget import PureDPBudget
+    from tmlt.analytics.protected_change import AddOneRow
     from tmlt.analytics.query_builder import ColumnType
     from tmlt.analytics.session import Session
 
@@ -75,6 +76,7 @@ using :meth:`~tmlt.analytics.session.Session.from_dataframe` as follows:
         privacy_budget=PureDPBudget(2),
         source_id="my_private_data",
         dataframe=spark_df,
+        protected_change=AddOneRow(),
     )
 
 When you load a Spark DataFrame into a Session, you don't need to specify the
@@ -103,6 +105,7 @@ Next, add a private source to it:
     session_builder = session_builder.with_private_dataframe(
         source_id="my_private_data",
         dataframe=spark_df,
+        protected_change=AddOneRow(),
     )
 
 You may add additional private sources to the Session, although this is
@@ -138,6 +141,7 @@ First load the data into a Spark dataframe, then add it to the Session:
     session_builder = session_builder.with_private_dataframe(
         source_id="my_other_private_data",
         dataframe=salary_df,
+        protected_change=AddOneRow(),
     )
 
 Any data file format supported by Spark can be used with Tumult Analytics this way.

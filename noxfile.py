@@ -247,8 +247,15 @@ def _test(
 ):
     test_paths = test_dirs or CODE_DIRS
     extra_args = extra_args or []
+    # If the user passes args, pass them on to pytest. The main reason this is
+    # useful is for specifying a particular subset of tests to run, so clear
+    # test_paths to allow that use case.
+    if session.posargs:
+        test_paths = []
+        extra_args.extend(session.posargs)
+
     test_options = [
-        "-rfs", "--disable-warnings", f"--junitxml={CWD}/junit.xml",
+        "-r fEs", "--verbose", "--disable-warnings", f"--junitxml={CWD}/junit.xml",
         # Show runtimes of the 10 slowest tests, for later comparison if needed.
         "--durations=10",
         *extra_args,

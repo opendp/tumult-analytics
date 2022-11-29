@@ -53,7 +53,7 @@ class AddRemoveRows(NeighboringRelation):
 
     table: str
     """The name of the table in this relation."""
-    n: Union[int, float] = field(default=1)
+    n: int = field(default=1)
     """The max number of rows wich may be differ for two instances of the table to
      be neighbors.
      """
@@ -112,21 +112,21 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
     """The name of the table in this relation."""
     grouping_column: str
     """The column that must be grouped over for the privacy guarantee to hold."""
-    per_group: Union[int, float]
-    """The max number of rows in any single group that may differ for two instances of
-     the table to be neighbors.
-     """
     max_groups: int
     """The maximum number of groups which may differ for two instances of the table
      to be neighbors.
     """
+    per_group: Union[int, float]
+    """The max number of rows in any single group that may differ for two instances of
+     the table to be neighbors.
+     """
 
-    def post__init__(self) -> None:
+    def __post_init__(self) -> None:
         """Checks arguments to constructor."""
         check_type("table", self.table, str)
         check_type("grouping_column", self.grouping_column, str)
-        check_type("per_group", self.per_group, int)
         check_type("max_groups", self.max_groups, int)
+        check_type("per_group", self.per_group, (int, float))
 
     def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
         """Does nothing if input is valid, otherwise raises an informative exception.
@@ -164,9 +164,8 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
             )
         if self.grouping_column not in dfs[self.table].columns:
             raise ValueError(
-                f"""The relation's grouping column does not exist in the input.
-                Grouping column: {self.grouping_column}
-                Input columns: {dfs[self.table].columns}"""
+                f"Grouping column '{self.grouping_column}' does not exist in the input."
+                f" Available columns: {', '.join(dfs[self.table].columns)}"
             )
 
         allowed_types = [LongType(), StringType(), DateType()]
@@ -179,9 +178,9 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
             for df_field in coerced_df.schema
         ):
             raise ValueError(
-                f"""The data type for this column is invalid for grouping.
-                Supported types for grouping: {LongType(), StringType(), DateType(),
-                    IntegerType()}"""
+                f"Grouping column '{self.grouping_column}' is not of a type on which"
+                " grouping is supported. Supported types for grouping:"
+                f" {LongType(), StringType(), DateType(), IntegerType()}"
             )
         return [self.table]
 

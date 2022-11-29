@@ -6,7 +6,7 @@
 # pylint: disable=no-self-use, unidiomatic-typecheck, no-member
 
 import re
-from typing import Any, List, Tuple, Type, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
 
 import pandas as pd
@@ -34,6 +34,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.protected_change import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
@@ -50,6 +51,7 @@ from tmlt.core.measures import Measure, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
+    Metric,
     RootSumOfSquared,
     SumOf,
     SymmetricDifference,
@@ -133,8 +135,8 @@ class TestSession:
     @pytest.mark.parametrize(
         "budget_value,output_measure,expected_budget",
         [
-            (ExactNumber(10), PureDP(), PureDPBudget(10)),
-            (ExactNumber(10), RhoZCDP(), RhoZCDPBudget(10)),
+            pytest.param(ExactNumber(10), PureDP(), PureDPBudget(10), id="puredp"),
+            pytest.param(ExactNumber(10), RhoZCDP(), RhoZCDPBudget(10), id="zcdp"),
         ],
     )
     def test_remaining_privacy_budget(
@@ -166,71 +168,70 @@ class TestSession:
                 )
 
     @pytest.mark.parametrize(
-        "budget,expected_output_measure",
+        "budget,expected_output_measure,expected_metric,from_dataframe_args",
         [
-            (PureDPBudget(float("inf")), PureDP()),
-            (RhoZCDPBudget(float("inf")), RhoZCDP()),
+            pytest.param(
+                PureDPBudget(float("inf")),
+                PureDP(),
+                SymmetricDifference(),
+                {"stability": 21, "grouping_column": None, "protected_change": None},
+                id="puredp-stability",
+            ),
+            pytest.param(
+                PureDPBudget(float("inf")),
+                PureDP(),
+                SymmetricDifference(),
+                {
+                    "stability": None,
+                    "grouping_column": None,
+                    "protected_change": AddMaxRows(21),
+                },
+                id="puredp-protected_change",
+            ),
+            pytest.param(
+                PureDPBudget(float("inf")),
+                PureDP(),
+                IfGroupedBy("X", SumOf(SymmetricDifference())),
+                {"stability": 21, "grouping_column": "X", "protected_change": None},
+                id="puredp-grouped-stability",
+            ),
+            pytest.param(
+                RhoZCDPBudget(float("inf")),
+                RhoZCDP(),
+                IfGroupedBy("X", RootSumOfSquared(SymmetricDifference())),
+                {"stability": 21, "grouping_column": "X", "protected_change": None},
+                id="zcdp-grouped-stability",
+            ),
+            pytest.param(
+                PureDPBudget(float("inf")),
+                PureDP(),
+                IfGroupedBy("X", SumOf(SymmetricDifference())),
+                {
+                    "stability": None,
+                    "grouping_column": None,
+                    "protected_change": AddMaxRowsInMaxGroups("X", 3, 7),
+                },
+                id="puredp-grouped-protected_change",
+            ),
+            pytest.param(
+                RhoZCDPBudget(float("inf")),
+                RhoZCDP(),
+                IfGroupedBy("X", RootSumOfSquared(SymmetricDifference())),
+                {
+                    "stability": None,
+                    "grouping_column": None,
+                    "protected_change": AddMaxRowsInMaxGroups("X", 9, 7),
+                },
+                id="zcdp-grouped-protected_change",
+            ),
         ],
     )
     def test_from_dataframe(
         self,
         budget: Union[PureDPBudget, RhoZCDPBudget],
         expected_output_measure: Union[PureDP, RhoZCDP],
-    ):
-        """Tests that :func:`Session.from_dataframe` works correctly."""
-        with patch(
-            "tmlt.analytics.session.SequentialComposition", autospec=True
-        ) as mock_composition_init, patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
-            mock_composition_init.return_value = Mock(
-                spec_set=SequentialComposition,
-                return_value=Mock(
-                    spec_set=SequentialComposition,
-                    output_measure=expected_output_measure,
-                ),
-            )
-            mock_composition_init.return_value.privacy_budget = (
-                _privacy_budget_to_exact_number(budget)
-            )
-            mock_composition_init.return_value.d_in = {"private": 23}
-
-            Session.from_dataframe(
-                privacy_budget=budget,
-                source_id="private",
-                dataframe=self.sdf,
-                stability=23,
-            )
-
-            mock_composition_init.assert_called_with(
-                input_domain=self.sdf_input_domain,
-                input_metric=DictMetric({"private": SymmetricDifference()}),
-                d_in={"private": 23},
-                privacy_budget=sp.oo,
-                output_measure=expected_output_measure,
-            )
-            mock_composition_init.return_value.assert_called()
-            assert_frame_equal_with_sort(
-                mock_composition_init.return_value.mock_calls[0][1][0][
-                    "private"
-                ].toPandas(),
-                self.sdf.toPandas(),
-            )
-            mock_session_init.assert_called_with(
-                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
-            )
-
-    @pytest.mark.parametrize(
-        "budget,expected_output_measure",
-        [
-            (PureDPBudget(float("inf")), PureDP()),
-            (RhoZCDPBudget(float("inf")), RhoZCDP()),
-        ],
-    )
-    def test_from_dataframe_grouped(
-        self,
-        budget: Union[PureDPBudget, RhoZCDPBudget],
-        expected_output_measure: Union[PureDP, RhoZCDP],
+        expected_metric: Metric,
+        from_dataframe_args: Dict,
     ):
         """Tests that :func:`Session.from_dataframe` works with a grouping column."""
         with patch(
@@ -248,26 +249,19 @@ class TestSession:
             mock_composition_init.return_value.privacy_budget = (
                 _privacy_budget_to_exact_number(budget)
             )
-            mock_composition_init.return_value.d_in = {"private": 23}
+            mock_composition_init.return_value.d_in = {"private": 21}
 
             Session.from_dataframe(
                 privacy_budget=budget,
                 source_id="private",
                 dataframe=self.sdf,
-                stability=23,
-                grouping_column="X",
-            )
-
-            expected_metric = (
-                IfGroupedBy("X", SumOf(SymmetricDifference()))
-                if isinstance(expected_output_measure, PureDP)
-                else IfGroupedBy("X", RootSumOfSquared(SymmetricDifference()))
+                **from_dataframe_args,
             )
 
             mock_composition_init.assert_called_with(
                 input_domain=self.sdf_input_domain,
                 input_metric=DictMetric({"private": expected_metric}),
-                d_in={"private": 23},
+                d_in={"private": 21},
                 privacy_budget=sp.oo,
                 output_measure=expected_output_measure,
             )
@@ -670,7 +664,10 @@ class TestSession:
             ),
         )
         session = Session.from_dataframe(
-            privacy_budget=PureDPBudget(1), source_id="private", dataframe=alltypes_sdf
+            privacy_budget=PureDPBudget(1),
+            source_id="private",
+            dataframe=alltypes_sdf,
+            protected_change=AddOneRow(),
         )
         session.add_public_dataframe(source_id="public", dataframe=alltypes_sdf)
 
@@ -813,6 +810,7 @@ class TestInvalidSession:
                     privacy_budget=PureDPBudget(1),
                     source_id="private",
                     dataframe=self.pdf,
+                    protected_change=AddOneRow(),
                 )
             # Public
             self._setup_accountant(mock_accountant)
@@ -881,6 +879,7 @@ class TestInvalidSession:
                     dataframe=spark.createDataFrame(
                         pd.DataFrame({"A": ["a0", "a1"], "": [0, 1]})
                     ),
+                    protected_change=AddOneRow(),
                 )
             session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(
@@ -904,7 +903,21 @@ class TestInvalidSession:
         with pytest.raises(
             ValueError,
             match=(
-                "Grouping column 'not_a_column' is not present in the given dataframe"
+                "^Grouping column 'not_a_column' does not exist in the input. Available"
+                " columns: A, B, X$"
+            ),
+        ):
+            Session.from_dataframe(
+                PureDPBudget(1),
+                "private",
+                self.sdf,
+                protected_change=AddMaxRowsInMaxGroups("not_a_column", 1, 1),
+            )
+        with pytest.raises(
+            ValueError,
+            match=(
+                "^Grouping column 'not_a_column' does not exist in the input. Available"
+                " columns: A, B, X$"
             ),
         ):
             Session.from_dataframe(
@@ -913,7 +926,22 @@ class TestInvalidSession:
 
         float_df = spark.createDataFrame(pd.DataFrame({"A": [1, 2], "F": [0.1, 0.2]}))
         with pytest.raises(
-            ValueError, match="Floating-point grouping columns are not supported"
+            ValueError,
+            match=(
+                "^Grouping column 'F' is not of a type on which grouping is supported.*"
+            ),
+        ):
+            Session.from_dataframe(
+                PureDPBudget(1),
+                "private",
+                float_df,
+                protected_change=AddMaxRowsInMaxGroups("F", 1, 1),
+            )
+        with pytest.raises(
+            ValueError,
+            match=(
+                "^Grouping column 'F' is not of a type on which grouping is supported.*"
+            ),
         ):
             Session.from_dataframe(
                 PureDPBudget(1), "private", float_df, grouping_column="F"
@@ -952,6 +980,7 @@ class TestInvalidSession:
                     privacy_budget=PureDPBudget(1),
                     source_id=source_id,
                     dataframe=self.sdf,
+                    protected_change=AddOneRow(),
                 )
             # Public
             session = Session(
@@ -1232,7 +1261,10 @@ class TestInvalidSession:
             ),
         ):
             Session.from_dataframe(
-                privacy_budget=PureDPBudget(1), source_id="private", dataframe=sdf
+                privacy_budget=PureDPBudget(1),
+                source_id="private",
+                dataframe=sdf,
+                protected_change=AddOneRow(),
             )
 
     @pytest.mark.parametrize("nullable", [(True), (False)])
@@ -1245,6 +1277,7 @@ class TestInvalidSession:
                 [(1.0,)],
                 schema=StructType([StructField("A", DoubleType(), nullable=nullable)]),
             ),
+            protected_change=AddOneRow(),
         )
         session.add_public_dataframe(
             source_id="public_df",
@@ -1389,7 +1422,7 @@ class TestSessionBuilder:
                 builder = builder.with_private_dataframe(
                     source_id=source_id,
                     dataframe=self.dataframes[source_id],
-                    stability=stability,
+                    protected_change=AddMaxRows(stability),
                 )
                 expected_private_sources[source_id] = self.dataframes[source_id]
                 expected_stabilities[source_id] = stability
