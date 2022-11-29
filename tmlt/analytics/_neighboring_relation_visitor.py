@@ -60,33 +60,27 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
         :class:`~tmlt.analytics._neighboring_relations.AddRemoveRowsAcrossGroups`
         NeighboringRelation.
         """
-        # weird way to assign the AggregationMetric here, but it shuts up mypy :)
-        # NOTE: sp.Rational is used here temporarily, since
-        # we are passing in floating point stabilities as the per_group param in
-        # Session.build tests. This can be removed once we are building sessions
-        # differently
+        # This is needed because it's currently allowed to pass float-valued
+        # stabilities in the per_group parameter (for backwards compatibility).
+        # TODO(#2272): Remove this.
+        per_group = (
+            sp.Rational(relation.per_group)
+            if isinstance(relation.per_group, float)
+            else relation.per_group
+        )
         agg_metric: Union[RootSumOfSquared, SumOf]
         if isinstance(self.output_measure, RhoZCDP):
             agg_metric = RootSumOfSquared(SymmetricDifference())
-            if isinstance(relation.per_group, float):
-                distance = ExactNumber(
-                    sp.Rational(relation.per_group) * relation.max_groups
-                )
-            else:
-                distance = ExactNumber(relation.per_group * relation.max_groups)
+            distance = ExactNumber(
+                per_group * ExactNumber(sp.sqrt(relation.max_groups))
+            )
         elif isinstance(self.output_measure, PureDP):
             agg_metric = SumOf(SymmetricDifference())
-            if isinstance(relation.per_group, float):
-                distance = ExactNumber(
-                    sp.Rational(relation.per_group) * sp.sqrt(relation.max_groups)
-                )
-            else:
-                distance = ExactNumber(
-                    relation.per_group * ExactNumber(sp.sqrt(relation.max_groups))
-                )
+            distance = ExactNumber(per_group * relation.max_groups)
         else:
             raise TypeError(
-                "The output measure provided for this visitor is not supported."
+                f"The provided output measure {self.output_measure} for this visitor is"
+                " not supported."
             )
 
         input_metric = IfGroupedBy(relation.grouping_column, agg_metric)

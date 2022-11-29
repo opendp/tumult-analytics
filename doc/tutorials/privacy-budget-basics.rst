@@ -48,6 +48,7 @@ Just like earlier, we import Python packages...
    from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget
+   from tmlt.analytics.protected_change import AddOneRow
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
@@ -78,6 +79,7 @@ allocate a fixed privacy budget of ``epsilon=2.5`` to it, using the classical
        privacy_budget=budget,
        source_id="members",
        dataframe=members_df,
+       protected_change=AddOneRow(),
    )
 
 Initializing a Session with a finite privacy budget gives a simple interface
@@ -204,7 +206,7 @@ Now, what happens if we try to consume *more* budget than what we have left?
    :options: +NORMALIZE_WHITESPACE
 
    Traceback (most recent call last):
-   RuntimeError: Cannot answer query without exceeding privacy budget: it needs 
+   RuntimeError: Cannot answer query without exceeding privacy budget: it needs
    approximately 1.000, but the remaining budget is approximately 0.500 (difference: 5.000e-01)
 
 The ``evaluate`` call returns an error. This is how the Session enforces its

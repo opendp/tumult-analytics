@@ -140,25 +140,22 @@ class TestNeighboringRelations:
 
     def test_add_remove_rows_across_groups_accept(self):
         """Tests that accept works as expected for AddRemoveRowsAcrossGroups"""
-
-        # testing against the different output measures
         pure_visitor = NeighboringRelationCoreVisitor(
             self.testdfsdict, output_measure=PureDP()
         )
         rho_visitor = NeighboringRelationCoreVisitor(self.testdfsdict, RhoZCDP())
 
-        assert AddRemoveRowsAcrossGroups("table1", "A", 2, 2).accept(rho_visitor) == (
-            SparkDataFrameDomain.from_spark_schema(self.table1.schema),
-            IfGroupedBy("A", RootSumOfSquared(SymmetricDifference())),
-            ExactNumber(4),
-            self.table1,
-        )
-
-        assert AddRemoveRowsAcrossGroups("table2", "B", 2, 6).accept(pure_visitor) == (
+        assert AddRemoveRowsAcrossGroups("table2", "B", 2, 3).accept(pure_visitor) == (
             SparkDataFrameDomain.from_spark_schema(self.table2.schema),
             IfGroupedBy("B", SumOf(SymmetricDifference())),
-            ExactNumber(2 * sp.sqrt(6)),
+            ExactNumber(2 * 3),
             self.table2,
+        )
+        assert AddRemoveRowsAcrossGroups("table1", "A", 2, 3).accept(rho_visitor) == (
+            SparkDataFrameDomain.from_spark_schema(self.table1.schema),
+            IfGroupedBy("A", RootSumOfSquared(SymmetricDifference())),
+            ExactNumber(sp.sqrt(2) * 3),
+            self.table1,
         )
 
     #### Tests for Conjunction ####

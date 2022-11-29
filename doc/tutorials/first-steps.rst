@@ -40,6 +40,7 @@ First, let's import some Python packages.
    from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget
+   from tmlt.analytics.protected_change import AddOneRow
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
@@ -82,7 +83,8 @@ instantiates a Session on a Spark DataFrame with our private data, using the
    session = Session.from_dataframe(
        privacy_budget=PureDPBudget(3),
        source_id="members",
-       dataframe=members_df
+       dataframe=members_df,
+       protected_change=AddOneRow(),
    )
 
 Note that in addition to the data itself, we needed to provide the
@@ -92,9 +94,11 @@ Session builder with a couple of additional pieces of information.
   provide. We will discuss this in more detail in the next tutorial.
 - The ``source_id`` is the identifier for the DataFrame. We will then use it to
   refer to this DataFrame when constructing queries.
+- The ``protected_change`` for this dataset, which defines what unit of data the differential privacy guarantee holds for.
+  Here, ``AddOneRow()`` corresponds to protecting individual rows in the dataset.
 
-For a more complete description of the various ways a Session can be
-initialized, you can consult the relevant :ref:`topic guide<Working with Sessions>`.
+For a more complete description of the various ways a Session can be initialized, you can consult the relevant :ref:`topic guide<Working with Sessions>`.
+For more complex values for the ``protected_change`` parameter, see the :ref:`privacy promise topic guide<privacy-promise#unit-of-protection>` and the :mod:`~tmlt.analytics.protected_change` API documentation.
 
 Evaluating queries in a Session
 -------------------------------

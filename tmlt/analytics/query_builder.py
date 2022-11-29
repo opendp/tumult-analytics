@@ -87,6 +87,7 @@ class QueryBuilder:
     ..
         >>> from tmlt.analytics.privacy_budget import PureDPBudget
         >>> import tmlt.analytics.session
+        >>> from tmlt.analytics.protected_change import AddOneRow
         >>> import pandas as pd
         >>> from pyspark.sql import SparkSession
         >>> spark = SparkSession.builder.getOrCreate()
@@ -102,6 +103,7 @@ class QueryBuilder:
         ...     privacy_budget=budget,
         ...     source_id="my_private_data",
         ...     dataframe=my_private_data,
+        ...     protected_change=AddOneRow(),
         ... )
         >>> my_private_data.toPandas()
            A  B  X
@@ -177,6 +179,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -197,6 +200,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -278,6 +282,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -293,6 +298,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> from tmlt.analytics.query_builder import TruncationStrategy
             >>> my_private_data.toPandas()
@@ -384,6 +390,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -400,6 +407,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                   A    B    X
@@ -458,6 +466,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -478,6 +487,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                 A    B    X
@@ -535,6 +545,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> from pyspark.sql.types import (
@@ -560,6 +571,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                 A    B    X
@@ -623,6 +635,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> from pyspark.sql.types import (
@@ -648,6 +661,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.sort("A", "B", "X").toPandas()
                 A  B    X
@@ -710,6 +724,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -725,6 +740,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -779,6 +795,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -835,6 +852,7 @@ class QueryBuilder:
             >>> # Typeguard doesn't like implicit doctest imports
             >>> from tmlt.analytics.query_builder import QueryBuilder
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -850,6 +868,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -894,6 +913,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -991,6 +1011,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> from tmlt.analytics.keyset import KeySet
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
@@ -1008,6 +1029,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1107,6 +1129,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.query_builder import QueryBuilder
             >>> from tmlt.analytics.session import Session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.keyset import KeySet
             >>> from pyspark.sql import SparkSession
@@ -1126,7 +1149,8 @@ class QueryBuilder:
             >>> sess = Session.from_dataframe(
             ...     PureDPBudget(float("inf")),
             ...     source_id="private_data",
-            ...     dataframe=my_private_data
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                age  income
@@ -1203,6 +1227,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.query_builder import QueryBuilder
             >>> from tmlt.analytics.session import Session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.keyset import KeySet
             >>> from pyspark.sql import SparkSession
@@ -1223,6 +1248,7 @@ class QueryBuilder:
             ...     privacy_budget=PureDPBudget(epsilon=float('inf')),
             ...     source_id="private_data",
             ...     dataframe=private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> income_binspec = BinningSpec(
             ...     bin_edges=[i for i in range(70,110,10)],
@@ -1270,6 +1296,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1286,6 +1313,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1413,6 +1441,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1428,6 +1457,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1485,6 +1515,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1501,6 +1532,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1571,6 +1603,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1588,6 +1621,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1638,6 +1672,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1655,6 +1690,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1703,6 +1739,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1720,6 +1757,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1768,6 +1806,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1785,6 +1824,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1849,6 +1889,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1864,6 +1905,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -1929,6 +1971,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -1944,6 +1987,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2009,6 +2053,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2024,6 +2069,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2089,6 +2135,7 @@ class QueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2104,6 +2151,7 @@ class QueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2173,6 +2221,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2188,6 +2237,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2241,6 +2291,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2257,6 +2308,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2340,6 +2392,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2357,6 +2410,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2418,6 +2472,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2435,6 +2490,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2489,6 +2545,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2506,6 +2563,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2560,6 +2618,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2577,6 +2636,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2643,6 +2703,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2658,6 +2719,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2734,6 +2796,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2749,6 +2812,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2825,6 +2889,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2840,6 +2905,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X
@@ -2916,6 +2982,7 @@ class GroupedQueryBuilder:
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import pandas as pd
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
@@ -2931,6 +2998,7 @@ class GroupedQueryBuilder:
             ...     privacy_budget=budget,
             ...     source_id="my_private_data",
             ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
             ... )
             >>> my_private_data.toPandas()
                A  B  X

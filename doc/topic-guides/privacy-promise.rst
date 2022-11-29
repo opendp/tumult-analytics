@@ -21,7 +21,7 @@ initialization time.
 The privacy promise in more detail
 ----------------------------------
 
-A :class:`Session<tmlt.analytics.session.Session>` is initialized with:
+A :class:`~tmlt.analytics.session.Session` is initialized with:
 
 * one or more private data sources (data you wish to query in a differentially
   private way);
@@ -38,25 +38,20 @@ using the specified parameters. For example, a Session initialized with
 :code:`PureDPBudget(1)` provides :math:`{\varepsilon}`-differential privacy with
 :math:`{\varepsilon}=1`.
 
-Subtlety 1: unit of privacy
----------------------------
+.. _privacy-promise#unit-of-protection:
 
-By default, the privacy guarantee prevents an attacker for learning whether *one
-individual row* was added or removed in each private dataset. If the data of a
-single individual can span multiple rows in the same private dataset, then this
-individual is not covered by the privacy promise, only individual rows are.
+Subtlety 1: unit of protection
+------------------------------
 
-If you know that a single individual can appear in at most *k* rows in an input
-dataset, you can load it into a Session using the optional ``stability=k``
-parameter. Then, Tumult Analytics will hide the addition or removal of up to *k*
-rows at once from the corresponding private dataset, providing individual-level
-protection.
+In the simplest case, the privacy guarantee from a :class:`~tmlt.analytics.session.Session` prevents an attacker from learning whether *one individual row* was added or removed in each private dataset -- the :class:`~tmlt.analytics.protected_change.AddOneRow` protected change.
+If the data of a single individual can span multiple rows in the same private dataset, then this individual is not covered by the privacy promise, only individual rows are.
 
-For this reason, you should be careful of what kind of pre-processing is done to
-the private data before loading it into a Session. If you start from a DataFrame
-where each individual appears in a single record, but this property stops being
-true before the data is loaded into a Session, then you might not get the
-expected privacy guarantees.
+If you know that a single individual can appear in at most *k* rows in an input dataset, you can load that dataset into a Session using a different value for the ``protected_change`` parameter.
+For example, using ``AddMaxRows(k)`` will cause Tumult Analytics to hide the addition or removal of up to *k* rows at once from the corresponding private dataset, providing individual-level protection.
+Other possible protected changes are also available, though they are typically only needed for advanced use cases.
+
+Because the privacy of individuals depends on how often they appear in a dataset, you should be careful of what kind of pre-processing is done to the private data before loading it into a Session.
+If you start from a DataFrame where each individual appears in a single record, but this property stops being true before the data is loaded into a Session, then you might not get the expected privacy guarantees.
 
 Subtlety 2: covered inputs & outputs
 ------------------------------------

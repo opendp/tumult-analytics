@@ -26,6 +26,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     AnalyticsDefault,
@@ -706,6 +707,7 @@ class TestSession:
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         session.add_public_dataframe(source_id="public", dataframe=self.join_df)
         session.add_public_dataframe(
@@ -781,6 +783,7 @@ class TestSession:
             privacy_budget=RhoZCDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         session.add_public_dataframe(source_id="public", dataframe=self.join_df)
         session.add_public_dataframe(
@@ -870,7 +873,10 @@ class TestSession:
     ):
         """Test _noise_info."""
         session = Session.from_dataframe(
-            privacy_budget=session_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=session_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         # pylint: disable=protected-access
         info = session._noise_info(query_expr, query_budget)
@@ -897,7 +903,10 @@ class TestSession:
 
         expected_df = pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})
         session = Session.from_dataframe(
-            privacy_budget=privacy_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=privacy_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         session.create_view(
             query_expr=FlatMap(
@@ -926,7 +935,10 @@ class TestSession:
         )
 
         session = Session.from_dataframe(
-            privacy_budget=PureDPBudget(10), source_id="private", dataframe=self.sdf
+            privacy_budget=PureDPBudget(10),
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         session.evaluate(query_expr, privacy_budget=PureDPBudget(5))
         assert session.remaining_privacy_budget == PureDPBudget(5)
@@ -947,7 +959,10 @@ class TestSession:
         )
 
         session = Session.from_dataframe(
-            privacy_budget=RhoZCDPBudget(10), source_id="private", dataframe=self.sdf
+            privacy_budget=RhoZCDPBudget(10),
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
         assert session.remaining_privacy_budget == RhoZCDPBudget(5)
@@ -964,7 +979,10 @@ class TestSession:
             mechanism=CountMechanism.DEFAULT,
         )
         session = Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         zero_budget: PrivacyBudget
         if isinstance(budget, PureDPBudget):
@@ -994,7 +1012,10 @@ class TestSession:
     ):
         """Smoke test for querying on views with stability changes"""
         session = Session.from_dataframe(
-            privacy_budget=privacy_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=privacy_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         transformation_query = FlatMap(
@@ -1027,7 +1048,10 @@ class TestSession:
     ):
         """Tests using :func:`partition_and_create` to create a new session."""
         session1 = Session.from_dataframe(
-            privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=starting_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         sessions = session1.partition_and_create(
@@ -1059,7 +1083,10 @@ class TestSession:
     ):
         """Querying on a partitioned session with stability>1 works."""
         session1 = Session.from_dataframe(
-            privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=starting_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         transformation_query = ReplaceNullAndNan(
@@ -1108,7 +1135,10 @@ class TestSession:
     ):
         """Using :func:`partition_and_create` gives the correct answer if budget=inf."""
         session1 = Session.from_dataframe(
-            privacy_budget=inf_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=inf_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         sessions = session1.partition_and_create(
@@ -1159,7 +1189,10 @@ class TestSession:
             pytest.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
 
         session1 = Session.from_dataframe(
-            privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=starting_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         transformation_query1 = ReplaceNullAndNan(
@@ -1240,7 +1273,10 @@ class TestSession:
     ):
         """Tests behavior using :func:`partition_and_create` sessions out of order."""
         session1 = Session.from_dataframe(
-            privacy_budget=starting_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=starting_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         sessions = session1.partition_and_create(
@@ -1307,7 +1343,9 @@ class TestSession:
             privacy_budget=budget,
             source_id="private",
             dataframe=self.sdf.crossJoin(grouping_df),
-            grouping_column="new",
+            protected_change=AddMaxRowsInMaxGroups(
+                grouping_column="new", max_groups=1, max_rows_per_group=1
+            ),
         )
         new_sessions = session.partition_and_create(
             source_id="private",
@@ -1345,7 +1383,10 @@ class TestSession:
     def test_partition_on_nongrouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on other columns after grouping flat maps."""
         session = Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         grouping_flat_map = QueryBuilder("private").flat_map(
             f=lambda row: [{"new": 1}, {"new": 2}],
@@ -1372,7 +1413,10 @@ class TestSession:
         """Composing views with :func:`create_view` works."""
 
         session = Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         transformation_query1 = FlatMap(
             child=PrivateSource("private"),
@@ -1398,7 +1442,10 @@ class TestSession:
     def test_create_view_composed_query(self, budget: PrivacyBudget):
         """Smoke test for composing views and querying."""
         session = Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         transformation_query1 = FlatMap(
             child=PrivateSource("private"),
@@ -1441,7 +1488,10 @@ class TestSession:
     ):
         """Composing :func:`create_view` gives the correct answer if budget=inf."""
         session = Session.from_dataframe(
-            privacy_budget=inf_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=inf_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         transformation_query1 = FlatMap(
@@ -1481,6 +1531,7 @@ class TestSession:
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         # we need to add this to clear the cache in the spark session, since
         # with the addition of pytest all tests in a module share the same
@@ -1516,14 +1567,32 @@ class TestSession:
         ks = KeySet.from_dict({"group": [0, 1]})
         query = QueryBuilder("id").groupby(ks).count()
 
-        sess = Session.from_dataframe(
+        session = Session.from_dataframe(
             RhoZCDPBudget(float("inf")),
             "id",
             grouped_df,
             stability=math.sqrt(2),
             grouping_column="group",
         )
-        sess.evaluate(query, RhoZCDPBudget(1))
+        session.evaluate(query, RhoZCDPBudget(1))
+
+    def test_max_rows_per_group_stability(self, spark) -> None:
+        """MaxRowsPerGroup stability works with zCDP."""
+        grouped_df = spark.createDataFrame(
+            pd.DataFrame({"id": [7, 7, 8, 9], "group": [0, 1, 0, 1]})
+        )
+        ks = KeySet.from_dict({"group": [0, 1]})
+        query = QueryBuilder("id").groupby(ks).count()
+
+        session = Session.from_dataframe(
+            RhoZCDPBudget(float("inf")),
+            "id",
+            grouped_df,
+            protected_change=AddMaxRowsInMaxGroups(
+                "group", max_groups=2, max_rows_per_group=1
+            ),
+        )
+        session.evaluate(query, RhoZCDPBudget(1))
 
 
 ###TESTS FOR INVALID SESSION###
@@ -1604,7 +1673,10 @@ class TestInvalidSession:
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
         )
         session = Session.from_dataframe(
-            privacy_budget=one_budget, source_id="private", dataframe=self.sdf
+            privacy_budget=one_budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         with pytest.raises(
             RuntimeError,
@@ -1632,6 +1704,7 @@ class TestInvalidSession:
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         grouping_flatmap = FlatMap(
@@ -1673,6 +1746,7 @@ class TestInvalidSession:
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
             dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
 
         grouping_flatmap = FlatMap(
@@ -1838,7 +1912,10 @@ class TestSessionWithNulls:
     ) -> None:
         """Test Session.replace_null_and_nan."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf
+            PureDPBudget(float("inf")),
+            "private",
+            self.sdf,
+            protected_change=AddOneRow(),
         )
         session.create_view(
             QueryBuilder("private").replace_null_and_nan(cols_to_defaults),
@@ -1910,7 +1987,10 @@ class TestSessionWithNulls:
         using the keyset provided.
         """
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf
+            PureDPBudget(float("inf")),
+            "private",
+            self.sdf,
+            protected_change=AddOneRow(),
         )
         session.add_public_dataframe("public", spark.createDataFrame(public_df))
         result = session.evaluate(
@@ -2030,7 +2110,10 @@ class TestSessionWithInfs:
     ) -> None:
         """Test replace_infinity query."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf
+            PureDPBudget(float("inf")),
+            "private",
+            self.sdf,
+            protected_change=AddOneRow(),
         )
         session.create_view(
             QueryBuilder("private").replace_infinity(replace_with),
@@ -2071,7 +2154,10 @@ class TestSessionWithInfs:
     ) -> None:
         """Test GroupByBoundedSum after replacing infinite values."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf
+            PureDPBudget(float("inf")),
+            "private",
+            self.sdf,
+            protected_change=AddOneRow(),
         )
         result = session.evaluate(
             QueryBuilder("private")
@@ -2085,7 +2171,10 @@ class TestSessionWithInfs:
     def test_drop_infinity(self):
         """Test GroupByBoundedSum after dropping infinite values."""
         session = Session.from_dataframe(
-            PureDPBudget(float("inf")), "private", self.sdf
+            PureDPBudget(float("inf")),
+            "private",
+            self.sdf,
+            protected_change=AddOneRow(),
         )
         result = session.evaluate(
             QueryBuilder("private")

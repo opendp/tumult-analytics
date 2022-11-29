@@ -28,6 +28,7 @@ As usual, we need to create a Session with our dataset.
     from pyspark.sql import SparkSession
     from tmlt.analytics.keyset import KeySet
     from tmlt.analytics.privacy_budget import PureDPBudget
+    from tmlt.analytics.protected_change import AddOneRow
     from tmlt.analytics.query_builder import QueryBuilder
     from tmlt.analytics.session import Session
 
@@ -48,6 +49,7 @@ should not be done in production.
        privacy_budget=PureDPBudget(epsilon=float('inf')),
        source_id="members",
        dataframe=members_df,
+       protected_change=AddOneRow(),
    )
 
 Revisiting the filter transformation
@@ -94,12 +96,12 @@ transformations can be similarly expressed.
 Maps
 ----
 
-Suppose we want to create a histogram displaying the age each library member was when they 
+Suppose we want to create a histogram displaying the age each library member was when they
 joined.
 
 To do this, we will need a mapping function that takes in a row from our data as a
 dictionary and returns a new row. In this case, the new row will have a different column
-containing the calculated age. 
+containing the calculated age.
 
 .. note::
 
@@ -110,12 +112,12 @@ containing the calculated age.
 .. testcode::
 
     from datetime import datetime as dt
-    
+
     def age_joined(row):
         year_joined = row["date_joined"][:4]
         age_at_joining = row["age"] - (dt.today().year - int(year_joined))
         return {"age_joined": age_at_joining}
-    
+
     example_row = {
         "id": 421742,
         "name": "Panfilo",
@@ -138,7 +140,7 @@ Now that we have our mapping function, we can use it in a query.
 
 To add the map to our query, we also need to provide the `new_column_types`. It should
 be a dictionary containing the names and types for each of the columns created by the
-map. In this case, the type is `INTEGER`. 
+map. In this case, the type is `INTEGER`.
 
 We also set `augment=True`. This tells the query to keep the original columns in
 addition to the columns created by the map. If we used `augment=False`, the `gender`
@@ -302,15 +304,15 @@ separate keys for each age. Instead, we will show how we can use age ranges as k
 First, we need to decide on what bins we want to use for ages. Let's use groups of
 10 years. So 0-9, 10-19, and so on.
 
-The simplest way to do this is to define a :class:`~tmlt.analytics.binning_spec.BinningSpec` object, 
+The simplest way to do this is to define a :class:`~tmlt.analytics.binning_spec.BinningSpec` object,
 which allows us to assign values to bins based on a list of bin edges.
 
 
 .. testcode::
-    
+
     from tmlt.analytics.binning_spec import BinningSpec
     # bin edges at [0, 10, 20,...,100]
-    age_binspec = BinningSpec(bin_edges = [10*i for i in range(0, 11)]) 
+    age_binspec = BinningSpec(bin_edges = [10*i for i in range(0, 11)])
 
     example_row = {
         "id": 421742,
@@ -323,22 +325,22 @@ which allows us to assign values to bins based on a list of bin edges.
         "favorite_genres": "Romance;Classics/Literature;Current affairs",
         "date_joined": "2021-12-22",
     }
-    
-    
+
+
     age = example_row["age"]
     print(age_binspec(age))
 
 .. testoutput::
 
-    (50, 60] 
+    (50, 60]
 
-Now that we have our bins specified, we can use them in a query. 
+Now that we have our bins specified, we can use them in a query.
 
-To add the bins to our query, we use the :meth:`bin_column<tmlt.analytics.query_builder.QueryBuilder.bin_column>` 
-feature of the QueryBuilder interface, which creates a new column by 
-assigning the values in a given column to bins. Here, we provide the column 
+To add the bins to our query, we use the :meth:`bin_column<tmlt.analytics.query_builder.QueryBuilder.bin_column>`
+feature of the QueryBuilder interface, which creates a new column by
+assigning the values in a given column to bins. Here, we provide the column
 we want to bin and the BinningSpec object, as well as the optional `name` parameter
-to specify the name of the new column. 
+to specify the name of the new column.
 
 
 .. testcode::
@@ -386,9 +388,9 @@ to specify the name of the new column.
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
-Also available is the :meth:`histogram<tmlt.analytics.query_builder.QueryBuilder.histogram>` 
-method, which provides a shorthand syntax for obtaining binned counts in 
-simple cases. 
+Also available is the :meth:`histogram<tmlt.analytics.query_builder.QueryBuilder.histogram>`
+method, which provides a shorthand syntax for obtaining binned counts in
+simple cases.
 
 Public joins
 --------------

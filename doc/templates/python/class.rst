@@ -57,7 +57,7 @@
    {{ attribute.rendered|indent(3) }}
    {% endfor %}
 
-   {% if obj.methods | selectattr("short_name", "equalto", "__init__") | list %}
+   {% if obj.methods | selectattr("short_name", "equalto", "__init__") | reject("nodoc") | list %}
    .. automethod:: __init__
    {% endif %}
    {% for method in visible_methods %}

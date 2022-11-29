@@ -71,6 +71,7 @@ infinite privacy budget—not to be used in production!
    from pyspark.sql import SparkSession
    from tmlt.analytics.keyset import KeySet
    from tmlt.analytics.privacy_budget import PureDPBudget
+   from tmlt.analytics.protected_change import AddOneRow
    from tmlt.analytics.query_builder import QueryBuilder
    from tmlt.analytics.session import Session
 
@@ -86,6 +87,7 @@ infinite privacy budget—not to be used in production!
        privacy_budget=PureDPBudget(epsilon=float('inf')),
        source_id="members",
        dataframe=members_df,
+       protected_change=AddOneRow(),
    )
 
 Introduction to KeySets

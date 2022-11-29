@@ -95,7 +95,12 @@ add_module_names = False
 
 
 def autoapi_prepare_jinja_env(jinja_env):
+    # Set the package_name variable so it can be used in templates.
     jinja_env.globals["package_name"] = package_name
+    # Define a new test for filtering out objects with @nodoc in their
+    # docstring; this needs to be defined here because Jinja2 doesn't have a
+    # built-in "contains" or "match" test.
+    jinja_env.tests["nodoc"] = lambda obj: "@nodoc" in obj.docstring
 
 
 # Autodoc settings
@@ -198,6 +203,8 @@ def skip_members(app, what, name, obj, skip, options):
     if what == "method" and name.split(".")[-1] in excluded_methods:
         return True
     if what == "attribute" and name.split(".")[-1] in excluded_attributes:
+        return True
+    if "@nodoc" in obj.docstring:
         return True
     return skip
 
