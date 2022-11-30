@@ -9,7 +9,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 Tumult Analytics is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
-Only Python 3.7 is officially supported at present; newer versions are not yet supported.
+It is compatible with Python 3.7, 3.8, and 3.9.
 
 Only the x86_64 processor architecture is officially supported at present. Apple silicon is supported through binary translation with Rosetta 2.
 
