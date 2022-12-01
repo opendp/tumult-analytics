@@ -14,7 +14,7 @@ from tmlt.core.utils import configuration
 def cleanup():
     """Cleanup the temporary table currently in use.
 
-    If you call `spark.stop()`, you should call this function first.
+    If you call ``spark.stop()``, you should call this function first.
     """
     core_cleanup.cleanup()
 
@@ -38,10 +38,11 @@ def check_installation():
     """Check to see if you have installed Analytics correctly.
 
     This function will:
-    - create a new Spark session
-    - create a Spark dataframe
-    - create a :class:`~tmlt.analytics.session.Session` from that dataframe
-    - perform a query on that dataframe
+
+    * create a new Spark session
+    * create a Spark dataframe
+    * create a :class:`~tmlt.analytics.session.Session` from that dataframe
+    * perform a query on that dataframe
 
     If Analytics is correctly installed, this function should print a message
     and finish running within a few minutes.

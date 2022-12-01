@@ -233,7 +233,7 @@ class TestTransformationVisitor:
 
         In Python, two dictionaries are equal if they contain the same key-value
         pairs *and* those pairs were created in the same order:
-        `{'A': 'a1', 'B': 'b1'} != {'B': 'b1', 'A': 'a1'}`.
+        ``{'A': 'a1', 'B': 'b1'} != {'B': 'b1', 'A': 'a1'}``.
         """
         assert sorted(list(d1.keys())) == sorted(list(d2.keys()))
         for k in list(d1.keys()):

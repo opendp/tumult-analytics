@@ -86,9 +86,9 @@ def coerce_spark_schema_or_fail(dataframe: DataFrame) -> DataFrame:
     """Returns a new DataFrame where all column data types are supported.
 
     In particular, this function raises an error:
-        * if `dataframe` contains a column type not listed in
+        * if ``dataframe`` contains a column type not listed in
             SUPPORTED_SPARK_TYPES
-        * if `dataframe` contains a column named "" (the empty string)
+        * if ``dataframe`` contains a column named "" (the empty string)
 
     This function returns a DataFrame where all column types
         * are coerced according to TYPE_COERCION_MAP if necessary

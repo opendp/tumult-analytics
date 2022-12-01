@@ -1,7 +1,7 @@
 """A KeySet specifies a list of values for one or more columns.
 
-For example, a KeySet could specify the values `["a1", "a2"]` for column A
-and the values `[0, 1, 2, 3]` for column B.
+For example, a KeySet could specify the values ``["a1", "a2"]`` for column A
+and the values ``[0, 1, 2, 3]`` for column B.
 
 Currently, KeySets are used as a simpler way to specify domains for groupby
 transformations.
@@ -57,9 +57,10 @@ def _check_dict_schema(types: Dict[str, type]) -> None:
 class KeySet:
     """A class containing a set of values for specific columns.
 
-    Note that if a column has null values dropped or replaced, then Analytics
-    will raise an error if you use a KeySet that contains a null value for
-    that column.
+    .. warning::
+        If a column has null values dropped or replaced, then Analytics
+        will raise an error if you use a KeySet that contains a null value for
+        that column.
     """
 
     def __init__(self, dataframe: Union[DataFrame, Callable[[], DataFrame]]) -> None:
@@ -196,7 +197,7 @@ class KeySet:
         return KeySet(self.dataframe().filter(expr))
 
     def __getitem__(self, columns: Union[str, Tuple[str, ...], List[str]]) -> KeySet:
-        """`KeySet[col, col, ...]` returns a KeySet with those columns only.
+        """``KeySet[col, col, ...]`` returns a KeySet with those columns only.
 
         The returned KeySet contains all unique combinations of values in the
         given columns that were present in the original KeySet.
@@ -234,7 +235,7 @@ class KeySet:
         return KeySet(self.dataframe().select(*columns).dropDuplicates())
 
     def __mul__(self, other: KeySet) -> KeySet:
-        """A product (`KeySet * KeySet`) returns the cross-product of both KeySets.
+        """A product (``KeySet * KeySet``) returns the cross-product of both KeySets.
 
         Example:
             >>> keyset1 = KeySet.from_dict({"A": ["a1", "a2"]})
