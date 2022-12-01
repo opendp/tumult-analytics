@@ -165,10 +165,11 @@ class QueryBuilder:
         ``A_left,A_right,B,C,D``. The order of columns in the resulting table is
         not guaranteed.
 
-        Note that columns must share both names and data types for them to be used in
-        joining. If this condition is not met, one of the data sources must be
-        transformed to be eligible for joining (e.g., by using :func:`rename`
-        or :func:`map`).
+        .. note::
+            Columns must share both names and data types for them to be used in
+            joining. If this condition is not met, one of the data sources must be
+            transformed to be eligible for joining (e.g., by using :func:`rename`
+            or :func:`map`).
 
         Every row within a join group (i.e., every row that shares values in the join
         columns) from the private table will be joined with every row from that same
@@ -384,8 +385,9 @@ class QueryBuilder:
     ) -> "QueryBuilder":
         """Updates the current query to replace null and NaN values in some columns.
 
-        Note: if null values are replaced in a column, then Analytics will raise
-        an error if you use a KeySet with a null value for that column.
+        .. warning::
+            If null values are replaced in a column, then Analytics will raise
+            an error if you use a KeySet with a null value for that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -538,9 +540,10 @@ class QueryBuilder:
     def drop_null_and_nan(self, columns: Optional[List[str]]) -> "QueryBuilder":
         """Updates the current query to drop rows containing null or NaN values.
 
-        Note: if null and NaN values are dropped from a column, then Analytics will
-        raise an error if you use a KeySet that contains a null value for
-        that column.
+        .. warning::
+            If null and NaN values are dropped from a column, then Analytics will
+            raise an error if you use a KeySet that contains a null value for
+            that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -970,7 +973,7 @@ class QueryBuilder:
                 This function should return a dictionary, which should always
                 have the same keys regardless of input, and the values in that
                 dictionary should match the column type specified in
-                `new_column_types`. The function should not have any side effects
+                ``new_column_types``. The function should not have any side effects
                 (in particular, f cannot raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
                 produced by f. Using
@@ -1077,10 +1080,10 @@ class QueryBuilder:
                 Those dictionaries should always
                 have the same keys regardless of input, and the values in those
                 dictionaries should match the column type specified in
-                `new_column_types`. The function should not have any side effects
+                ``new_column_types``. The function should not have any side effects
                 (in particular, f cannot raise exceptions).
             max_num_rows: The enforced limit on the number of rows from each f(row).
-                If f produces more rows than this, only the first `max_num_rows`
+                If f produces more rows than this, only the first ``max_num_rows``
                 rows will be in the output.
             new_column_types: Mapping from column names to types, for new columns
                 produced by f. Using
@@ -1434,9 +1437,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a count query that is ready to be evaluated.
 
-        Note that differentially-private counts may return values that are not
-        possible for a non-DP query - including negative values. You can enforce
-        non-negativity once the query returns its results; see the example below.
+        .. note::
+            Differentially private counts may return values that are not
+            possible for a non-DP query - including negative values. You can enforce
+            non-negativity once the query returns its results; see the example below.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1508,9 +1512,10 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a count_distinct query that is ready to be evaluated.
 
-        Note that differentially-private counts may returns values that are not
-        possible for a non-DP query - including negative values. You can enforce
-        non-negativity once the query returns its results; see the example below.
+        .. note::
+            Differentially private counts may returns values that are not
+            possible for a non-DP query - including negative values. You can enforce
+            non-negativity once the query returns its results; see the example below.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1578,7 +1583,7 @@ class QueryBuilder:
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
-            cols: Deprecated; use `columns` instead.
+            cols: Deprecated; use ``columns`` instead.
         """
         return self.groupby(KeySet.from_dict({})).count_distinct(
             columns=columns, name=name, mechanism=mechanism, cols=cols
@@ -1594,10 +1599,11 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
 
         ..
@@ -1651,9 +1657,10 @@ class QueryBuilder:
             quantile: A number between 0 and 1 specifying the quantile to compute.
                 For example, 0.5 would compute the median.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low`` is
+                less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_quantile({quantile})".
+                ``f"{column}_quantile({quantile})"``.
         """
         return self.groupby(KeySet.from_dict({})).quantile(
             column=column, quantile=quantile, low=low, high=high, name=name
@@ -1664,10 +1671,11 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1718,9 +1726,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low`` is
+                less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_min".
+                ``f"{column}_min"``.
         """
         return self.groupby(KeySet.from_dict({})).min(
             column=column, low=low, high=high, name=name
@@ -1731,10 +1740,11 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1785,9 +1795,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_max".
+                ``f"{column}_max"``.
         """
         return self.groupby(KeySet.from_dict({})).max(
             column=column, low=low, high=high, name=name
@@ -1798,10 +1809,11 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1853,9 +1865,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_median".
+                ``f"{column}_median"``.
         """
         return self.groupby(KeySet.from_dict({})).median(
             column=column, low=low, high=high, name=name
@@ -1871,15 +1884,16 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -1933,9 +1947,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the sum over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_sum".
+                ``f"{column}_sum"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -1953,15 +1968,16 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2015,9 +2031,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the average over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_average".
+                ``f"{column}_average"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2035,15 +2052,16 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2097,9 +2115,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the variance over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_variance".
+                ``f"{column}_variance"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2117,15 +2136,16 @@ class QueryBuilder:
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2179,9 +2199,10 @@ class QueryBuilder:
         Args:
             column: The column to compute the stdev over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_stdev".
+                ``f"{column}_stdev"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2344,7 +2365,7 @@ class GroupedQueryBuilder:
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
-            cols: Deprecated; use `columns` instead.
+            cols: Deprecated; use ``columns`` instead.
         """
         if cols is not None:
             warnings.warn(
@@ -2384,10 +2405,11 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2442,9 +2464,10 @@ class GroupedQueryBuilder:
             quantile: A number between 0 and 1 specifying the quantile to compute.
                 For example, 0.5 would compute the median.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_quantile({quantile})".
+                ``f"{column}_quantile({quantile})"``.
         """
         if name is None:
             name = f"{column}_quantile({quantile})"
@@ -2464,10 +2487,11 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2524,9 +2548,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_min".
+                ``f"{column}_min"``.
         """
         if not name:
             name = f"{column}_min"
@@ -2537,10 +2562,11 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2597,9 +2623,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_max".
+                ``f"{column}_max"``.
         """
         if not name:
             name = f"{column}_max"
@@ -2610,10 +2637,11 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2667,9 +2695,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the quantile over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_median".
+                ``f"{column}_median"``.
         """
         if not name:
             name = f"{column}_median"
@@ -2685,15 +2714,16 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a sum query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a ``drop_null_and_nan`` query will be performed first. If the column being
+            measured contains infinite values, a ``drop_infinity`` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2749,9 +2779,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the sum over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_sum".
+                ``f"{column}_sum"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2778,15 +2809,16 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns an average query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a `drop_null_and_nan` query will be performed first. If the column being
+            measured contains infinite values, a `drop_infinity` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2842,9 +2874,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the average over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_average".
+                ``f"{column}_average"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2871,15 +2904,16 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a variance query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a `drop_null_and_nan` query will be performed first. If the column being
+            measured contains infinite values, a `drop_infinity` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -2935,9 +2969,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the variance over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_variance".
+                ``f"{column}_variance"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """
@@ -2964,15 +2999,16 @@ class GroupedQueryBuilder:
     ) -> QueryExpr:
         """Returns a standard deviation query that is ready to be evaluated.
 
-        Note that if the column being measured contains NaN or null values,
-        a `drop_null_and_nan` query will be performed first. If the column being
-        measured contains infinite values, a `drop_infinity` query will be
-        performed first.
+        .. note::
+            If the column being measured contains NaN or null values,
+            a `drop_null_and_nan` query will be performed first. If the column being
+            measured contains infinite values, a `drop_infinity` query will be
+            performed first.
 
-        Note:
-            Regarding the clamping params:
+        .. note::
+            Regarding the clamping bounds:
 
-            #. The values for `low` and `high` are a choice the caller must make.
+            #. The values for ``low`` and ``high`` are a choice the caller must make.
             #. All data will be clamped to lie within this range.
             #. The narrower the range, the less noise. Larger bounds mean more data \
                 is kept, but more noise needs to be added to the result.
@@ -3028,9 +3064,10 @@ class GroupedQueryBuilder:
         Args:
             column: The column to compute the stdev over.
             low: The lower bound for clamping.
-            high: The upper bound for clamping. Must be such that `low` < `high`.
+            high: The upper bound for clamping. Must be such that ``low``
+                is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
-                f"{column}_stdev".
+                ``f"{column}_stdev"``.
             mechanism: Choice of noise mechanism. By DEFAULT, the framework
                 automatically selects an appropriate mechanism.
         """

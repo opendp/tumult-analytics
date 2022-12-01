@@ -1382,7 +1382,7 @@ class TestQueryExprCompiler:
         assert measurement.privacy_relation(stability, sp.Integer(10))
 
     def test_call_no_queries(self):
-        """`__call__` raises error if the sequence of queries has length 0."""
+        """``__call__`` raises error if the sequence of queries has length 0."""
         with pytest.raises(
             ValueError, match=r"At least one query needs to be provided"
         ):

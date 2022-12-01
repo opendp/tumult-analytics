@@ -971,7 +971,7 @@ class TestSession:
 
     @pytest.mark.parametrize("budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
     def test_zero_budget(self, budget: PrivacyBudget):
-        """Test that a call to `evaluate` raises a ValueError if budget is 0."""
+        """Test that a call to ``evaluate`` raises a ValueError if budget is 0."""
         query_expr = GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),

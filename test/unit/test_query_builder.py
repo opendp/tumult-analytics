@@ -789,7 +789,7 @@ class TestAggregations:
 
     @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
     def test_count_distinct_raises_warnings(self, columns: List[str]):
-        """Test that count_distinct raises warning when `cols` is provided."""
+        """Test that count_distinct raises warning when ``cols`` is provided."""
         with pytest.warns(
             DeprecationWarning, match=re.escape("`cols` argument is deprecated")
         ):
@@ -803,7 +803,7 @@ class TestAggregations:
 
     @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
     def test_count_distinct_raises_error(self, columns: List[str]):
-        """Test that count_distinct raises error with both `cols` and `columns`."""
+        """Test that count_distinct raises error with both ``cols`` and ``columns``."""
         with pytest.raises(
             ValueError,
             match=re.escape("cannot provide both `cols` and `columns` arguments"),

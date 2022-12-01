@@ -71,9 +71,9 @@ class ColumnDescriptor:
 
     Attributes:
         column_type: A :class:`ColumnType`, specifying what type this column has.
-        allow_null: :class:`bool`. If `True`, this column allows null values.
-        allow_nan: :class:`bool`. If `True`, this column allows NaN values.
-        allow_inf: :class:`bool`. If `True`, this column allows infinite values.
+        allow_null: :class:`bool`. If ``True``, this column allows null values.
+        allow_nan: :class:`bool`. If ``True``, this column allows NaN values.
+        allow_inf: :class:`bool`. If ``True``, this column allows infinite values.
     """
 
     column_type: ColumnType

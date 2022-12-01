@@ -312,7 +312,7 @@ class Session:
         """Initializes a DP session from a queryable.
 
         This constructor is not intended to be used directly. Use
-        :class:`Session.Builder` or `from_` constructors instead.
+        :class:`Session.Builder` or ``from_`` constructors instead.
         """
         # pylint: disable=pointless-string-statement
         """
@@ -457,7 +457,7 @@ class Session:
     def remaining_privacy_budget(self) -> Union[PureDPBudget, RhoZCDPBudget]:
         """Returns the remaining privacy_budget left in the session.
 
-        The type of the budget (e.g., PureDP or RhoZCDP) will be the same as
+        The type of the budget (e.g., PureDP or rho-zCDP) will be the same as
         the type of the budget the Session was initialized with.
         """
         sympy_budget = self._accountant.privacy_budget
@@ -645,7 +645,7 @@ class Session:
 
         Args:
             source_id: The name of the public data source.
-            dataframe: The public data source corresponding to the `source_id`.
+            dataframe: The public data source corresponding to the ``source_id``.
         """
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
@@ -728,7 +728,7 @@ class Session:
         """Answers a query within the given privacy budget and returns a Spark dataframe.
 
         The type of privacy budget that you use must match the type your Session was
-        initialized with (i.e., you cannot evaluate a query using RhoZCDPBudget if
+        initialized with (i.e., you cannot evaluate a query using rho-zCDPBudget if
         the Session was initialized with a PureDPBudget, and vice versa).
 
         ..
@@ -966,7 +966,7 @@ class Session:
         splits: Optional[Union[Dict[str, str], Dict[str, int]]] = None,
         attr_name: Optional[str] = None,
     ) -> Dict[str, "Session"]:
-        """Returns new sessions from a partition mapped to split name/`source_id`.
+        """Returns new sessions from a partition mapped to split name/``source_id``.
 
         The type of privacy budget that you use must match the type your Session was
         initialized with (i.e., you cannot use a RhoZCDPBudget to partition your
@@ -1047,8 +1047,8 @@ class Session:
             privacy_budget: Amount of privacy budget to pass to each new session.
             column: The name of the column partitioning on.
             splits: Mapping of split name to value of partition.
-                Split name is `source_id` in new session.
-            attr_name: Deprecated synonym for `column`. Using the `column` argument
+                Split name is ``source_id`` in new session.
+            attr_name: Deprecated synonym for ``column``. Using the ``column`` argument
                 is preferred.
         """
         # pylint: enable=line-too-long
@@ -1259,7 +1259,7 @@ class Session:
 
 
 def _assert_is_identifier(source_id: str):
-    """Checks that the `source_id` is a valid Python identifier.
+    """Checks that the ``source_id`` is a valid Python identifier.
 
     Args:
         source_id: The name of the dataframe or transformation.

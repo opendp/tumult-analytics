@@ -279,7 +279,7 @@ class Map(QueryExpr):
     f: Callable[[Row], Row]
     """The map function."""
     schema_new_columns: Schema
-    """The expected schema for new columns produced by `f`."""
+    """The expected schema for new columns produced by ``f``."""
     augment: bool
     """Whether to keep the existing columns.
 
@@ -334,9 +334,9 @@ class FlatMap(QueryExpr):
     max_num_rows: int
     """The enforced limit on number of rows from each f(row)."""
     schema_new_columns: Schema
-    """The expected schema for new columns produced by `f`.
+    """The expected schema for new columns produced by ``f``.
 
-    If the `schema_new_columns` has a `grouping_column`, that means this FlatMap
+    If the ``schema_new_columns`` has a ``grouping_column``, that means this FlatMap
     produces a column that must be grouped by eventually. It also must be the only
     column in the schema.
     """
@@ -528,12 +528,12 @@ class AnalyticsDefault:
     VARCHAR = ""
     """The default value used for VARCHARs (the empty string)."""
     DATE = datetime.date.fromtimestamp(0)
-    """The default value used for dates (`datetime.date.fromtimestamp(0)`).
+    """The default value used for dates (``datetime.date.fromtimestamp(0)``).
 
     See :meth:`~.datetime.date.fromtimestamp`.
     """
     TIMESTAMP = datetime.datetime.fromtimestamp(0)
-    """The defauLt value used for timestamps (`datetime.datetime.fromtimestamp(0)`).
+    """The defauLt value used for timestamps (``datetime.datetime.fromtimestamp(0)``).
 
     See :meth:`~.datetime.datetime.fromtimestamp`.
     """
@@ -543,9 +543,11 @@ class AnalyticsDefault:
 class ReplaceNullAndNan(QueryExpr):
     """Returns data with null and NaN expressions replaced by a default.
 
-    Note that after a `ReplaceNullAndNan` query has been performed for a column,
-    Analytics will raise an error if you use a `KeySet` for that column
-    that contains null values.
+    .. warning::
+        after a ``ReplaceNullAndNan`` query has been performed for a column,
+        Analytics will raise an error if you use a
+        :class:`~.tmlt.analytics.keyset.KeySet` for that column
+        that contains null values.
     """
 
     child: QueryExpr
@@ -557,8 +559,8 @@ class ReplaceNullAndNan(QueryExpr):
     """New values to replace with, by column.
 
     If this dictionary is empty, *all* columns will be changed, with values
-    replaced by a default value for each column's type (see the `AnalyticsDefault`
-    class variables).
+    replaced by a default value for each column's type (see the
+    :class:`~.AnalyticsDefault` class variables).
     """
 
     def __post_init__(self):
@@ -588,8 +590,8 @@ class ReplaceInfinity(QueryExpr):
     replace +infinity.
 
     If this dictionary is empty, *all* columns of type DECIMAL will be changed,
-    with infinite values replaced with a default value (see the `AnalyticsDefault`
-    class variables).
+    with infinite values replaced with a default value (see the
+    :class:`~.AnalyticsDefault` class variables).
     """
 
     def __post_init__(self) -> None:
@@ -610,9 +612,11 @@ class ReplaceInfinity(QueryExpr):
 class DropNullAndNan(QueryExpr):
     """Returns data with rows that contain null or NaN value dropped.
 
-    Note that after a `DropNullAndNan` query has been performed for a column,
-    Analytics will raise an error if you use a `KeySet` for that column
-    that contains null values.
+    .. warning::
+        After a ``DropNullAndNan`` query has been performed for a column,
+        Analytics will raise an error if you use a
+        :class:`~.tmlt.analytics.keyset.KeySet` for that column
+        that contains null values.
     """
 
     child: QueryExpr
@@ -739,9 +743,9 @@ class GroupByQuantile(QueryExpr):
     quantile: float
     """The quantile to compute (between 0 and 1)."""
     low: float
-    """The lower bound for clamping the `measure_column`."""
+    """The lower bound for clamping the ``measure_column``."""
     high: float
-    """The upper bound for clamping the `measure_column`."""
+    """The upper bound for clamping the ``measure_column``."""
     output_column: str = "quantile"
     """The name of the column to store the quantiles in."""
 
@@ -791,9 +795,9 @@ class GroupByBoundedSum(QueryExpr):
     measure_column: str
     """The column to compute the sum over."""
     low: float
-    """The lower bound for clamping the `measure_column`."""
+    """The lower bound for clamping the ``measure_column``."""
     high: float
-    """The upper bound for clamping the `measure_column`."""
+    """The upper bound for clamping the ``measure_column``."""
     output_column: str = "sum"
     """The name of the column to store the sums in."""
     mechanism: SumMechanism = SumMechanism.DEFAULT
@@ -845,9 +849,9 @@ class GroupByBoundedAverage(QueryExpr):
     measure_column: str
     """The column to compute the average over."""
     low: float
-    """The lower bound for clamping the `measure_column`."""
+    """The lower bound for clamping the ``measure_column``."""
     high: float
-    """The upper bound for clamping the `measure_column`."""
+    """The upper bound for clamping the ``measure_column``."""
     output_column: str = "average"
     """The name of the column to store the averages in."""
     mechanism: AverageMechanism = AverageMechanism.DEFAULT
@@ -899,9 +903,9 @@ class GroupByBoundedVariance(QueryExpr):
     measure_column: str
     """The column to compute the variance over."""
     low: float
-    """The lower bound for clamping the `measure_column`."""
+    """The lower bound for clamping the ``measure_column``."""
     high: float
-    """The upper bound for clamping the `measure_column`."""
+    """The upper bound for clamping the ``measure_column``."""
     output_column: str = "variance"
     """The name of the column to store the variances in."""
     mechanism: VarianceMechanism = VarianceMechanism.DEFAULT
@@ -953,9 +957,9 @@ class GroupByBoundedSTDEV(QueryExpr):
     measure_column: str
     """The column to compute the standard deviation over."""
     low: float
-    """The lower bound for clamping the `measure_column`."""
+    """The lower bound for clamping the ``measure_column``."""
     high: float
-    """The upper bound for clamping the `measure_column`."""
+    """The upper bound for clamping the ``measure_column``."""
     output_column: str = "stdev"
     """The name of the column to store the stdev in."""
     mechanism: StdevMechanism = StdevMechanism.DEFAULT

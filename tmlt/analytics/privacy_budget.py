@@ -1,4 +1,8 @@
-"""Classes for specifying privacy budgets."""
+"""Classes for specifying privacy budgets.
+
+For a full introduction to privacy budgets, see the
+:ref:`privacy budget topic guide<Privacy budget fundamentals>`.
+"""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022
@@ -14,20 +18,22 @@ from tmlt.core.utils.exact_number import ExactNumber
 class PrivacyBudget(ABC):
     """Base class for specifying privacy parameters.
 
-    A PrivacyBudget associates a privacy definition with one or more numeric values.
-    This information ultimately governs the noise that is added when evaluating
-    queries, i.e., it controls how "private" the computation is.
+    A PrivacyBudget is a privacy definition, along with its associated parameters.
+    The choice of a PrivacyBudget has an impact on the accuracy of query
+    results. Smaller parameters correspond to a stronger privacy guarantee, and
+    usually lead to less accurate results.
 
-    Note: An "infinite" privacy budget means that the chosen DP algorithm will use
-    parameters that do not guarantee privacy. This is not always exactly equivalent
-    to evaluating the query without applying differential privacy.
-    Please see the individual subclasses of PrivacyBudget for details on how to
-    appropriately specify infinite budgets.
+    .. note::
+        An "infinite" privacy budget means that the chosen DP algorithm will use
+        parameters that do not guarantee privacy. This is not always exactly equivalent
+        to evaluating the query without applying differential privacy.
+        Please see the individual subclasses of PrivacyBudget for details on how to
+        appropriately specify infinite budgets.
     """
 
 
 class PureDPBudget(PrivacyBudget):
-    """A privacy budget under Pure Differential Privacy.
+    """A privacy budget under pure differential privacy.
 
     This privacy definition is also known as epsilon-differential privacy, and the
     associated value is the epsilon privacy parameter. The privacy definition can
@@ -39,7 +45,8 @@ class PureDPBudget(PrivacyBudget):
         """Construct a new PureDPBudget.
 
         Args:
-            epsilon: The epsilon privacy parameter. Must be non-negative.
+            epsilon: The epsilon privacy parameter. Must be non-negative
+                and cannot be NaN.
                 To specify an infinite budget, set epsilon equal to float('inf').
         """
         if math.isnan(epsilon):
@@ -70,9 +77,9 @@ class PureDPBudget(PrivacyBudget):
 
 
 class RhoZCDPBudget(PrivacyBudget):
-    """A privacy budget under rho-Zero-Concentrated Differential Privacy.
+    """A privacy budget under rho-zero-concentrated differential privacy.
 
-    The definition of rho-ZCDP can be found in
+    The definition of rho-zCDP can be found in
     `this <https://arxiv.org/pdf/1605.02065.pdf>`_ paper under Definition 1.1.
     """
 
@@ -81,8 +88,9 @@ class RhoZCDPBudget(PrivacyBudget):
         """Construct a new RhoZCDPBudget.
 
         Args:
-            rho: The rho privacy parameter. To specify an infinite budget,
-                set rho equal to float('inf').
+            rho: The rho privacy parameter.
+                Rho must be non-negative and cannot be NaN.
+                To specify an infinite budget, set rho equal to float('inf').
         """
         if math.isnan(rho):
             raise ValueError("Rho cannot be a NaN.")

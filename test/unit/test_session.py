@@ -1344,7 +1344,7 @@ class TestSessionBuilder:
 
     @pytest.mark.parametrize("initial_budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
     def test_invalid_to_add_budget_twice(self, initial_budget: PrivacyBudget):
-        """Test that you can't call `with_privacy_budget()` twice."""
+        """Test that you can't call ``with_privacy_budget()`` twice."""
         builder = Session.Builder().with_privacy_budget(initial_budget)
         with pytest.raises(
             ValueError, match="This Builder already has a privacy budget"

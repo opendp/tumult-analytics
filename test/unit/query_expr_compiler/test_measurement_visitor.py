@@ -1236,11 +1236,11 @@ class TestMeasurementVisitor:
     ):
         """Check the basic attributes of a measurement (for all query exprs).
 
-        If `child_is_base_query` is true, it is assumed that the child
-        query was `PrivateSource("private")`.
+        If ``child_is_base_query`` is true, it is assumed that the child
+        query was ``PrivateSource("private")``.
 
         The measurement almost certainly looks like this:
-        `child_transformation | mock_measurement`
+        ``child_transformation | mock_measurement``
         so extensive testing of the latter is likely to be counterproductive.
         """
         assert isinstance(measurement, ChainTM)

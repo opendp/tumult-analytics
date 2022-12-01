@@ -200,7 +200,7 @@ def test_from_dict_empty_list(
         ],
     ]
 ) -> None:
-    """Test that calls like `KeySet.from_dict({'A': []})` raise a friendly error."""
+    """Test that calls like ``KeySet.from_dict({'A': []})`` raise a friendly error."""
     with pytest.raises(ValueError):
         KeySet.from_dict(d)
 
@@ -396,7 +396,7 @@ def test_type_coercion_from_dict(
     ],
     expected_schema: Dict[str, DataType],
 ) -> None:
-    """Test KeySet correctly coerces types when created with `from_dict`."""
+    """Test KeySet correctly coerces types when created with ``from_dict``."""
     keyset = KeySet.from_dict(d_in)
     df_out = keyset.dataframe()
     for col in df_out.schema:
