@@ -89,8 +89,8 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
    **Additional resources**
    ^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Additional resources include the :ref:`changelog <Changelog>`, which
-   describes notable changes to the library, as well as 
+   Additional resources include the :ref:`changelog <analytics-changelog>`, which
+   describes notable changes to the library, as well as
    :ref:`license information <License>`.
 
 Contact Information

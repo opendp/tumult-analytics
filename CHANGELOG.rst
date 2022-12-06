@@ -1,4 +1,4 @@
-.. _Changelog:
+.. _analytics-changelog:
 
 Changelog
 =========
