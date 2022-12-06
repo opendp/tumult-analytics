@@ -32,6 +32,11 @@ commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
 build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 
 linkcheck_mode_url_prefix = os.getenv("BASE_URL_OVERRIDE")
+# Linkcheck will complain that these anchors don't exist,
+# even though the link works.
+linkcheck_ignore = [
+    "https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true"
+]
 
 # Sphinx configuration
 
