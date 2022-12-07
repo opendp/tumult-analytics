@@ -1,7 +1,7 @@
 """An API for building differentially private queries from basic operations.
 
 The QueryBuilder class allows users to construct differentially private queries
-using SQL-like commands. These queries can then be used with
+using SQL-like commands. These queries can then be used with a
 :class:`~tmlt.analytics.session.Session` to obtain results or construct views on
 which further queries can be run.
 
@@ -16,8 +16,10 @@ as the base for multiple queries, create a view using
 :func:`~tmlt.analytics.session.Session.create_view` and write queries on that
 view.
 
-At any point, a QueryBuilder instance can have a group by followed by an
-aggregation applied to it, yielding a
+At any point, a QueryBuilder instance can have an aggregation like
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.count` applied to it,
+potentially after a
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, yielding a
 :class:`~tmlt.analytics.query_expr.QueryExpr` object. This QueryExpr can then be
 passed to :func:`~tmlt.analytics.session.Session.evaluate` to obtain
 differentially private results to the query.
@@ -542,8 +544,8 @@ class QueryBuilder:
 
         .. warning::
             If null and NaN values are dropped from a column, then Analytics will
-            raise an error if you use a KeySet that contains a null value for
-            that column.
+            raise an error if you use a :class:`~tmlt.analytics.keyset.KeySet`
+            that contains a null value for that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -620,10 +622,10 @@ class QueryBuilder:
             1  a2      1
 
         Args:
-            columns: A list of columns in which to look for invalid values.
-                If None (or empty), then *all* columns will be considered
-                (so if *any* column has an invalid value, then the row will
-                be dropped).
+            columns: A list of columns in which to look for null and NaN values.
+                If ``None`` or an empty list, then *all* columns will be considered,
+                meaning that if *any* column has a null/NaN value then the row it
+                is in will be dropped.
         """
         if columns is None:
             columns = []
@@ -709,10 +711,10 @@ class QueryBuilder:
             1  a2      0
 
         Args:
-            columns: A list of columns in which to look for invalid values.
-                If None (or empty), then *all* columns will be considered
-                (so if *any* column has an invalid value, then the row will
-                be dropped).
+            columns: A list of columns in which to look for positive and negative
+                infinities. If ``None`` or an empty list, then *all* columns will
+                be considered, meaning that if *any* column has an infinite value
+                then the row it is in will be dropped.
         """
         if columns is None:
             columns = []

@@ -117,7 +117,7 @@ def check_installation():
         )
     except Exception as e:
         print(
-            "There was a problem running the installation checker. You may want to"
+            "\n\nThere was a problem running the installation checker. You may want to"
             " check:"
         )
         print("- your installed Java version (run `java -version`)")
@@ -128,8 +128,8 @@ def check_installation():
             "(run `pip3 show tmlt.analytics`)"
         )
         print(
-            "For more information, see the Tumult Analytics installation instructions"
-            " at https://docs.tmlt.dev/analytics/dev/installation.html ."
+            "For more information, see the Tumult Analytics installation instructions\n"
+            "at https://docs.tmlt.dev/analytics/latest/installation.html"
         )
         print("\nRe-raising original exception...")
         raise e

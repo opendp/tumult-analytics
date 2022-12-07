@@ -1,4 +1,7 @@
-"""Cleanup functions for Analytics."""
+"""Cleanup functions for Analytics.
+
+@nodoc.
+"""
 # pylint: disable=unused-import
 import warnings
 
