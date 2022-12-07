@@ -3,8 +3,8 @@
 Changelog
 =========
 
-Unreleased
-----------
+0.6.1 - 2022-12-07
+------------------
 
 This is a maintenance release which introduces a number of documentation improvements, but has no publicly-visible API changes.
 
