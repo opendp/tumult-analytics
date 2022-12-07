@@ -10,7 +10,7 @@ Tutorial 1: First steps with Tumult Analytics
 In this first tutorial, we will demonstrate how to load data, run a simple
 aggregation query, and get our first differentially private results. You can run
 this tutorial (as well as the next ones) as you go: simply follow the
-:ref:`installation instructions`, and use the copy/paste button of each code
+:ref:`installation instructions <Installation instructions>`, and use the copy/paste button of each code
 block to reproduce it.
 
 Throughout these tutorials, we'll imagine we are the data protection officer for
@@ -25,7 +25,7 @@ Importantly, Tumult Analytics does *not* require you to have an in-depth
 understanding of differential privacy. In these tutorials, we will gloss over
 all the details of what happens behind the scenes, and focus on how to
 accomplish common tasks. To learn more about the trade-offs involved in
-parameter setting and mechanism design, you can consult our :ref:`Topic Guides`.
+parameter setting and mechanism design, you can consult our :ref:`topic guides <Topic guides>`.
 
 .. _differential privacy: https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html
 
@@ -50,12 +50,12 @@ Next, we initialize the Spark session.
 
    spark = SparkSession.builder.getOrCreate()
 
-This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark Topic Guide<Spark>`.
+This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark topic guide <Spark>`.
 
 
 Now, we need to load our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``
-repository, and load it into a :class:`Spark DataFrame <pyspark.sql.DataFrame>`.
+repository, and load it into a Spark :class:`~pyspark.sql.DataFrame`.
 
 .. testcode::
 
@@ -73,10 +73,8 @@ For more information about loading data files into Spark, see the Spark `data so
 Creating a Session
 ------------------
 
-To compute queries using Tumult Analytics, we must first encapsulate the data
-in a :class:`Session<tmlt.analytics.session.Session>`. The following snippet
-instantiates a Session on a Spark DataFrame with our private data, using the
-:meth:`from_dataframe<tmlt.analytics.session.Session.from_dataframe>` method.
+To compute queries using Tumult Analytics, we must first wrap the data in a :class:`~tmlt.analytics.session.Session` to track and manage queries.
+The following snippet instantiates a Session with a DataFrame of our private data using the :meth:`~tmlt.analytics.session.Session.from_dataframe` method.
 
 .. testcode::
 
@@ -87,13 +85,12 @@ instantiates a Session on a Spark DataFrame with our private data, using the
        protected_change=AddOneRow(),
    )
 
-Note that in addition to the data itself, we needed to provide the
-Session builder with a couple of additional pieces of information.
+Note that in addition to the data itself, we needed to provide a couple of additional pieces of information:
 
-- The ``privacy_budget`` specifies what privacy guarantee this Session will
-  provide. We will discuss this in more detail in the next tutorial.
-- The ``source_id`` is the identifier for the DataFrame. We will then use it to
-  refer to this DataFrame when constructing queries.
+- The ``privacy_budget`` specifies what privacy guarantee this Session will provide.
+  We will discuss this in more detail in the next tutorial.
+- The ``source_id`` is the identifier for the DataFrame.
+  We will then use it to refer to this DataFrame when constructing queries.
 - The ``protected_change`` for this dataset, which defines what unit of data the differential privacy guarantee holds for.
   Here, ``AddOneRow()`` corresponds to protecting individual rows in the dataset.
 
@@ -128,8 +125,8 @@ evaluate the query with differential privacy, using ε=1.
        privacy_budget=PureDPBudget(epsilon=1)
    )
 
-The results of the query are returned as a Spark DataFrame. We can see them
-using the ``show()`` method of this DataFrame.
+The results of the query are returned as a Spark DataFrame.
+We can see them using the :meth:`~pyspark.sql.DataFrame.show` method of this DataFrame.
 
 .. testcode::
 
@@ -153,10 +150,10 @@ using the ``show()`` method of this DataFrame.
    |54215|
    +-----+
 
-If you're running this code along with the tutorial, you might see different
-values! This is a central characteristic of differential privacy: it injects
-some randomization (we call this *noise*) in the execution of the query. Let's
-evaluate the same query again to demonstrate this.
+We have just evaluated our first differentially private query!
+If you're running this code along with the tutorial, you might see different values.
+This is a central characteristic of differential privacy: it injects some randomization (we call this *noise*) in the execution of the query.
+Let's evaluate the same query again to demonstrate this.
 
 .. testcode::
 
@@ -190,7 +187,7 @@ The noise added to the computation of the query can depend on the privacy
 parameters, the type of aggregation, and the data itself. But in many cases, the
 result will still convey accurate insights about the original data. Here, that's
 the case: we can verify this by running a count query directly on the original
-dataframe, which gives us the true result.
+DataFrame, which gives us the true result.
 
 .. testcode::
 
@@ -202,6 +199,5 @@ dataframe, which gives us the true result.
 
    54217
 
-We just evaluated our first differentially private query using Tumult Analytics.
-In the next tutorial, we'll say a bit more about how privacy budgets work in
-practice, and evaluate some more complicated queries.
+We have evaluated a differentially private count, and seen how the result relates to the true value for this count.
+In the next tutorial, we'll say a bit more about how privacy budgets work in practice, and evaluate some more complicated queries.

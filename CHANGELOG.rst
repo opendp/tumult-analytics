@@ -3,6 +3,11 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+This is a maintenance release which introduces a number of documentation improvements, but has no publicly-visible API changes.
+
 0.6.0 - 2022-12-06
 ------------------
 
@@ -14,7 +19,7 @@ See the documentation for the :mod:`~tmlt.analytics.protected_change` module for
 
 The ``stability`` and ``grouping_column`` parameters which were used to specify this information are still accepted, and work as before, but they will be deprecated and eventually removed in future releases.
 The default behavior of assuming ``stability=1`` if no other information is given will also be deprecated and removed, on a similar timeline to ``stability`` and ``grouping_column``; instead, explicitly specify ``protected_change=AddOneRow()``.
-These changes should make the privacy guarantees provided by the :class:`~tmlt.analytics.session.Session` interface easier to understand and harder to misuse, and allow for future support for other units of privacy that are not representable with the current API.
+These changes should make the privacy guarantees provided by the :class:`~tmlt.analytics.session.Session` interface easier to understand and harder to misuse, and allow for future support for other units of protection that were not representable with the existing API.
 
 Added
 ~~~~~

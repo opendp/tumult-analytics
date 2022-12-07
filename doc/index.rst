@@ -16,22 +16,21 @@ data using differential privacy.
 
 Tumult Analytics is…
 
-- … *robust*: it is built and maintained by a team of differential privacy
-  experts, and runs in production at institutions like the U.S. Census Bureau.
-- … *scalable*: it runs on `Spark <http://spark.apache.org>`__, so it can scale
-  to very large datasets.
 - … *easy to use*: its interface will seem familiar to anyone with prior
   experience with tools like SQL or
   `PySpark <http://spark.apache.org/docs/latest/api/python/>`__.
 - … *feature-rich*: it supports a large and ever-growing list of aggregation
   functions, data transformation operators, and privacy definitions.
+- … *robust*: it is built and maintained by a team of differential privacy
+  experts, and runs in production at institutions like the U.S. Census Bureau.
+- … *scalable*: it runs on `Spark <http://spark.apache.org>`__, so it can scale
+  to very large datasets.
 
-New users probably want to start with the :ref:`installation instructions`.
-Alternatively, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__
-demonstrates basic features of the library without requiring any installation.
+For new users, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
+To explore further or work on larger datasets, a good starting point is the :ref:`installation instructions <installation instructions>`.
 
-No prior expertise in differential privacy is needed to use Tumult Analytics.
-Users who still wish to learn more about the fundamentals of differential privacy can consult
+The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
+Users who wish to learn more about the fundamentals of differential privacy can consult
 `this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
 or `this longer introduction <https://privacytools.seas.harvard.edu/files/privacytools/files/pedagogical-document-dp_0.pdf>`__.
 
