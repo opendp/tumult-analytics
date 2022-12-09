@@ -9,7 +9,7 @@ automatically by the API. It is built atop the [Tumult Core library](https://git
 See the [installation instructions in the documentation](https://docs.tmlt.dev/analytics/latest/installation.html#prerequisites)
 for information about setting up prerequisites such as Spark.
 
-Once the prerequisites are installed, you can install Tumult Analytics using [pip](https://pypi.org/project.pip).
+Once the prerequisites are installed, you can install Tumult Analytics using [pip](https://pypi.org/project/pip).
 
 ```bash
 pip install tmlt.analytics
