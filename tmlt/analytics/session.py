@@ -147,46 +147,21 @@ class Session:
             if not self._private_sources:
                 raise ValueError("At least one private source must be provided.")
 
-            output_measure: Union[PureDP, RhoZCDP]
-            sympy_budget: sp.Expr
-            if isinstance(self._privacy_budget, PureDPBudget):
-                output_measure = PureDP()
-                sympy_budget = ExactNumber.from_float(
-                    self._privacy_budget.epsilon, round_up=False
-                ).expr
-            elif isinstance(self._privacy_budget, RhoZCDPBudget):
-                output_measure = RhoZCDP()
-                sympy_budget = ExactNumber.from_float(
-                    self._privacy_budget.rho, round_up=False
-                ).expr
-            else:
-                raise ValueError(
-                    f"Unsupported PrivacyBudget variant: {type(self._privacy_budget)}"
-                )
-
             neighboring_relation = _generate_neighboring_relation(self._private_sources)
             tables = {
                 source_id: source_tuple.dataframe
                 for source_id, source_tuple in self._private_sources.items()
             }
-            domain, metric, distance, dataframes = neighboring_relation.accept(
-                NeighboringRelationCoreVisitor(tables, output_measure)
+            sess = (
+                Session._from_neighboring_relation(  # pylint: disable=protected-access
+                    self._privacy_budget, tables, neighboring_relation
+                )
             )
+            # add public sources
+            for source_id, dataframe in self._public_sources.items():
+                sess.add_public_dataframe(source_id, dataframe)
 
-            compiler = QueryExprCompiler(output_measure=output_measure)
-            measurement = SequentialComposition(
-                input_domain=domain,
-                input_metric=metric,
-                d_in=distance,
-                privacy_budget=sympy_budget,
-                output_measure=output_measure,
-            )
-            accountant = PrivacyAccountant.launch(measurement, dataframes)
-            return Session(
-                accountant=accountant,
-                public_sources=self._public_sources,
-                compiler=compiler,
-            )
+            return sess
 
         def with_privacy_budget(
             self, privacy_budget: PrivacyBudget
@@ -438,6 +413,60 @@ class Session:
         )
         return session_builder.build()
 
+    @classmethod
+    @typechecked
+    def _from_neighboring_relation(
+        cls,
+        privacy_budget: PrivacyBudget,
+        private_sources: Dict[str, DataFrame],
+        relation: NeighboringRelation,
+    ) -> "Session":
+        """Initializes a DP session using the provided :class:`NeighboringRelation`.
+
+        Args:
+            privacy_budget: The total privacy budget allocated to this session.
+            private_sources: The private data to be used in the session.
+                Provided as a dictionary {source_id: Dataframe}.
+            relation: the :class:`NeighboringRelation` to be used in the session.
+        """
+        output_measure: Union[PureDP, RhoZCDP]
+        sympy_budget: sp.Expr
+        if isinstance(privacy_budget, PureDPBudget):
+            output_measure = PureDP()
+            sympy_budget = ExactNumber.from_float(
+                privacy_budget.epsilon, round_up=False
+            ).expr
+        elif isinstance(privacy_budget, RhoZCDPBudget):
+            output_measure = RhoZCDP()
+            sympy_budget = ExactNumber.from_float(
+                privacy_budget.rho, round_up=False
+            ).expr
+        else:
+            raise ValueError(
+                f"Unsupported PrivacyBudget variant: {type(privacy_budget)}"
+            )
+        # ensure we have a valid source dict for the NeighboringRelation,
+        # raising exception if not.
+        relation.validate_input(private_sources)
+
+        # Wrap relation in a Conjunction so that output is appropriate for
+        # PrivacyAccountant
+        domain, metric, distance, dataframes = Conjunction(relation).accept(
+            NeighboringRelationCoreVisitor(private_sources, output_measure)
+        )
+
+        compiler = QueryExprCompiler(output_measure=output_measure)
+
+        measurement = SequentialComposition(
+            input_domain=domain,
+            input_metric=metric,
+            d_in=distance,
+            privacy_budget=sympy_budget,
+            output_measure=output_measure,
+        )
+        accountant = PrivacyAccountant.launch(measurement, dataframes)
+        return Session(accountant=accountant, public_sources={}, compiler=compiler)
+
     @property
     def private_sources(self) -> List[str]:
         """Returns the ids of the private sources."""
@@ -649,7 +678,7 @@ class Session:
         """
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
-        if source_id in self._public_sources:
+        if source_id in self.public_sources:
             raise ValueError(
                 "This session already has a public source with the source_id"
                 f" {source_id}"

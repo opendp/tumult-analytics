@@ -25,6 +25,12 @@ from pyspark.sql.types import (
 )
 from typeguard import check_type
 
+from tmlt.analytics._neighboring_relations import (
+    AddRemoveRows,
+    AddRemoveRowsAcrossGroups,
+    Conjunction,
+    NeighboringRelation,
+)
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -113,6 +119,23 @@ def setup_test_data(spark, request) -> None:
 
     request.cls.join_df = join_df
 
+    join_df_col_types = Schema(
+        {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+        }
+    )
+    request.cls.join_df_col_types = join_df_col_types
+
+    join_df_input_domain = DictDomain(
+        {
+            "join_private": SparkDataFrameDomain(
+                analytics_to_spark_columns_descriptor(Schema(join_df_col_types))
+            )
+        }
+    )
+    request.cls.join_df_input_domain = join_df_input_domain
+
     private_schema = {
         "A": ColumnDescriptor(ColumnType.VARCHAR),
         "B": ColumnDescriptor(ColumnType.INTEGER),
@@ -126,6 +149,18 @@ def setup_test_data(spark, request) -> None:
     }
 
     request.cls.public_schema = public_schema
+
+    combined_input_domain = DictDomain(
+        {
+            "private": SparkDataFrameDomain(
+                analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
+            ),
+            "join_private": SparkDataFrameDomain(
+                analytics_to_spark_columns_descriptor(Schema(join_df_col_types))
+            ),
+        }
+    )
+    request.cls.combined_input_domain = combined_input_domain
 
 
 @pytest.mark.usefixtures("test_data")
@@ -272,6 +307,166 @@ class TestSession:
                 ].toPandas(),
                 self.sdf.toPandas(),
             )
+            mock_session_init.assert_called_with(
+                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
+            )
+
+    @pytest.mark.parametrize(
+        "budget,relation,expected_metric,expected_output_measure",
+        [
+            pytest.param(
+                PureDPBudget(float("inf")),
+                AddRemoveRows(table="private", n=6),
+                DictMetric(key_to_metric={"private": SymmetricDifference()}),
+                PureDP(),
+                id="addremoverows_session",
+            ),
+            pytest.param(
+                PureDPBudget(float("inf")),
+                AddRemoveRowsAcrossGroups(
+                    table="private", grouping_column="X", max_groups=3, per_group=2
+                ),
+                DictMetric(
+                    key_to_metric={
+                        "private": IfGroupedBy(
+                            column="X", inner_metric=SumOf(SymmetricDifference())
+                        )
+                    }
+                ),
+                PureDP(),
+                id="acrossgroupspuredp_session",
+            ),
+            pytest.param(
+                RhoZCDPBudget(float("inf")),
+                AddRemoveRowsAcrossGroups(
+                    table="private", grouping_column="X", max_groups=4, per_group=3
+                ),
+                DictMetric(
+                    key_to_metric={
+                        "private": IfGroupedBy(
+                            column="X",
+                            inner_metric=RootSumOfSquared(SymmetricDifference()),
+                        )
+                    }
+                ),
+                RhoZCDP(),
+                id="acrossgroupsrhozcdp_session",
+            ),
+        ],
+    )
+    def test_from_neighboring_relation_single(
+        self,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        relation: NeighboringRelation,
+        expected_metric: DictMetric,
+        expected_output_measure: Union[PureDP, RhoZCDP],
+    ):
+        """Tests that :func:`Session._from_neighboring_relation` works as expected
+        with a single relation.
+        """
+        with patch(
+            "tmlt.analytics.session.SequentialComposition", autospec=True
+        ) as mock_composition_init, patch.object(
+            Session, "__init__", autospec=True, return_value=None
+        ) as mock_session_init:
+            mock_composition_init.return_value = Mock(
+                spec_set=SequentialComposition,
+                return_value=Mock(
+                    spec_set=SequentialComposition,
+                    output_measure=expected_output_measure,
+                ),
+            )
+            mock_composition_init.return_value.privacy_budget = (
+                _privacy_budget_to_exact_number(budget)
+            )
+            mock_composition_init.return_value.d_in = {"private": 6}
+
+            Session._from_neighboring_relation(  # pylint: disable=protected-access
+                privacy_budget=budget,
+                private_sources={"private": self.sdf},
+                relation=relation,
+            )
+
+            mock_composition_init.assert_called_with(
+                input_domain=self.sdf_input_domain,
+                input_metric=expected_metric,
+                d_in={"private": 6},
+                privacy_budget=sp.oo,
+                output_measure=expected_output_measure,
+            )
+
+            mock_session_init.assert_called_with(
+                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
+            )
+
+    @pytest.mark.parametrize(
+        "budget,relation,expected_metric,expected_output_measure",
+        [
+            pytest.param(
+                PureDPBudget(float("inf")),
+                Conjunction(
+                    AddRemoveRows(table="private", n=6),
+                    AddRemoveRowsAcrossGroups(
+                        table="join_private",
+                        grouping_column="A+B",
+                        max_groups=3,
+                        per_group=3,
+                    ),
+                ),
+                DictMetric(
+                    key_to_metric={
+                        "join_private": IfGroupedBy(
+                            column="A+B", inner_metric=SumOf(SymmetricDifference())
+                        ),
+                        "private": SymmetricDifference(),
+                    }
+                ),
+                PureDP(),
+                id="conjunction_session",
+            )
+        ],
+    )
+    def test_from_neighboring_relation_conjunction(
+        self,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        relation: NeighboringRelation,
+        expected_metric: DictMetric,
+        expected_output_measure: Union[PureDP, RhoZCDP],
+    ):
+        """Tests that :func:`Session._from_neighboring_relation` works as expected
+        when passed a conjunction.
+        """
+        with patch(
+            "tmlt.analytics.session.SequentialComposition", autospec=True
+        ) as mock_composition_init, patch.object(
+            Session, "__init__", autospec=True, return_value=None
+        ) as mock_session_init:
+            mock_composition_init.return_value = Mock(
+                spec_set=SequentialComposition,
+                return_value=Mock(
+                    spec_set=SequentialComposition,
+                    output_measure=expected_output_measure,
+                ),
+            )
+            mock_composition_init.return_value.privacy_budget = (
+                _privacy_budget_to_exact_number(budget)
+            )
+            mock_composition_init.return_value.d_in = {"private": 6, "join_private": 9}
+
+            Session._from_neighboring_relation(  # pylint: disable=protected-access
+                privacy_budget=budget,
+                private_sources={"private": self.sdf, "join_private": self.join_df},
+                relation=relation,
+            )
+
+            mock_composition_init.assert_called_with(
+                input_domain=self.combined_input_domain,
+                input_metric=expected_metric,
+                d_in={"private": 6, "join_private": 9},
+                privacy_budget=sp.oo,
+                output_measure=expected_output_measure,
+            )
+
             mock_session_init.assert_called_with(
                 self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
             )
@@ -1412,65 +1607,57 @@ class TestSessionBuilder:
         public_dataframes: List[str],
     ):
         """Tests that building a Session works correctly."""
-        with patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
-            # Set up the builder.
-            expected_private_sources, expected_public_sources = dict(), dict()
-            expected_stabilities = dict()
-            for source_id, stability in private_dataframes:
-                builder = builder.with_private_dataframe(
-                    source_id=source_id,
-                    dataframe=self.dataframes[source_id],
-                    protected_change=AddMaxRows(stability),
-                )
-                expected_private_sources[source_id] = self.dataframes[source_id]
-                expected_stabilities[source_id] = stability
-
-            for source_id in public_dataframes:
-                builder = builder.with_public_dataframe(
-                    source_id=source_id, dataframe=self.dataframes[source_id]
-                )
-                expected_public_sources[source_id] = self.dataframes[source_id]
-
-            # Build the session and verify that it worked.
-            builder.build()
-
-            session_init_kwargs = mock_session_init.call_args[1]
-            assert all(
-                key in session_init_kwargs
-                for key in ["accountant", "public_sources", "compiler"]
+        # Set up the builder.
+        expected_private_sources, expected_public_sources = dict(), dict()
+        expected_stabilities = dict()
+        for source_id, stability in private_dataframes:
+            builder = builder.with_private_dataframe(
+                source_id=source_id,
+                dataframe=self.dataframes[source_id],
+                protected_change=AddMaxRows(stability),
             )
-            accountant = session_init_kwargs["accountant"]
-            assert isinstance(accountant, PrivacyAccountant)
-            assert (
-                accountant.privacy_budget
-                == expected_sympy_budget
-                == accountant.privacy_budget
+            expected_private_sources[source_id] = self.dataframes[source_id]
+            expected_stabilities[source_id] = stability
+
+        for source_id in public_dataframes:
+            builder = builder.with_public_dataframe(
+                source_id=source_id, dataframe=self.dataframes[source_id]
             )
-            assert accountant.output_measure == expected_output_measure
-            for source_id in expected_private_sources:
-                # pylint: disable=protected-access
-                assert accountant._queryable is not None
-                assert isinstance(accountant._queryable, SequentialQueryable)
-                assert_frame_equal_with_sort(
-                    accountant._queryable._data[source_id].toPandas(),
-                    expected_private_sources[source_id].toPandas(),
-                )
-                # pylint: enable=protected-access
-            assert accountant.d_in == expected_stabilities
+            expected_public_sources[source_id] = self.dataframes[source_id]
 
-            public_sources = session_init_kwargs["public_sources"]
-            assert public_sources.keys() == expected_public_sources.keys()
-            for key in public_sources:
-                assert_frame_equal_with_sort(
-                    public_sources[key].toPandas(),
-                    expected_public_sources[key].toPandas(),
-                )
+        # Build the session and verify that it worked.
+        session = builder.build()
+        # pylint: disable=protected-access
+        accountant = session._accountant
+        assert isinstance(accountant, PrivacyAccountant)
+        assert (
+            accountant.privacy_budget
+            == expected_sympy_budget
+            == accountant.privacy_budget
+        )
+        assert accountant.output_measure == expected_output_measure
+        for source_id in expected_private_sources:
 
-            compiler = session_init_kwargs["compiler"]
-            assert isinstance(compiler, QueryExprCompiler)
-            assert compiler.output_measure == expected_output_measure
+            assert accountant._queryable is not None
+            assert isinstance(accountant._queryable, SequentialQueryable)
+            assert_frame_equal_with_sort(
+                accountant._queryable._data[source_id].toPandas(),
+                expected_private_sources[source_id].toPandas(),
+            )
+
+        assert accountant.d_in == expected_stabilities
+
+        public_sources = session._public_sources
+        assert public_sources.keys() == expected_public_sources.keys()
+        for key in public_sources:
+            assert_frame_equal_with_sort(
+                public_sources[key].toPandas(), expected_public_sources[key].toPandas()
+            )
+
+        compiler = session._compiler
+        # pylint: enable=protected-access
+        assert isinstance(compiler, QueryExprCompiler)
+        assert compiler.output_measure == expected_output_measure
 
     @pytest.mark.parametrize("nullable", [(True), (False)])
     def test_builder_with_dataframe_keep_nullable_status(self, spark, nullable: bool):
