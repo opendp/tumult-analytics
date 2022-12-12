@@ -362,40 +362,19 @@ class TestSession:
         """Tests that :func:`Session._from_neighboring_relation` works as expected
         with a single relation.
         """
-        with patch(
-            "tmlt.analytics.session.SequentialComposition", autospec=True
-        ) as mock_composition_init, patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
-            mock_composition_init.return_value = Mock(
-                spec_set=SequentialComposition,
-                return_value=Mock(
-                    spec_set=SequentialComposition,
-                    output_measure=expected_output_measure,
-                ),
-            )
-            mock_composition_init.return_value.privacy_budget = (
-                _privacy_budget_to_exact_number(budget)
-            )
-            mock_composition_init.return_value.d_in = {"private": 6}
 
-            Session._from_neighboring_relation(  # pylint: disable=protected-access
-                privacy_budget=budget,
-                private_sources={"private": self.sdf},
-                relation=relation,
-            )
-
-            mock_composition_init.assert_called_with(
-                input_domain=self.sdf_input_domain,
-                input_metric=expected_metric,
-                d_in={"private": 6},
-                privacy_budget=sp.oo,
-                output_measure=expected_output_measure,
-            )
-
-            mock_session_init.assert_called_with(
-                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
-            )
+        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+            privacy_budget=budget,
+            private_sources={"private": self.sdf},
+            relation=relation,
+        )
+        # pylint: disable=protected-access
+        assert sess._input_domain == self.sdf_input_domain
+        assert sess._input_metric == expected_metric
+        assert sess._accountant.d_in == {"private": 6}
+        assert sess._accountant.privacy_budget == sp.oo
+        assert sess._accountant.output_measure == expected_output_measure
+        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "budget,relation,expected_metric,expected_output_measure",
@@ -434,40 +413,19 @@ class TestSession:
         """Tests that :func:`Session._from_neighboring_relation` works as expected
         when passed a conjunction.
         """
-        with patch(
-            "tmlt.analytics.session.SequentialComposition", autospec=True
-        ) as mock_composition_init, patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
-            mock_composition_init.return_value = Mock(
-                spec_set=SequentialComposition,
-                return_value=Mock(
-                    spec_set=SequentialComposition,
-                    output_measure=expected_output_measure,
-                ),
-            )
-            mock_composition_init.return_value.privacy_budget = (
-                _privacy_budget_to_exact_number(budget)
-            )
-            mock_composition_init.return_value.d_in = {"private": 6, "join_private": 9}
+        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+            privacy_budget=budget,
+            private_sources={"private": self.sdf, "join_private": self.join_df},
+            relation=relation,
+        )
 
-            Session._from_neighboring_relation(  # pylint: disable=protected-access
-                privacy_budget=budget,
-                private_sources={"private": self.sdf, "join_private": self.join_df},
-                relation=relation,
-            )
-
-            mock_composition_init.assert_called_with(
-                input_domain=self.combined_input_domain,
-                input_metric=expected_metric,
-                d_in={"private": 6, "join_private": 9},
-                privacy_budget=sp.oo,
-                output_measure=expected_output_measure,
-            )
-
-            mock_session_init.assert_called_with(
-                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
-            )
+        # pylint: disable=protected-access
+        assert sess._input_domain == self.combined_input_domain
+        assert sess._input_metric == expected_metric
+        assert sess._accountant.d_in == {"private": 6, "join_private": 9}
+        assert sess._accountant.privacy_budget == sp.oo
+        assert sess._accountant.output_measure == expected_output_measure
+        # pylint: enable=protected-access
 
     def test_add_public_dataframe(self):
         """Tests that :func:`add_public_dataframe` works correctly."""
