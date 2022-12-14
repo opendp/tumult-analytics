@@ -36,6 +36,7 @@ variables:
     #              groups with `--only` instead of using --constraint.
     - pip install nox nox-poetry --constraint=<(poetry export --dev -f constraints.txt --without-hashes)
   artifacts:
+    when: always
     expire_in: 1 week
   cache:
     # Cache the pip cache. While the cache could be persisted across changes to
@@ -99,7 +100,6 @@ test:
     paths: ["coverage/"]
     reports:
       junit: junit.xml
-    when: always
     expose_as: "Coverage"
   timeout: 1h
   rules:
