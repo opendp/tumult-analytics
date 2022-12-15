@@ -21,6 +21,7 @@ import re
 import subprocess
 import tempfile
 from functools import wraps
+from glob import glob
 from pathlib import Path
 from typing import Dict, List
 
@@ -50,22 +51,6 @@ MIN_COVERAGE = 75
 test suite), fail if test coverage falls below this percentage."""
 
 
-DEPENDENCY_OVERRIDES: Dict[str, Dict] = {
-    "CORE_COMMIT_HASH": {
-        "package": "git+https://gitlab.com/tumult-labs/core.git@{commit_hash}",
-        "package_params": {
-            "commit_hash": os.environ.get("CORE_COMMIT_HASH"),
-        },
-        "pip_extra_args": ["--force-reinstall", "--no-deps"]
-    }
-}
-"""Configuration for overriding dependency versions. If the top-level key is set
-as an environment variable, format the package key using package_params, then
-install the result with pip_extra_args set. See _install_overrides.
-
-Note that if the package is given as a URL with a username and password, that
-username and password may be printed in the nox output.
-"""
 # This note about credentials for dependency URLs is not currently relevant, but
 # if it becomes a problem _install_overrides can be modified to write
 # dependencies out to a requirements file and install from there.
@@ -91,12 +76,21 @@ PACKAGE_VERSION = subprocess.run(
 #### Utility functions ####
 
 def _install_overrides(session):
-    """Handles overriding dependency versions, per DEPENDENCY_OVERRIDES."""
-    for dep in DEPENDENCY_OVERRIDES:
-        if os.environ.get(dep):
-            package_params = DEPENDENCY_OVERRIDES[dep]["package_params"]
-            package = DEPENDENCY_OVERRIDES[dep]["package"].format(**package_params)
-            session.install(package, *DEPENDENCY_OVERRIDES[dep]["pip_extra_args"])
+    """Handles overriding dependency versions."""
+    # Install Core from dist/, if it exists there
+    if os.environ.get("PARENT_PIPELINE_ID"):
+        core_wheels = glob(r"./dist/*tmlt_core*-cp37*")
+        if len(core_wheels) == 0:
+            raise AssertionError("Expected a core wheel since PARENT_PIPELINE_ID was set "
+                f"(to {os.environ.get('PARENT_PIPELINE_ID')}), but didn't find any. "
+                f"There should be one in dist/, which contains: {glob(r'dist/*')}, "
+            )
+        # Poetry is going to expect, and require, Core version X.Y.Z (ex. "0.6.2"),
+        # but the Gitlab-built Core will have a version number
+        # X.Y.Z-<some other stuff>-<git commit hash>
+        # (ex. "0.6.2-post11+ea346f3")
+        # This overrides Poetry's dependencies with our own
+        session.poetry.session.install(core_wheels[0])
 
 def install(*decorator_args, **decorator_kwargs):
     """Install packages into the test virtual environment.
