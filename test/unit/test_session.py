@@ -6,7 +6,7 @@
 # pylint: disable=no-self-use, unidiomatic-typecheck, no-member
 
 import re
-from typing import Any, Dict, List, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
 
 import pandas as pd
@@ -1491,6 +1491,41 @@ class TestSessionBuilder:
         with pytest.raises(ValueError, match="Stability must be a positive integer"):
             Session.Builder().with_private_dataframe(
                 source_id="df1", dataframe=self.dataframes["df1"], stability=-1
+            )
+
+    @pytest.mark.parametrize(
+        "stability,grouping_column,error_msg",
+        [
+            (None, None, "Using a default for protected_change is deprecated"),
+            (
+                None,
+                "A",
+                "Providing a grouping_column parameter instead of a protected_change"
+                " parameter is deprecated",
+            ),
+            (
+                1,
+                None,
+                "Providing a stability instead of a protected_change is deprecated",
+            ),
+            (
+                1,
+                "A",
+                "Providing a grouping_column parameter instead of a protected_change"
+                " parameter is deprecated",
+            ),
+        ],
+    )
+    def test_stability_deprecation(
+        self, stability: Optional[int], grouping_column: Optional[str], error_msg: str
+    ):
+        """Test that stability and grouping_column give deprecation warnings."""
+        with pytest.warns(DeprecationWarning, match=error_msg):
+            Session.Builder().with_private_dataframe(
+                source_id="df1",
+                dataframe=self.dataframes["df1"],
+                stability=stability,
+                grouping_column=grouping_column,
             )
 
     @pytest.mark.parametrize("initial_budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
