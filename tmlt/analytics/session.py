@@ -225,16 +225,30 @@ class Session:
                 )
                 return self
 
-            # TODO(#2302): All paths through the below need deprecation
+            # TODO(#2722): All paths through the below need deprecation
             #     warnings, for either the use of stability/grouping_column or
             #     the assumption of AddOneRow() if no stability is specified.
             if stability is None:
+                warn(
+                    "Using a default for protected_change is deprecated. Future code"
+                    " should explicitly specify protected_change=AddOneRow()",
+                    DeprecationWarning,
+                )
                 if grouping_column is None:
                     protected_change = AddOneRow()
                 else:
+                    warn(
+                        "Providing a grouping_column parameter instead of a"
+                        " protected_change parameter is deprecated",
+                        DeprecationWarning,
+                    )
                     protected_change = AddMaxRowsInMaxGroups(grouping_column, 1, 1)
                     grouping_column = None
             else:
+                warn(
+                    "Providing a stability instead of a protected_change is deprecated",
+                    DeprecationWarning,
+                )
                 if stability < 1:
                     raise ValueError("Stability must be a positive integer.")
 
@@ -246,6 +260,11 @@ class Session:
                         )
                     protected_change = AddMaxRows(stability)
                 else:
+                    warn(
+                        "Providing a grouping_column parameter instead of a"
+                        " protected_change parameter is deprecated",
+                        DeprecationWarning,
+                    )
                     if not isinstance(stability, (int, float)):
                         raise ValueError("stability must be a numeric value")
                     protected_change = AddMaxRowsInMaxGroups(
