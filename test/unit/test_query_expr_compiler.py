@@ -2,7 +2,7 @@
 """Tests for QueryExprCompiler."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 # pylint: disable= no-member, protected-access, no-self-use
 
 import datetime

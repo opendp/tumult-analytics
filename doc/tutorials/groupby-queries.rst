@@ -5,7 +5,7 @@ Tutorial 4: Group-by queries
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 In all previous tutorials, all aggregations we saw were global aggregations,
 returning a single statistic for all the data. But many common data analysis

@@ -1,7 +1,7 @@
 """Unit tests for :mod:`~tmlt.analytics.utils`."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 from tmlt.analytics.utils import check_installation
 
 
