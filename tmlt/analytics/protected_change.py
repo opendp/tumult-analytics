@@ -1,6 +1,6 @@
 """Types for programmatically specifying what changes in input tables are protected."""
 
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 # SPDX-License-Identifier: Apache-2.0
 from abc import ABC
 from dataclasses import dataclass

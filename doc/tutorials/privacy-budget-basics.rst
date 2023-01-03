@@ -5,7 +5,7 @@ Tutorial 2: Working with privacy budgets
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 
 In our :ref:`first tutorial<First steps>`, we saw how to run a simple aggregation

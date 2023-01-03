@@ -5,7 +5,7 @@ Tutorial 5: Simple transformations
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 So far we have learned how to perform aggregations on our data, but sometimes we need
 to transform our data before they are ready to be aggregated. In this tutorial, we'll
@@ -135,19 +135,25 @@ containing the calculated age.
     print(age_joined(example_row))
 
 .. testoutput::
+   :hide:
+   :options: +NORMALIZE_WHITESPACE
 
-    {'age_joined': 50}
+    {'age_joined': ...}
+
+.. code-block::
+
+    {'age_joined': 49}
 
 Now that we have our mapping function, we can use it in a query.
 
-To add the map to our query, we also need to provide the `new_column_types`. It should
+To add the map to our query, we also need to provide the ``new_column_types``. It should
 be a dictionary containing the names and types for each of the columns created by the
-map. In this case, the type is `INTEGER`.
+map. In this case, the type is ``INTEGER``.
 
-We also set `augment=True`. This tells the query to keep the original columns in
-addition to the columns created by the map. If we used `augment=False`, the `gender`
+We also set ``augment=True``. This tells the query to keep the original columns in
+addition to the columns created by the map. If we used ``augment=False``, the ``gender``
 column would no longer be available: the only column in the transformed data would be
-`age_joined`.
+``age_joined``.
 
 .. testcode::
 
@@ -226,16 +232,16 @@ each of their favorite genres (up to three times as many rows).
 
     [{'genre': 'Romance'}, {'genre': 'Classics/Literature'}, {'genre': 'Current affairs'}]
 
-Like `map`, `flat_map` has the `new_column_types` and `augment` options. In this
-example, we leave `augment` with its default value of `False`.
+Like ``map``, ``flat_map`` has the ``new_column_types`` and ``augment`` options.
+In this example, we leave ``augment`` with its default value of ``False``.
 
-Unlike `map`, `flat_map` has an argument `max_num_rows`. It clamps the maximum number
+Unlike ``map``, ``flat_map`` has an argument ``max_num_rows``. It clamps the maximum number
 of new rows that can be created for each input row. This serves a similar function as
 the clamping bounds on aggregations we used in :ref:`tutorial 3 <Clamping bounds>`, and
-also has the analogous trade-offs: higher values for `max_num_rows` will result in more
+also has the analogous trade-offs: higher values for ``max_num_rows`` will result in more
 noise in the final results, while lower values may cause more rows to be silently
 dropped. In this case, the choice is easy: no members have more than three favorites and
-there are many members with three, so we set `max_num_rows=3`.
+there are many members with three, so we set ``max_num_rows=3``.
 
 .. testcode::
 

@@ -19,7 +19,7 @@ More details on the exact privacy promise provided by :class:`Session` can be
 found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 """
 
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 # SPDX-License-Identifier: Apache-2.0
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn

@@ -1,7 +1,7 @@
 """Logic for coercing Spark dataframes into forms usable by Tumult Analytics."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 
 from typing import Dict
 

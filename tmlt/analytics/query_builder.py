@@ -26,7 +26,7 @@ differentially private results to the query.
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
+# Copyright Tumult Labs 2023
 
 import datetime
 import warnings

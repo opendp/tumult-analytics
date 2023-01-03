@@ -5,7 +5,7 @@ Tutorials
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 The following tutorials introduce the key pieces of the Analytics API,
 and help you get started making differentially private queries.

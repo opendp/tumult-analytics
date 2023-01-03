@@ -5,7 +5,7 @@ Nulls, NaNs, and infinite values
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 This topic guide details how 
 `null values <https://en.wikipedia.org/wiki/Null_(SQL)>`__,
