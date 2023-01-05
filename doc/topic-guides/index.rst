@@ -18,3 +18,4 @@ to the Tumult Analytics library.
     privacy-budgets
     spark
     nulls-nans-infinities
+    bigquery/index
