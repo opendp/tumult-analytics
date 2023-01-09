@@ -1,9 +1,9 @@
-# type: ignore[attr-defined]
 """System tests for Session."""
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable=no-member, no-self-use
 
+# pylint: disable=no-member, no-self-use
 
 import datetime
 import math
@@ -686,6 +686,14 @@ def dfs_setup(spark, request):
 @pytest.mark.usefixtures("session_data")
 class TestSession:
     """Tests for Valid Sessions."""
+
+    sdf: DataFrame
+    join_df: DataFrame
+    join_dtypes_df: DataFrame
+    groupby_two_columns_df: DataFrame
+    groupby_one_column_df: DataFrame
+    groupby_with_duplicates_df: DataFrame
+    groupby_empty_df: DataFrame
 
     @pytest.mark.parametrize("query_expr,expected_expr,expected_df", EVALUATE_TESTS)
     def test_queries_privacy_budget_infinity_puredp(
@@ -1597,7 +1605,7 @@ class TestSession:
 
 ###TESTS FOR INVALID SESSION###
 @pytest.fixture(name="invalid_session_data", scope="class")
-def invalid_dfs_setup(spark, request) -> Dict[str, Union[Dict, DataFrame]]:
+def invalid_dfs_setup(spark, request) -> None:
     """Set up test data."""
     sdf = spark.createDataFrame(
         pd.DataFrame(
@@ -1619,6 +1627,10 @@ def invalid_dfs_setup(spark, request) -> Dict[str, Union[Dict, DataFrame]]:
 @pytest.mark.usefixtures("invalid_session_data")
 class TestInvalidSession:
     """Tests for Invalid Sessions."""
+
+    sdf: DataFrame
+    sdf_col_types: Dict[str, str]
+    sdf_input_domain: SparkDataFrameDomain
 
     @pytest.mark.parametrize(
         "query_expr,error_type,expected_error_msg",
@@ -1810,6 +1822,9 @@ def null_setup(spark, request):
 @pytest.mark.usefixtures("null_session_data")
 class TestSessionWithNulls:
     """Tests for sessions with Nulls."""
+
+    pdf: pd.DataFrame
+    sdf: DataFrame
 
     def _expected_replace(self, d: Mapping[str, Any]) -> pd.DataFrame:
         """The expected value if you replace None with default values in d."""
@@ -2095,6 +2110,9 @@ def infs_setup(spark, request):
 @pytest.mark.usefixtures("infs_test_data")
 class TestSessionWithInfs:
     """Tests for Sessions with Infs."""
+
+    pdf: pd.DataFrame
+    sdf: DataFrame
 
     @pytest.mark.parametrize(
         "replace_with,",

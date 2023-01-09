@@ -1,10 +1,9 @@
-# type: ignore[attr-defined]
 """Tests for MeasurementVisitor."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable=protected-access, pointless-string-statement, no-member, no-self-use
 
+# pylint: disable=protected-access, no-member, no-self-use
 
 from typing import Dict, List, Optional, Tuple, Union
 from unittest.mock import patch
@@ -106,7 +105,7 @@ def chain_to_list(t: ChainTT) -> List[Transformation]:
     return left + right
 
 
-"""Tests just for _get_query_bounds."""
+### Tests just for _get_query_bounds. ###
 
 
 @pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
@@ -328,7 +327,7 @@ def prepare_visitor(spark, request):
     request.cls.base_query = PrivateSource(source_id="private")
 
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -350,17 +349,15 @@ def prepare_visitor(spark, request):
                 ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
             ),
         },
-        stability=3,
     )
-    catalog.add_private_view(
+    catalog.add_private_table(
         "private_2",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "C": ColumnDescriptor(ColumnType.INTEGER),
         },
-        stability=3,
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "public",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -397,6 +394,11 @@ def prepare_visitor(spark, request):
 @pytest.mark.usefixtures("test_data")
 class TestMeasurementVisitor:
     """Tests for Measurement Visitor."""
+
+    visitor: MeasurementVisitor
+    pick_noise_visitor: MeasurementVisitor
+    catalog: Catalog
+    base_query: QueryExpr
 
     @pytest.mark.parametrize(
         "query_mechanism,output_measure,expected_mechanism",
@@ -1377,6 +1379,7 @@ class TestMeasurementVisitor:
             mock_create_count.return_value = mock_measurement
 
             measurement = self.visitor.visit_groupby_count(query)
+            assert isinstance(measurement, ChainTM)
 
             self._check_measurement(measurement, query.child == self.base_query)
             self.check_mock_groupby_call(

@@ -1,19 +1,19 @@
-# type: ignore[attr-defined]
 """Tests for QueryExprCompiler."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable= no-member, protected-access, no-self-use
+
+# pylint: disable=no-member, protected-access, no-self-use
 
 import datetime
-from typing import List, Union
+from typing import Any, Dict, List, Union
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 import sympy as sp
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col  # pylint: disable=no-name-in-module
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
 from pyspark.sql.types import (
     DateType,
     DoubleType,
@@ -69,10 +69,7 @@ from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 
-from ..conftest import (  # pylint: disable=no-name-in-module
-    assert_frame_equal_with_sort,
-    create_mock_measurement,
-)
+from ..conftest import assert_frame_equal_with_sort, create_mock_measurement
 
 GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
 GROUPBY_TWO_SCHEMA = StructType(
@@ -551,24 +548,22 @@ def setup(spark, request) -> None:
     request.cls.input_domain = input_domain
 
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
             "X": ColumnDescriptor(ColumnType.DECIMAL),
         },
-        stability=3,
     )
-    catalog.add_private_view(
+    catalog.add_private_table(
         "private_2",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "C": ColumnDescriptor(ColumnType.INTEGER),
         },
-        stability=3,
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "public",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -576,7 +571,7 @@ def setup(spark, request) -> None:
             "A+B": ColumnDescriptor(ColumnType.INTEGER),
         },
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "dtypes",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -588,14 +583,14 @@ def setup(spark, request) -> None:
             "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
         },
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_two_columns",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
         },
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_one_column", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
     )
 
@@ -615,6 +610,17 @@ class TestQueryExprCompiler:
 
     Tests :class:`~tmlt.analytics._query_expr_compiler.QueryExprCompiler`.
     """
+
+    sdf: DataFrame
+    dtypes_df: DataFrame
+    join_df: DataFrame
+    groupby_one_column_df: DataFrame
+    groupby_two_columns_df: DataFrame
+    stability: Dict[str, Any]
+    input_domain: DictDomain
+    input_metric: DictMetric
+    catalog: Catalog
+    compiler: QueryExprCompiler
 
     @pytest.mark.parametrize(
         "query_expr,expected",
@@ -1345,14 +1351,13 @@ class TestQueryExprCompiler:
 
     def test_different_source_id(self):
         """Tests that different source ids are allowed."""
-        self.catalog.add_private_view(
+        self.catalog.add_private_table(
             source_id="doubled",
             col_types={
                 "A": ColumnType.VARCHAR,
                 "B": ColumnType.INTEGER,
                 "X": ColumnType.DECIMAL,
             },
-            stability=self.catalog.private_table.stability * 2,
         )
         query_exprs = [
             GroupByCount(
@@ -1426,13 +1431,12 @@ class TestCompileGroupByQuantile:
             )
         )
         catalog = Catalog()
-        catalog.add_private_source(
+        catalog.add_private_table(
             "private",
             {
                 "Gender": ColumnDescriptor(ColumnType.VARCHAR),
                 "Age": ColumnDescriptor(ColumnType.INTEGER),
             },
-            stability=1,
         )
         stability = {"private": sp.Integer(1)}
         input_domain = DictDomain(
@@ -1493,16 +1497,20 @@ def setup_components(request):
     )
     request.cls._input_metric = DictMetric({"test": SymmetricDifference()})
     request.cls._catalog = Catalog()
-    request.cls._catalog.add_private_source(
-        source_id="test",
-        col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER},
-        stability=3,
+    request.cls._catalog.add_private_table(
+        source_id="test", col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER}
     )
 
 
 @pytest.mark.usefixtures("test_component_data")
 class TestComponentIsUsed:
     """Tests that specific components are used inside of compiled measurements."""
+
+    _stability: Dict[str, sp.Integer]
+    _privacy_budget: sp.Integer
+    _input_domain: DictDomain
+    _input_metric: DictMetric
+    _catalog: Catalog
 
     @pytest.mark.parametrize(
         "output_measure,query_expr,column,preprocessing_stability",

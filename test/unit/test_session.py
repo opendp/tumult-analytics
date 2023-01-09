@@ -1,8 +1,8 @@
-# type: ignore[attr-defined]
 """Unit tests for Session."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
+
 # pylint: disable=no-self-use, unidiomatic-typecheck, no-member
 
 import re
@@ -12,7 +12,7 @@ from unittest.mock import ANY, Mock, patch
 import pandas as pd
 import pytest
 import sympy as sp
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     BooleanType,
     DoubleType,
@@ -166,6 +166,16 @@ def setup_test_data(spark, request) -> None:
 @pytest.mark.usefixtures("test_data")
 class TestSession:
     """Tests for :class:`~tmlt.analytics.session.Session`."""
+
+    sdf: DataFrame
+    sdf_col_types: Schema
+    sdf_input_domain: DictDomain
+    join_df: DataFrame
+    join_col_types: Schema
+    join_input_domain: DictDomain
+    private_schema: Dict[str, ColumnDescriptor]
+    public_schema: Dict[str, ColumnDescriptor]
+    combined_input_domain: DictDomain
 
     @pytest.mark.parametrize(
         "budget_value,output_measure,expected_budget",
@@ -922,7 +932,11 @@ def setup_invalid_session_data(spark, request) -> None:
 class TestInvalidSession:
     """Unit tests for invalid session."""
 
-    spark: SparkSession
+    pdf: pd.DataFrame
+    sdf: DataFrame
+    sdf_col_types: Dict[str, ColumnDescriptor]
+    sdf_input_domain: SparkDataFrameDomain
+    schema: Dict[str, ColumnDescriptor]
 
     def _setup_accountant(self, mock_accountant) -> None:
         mock_accountant.output_measure = PureDP()
@@ -1463,6 +1477,8 @@ def setup_session_build_data(spark, request):
 @pytest.mark.usefixtures("session_builder_data")
 class TestSessionBuilder:
     """Tests for :class:`~tmlt.analytics.session.Session.Builder`."""
+
+    dataframes: Dict[str, DataFrame]
 
     @pytest.mark.parametrize(
         "builder,error_msg",

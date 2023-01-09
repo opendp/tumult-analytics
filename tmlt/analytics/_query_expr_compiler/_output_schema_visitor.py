@@ -8,7 +8,7 @@ from typing import KeysView, List, Optional, Union, cast
 
 from pyspark.sql import SparkSession
 
-from tmlt.analytics._catalog import Catalog, PrivateTable, PrivateView, PublicTable
+from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -241,10 +241,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = PrivateSource("private")
@@ -254,7 +253,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         if expr.source_id not in self._catalog.tables:
             raise ValueError(f"Query references invalid source '{expr.source_id}'.")
         table = self._catalog.tables[expr.source_id]
-        if not isinstance(table, (PrivateTable, PrivateView)):
+        if not isinstance(table, PrivateTable):
             raise ValueError(
                 f"Attempted query on '{expr.source_id}'. "
                 f"'{expr.source_id}' is not a private table."
@@ -270,10 +269,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Rename(PrivateSource("private"), {"B": "C"})
@@ -311,10 +309,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Filter(PrivateSource("private"), 'B > 10')
@@ -343,10 +340,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = Select(PrivateSource("private"), ["A"])
@@ -378,13 +374,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={
             ...         "A": ColumnType.VARCHAR,
             ...         "B": ColumnType.INTEGER,
             ...     },
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query1 = Map( # Augment = False example
@@ -437,10 +432,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query1 = FlatMap( # Augment = False example
@@ -522,7 +516,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="left_source",
             ...     col_types={
             ...         "left_only": ColumnType.DECIMAL,
@@ -530,9 +524,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...         "common2": ColumnType.VARCHAR,
             ...         "common3": ColumnType.INTEGER
             ...     },
-            ...     stability=1,
             ... )
-            >>> catalog.add_private_view(
+            >>> catalog.add_private_table(
             ...     source_id="right_source",
             ...     col_types={
             ...         "common1": ColumnType.INTEGER,
@@ -540,7 +533,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
             ...         "common3": ColumnType.INTEGER,
             ...         "right_only": ColumnType.VARCHAR,
             ...    },
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> # join_columns default behavior is ["common1", "common2", "common3"]
@@ -580,13 +572,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> catalog.add_public_source(
+            >>> catalog.add_public_table(
             ...     "public", {"B": ColumnType.INTEGER, "C": ColumnType.DECIMAL}
             ... )
             >>> query = JoinPublic(
@@ -793,10 +784,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByCount(
@@ -819,10 +809,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByCountDistinct(
@@ -845,10 +834,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByQuantile(
@@ -875,10 +863,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByBoundedSum(
@@ -904,10 +891,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByBoundedAverage(
@@ -933,10 +919,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByBoundedAverage(
@@ -962,10 +947,9 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Example:
             >>> catalog = Catalog()
-            >>> catalog.add_private_source(
+            >>> catalog.add_private_table(
             ...     source_id="private",
             ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ...     stability=1,
             ... )
             >>> output_schema_visitor = OutputSchemaVisitor(catalog)
             >>> query = GroupByBoundedSTDEV(
