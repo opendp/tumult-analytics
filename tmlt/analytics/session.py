@@ -610,37 +610,17 @@ class Session:
 
     @property
     def _catalog(self) -> Catalog:
-        """Returns the catalog."""
+        """Returns a Catalog of tables in the Session."""
         catalog = Catalog()
-        primary_source_id = list(self.private_sources)[0]
-        view_source_ids = [
-            source_id
-            for source_id in self.private_sources
-            if source_id != primary_source_id
-        ]
-        catalog.add_private_source(
-            source_id=primary_source_id,
-            col_types=self.get_schema(primary_source_id),
-            # Catalogs require an integral stability. The catalog is only used for query
-            # validation, so using the incorrect stability (if the true stability is
-            # non-integral) is ok.
-            stability=int(self._stability[primary_source_id]),
-            grouping_column=self.get_grouping_column(primary_source_id),
-        )
-        for view_source_id in view_source_ids:
-            catalog.add_private_view(
-                view_source_id,
-                self.get_schema(view_source_id),
-                # Catalogs require integral stability, see note above.
-                int(self._stability[view_source_id]),
-                self.get_grouping_column(view_source_id),
+        for table in self.private_sources:
+            catalog.add_private_table(
+                table, self.get_schema(table), self.get_grouping_column(table)
             )
-
-        for public_source_id in self.public_sources:
-            catalog.add_public_source(
-                public_source_id,
+        for table in self.public_sources:
+            catalog.add_public_table(
+                table,
                 spark_schema_to_analytics_columns(
-                    self.public_source_dataframes[public_source_id].schema
+                    self.public_source_dataframes[table].schema
                 ),
             )
         return catalog

@@ -1,6 +1,10 @@
-# type: ignore[attr-defined]
-# pylint: disable=no-self-use, protected-access, no-member
 """Tests for OutputSchemaVisitor."""
+
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2023
+
+# pylint: disable=no-self-use, protected-access, no-member
+
 import datetime
 import re
 from typing import Dict, List, Type
@@ -302,7 +306,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
 def setup_validation(request):
     """Set up test data."""
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -311,31 +315,28 @@ def setup_validation(request):
             "D": ColumnDescriptor(ColumnType.DATE),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP),
         },
-        stability=1,
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema)
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_a",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_A().schema),
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_b",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_B().schema),
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_non_existing_column",
         spark_schema_to_analytics_columns(GET_GROUPBY_NON_EXISTING_COLUMN().schema),
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_wrong_type",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
     )
-    catalog.add_private_view(
-        "groupby_one_column_private",
-        {"A": ColumnDescriptor(ColumnType.VARCHAR)},
-        stability=1,
+    catalog.add_private_table(
+        "groupby_one_column_private", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
     )
     visitor = OutputSchemaVisitor(catalog)
     request.cls.visitor = visitor
@@ -344,6 +345,8 @@ def setup_validation(request):
 @pytest.mark.usefixtures("validation_visitor")
 class TestValidation:
     """Test Validation with Visitor."""
+
+    visitor: OutputSchemaVisitor
 
     @pytest.mark.parametrize(
         "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS
@@ -460,10 +463,10 @@ class TestValidation:
 
 ###QUERY VALIDATION WITH NULLS###
 @pytest.fixture(name="test_data_nulls", scope="class")
-def setup_visitor_with_nulls(request):
+def setup_visitor_with_nulls(request) -> None:
     """Set up test data."""
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
@@ -475,31 +478,29 @@ def setup_visitor_with_nulls(request):
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
             "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
         },
-        stability=1,
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "public",
         {
             "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
         },
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_a", {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_b", {"B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}
     )
-    catalog.add_public_source(
-        "groupby_non_existing_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
+    catalog.add_public_table(
+        "groupby_nonexistent_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "groupby_column_wrong_type", {"A": ColumnDescriptor(ColumnType.INTEGER)}
     )
-    catalog.add_private_view(
+    catalog.add_private_table(
         "groupby_one_column_private",
         {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
-        stability=1,
     )
     visitor = OutputSchemaVisitor(catalog)
     request.cls.visitor = visitor
@@ -508,6 +509,8 @@ def setup_visitor_with_nulls(request):
 @pytest.mark.usefixtures("test_data_nulls")
 class TestValidationWithNulls:
     """Test Validation with Nulls."""
+
+    visitor: OutputSchemaVisitor
 
     @pytest.mark.parametrize(
         "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS

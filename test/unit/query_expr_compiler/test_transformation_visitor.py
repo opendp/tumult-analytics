@@ -1,8 +1,8 @@
-# type: ignore[attr-defined]
 """Tests for TransformationVisitor."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
+
 # pylint: disable=no-self-use, no-member, protected-access
 
 import datetime
@@ -170,7 +170,7 @@ def set_up_catalog(request):
     """Returns a catalog for use in test functions."""
 
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
@@ -181,17 +181,15 @@ def set_up_catalog(request):
             "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         },
-        stability=3,
     )
-    catalog.add_private_view(
+    catalog.add_private_table(
         "private_2",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
             "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
         },
-        stability=3,
     )
-    catalog.add_public_source(
+    catalog.add_public_table(
         "public",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR),
@@ -204,6 +202,9 @@ def set_up_catalog(request):
 @pytest.mark.usefixtures("visitor", "catalog")
 class TestTransformationVisitor:
     """Tests for Transformation Visitor."""
+
+    visitor: TransformationVisitor
+    catalog: Catalog
 
     def _validate_transform_basics(self, t: Transformation, query: QueryExpr) -> None:
         assert t.input_domain == self.visitor.input_domain
@@ -930,7 +931,7 @@ def set_up_complex_visitor(request) -> None:
 def set_up_complex_catalog(request):
     """Set up complex catalog for following tests."""
     catalog = Catalog()
-    catalog.add_private_source(
+    catalog.add_private_table(
         "private",
         {
             "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
@@ -954,7 +955,6 @@ def set_up_complex_catalog(request):
             "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         },
-        stability=3,
     )
     request.cls.catalog = catalog
 
@@ -962,6 +962,9 @@ def set_up_complex_catalog(request):
 @pytest.mark.usefixtures("complex_visitor", "complex_catalog")
 class TestTransformationVisitorWithComplexSchema:
     """Test the TransformationVisitor with a complicated schema."""
+
+    visitor: TransformationVisitor
+    catalog: Catalog
 
     def _validate_transform_basics(self, t: Transformation, query: QueryExpr) -> None:
         """Check the basics of a transformation."""
