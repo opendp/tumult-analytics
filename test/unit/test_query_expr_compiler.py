@@ -1055,7 +1055,10 @@ class TestQueryExprCompiler:
         compiler = QueryExprCompiler(output_measure=RhoZCDP())
         with pytest.raises(
             NotImplementedError,
-            match="GAUSSIAN noise is not yet compatible with floating-point values.",
+            match=(
+                "(GAUSSIAN)|(Discrete gaussian) noise is not yet compatible with"
+                " floating-point values."
+            ),
         ):
             compiler(
                 query_exprs,
