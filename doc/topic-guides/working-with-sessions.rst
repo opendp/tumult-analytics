@@ -202,7 +202,7 @@ string identifiers of available private or public data sources using
 
 .. testoutput::
 
-    ['my_private_data', 'my_other_private_data']
+    ['my_other_private_data', 'my_private_data']
     ['my_public_data']
 
 These IDs will typically be used when constructing queries, to specify which data

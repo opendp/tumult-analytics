@@ -25,7 +25,7 @@ from pyspark.sql.types import (
 )
 from typeguard import check_type
 
-from tmlt.analytics._neighboring_relations import (
+from tmlt.analytics._neighboring_relation import (
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
@@ -39,6 +39,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.protected_change import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
@@ -106,7 +107,7 @@ def setup_test_data(spark, request) -> None:
 
     sdf_input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
             )
         }
@@ -129,7 +130,7 @@ def setup_test_data(spark, request) -> None:
 
     join_df_input_domain = DictDomain(
         {
-            "join_private": SparkDataFrameDomain(
+            NamedTable("join_private"): SparkDataFrameDomain(
                 analytics_to_spark_columns_descriptor(Schema(join_df_col_types))
             )
         }
@@ -152,10 +153,10 @@ def setup_test_data(spark, request) -> None:
 
     combined_input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
             ),
-            "join_private": SparkDataFrameDomain(
+            NamedTable("join_private"): SparkDataFrameDomain(
                 analytics_to_spark_columns_descriptor(Schema(join_df_col_types))
             ),
         }
@@ -291,7 +292,7 @@ class TestSession:
             mock_composition_init.return_value.privacy_budget = (
                 _privacy_budget_to_exact_number(budget)
             )
-            mock_composition_init.return_value.d_in = {"private": 21}
+            mock_composition_init.return_value.d_in = {NamedTable("private"): 21}
             mock_composition_init.return_value.output_measure = expected_output_measure
 
             Session.from_dataframe(
@@ -303,15 +304,15 @@ class TestSession:
 
             mock_composition_init.assert_called_with(
                 input_domain=self.sdf_input_domain,
-                input_metric=DictMetric({"private": expected_metric}),
-                d_in={"private": 21},
+                input_metric=DictMetric({NamedTable("private"): expected_metric}),
+                d_in={NamedTable("private"): 21},
                 privacy_budget=sp.oo,
                 output_measure=expected_output_measure,
             )
             mock_composition_init.return_value.assert_called()
             assert_frame_equal_with_sort(
                 mock_composition_init.return_value.mock_calls[0][1][0][
-                    "private"
+                    NamedTable("private")
                 ].toPandas(),
                 self.sdf.toPandas(),
             )
@@ -325,7 +326,9 @@ class TestSession:
             pytest.param(
                 PureDPBudget(float("inf")),
                 AddRemoveRows(table="private", n=6),
-                DictMetric(key_to_metric={"private": SymmetricDifference()}),
+                DictMetric(
+                    key_to_metric={NamedTable("private"): SymmetricDifference()}
+                ),
                 PureDP(),
                 id="addremoverows_session",
             ),
@@ -336,7 +339,7 @@ class TestSession:
                 ),
                 DictMetric(
                     key_to_metric={
-                        "private": IfGroupedBy(
+                        NamedTable("private"): IfGroupedBy(
                             column="X", inner_metric=SumOf(SymmetricDifference())
                         )
                     }
@@ -351,7 +354,7 @@ class TestSession:
                 ),
                 DictMetric(
                     key_to_metric={
-                        "private": IfGroupedBy(
+                        NamedTable("private"): IfGroupedBy(
                             column="X",
                             inner_metric=RootSumOfSquared(SymmetricDifference()),
                         )
@@ -381,7 +384,7 @@ class TestSession:
         # pylint: disable=protected-access
         assert sess._input_domain == self.sdf_input_domain
         assert sess._input_metric == expected_metric
-        assert sess._accountant.d_in == {"private": 6}
+        assert sess._accountant.d_in == {NamedTable("private"): 6}
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
         # pylint: enable=protected-access
@@ -402,10 +405,10 @@ class TestSession:
                 ),
                 DictMetric(
                     key_to_metric={
-                        "join_private": IfGroupedBy(
+                        NamedTable("join_private"): IfGroupedBy(
                             column="A+B", inner_metric=SumOf(SymmetricDifference())
                         ),
-                        "private": SymmetricDifference(),
+                        NamedTable("private"): SymmetricDifference(),
                     }
                 ),
                 PureDP(),
@@ -432,7 +435,10 @@ class TestSession:
         # pylint: disable=protected-access
         assert sess._input_domain == self.combined_input_domain
         assert sess._input_metric == expected_metric
-        assert sess._accountant.d_in == {"private": 6, "join_private": 9}
+        assert sess._accountant.d_in == {
+            NamedTable("private"): 6,
+            NamedTable("join_private"): 9,
+        }
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
         # pylint: enable=protected-access
@@ -446,10 +452,10 @@ class TestSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = self.sdf_input_domain
-            mock_accountant.d_in = {"private": ExactNumber(1)}
+            mock_accountant.d_in = {NamedTable("private"): ExactNumber(1)}
             mock_compiler.output_measure = PureDP()
             session = Session(
                 accountant=mock_accountant,
@@ -481,20 +487,24 @@ class TestSession:
             # that in IfGroupedBy since RootSumOfSquared on its own is not valid in many
             # places in the framework.
             mock_accountant.input_metric = DictMetric(
-                {"private": IfGroupedBy("A", RootSumOfSquared(SymmetricDifference()))}
+                {
+                    NamedTable("private"): IfGroupedBy(
+                        "A", RootSumOfSquared(SymmetricDifference())
+                    )
+                }
             )
             mock_accountant.input_domain = self.sdf_input_domain
-            mock_accountant.d_in = {"private": ExactNumber(d_in)}
+            mock_accountant.d_in = {NamedTable("private"): ExactNumber(d_in)}
             view_transformation = create_mock_transformation(
                 input_domain=self.sdf_input_domain,
                 input_metric=DictMetric(
                     {
-                        "private": IfGroupedBy(
+                        NamedTable("private"): IfGroupedBy(
                             "A", RootSumOfSquared(SymmetricDifference())
                         )
                     }
                 ),
-                output_domain=self.sdf_input_domain["private"],
+                output_domain=self.sdf_input_domain[NamedTable("private")],
                 output_metric=SymmetricDifference(),
                 stability_function_implemented=True,
                 stability_function_return_value=ExactNumber(13),
@@ -651,12 +661,14 @@ class TestSession:
     ) -> None:
         """Initialize only a mock accountant."""
         mock_accountant.output_measure = PureDP()
-        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
+        mock_accountant.input_metric = DictMetric(
+            {NamedTable("private"): SymmetricDifference()}
+        )
         mock_accountant.input_domain = self.sdf_input_domain
         if d_in is not None:
-            mock_accountant.d_in = {"private": d_in}
+            mock_accountant.d_in = {NamedTable("private"): d_in}
         else:
-            mock_accountant.d_in = {"private": ExactNumber(1)}
+            mock_accountant.d_in = {NamedTable("private"): ExactNumber(1)}
         if privacy_budget is not None:
             mock_accountant.privacy_budget = privacy_budget
         else:
@@ -671,10 +683,14 @@ class TestSession:
         # that in IfGroupedBy since RootSumOFSquared on its own is not valid in many
         # places in the framework.
         mock_accountant.input_metric = DictMetric(
-            {"private": IfGroupedBy("A", RootSumOfSquared(SymmetricDifference()))}
+            {
+                NamedTable("private"): IfGroupedBy(
+                    "A", RootSumOfSquared(SymmetricDifference())
+                )
+            }
         )
         mock_accountant.input_domain = self.sdf_input_domain
-        mock_accountant.d_in = {"private": d_in}
+        mock_accountant.d_in = {NamedTable("private"): d_in}
         # The accountant's measure method will return a list
         # containing 1 empty dataframe
         mock_accountant.measure.return_value = [
@@ -786,11 +802,11 @@ class TestSession:
         assert (
             partition_query.transformation1.input_metric == mock_accountant.input_metric
         )
-        assert partition_query.transformation1.key == "private"
+        assert partition_query.transformation1.key == NamedTable("private")
         assert isinstance(partition_query.transformation2, PartitionByKeys)
         assert (
             partition_query.transformation2.input_domain
-            == self.sdf_input_domain["private"]
+            == self.sdf_input_domain[NamedTable("private")]
         )
         assert partition_query.transformation2.input_metric == SymmetricDifference()
         assert partition_query.transformation2.output_metric == SumOf(
@@ -940,9 +956,13 @@ class TestInvalidSession:
 
     def _setup_accountant(self, mock_accountant) -> None:
         mock_accountant.output_measure = PureDP()
-        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_accountant.d_in = {"private": sp.Integer(1)}
+        mock_accountant.input_metric = DictMetric(
+            {NamedTable("private"): SymmetricDifference()}
+        )
+        mock_accountant.input_domain = DictDomain(
+            {NamedTable("private"): self.sdf_input_domain}
+        )
+        mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
 
     def test_invalid_compiler_initialization(self):
         """session errors if compiler is not a QueryExprCompiler."""
@@ -1013,15 +1033,14 @@ class TestInvalidSession:
                 session.get_grouping_column("view")
 
             # public source_id doesn't have a grouping_column
-            source_id = "public"
             with pytest.raises(
                 ValueError,
                 match=(
-                    f"'{source_id}' does not have a grouping column, "
-                    "because it is not a private table."
+                    "Table 'public' is a public table, which cannot "
+                    "have a grouping column."
                 ),
             ):
-                session.get_grouping_column(source_id)
+                session.get_grouping_column("public")
 
     def test_invalid_column_name(self, spark) -> None:
         """Builder raises an error if a column is named "".
@@ -1130,12 +1149,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             #### from spark dataframe ####
@@ -1168,12 +1187,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             session = Session(
@@ -1187,11 +1206,7 @@ class TestInvalidSession:
 
             # But this should not
             with pytest.raises(
-                ValueError,
-                match=(
-                    "This session already has a public source with the source_id"
-                    " public_df"
-                ),
+                ValueError, match="This session already has a table named 'public_df'."
             ):
                 session.add_public_dataframe("public_df", dataframe=self.sdf)
 
@@ -1207,12 +1222,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             session = Session(
@@ -1254,12 +1269,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             session = Session(
@@ -1279,12 +1294,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             mock_compiler.build_transformation.return_value = (
@@ -1331,12 +1346,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             mock_compiler.build_transformation.return_value = (
@@ -1376,12 +1391,12 @@ class TestInvalidSession:
         ) as mock_compiler:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
-                {"private": SymmetricDifference()}
+                {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = DictDomain(
-                {"private": self.sdf_input_domain}
+                {NamedTable("private"): self.sdf_input_domain}
             )
-            mock_accountant.d_in = {"private": sp.Integer(1)}
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
             mock_compiler.build_transformation.return_value = (
@@ -1623,8 +1638,8 @@ class TestSessionBuilder:
                 dataframe=self.dataframes[source_id],
                 protected_change=AddMaxRows(stability),
             )
-            expected_private_sources[source_id] = self.dataframes[source_id]
-            expected_stabilities[source_id] = stability
+            expected_private_sources[NamedTable(source_id)] = self.dataframes[source_id]
+            expected_stabilities[NamedTable(source_id)] = stability
 
         for source_id in public_dataframes:
             builder = builder.with_public_dataframe(
@@ -1643,13 +1658,13 @@ class TestSessionBuilder:
             == accountant.privacy_budget
         )
         assert accountant.output_measure == expected_output_measure
-        for source_id in expected_private_sources:
 
+        for table_id in expected_private_sources:
             assert accountant._queryable is not None
             assert isinstance(accountant._queryable, SequentialQueryable)
             assert_frame_equal_with_sort(
-                accountant._queryable._data[source_id].toPandas(),
-                expected_private_sources[source_id].toPandas(),
+                accountant._queryable._data[table_id].toPandas(),
+                expected_private_sources[table_id].toPandas(),
             )
 
         assert accountant.d_in == expected_stabilities

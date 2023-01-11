@@ -1,9 +1,12 @@
 """Object to reference Tables."""
 
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2023
+
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
-from tmlt.analytics._table_identifiers import Identifier, NamedTable
+from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.metrics import DictMetric, Metric
@@ -20,7 +23,7 @@ class TableReference:
     def identifier(self) -> Identifier:
         """Get the identifier, i.e. last path segment, of this reference."""
         if not self.path:
-            raise IndexError("Empty TableReference has no terminus")
+            raise IndexError("Empty TableReference has no identifier")
         return self.path[-1]
 
     @property

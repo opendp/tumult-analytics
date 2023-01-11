@@ -36,13 +36,13 @@ from tmlt.analytics._coerce_spark_schema import (
     TYPE_COERCION_MAP,
     coerce_spark_schema_or_fail,
 )
-from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
-from tmlt.analytics._neighboring_relations import (
+from tmlt.analytics._neighboring_relation import (
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
     NeighboringRelation,
 )
+from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
 from tmlt.analytics._noise_info import _noise_from_measurement
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
@@ -50,6 +50,13 @@ from tmlt.analytics._schema import (
     Schema,
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
+)
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_reference import (
+    find_named_tables,
+    find_reference,
+    lookup_domain,
+    lookup_metric,
 )
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.protected_change import (
@@ -230,8 +237,8 @@ class Session:
             #     the assumption of AddOneRow() if no stability is specified.
             if stability is None:
                 warn(
-                    "Using a default for protected_change is deprecated. Future code"
-                    " should explicitly specify protected_change=AddOneRow()",
+                    "Using a default for protected_change is deprecated. Future"
+                    " code should explicitly specify protected_change=AddOneRow()",
                     DeprecationWarning,
                 )
                 if grouping_column is None:
@@ -489,7 +496,12 @@ class Session:
     @property
     def private_sources(self) -> List[str]:
         """Returns the ids of the private sources."""
-        return list(self._input_domain.key_to_domain)
+        table_refs = find_named_tables(self._input_domain)
+        return [
+            t.identifier.name
+            for t in table_refs
+            if isinstance(t.identifier, NamedTable)
+        ]
 
     @property
     def public_sources(self) -> List[str]:
@@ -541,14 +553,6 @@ class Session:
             )
         return cast(DictMetric, self._accountant.input_metric)
 
-    @property
-    def _stability(self) -> Dict[str, sp.Expr]:
-        """Returns the unmodified stability of the underlying PrivacyAccountant."""
-        return {
-            source_id: ExactNumber(d_in_i).expr
-            for source_id, d_in_i in self._accountant.d_in.items()
-        }
-
     @typechecked
     def get_schema(self, source_id: str) -> Schema:
         """Returns the schema for any data source.
@@ -559,19 +563,22 @@ class Session:
             source_id: The ID for the data source whose column types
                 are being retrieved.
         """
-        # TODO(#2172):replace old source indexing method with use of new lookup feature
-        if source_id in self._input_domain.key_to_domain:
-            return Schema(
-                spark_dataframe_domain_to_analytics_columns(
-                    self._input_domain[source_id]
-                )
-            )
+        ref = find_reference(source_id, self._input_domain)
+        if ref is not None:
+            domain = lookup_domain(self._input_domain, ref)
+            return Schema(spark_dataframe_domain_to_analytics_columns(domain))
         else:
-            return Schema(
-                spark_schema_to_analytics_columns(
-                    self.public_source_dataframes[source_id].schema
+            try:
+                return Schema(
+                    spark_schema_to_analytics_columns(
+                        self.public_source_dataframes[source_id].schema
+                    )
                 )
-            )
+            except KeyError:
+                raise KeyError(
+                    f"Table '{source_id}' does not exist. Available tables "
+                    f"are: {', '.join(self.private_sources + self.public_sources)}"
+                ) from None
 
     @typechecked
     def get_column_types(self, source_id: str) -> Dict[str, ColumnType]:
@@ -595,18 +602,19 @@ class Session:
             source_id: The ID for the data source whose grouping column
                 is being retrieved.
         """
-        try:
-            if isinstance(self._input_metric[source_id], IfGroupedBy):
-                inner_metric = cast(IfGroupedBy, self._input_metric[source_id])
-                return inner_metric.column
-            return None
-        except KeyError as e:
+        ref = find_reference(source_id, self._input_domain)
+        if ref is None:
             if source_id in self.public_sources:
                 raise ValueError(
-                    f"'{source_id}' does not have a grouping column, "
-                    "because it is not a private table."
+                    f"Table '{source_id}' is a public table, which cannot have a "
+                    "grouping column."
                 )
-            raise e
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available private tables are: {', '.join(self.private_sources)}"
+            )
+        metric = lookup_metric(self._input_metric, ref)
+        return metric.column if isinstance(metric, IfGroupedBy) else None
 
     @property
     def _catalog(self) -> Catalog:
@@ -677,11 +685,8 @@ class Session:
         """
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
-        if source_id in self.public_sources:
-            raise ValueError(
-                "This session already has a public source with the source_id"
-                f" {source_id}"
-            )
+        if source_id in self.public_sources or source_id in self.private_sources:
+            raise ValueError(f"This session already has a table named '{source_id}'.")
         dataframe = coerce_spark_schema_or_fail(dataframe)
         self._public_sources[source_id] = dataframe
 
@@ -701,7 +706,7 @@ class Session:
         measurement = self._compiler(
             queries=[query_expr],
             privacy_budget=adjusted_budget.expr,
-            stability=self._stability,
+            stability=self._accountant.d_in,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             public_sources=self._public_sources,
@@ -908,7 +913,7 @@ class Session:
             ...     cache=True
             ... )
             >>> sess.private_sources
-            ['my_private_data', 'private_public_join']
+            ['private_public_join', 'my_private_data']
             >>> sess.get_schema("private_public_join").column_types # doctest: +NORMALIZE_WHITESPACE
             {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
             >>> # Delete the view
@@ -924,8 +929,8 @@ class Session:
         # pylint: enable=line-too-long
         _assert_is_identifier(source_id)
         self._activate_accountant()
-        if source_id in self._input_domain.key_to_domain:
-            raise ValueError(f"ID {source_id} already exists.")
+        if source_id in self.private_sources or source_id in self.public_sources:
+            raise ValueError(f"Table '{source_id}' already exists.")
 
         if isinstance(query_expr, QueryBuilder):
             query_expr = query_expr.query_expr
@@ -950,7 +955,7 @@ class Session:
             | CreateDictFromValue(
                 input_domain=transformation.output_domain,
                 input_metric=transformation.output_metric,
-                key=source_id,
+                key=NamedTable(source_id),
             )
         )
 
@@ -963,17 +968,28 @@ class Session:
         Args:
             source_id: The name of the view.
         """
-        if source_id not in self._input_domain.key_to_domain:
-            raise ValueError(f"ID {source_id} does not exist.")
         self._activate_accountant()
 
+        ref = find_reference(source_id, self._input_domain)
+        if ref is None:
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available tables are: {', '.join(self.private_sources)}"
+            )
+
+        domain = lookup_domain(self._input_domain, ref)
+        metric = lookup_metric(self._input_metric, ref)
+        if not isinstance(domain, SparkDataFrameDomain):
+            raise RuntimeError(
+                "Table domain is not SparkDataFrameDomain. This is probably a bug; "
+                "please let us know so we can fix it!"
+            )
+
         # Unpersist does nothing if the DataFrame isn't persisted
-        domain = cast(SparkDataFrameDomain, self._input_domain.key_to_domain[source_id])
-        metric = self._input_metric.key_to_metric[source_id]
         unpersist_source = create_transform_value(
             input_domain=cast(DictDomain, self._accountant.input_domain),
             input_metric=cast(DictMetric, self._accountant.input_metric),
-            key=source_id,
+            key=NamedTable(source_id),
             transformation=Unpersist(domain, metric),
             hint=lambda d_in, _: d_in,
         )
@@ -984,9 +1000,13 @@ class Session:
         transformation = Subset(
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            keys=list(set(self._input_domain.key_to_domain.keys()) - {source_id}),
+            keys=list(
+                set(self._input_domain.key_to_domain.keys()) - {NamedTable(source_id)}
+            ),
         )
-        d_out = {k: v for k, v in self._accountant.d_in.items() if k != source_id}
+        d_out = {
+            k: v for k, v in self._accountant.d_in.items() if k != NamedTable(source_id)
+        }
         self._accountant.transform_in_place(transformation, d_out)
 
     # pylint: disable=line-too-long
@@ -1092,8 +1112,8 @@ class Session:
             raise ValueError("You cannot specify both a column and an attr_name")
         if attr_name is not None:
             warn(
-                "The attr_name argument is deprecated and will be removed in a future"
-                " release",
+                "The attr_name argument is deprecated and will be removed in a"
+                " future release",
                 DeprecationWarning,
             )
             column = attr_name
@@ -1114,9 +1134,9 @@ class Session:
         transformation = GetValue(
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            key=source_id,
+            key=NamedTable(source_id),
         )
-        d_mid = self._accountant.d_in[source_id]
+        d_mid = self._accountant.d_in[NamedTable(source_id)]
         if not transformation.stability_relation(self._accountant.d_in, d_mid):
             raise ValueError(
                 "This partition is unstable: close inputs will not produce "
@@ -1224,7 +1244,7 @@ class Session:
             dict_transformation_wrapper = CreateDictFromValue(
                 input_domain=transformation_domain,
                 input_metric=element_metric,
-                key=source,
+                key=NamedTable(source),
             )
             new_accountants[i].queue_transformation(
                 transformation=dict_transformation_wrapper

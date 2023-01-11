@@ -3,6 +3,15 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+Fixed
+~~~~~
+
+- ``Session.add_public_datafame`` used to allow creation of a public table with the same name as an existing private table, even though doing so is disallowed elsewhere and is not fully supported by some ``Session`` methods.
+  It now raises a ``ValueError`` when this happens, like it already did when there was a name conflict with an existing public table.
+
 0.6.1 - 2022-12-07
 ------------------
 
