@@ -1,8 +1,7 @@
 """Objects for representing tables."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2022
-# pylint: disable=useless-super-delegation
+# Copyright Tumult Labs 2023
 
 from dataclasses import dataclass
 
@@ -35,8 +34,7 @@ class TableCollection(Identifier):
         return f"TableCollection({self.name})"
 
 
-# It is essential that every TemporaryTable is
-# equal only to itself.
+# It is essential that every TemporaryTable is equal only to itself.
 class TemporaryTable(Identifier):
     """Identify temporary tables."""
 

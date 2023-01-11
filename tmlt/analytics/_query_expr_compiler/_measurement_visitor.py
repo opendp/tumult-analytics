@@ -105,7 +105,7 @@ class MeasurementVisitor(QueryExprVisitor):
     def __init__(
         self,
         per_query_privacy_budget: sp.Expr,
-        stability: Dict[str, sp.Expr],
+        stability: Any,
         input_domain: DictDomain,
         input_metric: DictMetric,
         output_measure: Union[PureDP, RhoZCDP],

@@ -8,7 +8,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-from typing import Dict, List, Sequence, Union
+from typing import Any, Dict, List, Sequence, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
@@ -105,7 +105,7 @@ class QueryExprCompiler:
         self,
         queries: Sequence[QueryExpr],
         privacy_budget: sp.Expr,
-        stability: Dict[str, sp.Expr],
+        stability: Any,
         input_domain: DictDomain,
         input_metric: DictMetric,
         public_sources: Dict[str, DataFrame],

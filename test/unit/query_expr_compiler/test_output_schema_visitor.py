@@ -184,8 +184,8 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             schema_new_columns=Schema({"j": "INTEGER"}),
             augment=False,
         ),
-        "Need to set augment=True to ensure that the grouping column is available for "
-        "groupby.",
+        "Need to set augment=True to ensure that the grouping column is available"
+        " for groupby.",
     ),
     (  # Map with inner grouping FlatMap but outer augment=False
         Map(
@@ -200,8 +200,8 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             schema_new_columns=Schema({"C": "VARCHAR"}),
             augment=False,
         ),
-        "Need to set augment=True to ensure that the grouping column is available for "
-        "groupby.",
+        "Need to set augment=True to ensure that the grouping column is available"
+        " for groupby.",
     ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
@@ -215,16 +215,16 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         ReplaceNullAndNan(
             child=PrivateSource("private"), replace_with={"B": "not_an_int"}
         ),
-        "ReplaceNullAndNan.replace_with has column B's default value set to not_an_int,"
-        " which does not match the column type INTEGER",
+        "ReplaceNullAndNan.replace_with has column B's default value set to"
+        " not_an_int, which does not match the column type INTEGER",
     ),
     (
         # ReplaceInfinity with nonexistent column
         ReplaceInfinity(
             child=PrivateSource("private"), replace_with={"wrong": (-1, 1)}
         ),
-        "ReplaceInfinity.replace_with contains replacement values for the column wrong,"
-        " but data has no column named wrong",
+        "ReplaceInfinity.replace_with contains replacement values for the column"
+        " wrong, but data has no column named wrong",
     ),
     (
         #  ReplaceInfinity with non-decimal column
@@ -370,8 +370,8 @@ class TestValidation:
             (
                 KeySet.from_dict({"X": [0, 1]}),
                 ValueError,
-                "Groupby column 'X' has type 'INTEGER', but the column with the same"
-                " name in the input data has type 'DECIMAL' instead.",
+                "Groupby column 'X' has type 'INTEGER', but the column with the"
+                " same name in the input data has type 'DECIMAL' instead.",
             ),
             (
                 KeySet.from_dict({"Y": ["0"]}),

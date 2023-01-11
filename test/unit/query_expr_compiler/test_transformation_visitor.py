@@ -25,6 +25,7 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
@@ -123,7 +124,7 @@ def set_up_visitor(spark, request):
     """Returns a TransformationVisitor for use in test functions."""
     input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(allow_null=True),
                     "B": SparkIntegerColumnDescriptor(allow_null=True),
@@ -134,7 +135,7 @@ def set_up_visitor(spark, request):
                     "T": SparkTimestampColumnDescriptor(allow_null=True),
                 }
             ),
-            "private_2": SparkDataFrameDomain(
+            NamedTable("private_2"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(allow_null=True),
                     "C": SparkIntegerColumnDescriptor(allow_null=True),
@@ -143,7 +144,10 @@ def set_up_visitor(spark, request):
         }
     )
     input_metric = DictMetric(
-        {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
+        {
+            NamedTable("private"): SymmetricDifference(),
+            NamedTable("private_2"): SymmetricDifference(),
+        }
     )
     public_sources = {
         "public": spark.createDataFrame(
@@ -246,10 +250,13 @@ class TestTransformationVisitor:
         query = PrivateSource(source_id=source_id)
         transformation = self.visitor.visit_private_source(query)
         assert isinstance(transformation, GetValue)
-        assert transformation.key == source_id
+        assert transformation.key == NamedTable(source_id)
         assert transformation.input_domain == self.visitor.input_domain
         assert transformation.input_metric == self.visitor.input_metric
-        assert transformation.output_domain == self.visitor.input_domain[source_id]
+        assert (
+            transformation.output_domain
+            == self.visitor.input_domain[NamedTable(source_id)]
+        )
         assert transformation.output_metric == SymmetricDifference()
 
     def test_invalid_private_source(self) -> None:
@@ -891,7 +898,7 @@ def set_up_complex_visitor(request) -> None:
     """Set up complex visitor for use in following tests."""
     input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(allow_null=True),
                     "B": SparkIntegerColumnDescriptor(allow_null=True),
@@ -917,7 +924,7 @@ def set_up_complex_visitor(request) -> None:
             )
         }
     )
-    input_metric = DictMetric({"private": SymmetricDifference()})
+    input_metric = DictMetric({NamedTable("private"): SymmetricDifference()})
     visitor = TransformationVisitor(
         input_domain=input_domain,
         input_metric=input_metric,

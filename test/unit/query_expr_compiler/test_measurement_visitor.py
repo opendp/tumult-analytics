@@ -20,6 +20,7 @@ from tmlt.analytics._query_expr_compiler._measurement_visitor import (
     _get_query_bounds,
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -278,7 +279,7 @@ def prepare_visitor(spark, request):
     """Setup tests."""
     input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(),
                     "B": SparkIntegerColumnDescriptor(),
@@ -300,7 +301,7 @@ def prepare_visitor(spark, request):
                     ),
                 }
             ),
-            "private_2": SparkDataFrameDomain(
+            NamedTable("private_2"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(),
                     "C": SparkIntegerColumnDescriptor(),
@@ -310,7 +311,10 @@ def prepare_visitor(spark, request):
     )
 
     input_metric = DictMetric(
-        {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
+        {
+            NamedTable("private"): SymmetricDifference(),
+            NamedTable("private_2"): SymmetricDifference(),
+        }
     )
 
     public_sources = {
@@ -367,7 +371,10 @@ def prepare_visitor(spark, request):
     request.cls.catalog = catalog
 
     budget = ExactNumber(10).expr
-    stability = {"private": ExactNumber(3).expr, "private_2": ExactNumber(3).expr}
+    stability = {
+        NamedTable("private"): ExactNumber(3).expr,
+        NamedTable("private_2"): ExactNumber(3).expr,
+    }
     request.cls.visitor = MeasurementVisitor(
         per_query_privacy_budget=budget,
         stability=stability,
@@ -1157,16 +1164,16 @@ class TestMeasurementVisitor:
             assert sorted(list(set(got_null_nan_columns))) == sorted(
                 expected_null_nan_columns
             )
-        assert get_value_transformation.key == "private"
+        assert get_value_transformation.key == NamedTable("private")
         assert get_value_transformation.input_domain == self.visitor.input_domain
         assert get_value_transformation.input_metric == self.visitor.input_metric
         assert (
             get_value_transformation.output_domain
-            == self.visitor.input_domain["private"]
+            == self.visitor.input_domain[NamedTable("private")]
         )
         assert (
             get_value_transformation.output_metric
-            == self.visitor.input_metric["private"]
+            == self.visitor.input_metric[NamedTable("private")]
         )
 
         assert info.mechanism == expected_mechanism
@@ -1175,10 +1182,10 @@ class TestMeasurementVisitor:
         assert info.upper_bound == ExactNumber.from_float(query.high, round_up=False)
 
         assert isinstance(info.groupby, GroupBy)
-        assert isinstance(self.visitor.input_domain["private"], SparkDataFrameDomain)
+        table_domain = self.visitor.input_domain[NamedTable("private")]
+        assert isinstance(table_domain, SparkDataFrameDomain)
         expected_groupby_domain = SparkGroupedDataFrameDomain(
-            schema=self.visitor.input_domain["private"].schema.copy(),
-            group_keys=query.groupby_keys.dataframe(),
+            schema=table_domain.schema.copy(), group_keys=query.groupby_keys.dataframe()
         )
         if expected_new_child is not None:
             new_transform: QueryExpr = expected_new_child
@@ -1249,7 +1256,7 @@ class TestMeasurementVisitor:
 
         if child_is_base_query:
             assert isinstance(measurement.transformation, GetValue)
-            assert measurement.transformation.key == "private"
+            assert measurement.transformation.key == NamedTable("private")
 
         assert measurement.transformation.input_domain == self.visitor.input_domain
         assert measurement.transformation.input_metric == self.visitor.input_metric
@@ -1527,7 +1534,7 @@ class TestMeasurementVisitor:
                     )
                     get_value = measurement.transformation.transformation1
                     assert isinstance(get_value, GetValue)
-                    assert get_value.key == "private"
+                    assert get_value.key == NamedTable("private")
                 assert isinstance(
                     measurement.transformation.transformation2, SelectTransformation
                 )

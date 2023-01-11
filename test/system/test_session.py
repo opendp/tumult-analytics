@@ -23,6 +23,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
     analytics_to_spark_schema,
 )
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
@@ -1434,7 +1435,9 @@ class TestSession:
             augment=True,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
-        assert session._stability["flatmap1"] == 2  # pylint: disable=protected-access
+        # pylint: disable=protected-access
+        assert session._accountant.d_in[NamedTable("flatmap1")] == 2
+        # pylint: enable=protected-access
 
         transformation_query2 = FlatMap(
             child=PrivateSource("flatmap1"),
@@ -1444,7 +1447,9 @@ class TestSession:
             augment=True,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
-        assert session._stability["flatmap2"] == 6  # pylint: disable=protected-access
+        # pylint: disable=protected-access
+        assert session._accountant.d_in[NamedTable("flatmap2")] == 6
+        # pylint: enable=protected-access
 
     @pytest.mark.parametrize("budget", [(PureDPBudget(10)), (RhoZCDPBudget(10))])
     def test_create_view_composed_query(self, budget: PrivacyBudget):
@@ -1654,9 +1659,13 @@ class TestInvalidSession:
         """evaluate raises error on invalid queries."""
         mock_accountant = Mock()
         mock_accountant.output_measure = PureDP()
-        mock_accountant.input_metric = DictMetric({"private": SymmetricDifference()})
-        mock_accountant.input_domain = DictDomain({"private": self.sdf_input_domain})
-        mock_accountant.d_in = {"private": ExactNumber(1)}
+        mock_accountant.input_metric = DictMetric(
+            {NamedTable("private"): SymmetricDifference()}
+        )
+        mock_accountant.input_domain = DictDomain(
+            {NamedTable("private"): self.sdf_input_domain}
+        )
+        mock_accountant.d_in = {NamedTable("private"): ExactNumber(1)}
         mock_accountant.privacy_budget = ExactNumber(float("inf"))
 
         session = Session(accountant=mock_accountant, public_sources=dict())
@@ -1942,10 +1951,11 @@ class TestSessionWithNulls:
         assert isinstance(queryable, SequentialQueryable)
         data = queryable._data
         assert isinstance(data, dict)
-        assert isinstance(data["replaced"], DataFrame)
+        assert isinstance(data[NamedTable("replaced")], DataFrame)
         # pylint: enable=protected-access
         assert_frame_equal_with_sort(
-            data["replaced"].toPandas(), self._expected_replace(cols_to_defaults)
+            data[NamedTable("replaced")].toPandas(),
+            self._expected_replace(cols_to_defaults),
         )
 
     @pytest.mark.parametrize(
@@ -2143,7 +2153,7 @@ class TestSessionWithInfs:
         assert isinstance(queryable, SequentialQueryable)
         data = queryable._data
         assert isinstance(data, dict)
-        assert isinstance(data["replaced"], DataFrame)
+        assert isinstance(data[NamedTable("replaced")], DataFrame)
         # pylint: enable=protected-access
         (replace_negative, replace_positive) = replace_with.get(
             "B", (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
@@ -2151,7 +2161,7 @@ class TestSessionWithInfs:
         expected = self.pdf.replace(float("-inf"), replace_negative).replace(
             float("inf"), replace_positive
         )
-        assert_frame_equal_with_sort(data["replaced"].toPandas(), expected)
+        assert_frame_equal_with_sort(data[NamedTable("replaced")].toPandas(), expected)
 
     @pytest.mark.parametrize(
         "replace_with,expected",

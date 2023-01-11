@@ -1,17 +1,18 @@
 """Tests for Neighboring Relations"""
-# pylint: disable=pointless-string-statement, no-self-use, no-member
+# pylint: disable=no-self-use, no-member
 from cmath import inf, pi
 
 import pandas as pd
 import pytest
 import sympy as sp
 
-from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
-from tmlt.analytics._neighboring_relations import (
+from tmlt.analytics._neighboring_relation import (
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
 )
+from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import PureDP, RhoZCDP
@@ -185,30 +186,34 @@ class TestNeighboringRelations:
         expected_add_remove_rows_groups_result = AddRemoveRowsAcrossGroups(
             "table2", "A", 2, 1
         ).accept(visitor)
-        assert Conjunction(
+
+        output = Conjunction(
             AddRemoveRows("table1", 1), AddRemoveRowsAcrossGroups("table2", "A", 2, 1)
-        ).accept(visitor) == (
+        ).accept(visitor)
+        expected_output = NeighboringRelationCoreVisitor.Output(
             DictDomain(
                 {
-                    "table1": expected_add_remove_rows_result[0],
-                    "table2": expected_add_remove_rows_groups_result[0],
+                    NamedTable("table1"): expected_add_remove_rows_result[0],
+                    NamedTable("table2"): expected_add_remove_rows_groups_result[0],
                 }
             ),
             DictMetric(
                 {
-                    "table1": expected_add_remove_rows_result[1],
-                    "table2": expected_add_remove_rows_groups_result[1],
+                    NamedTable("table1"): expected_add_remove_rows_result[1],
+                    NamedTable("table2"): expected_add_remove_rows_groups_result[1],
                 }
             ),
             {
-                "table1": expected_add_remove_rows_result[2],
-                "table2": expected_add_remove_rows_groups_result[2],
+                NamedTable("table1"): expected_add_remove_rows_result[2],
+                NamedTable("table2"): expected_add_remove_rows_groups_result[2],
             },
             {
-                "table1": expected_add_remove_rows_result[3],
-                "table2": expected_add_remove_rows_groups_result[3],
+                NamedTable("table1"): expected_add_remove_rows_result[3],
+                NamedTable("table2"): expected_add_remove_rows_groups_result[3],
             },
         )
+
+        assert output == expected_output
 
     def test_conjunction_validation(self):
         """Tests that validate_input works as expected for Conjunction."""

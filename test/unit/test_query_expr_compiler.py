@@ -32,6 +32,7 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -523,20 +524,23 @@ def setup(spark, request) -> None:
     )
     request.cls.groupby_one_column_df = groupby_one_column_df
 
-    stability = {"private": sp.Integer(3), "private_2": sp.Integer(3)}
+    stability = {
+        NamedTable("private"): sp.Integer(3),
+        NamedTable("private_2"): sp.Integer(3),
+    }
 
     request.cls.stability = stability
 
     input_domain = DictDomain(
         {
-            "private": SparkDataFrameDomain(
+            NamedTable("private"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(),
                     "B": SparkIntegerColumnDescriptor(),
                     "X": SparkFloatColumnDescriptor(),
                 }
             ),
-            "private_2": SparkDataFrameDomain(
+            NamedTable("private_2"): SparkDataFrameDomain(
                 {
                     "A": SparkStringColumnDescriptor(),
                     "C": SparkIntegerColumnDescriptor(),
@@ -597,7 +601,10 @@ def setup(spark, request) -> None:
     request.cls.catalog = catalog
 
     input_metric = DictMetric(
-        {"private": SymmetricDifference(), "private_2": SymmetricDifference()}
+        {
+            NamedTable("private"): SymmetricDifference(),
+            NamedTable("private_2"): SymmetricDifference(),
+        }
     )
     request.cls.input_metric = input_metric
 
@@ -703,7 +710,7 @@ class TestQueryExprCompiler:
             },
             catalog=self.catalog,
         )
-        actual = measurement({"private": count_distinct_df})
+        actual = measurement({NamedTable("private"): count_distinct_df})
         assert len(actual) == 1
         assert_frame_equal_with_sort(actual[0].toPandas(), expected)
 
@@ -729,7 +736,7 @@ class TestQueryExprCompiler:
             },
             catalog=self.catalog,
         )
-        actual = measurement({"private": self.sdf})
+        actual = measurement({NamedTable("private"): self.sdf})
         assert len(actual) == len(expected)
         for actual_sdf, expected_df in zip(actual, expected):
             assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
@@ -957,7 +964,7 @@ class TestQueryExprCompiler:
             public_sources={"public": self.join_df},
             catalog=self.catalog,
         )
-        actual = measurement({"private": self.sdf})
+        actual = measurement({NamedTable("private"): self.sdf})
         assert len(actual) == len(expected)
         for actual_sdf, expected_df in zip(actual, expected):
             assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
@@ -1086,7 +1093,7 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
-        )({"private": self.sdf})
+        )({NamedTable("private"): self.sdf})
 
         assert_frame_equal_with_sort(
             output_sdf.toPandas(),
@@ -1119,7 +1126,7 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
-        )({"private": self.sdf, "private_2": sdf_2})
+        )({NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2})
 
         assert_frame_equal_with_sort(
             output_sdf.toPandas(),
@@ -1301,7 +1308,7 @@ class TestQueryExprCompiler:
             public_sources={},
             catalog=self.catalog,
         )
-        actual = measurement({"private": sdf_float})
+        actual = measurement({NamedTable("private"): sdf_float})
         expected = [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})]
         for actual_sdf, expected_df in zip(actual, expected):
             assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
@@ -1370,12 +1377,21 @@ class TestQueryExprCompiler:
                 child=PrivateSource("doubled"), groupby_keys=KeySet.from_dict({})
             ),
         ]
-        stability = {"doubled": self.stability["private"] * 2, **self.stability}
+        stability = {
+            NamedTable("doubled"): self.stability[NamedTable("private")] * 2,
+            **self.stability,
+        }
         input_domain = DictDomain(
-            {"doubled": self.input_domain["private"], **self.input_domain.key_to_domain}
+            {
+                NamedTable("doubled"): self.input_domain[NamedTable("private")],
+                **self.input_domain.key_to_domain,
+            }
         )
         input_metric = DictMetric(
-            {"doubled": self.input_metric["private"], **self.input_metric.key_to_metric}
+            {
+                NamedTable("doubled"): self.input_metric[NamedTable("private")],
+                **self.input_metric.key_to_metric,
+            }
         )
 
         measurement = self.compiler(
@@ -1441,10 +1457,10 @@ class TestCompileGroupByQuantile:
                 "Age": ColumnDescriptor(ColumnType.INTEGER),
             },
         )
-        stability = {"private": sp.Integer(1)}
+        stability = {NamedTable("private"): sp.Integer(1)}
         input_domain = DictDomain(
             {
-                "private": SparkDataFrameDomain(
+                NamedTable("private"): SparkDataFrameDomain(
                     {
                         "Gender": SparkStringColumnDescriptor(),
                         "Age": SparkIntegerColumnDescriptor(),
@@ -1452,7 +1468,7 @@ class TestCompileGroupByQuantile:
                 )
             }
         )
-        input_metric = DictMetric({"private": SymmetricDifference()})
+        input_metric = DictMetric({NamedTable("private"): SymmetricDifference()})
         compiler = QueryExprCompiler(output_measure=output_measure)
 
         query_expr = GroupByQuantile(
@@ -1478,7 +1494,7 @@ class TestCompileGroupByQuantile:
         assert measurement.output_measure == output_measure
         assert measurement.privacy_function(stability) == sp.Integer(1000)
 
-        [actual] = measurement({"private": sdf})
+        [actual] = measurement({NamedTable("private"): sdf})
 
         assert 26 < actual.filter(col("Gender") == "F").collect()[0]["out"] <= 28
         assert 22 < actual.filter(col("Gender") == "M").collect()[0]["out"] <= 24
@@ -1487,18 +1503,18 @@ class TestCompileGroupByQuantile:
 @pytest.fixture(name="test_component_data", scope="class")
 def setup_components(request):
     """Set up test."""
-    request.cls._stability = {"test": sp.Integer(3)}
+    request.cls._stability = {NamedTable("test"): sp.Integer(3)}
     request.cls._privacy_budget = sp.Integer(5)
     request.cls._input_domain = DictDomain(
         {
-            "test": SparkDataFrameDomain(
+            NamedTable("test"): SparkDataFrameDomain(
                 analytics_to_spark_columns_descriptor(
                     Schema({"A": "VARCHAR", "X": "INTEGER"})
                 )
             )
         }
     )
-    request.cls._input_metric = DictMetric({"test": SymmetricDifference()})
+    request.cls._input_metric = DictMetric({NamedTable("test"): SymmetricDifference()})
     request.cls._catalog = Catalog()
     request.cls._catalog.add_private_table(
         source_id="test", col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER}
@@ -1644,8 +1660,8 @@ class TestComponentIsUsed:
             }
             mock_create_measurement = mock_create_measurement_dict[column]
             mock_create_measurement.return_value = create_mock_measurement(
-                input_domain=self._input_domain["test"],
-                input_metric=self._input_metric["test"],
+                input_domain=self._input_domain[NamedTable("test")],
+                input_metric=self._input_metric[NamedTable("test")],
                 output_measure=output_measure,
                 privacy_function_return_value=d_out,
                 privacy_function_implemented=True,
@@ -1660,8 +1676,8 @@ class TestComponentIsUsed:
                 catalog=self._catalog,
             )
             expected_arguments = {  # Other arguments are not checked
-                "input_domain": self._input_domain["test"],
-                "input_metric": self._input_metric["test"],
+                "input_domain": self._input_domain[NamedTable("test")],
+                "input_metric": self._input_metric[NamedTable("test")],
                 "d_in": d_in * preprocessing_stability,
                 "d_out": d_out,
             }

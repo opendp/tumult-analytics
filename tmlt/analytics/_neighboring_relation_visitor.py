@@ -1,15 +1,20 @@
 """Module to define NeighboringRelationVisitors."""
-from typing import Any, Dict, Tuple, Union
+
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2022
+
+from typing import Any, Dict, NamedTuple, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
 
-from tmlt.analytics._neighboring_relations import (
+from tmlt.analytics._neighboring_relation import (
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
     NeighboringRelationVisitor,
 )
+from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -25,8 +30,35 @@ from tmlt.core.metrics import (
 from tmlt.core.utils.exact_number import ExactNumber
 
 
+class _RelationIDVisitor(NeighboringRelationVisitor):
+    """Generate identifiers for neighboring relations."""
+
+    def visit_add_remove_rows(self, relation: AddRemoveRows) -> Identifier:
+        return NamedTable(relation.table)
+
+    def visit_add_remove_rows_across_groups(
+        self, relation: AddRemoveRowsAcrossGroups
+    ) -> Identifier:
+        return NamedTable(relation.table)
+
+    def visit_conjunction(self, relation: Conjunction) -> Identifier:
+        # Since conjunctions are automatically flattened, they should never need names.
+        raise AssertionError(
+            "Conjunctions should never appear as sub-relations. "
+            "This is a bug, please let us know so we can fix it!"
+        )
+
+
 class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
-    """Defines a Neighboring Relation Core Visitor."""
+    """A visitor for generating an initial Core state from a neighboring relation."""
+
+    class Output(NamedTuple):
+        """A container for the outputs of the visitor."""
+
+        domain: Domain
+        metric: Metric
+        distance: Any
+        data: Any
 
     def __init__(
         self, tables: Dict[str, DataFrame], output_measure: Union[PureDP, RhoZCDP]
@@ -35,31 +67,18 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
         self.tables = tables
         self.output_measure = output_measure
 
-    def visit_add_remove_rows(
-        self, relation: AddRemoveRows
-    ) -> Tuple[Domain, Metric, Any, Any]:
-        """Returns an input domain, input metric, distance, and input data.
-
-        Relation:
-        :class:`~tmlt.analytics._neighboring_relations.AddRemoveRows`
-        NeighboringRelation.
-        """
-        input_metric = SymmetricDifference()
+    def visit_add_remove_rows(self, relation: AddRemoveRows) -> Output:
+        """Build Core state from ``AddRemoveRows`` neighboring relation."""
+        metric = SymmetricDifference()
         distance = ExactNumber(relation.n)
-        input_table = self.tables[relation.table]
-        # convert table data to domain schema
-        input_domain = SparkDataFrameDomain.from_spark_schema(input_table.schema)
-        return input_domain, input_metric, distance, input_table
+        data = self.tables[relation.table]
+        domain = SparkDataFrameDomain.from_spark_schema(data.schema)
+        return self.Output(domain, metric, distance, data)
 
     def visit_add_remove_rows_across_groups(
         self, relation: AddRemoveRowsAcrossGroups
-    ) -> Tuple[Domain, Metric, Any, Any]:
-        """Returns an input domain, input metric, distance, and input data.
-
-        Relation:
-        :class:`~tmlt.analytics._neighboring_relations.AddRemoveRowsAcrossGroups`
-        NeighboringRelation.
-        """
+    ) -> Output:
+        """Build Core state from ``AddRemoveRowsAcrossGroups`` neighboring relation."""
         # This is needed because it's currently allowed to pass float-valued
         # stabilities in the per_group parameter (for backwards compatibility).
         # TODO(#2272): Remove this.
@@ -83,53 +102,27 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
                 " not supported."
             )
 
-        input_metric = IfGroupedBy(relation.grouping_column, agg_metric)
-        input_table = self.tables[relation.table]
-        input_domain = SparkDataFrameDomain.from_spark_schema(input_table.schema)
-        return input_domain, input_metric, distance, input_table
+        metric = IfGroupedBy(relation.grouping_column, agg_metric)
+        data = self.tables[relation.table]
+        domain = SparkDataFrameDomain.from_spark_schema(data.schema)
+        return self.Output(domain, metric, distance, data)
 
-    def visit_conjunction(
-        self, relation: Conjunction
-    ) -> Tuple[Domain, Metric, Any, Any]:
-        """Returns an input domain, input metric, distance, and input data.
+    def visit_conjunction(self, relation: Conjunction) -> Output:
+        """Build Core state from ``Conjunction`` neighboring relation."""
+        domain_dict: Dict[Identifier, Any] = {}
+        metric_dict: Dict[Identifier, Any] = {}
+        distance_dict: Dict[Identifier, Any] = {}
+        data_dict: Dict[Union[str, int], Any] = {}
 
-        Relation:
-        :class:`~tmlt.analytics._neighboring_relations.Conjunction`
-        NeighboringRelation.
-        """
-        domain_dict: Dict[Union[str, int], Any] = {}
-        # map names of children to their child domain
-        metric_dict: Dict[Union[str, int], Any] = {}
-        # map child names to child input metrics
-        distance_dict: Dict[Union[str, int], Any] = {}
-        # map child names to child input distances
-        input_table_dict: Dict[Union[str, int], Any] = {}
-        # map child names to inputs for their respective relations
-        # Assign numerical indices here instead of using table names
-        # because some indices will be table names, whereas others will be
-        # dictionaries mapping table names to DataFrames (e.g. with AddRemoveKeys)
-        # in the future.
-        for index, child in enumerate(relation.children, 1):
-            child_visitor = child.accept(self)
-            # if the child returns a SparkDataFrameDomain,
-            # we know we can use the table name as index
-            if isinstance(child_visitor[0], SparkDataFrameDomain):
-                source_id = "".join(
-                    child._validate(self.tables)  # pylint: disable=protected-access
-                )
-                domain_dict[source_id] = child_visitor[0]
-                metric_dict[source_id] = child_visitor[1]
-                distance_dict[source_id] = child_visitor[2]
-                input_table_dict[source_id] = child_visitor[3]
-            # otherwise we should use a numerical index
-            else:
-                domain_dict[index] = child_visitor[0]
-                metric_dict[index] = child_visitor[1]
-                distance_dict[index] = child_visitor[2]
-                input_table_dict[index] = child_visitor[3]
-        distance = distance_dict
-        input_metric = DictMetric(metric_dict)
-        input_table = input_table_dict
-        input_domain = DictDomain(domain_dict)
+        for child in relation.children:
+            child_id = child.accept(_RelationIDVisitor())
+            child_output = child.accept(self)
 
-        return input_domain, input_metric, distance, input_table
+            domain_dict[child_id] = child_output.domain
+            metric_dict[child_id] = child_output.metric
+            distance_dict[child_id] = child_output.distance
+            data_dict[child_id] = child_output.data
+
+        return self.Output(
+            DictDomain(domain_dict), DictMetric(metric_dict), distance_dict, data_dict
+        )

@@ -20,6 +20,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics.query_expr import DropNullAndNan
@@ -154,7 +155,9 @@ class TransformationVisitor(QueryExprVisitor):
         # check if the source ID is in the input domain's keys. If not,
         # it likely exists in a dict one level into the input domain
         # if expr.source_id in self.input_domain.key_to_domain:
-        return GetValue(self.input_domain, self.input_metric, expr.source_id)
+        return GetValue(
+            self.input_domain, self.input_metric, NamedTable(expr.source_id)
+        )
 
     def _visit_child(self, child: QueryExpr) -> Transformation:
         """Visit a child query and raise assertion errors if needed."""
