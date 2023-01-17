@@ -33,7 +33,7 @@
    .. list-table:: Attributes
 
       {% for attribute in visible_attributes %}
-      * - :attribute:`.{{ attribute.short_name }}`
+      * - :attr:`.{{ attribute.short_name }}`
         - {{ attribute.summary }}
       {% endfor %}
 
