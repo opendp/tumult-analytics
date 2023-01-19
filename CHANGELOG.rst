@@ -6,6 +6,10 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- *Backwards-incompatible*: Analytics no longer allows users to set lower bounds equal to upper bounds for quantile, sum, average, variance, and standard deviation queries. Now, the lower bound must be strictly less than the upper bound.
+
 Fixed
 ~~~~~
 

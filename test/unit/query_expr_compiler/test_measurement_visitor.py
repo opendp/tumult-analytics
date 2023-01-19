@@ -109,92 +109,6 @@ def chain_to_list(t: ChainTT) -> List[Transformation]:
 ### Tests just for _get_query_bounds. ###
 
 
-@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
-def test_equal_upper_and_lower_average(bound: float) -> None:
-    """Test _get_query_bounds on Average query expr, with lower=upper."""
-    average = GroupByBoundedAverage(
-        child=PrivateSource("private"),
-        groupby_keys=KeySet.from_dict({}),
-        measure_column="",
-        low=bound,
-        high=bound,
-    )
-    (low, high) = _get_query_bounds(average)
-    assert low == high
-    expected = ExactNumber.from_float(bound, round_up=True)
-    assert low == expected
-    assert high == expected
-
-
-@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
-def test_equal_upper_and_lower_stdev(bound: float) -> None:
-    """Test _get_query_bounds on STDEV query expr, with lower=upper."""
-    stdev = GroupByBoundedSTDEV(
-        child=PrivateSource("private"),
-        groupby_keys=KeySet.from_dict({}),
-        measure_column="",
-        low=bound,
-        high=bound,
-    )
-    (low, high) = _get_query_bounds(stdev)
-    assert low == high
-    expected = ExactNumber.from_float(bound, round_up=True)
-    assert low == expected
-    assert high == expected
-
-
-@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
-def test_equal_upper_and_lower_sum(bound: float) -> None:
-    """Test _get_query_bounds on Sum query expr, with lower=upper."""
-    sum_query = GroupByBoundedSum(
-        child=PrivateSource("private"),
-        groupby_keys=KeySet.from_dict({}),
-        measure_column="",
-        low=bound,
-        high=bound,
-    )
-    (low, high) = _get_query_bounds(sum_query)
-    assert low == high
-    expected = ExactNumber.from_float(bound, round_up=True)
-    assert low == expected
-    assert high == expected
-
-
-@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
-def test_equal_upper_and_lower_variance(bound: float) -> None:
-    """Test _get_query_bounds on Variance query expr, with lower=upper."""
-    variance = GroupByBoundedVariance(
-        child=PrivateSource("private"),
-        groupby_keys=KeySet.from_dict({}),
-        measure_column="",
-        low=bound,
-        high=bound,
-    )
-    (low, high) = _get_query_bounds(variance)
-    assert low == high
-    expected = ExactNumber.from_float(bound, round_up=True)
-    assert low == expected
-    assert high == expected
-
-
-@pytest.mark.parametrize("bound", [(0), (-123456), (7899000)])
-def test_equal_upper_and_lower_quantile(bound: float) -> None:
-    """Test _get_query_bounds on Quantile query expr, with lower=upper."""
-    quantile = GroupByQuantile(
-        child=PrivateSource("private"),
-        groupby_keys=KeySet.from_dict({}),
-        measure_column="",
-        low=bound,
-        high=bound,
-        quantile=0.5,
-    )
-    (low, high) = _get_query_bounds(quantile)
-    assert low == high
-    expected = ExactNumber.from_float(bound, round_up=True)
-    assert low == expected
-    assert high == expected
-
-
 @pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
 def test_average(lower: float, upper: float) -> None:
     """Test _get_query_bounds on Average query expr, with lower!=upper."""
@@ -552,7 +466,7 @@ class TestMeasurementVisitor:
             child=self.base_query,
             measure_column="",
             low=0,
-            high=0,
+            high=1,
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
@@ -645,7 +559,7 @@ class TestMeasurementVisitor:
             child=self.base_query,
             measure_column="",
             low=0,
-            high=0,
+            high=1,
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
@@ -738,7 +652,7 @@ class TestMeasurementVisitor:
             child=self.base_query,
             measure_column="",
             low=0,
-            high=0,
+            high=1,
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
@@ -831,7 +745,7 @@ class TestMeasurementVisitor:
             child=self.base_query,
             measure_column="",
             low=0,
-            high=0,
+            high=1,
             mechanism=query_mechanism,
             groupby_keys=KeySet.from_dict({}),
         )
@@ -879,7 +793,7 @@ class TestMeasurementVisitor:
                 child=self.base_query,
                 measure_column="",
                 low=0,
-                high=0,
+                high=1,
                 mechanism=mechanism,
                 groupby_keys=KeySet.from_dict({}),
             )
@@ -888,7 +802,7 @@ class TestMeasurementVisitor:
                 child=self.base_query,
                 measure_column="",
                 low=0,
-                high=0,
+                high=1,
                 mechanism=mechanism,
                 groupby_keys=KeySet.from_dict({}),
             )
@@ -897,7 +811,7 @@ class TestMeasurementVisitor:
                 child=self.base_query,
                 measure_column="",
                 low=0,
-                high=0,
+                high=1,
                 mechanism=mechanism,
                 groupby_keys=KeySet.from_dict({}),
             )
@@ -906,7 +820,7 @@ class TestMeasurementVisitor:
                 child=self.base_query,
                 measure_column="",
                 low=0,
-                high=0,
+                high=1,
                 mechanism=mechanism,
                 groupby_keys=KeySet.from_dict({}),
             )
@@ -1635,7 +1549,7 @@ class TestMeasurementVisitor:
                     quantile=0.5,
                     measure_column="X",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 None,
@@ -1647,12 +1561,12 @@ class TestMeasurementVisitor:
                     quantile=0.5,
                     measure_column="nan_and_inf",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 ReplaceInfExpr(
                     DropNullAndNan(PrivateSource("private"), ["nan_and_inf"]),
-                    {"nan_and_inf": (0, 0)},
+                    {"nan_and_inf": (0, 1)},
                 ),
             ),
             (
@@ -1662,10 +1576,10 @@ class TestMeasurementVisitor:
                     quantile=0.5,
                     measure_column="inf",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
-                ReplaceInfExpr(PrivateSource("private"), {"inf": (0, 0)}),
+                ReplaceInfExpr(PrivateSource("private"), {"inf": (0, 1)}),
             ),
         ],
     )
@@ -1813,7 +1727,7 @@ class TestMeasurementVisitor:
                     mechanism=SumMechanism.DEFAULT,
                     measure_column="B",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
@@ -1924,7 +1838,7 @@ class TestMeasurementVisitor:
                     mechanism=AverageMechanism.DEFAULT,
                     measure_column="B",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
@@ -2035,7 +1949,7 @@ class TestMeasurementVisitor:
                     mechanism=VarianceMechanism.DEFAULT,
                     measure_column="B",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
@@ -2146,7 +2060,7 @@ class TestMeasurementVisitor:
                     mechanism=StdevMechanism.DEFAULT,
                     measure_column="B",
                     low=0,
-                    high=0,
+                    high=1,
                 ),
                 RhoZCDP(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,

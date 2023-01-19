@@ -743,9 +743,13 @@ class GroupByQuantile(QueryExpr):
     quantile: float
     """The quantile to compute (between 0 and 1)."""
     low: float
-    """The lower bound for clamping the ``measure_column``."""
+    """The lower bound for clamping the ``measure_column``.
+    Should be less than ``high``.
+    """
     high: float
-    """The upper bound for clamping the ``measure_column``."""
+    """The upper bound for clamping the ``measure_column``.
+    Should be greater than ``low``.
+    """
     output_column: str = "quantile"
     """The name of the column to store the quantiles in."""
 
@@ -767,9 +771,9 @@ class GroupByQuantile(QueryExpr):
             # If one is int and other is float; silently cast to float
             self.low = float(self.low)
             self.high = float(self.high)
-        if self.low > self.high:
+        if self.low >= self.high:
             raise ValueError(
-                f"Lower bound '{self.low}' can not be greater than "
+                f"Lower bound '{self.low}' must be less than "
                 f"the upper bound '{self.high}'."
             )
 
@@ -795,9 +799,13 @@ class GroupByBoundedSum(QueryExpr):
     measure_column: str
     """The column to compute the sum over."""
     low: float
-    """The lower bound for clamping the ``measure_column``."""
+    """The lower bound for clamping the ``measure_column``.
+    Should be less than ``high``.
+    """
     high: float
-    """The upper bound for clamping the ``measure_column``."""
+    """The upper bound for clamping the ``measure_column``.
+    Should be greater than ``low``.
+    """
     output_column: str = "sum"
     """The name of the column to store the sums in."""
     mechanism: SumMechanism = SumMechanism.DEFAULT
@@ -821,9 +829,9 @@ class GroupByBoundedSum(QueryExpr):
             # If one is int and other is float; silently cast to float
             self.low = float(self.low)
             self.high = float(self.high)
-        if self.low > self.high:
+        if self.low >= self.high:
             raise ValueError(
-                f"Lower bound '{self.low}' can not be greater than "
+                f"Lower bound '{self.low}' must be less than "
                 f"the upper bound '{self.high}'."
             )
 
@@ -849,9 +857,13 @@ class GroupByBoundedAverage(QueryExpr):
     measure_column: str
     """The column to compute the average over."""
     low: float
-    """The lower bound for clamping the ``measure_column``."""
+    """The lower bound for clamping the ``measure_column``.
+    Should be less than ``high``.
+    """
     high: float
-    """The upper bound for clamping the ``measure_column``."""
+    """The upper bound for clamping the ``measure_column``.
+    Should be greater than ``low``.
+    """
     output_column: str = "average"
     """The name of the column to store the averages in."""
     mechanism: AverageMechanism = AverageMechanism.DEFAULT
@@ -875,9 +887,9 @@ class GroupByBoundedAverage(QueryExpr):
             # If one is int and other is float; silently cast to float
             self.low = float(self.low)
             self.high = float(self.high)
-        if self.low > self.high:
+        if self.low >= self.high:
             raise ValueError(
-                f"Lower bound '{self.low}' can not be greater than "
+                f"Lower bound '{self.low}' must be less than "
                 f"the upper bound '{self.high}'."
             )
 
@@ -903,9 +915,13 @@ class GroupByBoundedVariance(QueryExpr):
     measure_column: str
     """The column to compute the variance over."""
     low: float
-    """The lower bound for clamping the ``measure_column``."""
+    """The lower bound for clamping the ``measure_column``.
+    Should be less than ``high``.
+    """
     high: float
-    """The upper bound for clamping the ``measure_column``."""
+    """The upper bound for clamping the ``measure_column``.
+    Should be greater than ``low``.
+    """
     output_column: str = "variance"
     """The name of the column to store the variances in."""
     mechanism: VarianceMechanism = VarianceMechanism.DEFAULT
@@ -929,9 +945,9 @@ class GroupByBoundedVariance(QueryExpr):
             # If one is int and other is float; silently cast to float
             self.low = float(self.low)
             self.high = float(self.high)
-        if self.low > self.high:
+        if self.low >= self.high:
             raise ValueError(
-                f"Lower bound '{self.low}' can not be greater than "
+                f"Lower bound '{self.low}' must be less than "
                 f"the upper bound '{self.high}'."
             )
 
@@ -957,9 +973,13 @@ class GroupByBoundedSTDEV(QueryExpr):
     measure_column: str
     """The column to compute the standard deviation over."""
     low: float
-    """The lower bound for clamping the ``measure_column``."""
+    """The lower bound for clamping the ``measure_column``.
+    Should be less than ``high``.
+    """
     high: float
-    """The upper bound for clamping the ``measure_column``."""
+    """The upper bound for clamping the ``measure_column``.
+    Should be greater than ``low``.
+    """
     output_column: str = "stdev"
     """The name of the column to store the stdev in."""
     mechanism: StdevMechanism = StdevMechanism.DEFAULT
@@ -984,9 +1004,9 @@ class GroupByBoundedSTDEV(QueryExpr):
             self.low = float(self.low)
             self.high = float(self.high)
 
-        if self.low > self.high:
+        if self.low >= self.high:
             raise ValueError(
-                f"Lower bound '{self.low}' can not be greater than "
+                f"Lower bound '{self.low}' must be less than "
                 f"the upper bound '{self.high}'."
             )
 
