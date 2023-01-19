@@ -304,7 +304,14 @@ def test_invalid_groupbycount(
             "B",
             10.0,
             1,
-            "Lower bound '10.0' can not be greater than the upper bound '1.0'.",
+            "Lower bound '10.0' must be less than the upper bound '1.0'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            1.0,
+            1.0,
+            "Lower bound '1.0' must be less than the upper bound '1.0'.",
         ),
     ],
 )
@@ -363,7 +370,15 @@ def test_invalid_groupbyagg(
             0.5,
             10.0,
             1.0,
-            "Lower bound '10.0' can not be greater than the upper bound '1.0'.",
+            "Lower bound '10.0' must be less than the upper bound '1.0'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            1.0,
+            1.0,
+            "Lower bound '1.0' must be less than the upper bound '1.0'.",
         ),
     ],
 )
