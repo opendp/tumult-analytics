@@ -1,10 +1,12 @@
 """Tests for Neighboring Relations"""
 # pylint: disable=no-self-use, no-member
 from cmath import inf, pi
+from typing import Dict
 
 import pandas as pd
 import pytest
 import sympy as sp
+from pyspark.sql import DataFrame
 
 from tmlt.analytics._neighboring_relation import (
     AddRemoveRows,
@@ -70,6 +72,12 @@ def setup_test_data(request, spark) -> None:
 class TestNeighboringRelations:
     """Tests for the AddRemoveRows NeighboringRelation."""
 
+    table1: DataFrame
+    table2: DataFrame
+    table3: DataFrame
+    testdfsdict: Dict[str, DataFrame]
+    testdfsdictgrouping: Dict[str, DataFrame]
+
     def test_add_remove_rows_validation(self):
         """Test that validate works as expected for AddRemoveRows."""
         valid_dict = {"table1": self.table1}
@@ -83,7 +91,7 @@ class TestNeighboringRelations:
         # table's value is of wrong type
         with pytest.raises(TypeError):
             AddRemoveRows("table1", n=1).validate_input(
-                {"table1": ["a", "random", "list"]}
+                {"table1": ["a", "random", "list"]}  # type: ignore
             )
 
     def test_add_remove_rows_accept(self):
@@ -126,7 +134,7 @@ class TestNeighboringRelations:
         # table's value is not a DataFrame
         with pytest.raises(TypeError):
             AddRemoveRowsAcrossGroups("table1", "B", 1, 1).validate_input(
-                {"table1": ["a", "random", "list"]}
+                {"table1": ["a", "random", "list"]}  # type: ignore
             )
         # table contains values not supported in grouping operations
         with pytest.raises(ValueError):

@@ -975,7 +975,9 @@ class TestInvalidSession:
                 r"\(QueryExprCompiler, NoneType\); got list instead",
             ):
                 self._setup_accountant(mock_accountant)
-                Session(accountant=mock_accountant, public_sources=dict(), compiler=[])
+                Session(
+                    mock_accountant, public_sources=dict(), compiler=[]  # type: ignore
+                )
 
     def test_invalid_dataframe_initialization(self):
         """session raises error on invalid dataframe type"""

@@ -6,7 +6,7 @@
 # pylint: disable=no-self-use, no-member, protected-access
 
 import datetime
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -479,9 +479,7 @@ class TestTransformationVisitor:
 
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, PrivateJoinTransformation)
-        private_join_transform = cast(
-            PrivateJoinTransformation, transformation.transformation2
-        )
+        private_join_transform = transformation.transformation2
         assert (
             private_join_transform.left_truncation_strategy
             == expected_left_truncation_strategy

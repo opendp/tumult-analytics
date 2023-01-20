@@ -6,7 +6,7 @@
 # pylint: disable=no-member, protected-access, no-self-use
 
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -623,7 +623,7 @@ class TestQueryExprCompiler:
     join_df: DataFrame
     groupby_one_column_df: DataFrame
     groupby_two_columns_df: DataFrame
-    stability: Dict[str, Any]
+    stability: Dict
     input_domain: DictDomain
     input_metric: DictMetric
     catalog: Catalog

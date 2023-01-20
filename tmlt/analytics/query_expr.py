@@ -308,14 +308,8 @@ class Map(QueryExpr):
         """
         if not isinstance(other, Map):
             return False
-        # This line will incorrectly produce a typing error;
-        # see https://github.com/python/mypy/issues/5485
-        # Also, mypy will only ignore lines if you have a # type: ignore comment
-        # on the end of the line, which makes this line too long.
-        # pylint: disable=line-too-long
-        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:  # type: ignore
+        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:
             return False
-        # pylint: enable=line-too-long
         return (
             self.schema_new_columns == other.schema_new_columns
             and self.augment == other.augment
@@ -380,14 +374,8 @@ class FlatMap(QueryExpr):
         """
         if not isinstance(other, FlatMap):
             return False
-        # This line will incorrectly produce a typing error;
-        # see https://github.com/python/mypy/issues/5485
-        # Also, mypy will only ignore lines if you have a # type: ignore comment
-        # on the end of the line, which makes this line too long.
-        # pylint: disable=line-too-long
-        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:  # type: ignore
+        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:
             return False
-        # pylint: enable=line-too-long
         return (
             self.max_num_rows == other.max_num_rows
             and self.schema_new_columns == other.schema_new_columns

@@ -63,7 +63,7 @@ def test_join_public(join_columns: Optional[List[str]]):
         .count()
     )
 
-    assert query.child.join_columns == join_columns  # type: ignore
+    assert query.child.join_columns == join_columns
 
     # Check query expression
     assert isinstance(query, GroupByCount)
@@ -89,7 +89,7 @@ def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
         .count()
     )
 
-    assert query.child.join_columns == join_columns  # type: ignore
+    assert query.child.join_columns == join_columns
 
     # Check query expression
     assert isinstance(query, GroupByCount)
