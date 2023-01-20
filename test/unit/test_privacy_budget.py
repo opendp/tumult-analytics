@@ -42,7 +42,7 @@ def test_constructor_fail_negative_float():
 def test_constructor_fail_bad_epsilon_type():
     """Tests that construction fails with epsilon that is not an int or float."""
     with pytest.raises(TypeError):
-        PureDPBudget("1.5")
+        PureDPBudget("1.5")  # type: ignore
 
 
 def test_constructor_fail_nan():
@@ -85,7 +85,7 @@ def test_constructor_fail_negative_float_ZCDP():
 def test_constructor_fail_bad_rho_type_ZCDP():
     """Tests that construction fails with rho that is not an int or float."""
     with pytest.raises(TypeError):
-        RhoZCDPBudget("1.5")
+        RhoZCDPBudget("1.5")  # type: ignore
 
 
 def test_constructor_fail_nan_ZCDP():

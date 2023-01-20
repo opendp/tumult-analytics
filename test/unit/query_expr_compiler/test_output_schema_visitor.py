@@ -452,9 +452,9 @@ class TestValidation:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(  # type: ignore
-                    PrivateSource("private"), groupby_keys, "B", 1.0, 5.0
-                ).accept(self.visitor)
+                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
+                    self.visitor
+                )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
@@ -624,9 +624,9 @@ class TestValidationWithNulls:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(  # type: ignore
-                    PrivateSource("private"), groupby_keys, "B", 1.0, 5.0
-                ).accept(self.visitor)
+                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
+                    self.visitor
+                )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0

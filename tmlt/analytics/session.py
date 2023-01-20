@@ -540,7 +540,7 @@ class Session:
                 "probably a bug; please let us know about it so we can "
                 "fix it!"
             )
-        return cast(DictDomain, self._accountant.input_domain)
+        return self._accountant.input_domain
 
     @property
     def _input_metric(self) -> DictMetric:
@@ -551,7 +551,7 @@ class Session:
                 "probably a bug; please let us know about it so we can "
                 "fix it!"
             )
-        return cast(DictMetric, self._accountant.input_metric)
+        return self._accountant.input_metric
 
     @typechecked
     def get_schema(self, source_id: str) -> Schema:

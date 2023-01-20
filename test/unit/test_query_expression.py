@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Un
 
 import pandas as pd
 import pytest
+from pyspark.sql import DataFrame
 from pyspark.sql.types import BinaryType, StructField, StructType
 
 from tmlt.analytics._schema import Schema
@@ -92,7 +93,7 @@ def test_invalid_rename_empty_string():
 def test_invalid_filter():
     """Tests that invalid Filter errors on post-init."""
     with pytest.raises(TypeError):
-        Filter(PrivateSource("private"), 0)
+        Filter(PrivateSource("private"), 0)  # type: ignore
 
 
 @pytest.mark.parametrize(
@@ -515,6 +516,7 @@ def test_join_public_string_nan(spark):
     """Test that the string "NaN" is allowed in string-valued columns."""
     df = spark.createDataFrame(pd.DataFrame({"col": ["nan", "NaN", "NAN", "Nan"]}))
     query_expr = JoinPublic(PrivateSource("a"), df)
+    assert isinstance(query_expr.public_table, DataFrame)
     assert_frame_equal_with_sort(query_expr.public_table.toPandas(), df.toPandas())
 
 
