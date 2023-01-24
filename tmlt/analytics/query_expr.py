@@ -228,11 +228,11 @@ class Rename(QueryExpr):
 
 @dataclass
 class Filter(QueryExpr):
-    """Returns the subset of the rows that satisfy the predicate."""
+    """Returns the subset of the rows that satisfy the condition."""
 
     child: QueryExpr
     """The QueryExpr to filter."""
-    predicate: str
+    condition: str
     """A string of SQL expression specifying the filter to apply to the data.
 
     For example, the string "A > B" matches rows where column A is greater than
@@ -242,7 +242,7 @@ class Filter(QueryExpr):
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("predicate", self.predicate, str)
+        check_type("condition", self.condition, str)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

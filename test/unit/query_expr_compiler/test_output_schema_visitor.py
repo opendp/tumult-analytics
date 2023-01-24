@@ -138,8 +138,8 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         "Join columns must have identical types on both tables.",
     ),
     (  # Filter on invalid column
-        Filter(child=PrivateSource("private"), predicate="NONEXISTENT>1"),
-        "Invalid filter expression: 'NONEXISTENT>1' in Filter query.",
+        Filter(child=PrivateSource("private"), condition="NONEXISTENT>1"),
+        "Invalid filter condition: 'NONEXISTENT>1' in Filter query.",
     ),
     (  # Rename on non-existent column
         Rename(child=PrivateSource("private"), column_mapper={"NONEXISTENT": "Z"}),
@@ -718,10 +718,10 @@ class TestValidationWithNulls:
         schema = self.visitor.visit_rename(query)
         assert schema == expected_schema
 
-    @pytest.mark.parametrize("predicate", ["B > X", "X < 500", "NOTNULL < 30"])
-    def test_visit_filter(self, predicate: str) -> None:
+    @pytest.mark.parametrize("condition", ["B > X", "X < 500", "NOTNULL < 30"])
+    def test_visit_filter(self, condition: str) -> None:
         """Test visit_filter."""
-        query = Filter(child=PrivateSource("private"), predicate=predicate)
+        query = Filter(child=PrivateSource("private"), condition=condition)
         schema = self.visitor.visit_filter(query)
         assert (
             schema

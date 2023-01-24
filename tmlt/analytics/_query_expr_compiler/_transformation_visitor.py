@@ -228,7 +228,7 @@ class TransformationVisitor(QueryExprVisitor):
         transformation = FilterTransformation(
             domain=child.output_domain,
             metric=child.output_metric,
-            filter_expr=query.predicate,
+            filter_expr=query.condition,
         )
         return child | transformation
 

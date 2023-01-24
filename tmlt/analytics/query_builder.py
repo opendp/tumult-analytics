@@ -780,14 +780,14 @@ class QueryBuilder:
         self._query_expr = Rename(child=self._query_expr, column_mapper=column_mapper)
         return self
 
-    def filter(self, predicate: str) -> "QueryBuilder":
-        """Updates the current query to filter for rows matching a predicate.
+    def filter(self, condition: str) -> "QueryBuilder":
+        """Updates the current query to filter for rows matching a condition.
 
-        The ``predicate`` parameter accepts the same syntax as in PySpark's
+        The ``condition`` parameter accepts the same syntax as in PySpark's
         :meth:`~pyspark.sql.DataFrame.filter` method: valid expressions are
         those that can be used in a `WHERE clause
         <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
-        in Spark SQL. Examples of valid predicates include:
+        in Spark SQL. Examples of valid conditions include:
 
         * ``age < 42``
         * ``age BETWEEN 17 AND 42``
@@ -842,11 +842,11 @@ class QueryBuilder:
             0      1
 
         Args:
-            predicate: A string of SQL expressions specifying the filter to apply to the
+            condition: A string of SQL expressions specifying the filter to apply to the
                 data. For example, the string "A > B" matches rows where column A is
                 greater than column B.
         """
-        self._query_expr = Filter(child=self._query_expr, predicate=predicate)
+        self._query_expr = Filter(child=self._query_expr, condition=condition)
         return self
 
     def select(self, columns: Sequence[str]) -> "QueryBuilder":

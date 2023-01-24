@@ -2128,7 +2128,7 @@ class TestMeasurementVisitor:
         [
             (PrivateSource("private")),
             (Rename(child=PrivateSource("private"), column_mapper={"A": "A2"})),
-            (Filter(child=PrivateSource("private"), predicate="B > 2")),
+            (Filter(child=PrivateSource("private"), condition="B > 2")),
             (SelectExpr(child=PrivateSource("private"), columns=["A"])),
             (
                 Map(
