@@ -9,6 +9,9 @@ Unreleased
 Changed
 ~~~~~~~
 - *Backwards-incompatible*: Analytics no longer allows users to set lower bounds equal to upper bounds for quantile, sum, average, variance, and standard deviation queries. Now, the lower bound must be strictly less than the upper bound.
+- *Backwards-incompatible*: Renamed ``QueryBuilder.filter`` arguement from "predicate" to "condition".
+- *Backwards-incompatible*: Renamed ``query_expr.Filter`` property from "predicate" to "condition".
+- *Backwards-incompatible*: Renamed ``KeySet.filter`` argument from "expr" to "condition".
 
 Fixed
 ~~~~~

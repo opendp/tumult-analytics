@@ -286,7 +286,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Filter
         [
             GroupByCount(
-                child=Filter(child=PrivateSource("private"), predicate="A == '0'"),
+                child=Filter(child=PrivateSource("private"), condition="A == '0'"),
                 groupby_keys=KeySet.from_dict({}),
             )
         ],

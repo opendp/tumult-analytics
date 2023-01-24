@@ -161,15 +161,15 @@ def test_rename():
 
 def test_filter():
     """QueryBuilder filter works as expected."""
-    predicate = "A == '0'"
-    query = root_builder().filter(predicate).count()
+    condition = "A == '0'"
+    query = root_builder().filter(condition).count()
 
     # Check query expression
     assert isinstance(query, GroupByCount)
 
     filter_expr = query.child
     assert isinstance(filter_expr, Filter)
-    assert filter_expr.predicate == predicate
+    assert filter_expr.condition == condition
 
     root_expr = filter_expr.child
     assert isinstance(root_expr, PrivateSource)

@@ -440,7 +440,7 @@ EVALUATE_TESTS = [
     (  # GroupByCount Filter
         QueryBuilder("private").filter("A == '0'").count(),
         GroupByCount(
-            child=Filter(child=PrivateSource("private"), predicate="A == '0'"),
+            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [3]}),
@@ -448,7 +448,7 @@ EVALUATE_TESTS = [
     (  # GroupByCountDistinct Filter
         QueryBuilder("private").filter("A == '0'").count_distinct(),
         GroupByCountDistinct(
-            child=Filter(child=PrivateSource("private"), predicate="A == '0'"),
+            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [3]}),

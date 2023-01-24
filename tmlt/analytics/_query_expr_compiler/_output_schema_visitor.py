@@ -324,10 +324,10 @@ class OutputSchemaVisitor(QueryExprVisitor):
             [], schema=analytics_to_spark_schema(input_schema)
         )
         try:
-            test_df.filter(expr.predicate)
+            test_df.filter(expr.condition)
         except Exception as e:
             raise ValueError(
-                f"Invalid filter expression: '{expr.predicate}' in Filter query: {e}"
+                f"Invalid filter condition: '{expr.condition}' in Filter query: {e}"
             )
         return input_schema
 

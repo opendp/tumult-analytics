@@ -158,14 +158,14 @@ class KeySet:
         """
         return KeySet(coerce_spark_schema_or_fail(dataframe).dropDuplicates())
 
-    def filter(self, expr: Union[Column, str]) -> KeySet:
-        """Filter this KeySet using some expression.
+    def filter(self, condition: Union[Column, str]) -> KeySet:
+        """Filter this KeySet using some condition.
 
         This method accepts the same syntax as
-        :meth:`~pyspark.sql.DataFrame.filter`: valid expressions are those that
+        :meth:`~pyspark.sql.DataFrame.filter`: valid conditions are those that
         can be used in a `WHERE clause
         <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
-        in Spark SQL. Examples of valid predicates include:
+        in Spark SQL. Examples of valid conditions include:
 
         * ``age < 42``
         * ``age BETWEEN 17 AND 42``
@@ -194,7 +194,7 @@ class KeySet:
             2  a2  2
             3  a2  3
         """
-        return KeySet(self.dataframe().filter(expr))
+        return KeySet(self.dataframe().filter(condition))
 
     def __getitem__(self, columns: Union[str, Tuple[str, ...], List[str]]) -> KeySet:
         """``KeySet[col, col, ...]`` returns a KeySet with those columns only.

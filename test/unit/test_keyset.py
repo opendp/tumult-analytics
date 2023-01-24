@@ -306,7 +306,7 @@ def test_from_dataframe_invalid_types(spark, df: pd.DataFrame, expected_err_msg:
 
 
 @pytest.mark.parametrize(
-    "keyset_df,expr,expected_df",
+    "keyset_df,condition,expected_df",
     [
         (
             pd.DataFrame([[0, "b0"], [1, "b0"], [2, "b0"]], columns=["A", "B"]),
@@ -326,11 +326,14 @@ def test_from_dataframe_invalid_types(spark, df: pd.DataFrame, expected_err_msg:
     ],
 )
 def test_filter_str(
-    spark, keyset_df: pd.DataFrame, expr: Union[Column, str], expected_df: pd.DataFrame
+    spark,
+    keyset_df: pd.DataFrame,
+    condition: Union[Column, str],
+    expected_df: pd.DataFrame,
 ) -> None:
     """Test KeySet.filter works"""
     keyset = KeySet(spark.createDataFrame(keyset_df))
-    filtered_keyset = keyset.filter(expr)
+    filtered_keyset = keyset.filter(condition)
     assert_frame_equal_with_sort(filtered_keyset.dataframe().toPandas(), expected_df)
 
 
@@ -405,8 +408,8 @@ def test_type_coercion_from_dict(
 
 # This test is not parameterized because Column parameters are
 # Python expressions containing the KeySet's DataFrame.
-def test_filter_expr() -> None:
-    """Test KeySet.filter with Columns expressions."""
+def test_filter_condition() -> None:
+    """Test KeySet.filter with Columns conditions."""
     keyset = KeySet.from_dict({"A": ["abc", "def", "ghi"], "B": [0, 100]})
     filtered = keyset.filter(keyset.dataframe().B > 0)
     expected = pd.DataFrame(
@@ -420,8 +423,8 @@ def test_filter_expr() -> None:
     )
 
 
-# This test also uses a Column as a filter expression, and is not
-# parameterized for the same reason as test_filter_expr.
+# This test also uses a Column as a filter condition, and is not
+# parameterized for the same reason as test_filter_condition.
 def test_filter_to_empty() -> None:
     """Test when KeySet.filter should return an empty dataframe, it does"""
     keyset = KeySet.from_dict({"A": [-1, -2, -3]})

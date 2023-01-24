@@ -287,7 +287,7 @@ class TestTransformationVisitor:
     @pytest.mark.parametrize("filter_expr", ["B > X", "A = 'ABC'"])
     def test_visit_filter(self, filter_expr: str) -> None:
         """Test visit_filter."""
-        query = Filter(predicate=filter_expr, child=PrivateSource(source_id="private"))
+        query = Filter(condition=filter_expr, child=PrivateSource(source_id="private"))
         transformation = self.visitor.visit_filter(query)
         self._validate_transform_basics(transformation, query)
         assert isinstance(transformation, ChainTT)
@@ -297,7 +297,7 @@ class TestTransformationVisitor:
     def test_visit_invalid_filter(self) -> None:
         """Test visit_filter with an invalid query."""
         query = Filter(
-            predicate="not a valid predicate", child=PrivateSource(source_id="private")
+            condition="not a valid condition", child=PrivateSource(source_id="private")
         )
         with pytest.raises(ValueError):
             self.visitor.visit_filter(query)
