@@ -26,7 +26,12 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
@@ -60,7 +65,7 @@ from tmlt.core.measurements.interactive_measurements import (
     PrivacyAccountantState,
     SequentialQueryable,
 )
-from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
@@ -978,7 +983,15 @@ class TestSession:
         session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
         assert session.remaining_privacy_budget == RhoZCDPBudget(0)
 
-    @pytest.mark.parametrize("budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
+    @pytest.mark.parametrize(
+        "budget",
+        [
+            (PureDPBudget(1)),
+            (ApproxDPBudget(0, 0.5)),
+            (ApproxDPBudget(1, 0)),
+            (RhoZCDPBudget(1)),
+        ],
+    )
     def test_zero_budget(self, budget: PrivacyBudget):
         """Test that a call to ``evaluate`` raises a ValueError if budget is 0."""
         query_expr = GroupByCount(
@@ -996,6 +1009,8 @@ class TestSession:
         zero_budget: PrivacyBudget
         if isinstance(budget, PureDPBudget):
             zero_budget = PureDPBudget(0)
+        elif isinstance(budget, ApproxDPBudget):
+            zero_budget = ApproxDPBudget(0, 0)
         else:
             zero_budget = RhoZCDPBudget(0)
         with pytest.raises(
@@ -1050,7 +1065,11 @@ class TestSession:
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
+        [
+            (PureDPBudget(20), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (RhoZCDPBudget(20), RhoZCDPBudget(10)),
+        ],
     )
     def test_partition_and_create(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -1085,7 +1104,11 @@ class TestSession:
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
+        [
+            (PureDPBudget(20), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (RhoZCDPBudget(20), RhoZCDPBudget(10)),
+        ],
     )
     def test_partition_and_create_query(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -1135,6 +1158,7 @@ class TestSession:
         "inf_budget,mechanism",
         [
             (PureDPBudget(float("inf")), CountMechanism.LAPLACE),
+            (ApproxDPBudget(float("inf"), 0.5), CountMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), CountMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), CountMechanism.GAUSSIAN),
         ],
@@ -1178,12 +1202,14 @@ class TestSession:
         )
 
     @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
-    def test_partitions_composed(self, output_measure: Union[PureDP, RhoZCDP]):
+    def test_partitions_composed(
+        self, output_measure: Union[PureDP, ApproxDP, RhoZCDP]
+    ):
         """Smoke test for composing :func:`partition_and_create`."""
-        starting_budget: Union[PureDPBudget, RhoZCDPBudget]
-        partition_budget: Union[PureDPBudget, RhoZCDPBudget]
-        second_partition_budget: Union[PureDPBudget, RhoZCDPBudget]
-        final_evaluate_budget: Union[PureDPBudget, RhoZCDPBudget]
+        starting_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
+        partition_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
+        second_partition_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
+        final_evaluate_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
         if output_measure == PureDP():
             starting_budget = PureDPBudget(20)
             partition_budget = PureDPBudget(10)
@@ -1195,7 +1221,9 @@ class TestSession:
             second_partition_budget = RhoZCDPBudget(5)
             final_evaluate_budget = RhoZCDPBudget(2)
         else:
-            pytest.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
+            pytest.fail(
+                f"must use PureDP, ApproxDP, or RhoZCDP, found {output_measure}"
+            )
 
         session1 = Session.from_dataframe(
             privacy_budget=starting_budget,
@@ -1275,7 +1303,11 @@ class TestSession:
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
-        [(PureDPBudget(20), PureDPBudget(10)), (RhoZCDPBudget(20), RhoZCDPBudget(10))],
+        [
+            (PureDPBudget(20), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (RhoZCDPBudget(20), RhoZCDPBudget(10)),
+        ],
     )
     def test_partition_execution_order(
         self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
@@ -1365,7 +1397,9 @@ class TestSession:
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
         new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
 
-    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
+    @pytest.mark.parametrize(
+        "budget", [(PureDPBudget(20)), (ApproxDPBudget(20, 0.5)), (RhoZCDPBudget(20))]
+    )
     def test_partition_on_flatmap_grouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on columns created by grouping flat maps."""
         session = Session.from_dataframe(
@@ -1388,7 +1422,9 @@ class TestSession:
         new_sessions["new1"].evaluate(QueryBuilder("new1").count(), budget)
         new_sessions["new2"].evaluate(QueryBuilder("new2").count(), budget)
 
-    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
+    @pytest.mark.parametrize(
+        "budget", [(PureDPBudget(20)), (ApproxDPBudget(20, 0.5)), (RhoZCDPBudget(20))]
+    )
     def test_partition_on_nongrouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on other columns after grouping flat maps."""
         session = Session.from_dataframe(
@@ -1417,7 +1453,9 @@ class TestSession:
         )
         new_sessions["one"].evaluate(QueryBuilder("one").groupby(keys).count(), budget)
 
-    @pytest.mark.parametrize("budget", [(PureDPBudget(20)), (RhoZCDPBudget(20))])
+    @pytest.mark.parametrize(
+        "budget", [(PureDPBudget(20)), (ApproxDPBudget(20, 0.5)), (RhoZCDPBudget(20))]
+    )
     def test_create_view_composed(self, budget: PrivacyBudget):
         """Composing views with :func:`create_view` works."""
 
@@ -1451,7 +1489,9 @@ class TestSession:
         assert session._accountant.d_in[NamedTable("flatmap2")] == 6
         # pylint: enable=protected-access
 
-    @pytest.mark.parametrize("budget", [(PureDPBudget(10)), (RhoZCDPBudget(10))])
+    @pytest.mark.parametrize(
+        "budget", [(PureDPBudget(10)), (ApproxDPBudget(10, 0.5)), (RhoZCDPBudget(10))]
+    )
     def test_create_view_composed_query(self, budget: PrivacyBudget):
         """Smoke test for composing views and querying."""
         session = Session.from_dataframe(
@@ -1492,6 +1532,8 @@ class TestSession:
         "inf_budget,mechanism",
         [
             (PureDPBudget(float("inf")), SumMechanism.LAPLACE),
+            (ApproxDPBudget(float("inf"), 0.5), SumMechanism.LAPLACE),
+            (ApproxDPBudget(0.5, 1), SumMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), SumMechanism.LAPLACE),
             (RhoZCDPBudget(float("inf")), SumMechanism.GAUSSIAN),
         ],
@@ -1673,21 +1715,26 @@ class TestInvalidSession:
         with pytest.raises(error_type, match=expected_error_msg):
             session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
 
-    @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
+    @pytest.mark.parametrize("output_measure", [(PureDP()), (ApproxDP()), (RhoZCDP())])
     def test_invalid_privacy_budget_evaluate_and_create(
         self, output_measure: Union[PureDP, RhoZCDP]
     ):
         """evaluate and create functions raise error on invalid privacy_budget."""
-        one_budget: Union[PureDPBudget, RhoZCDPBudget]
-        two_budget: Union[PureDPBudget, RhoZCDPBudget]
+        one_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
+        two_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
         if output_measure == PureDP():
             one_budget = PureDPBudget(1)
             two_budget = PureDPBudget(2)
+        elif output_measure == ApproxDP():
+            one_budget = ApproxDPBudget(1, 0.5)
+            two_budget = ApproxDPBudget(2, 0.5)
         elif output_measure == RhoZCDP():
             one_budget = RhoZCDPBudget(1)
             two_budget = RhoZCDPBudget(2)
         else:
-            pytest.fail(f"must use PureDP or RhoZCDP, found {output_measure}")
+            pytest.fail(
+                f"must use PureDP, ApproxDP, or RhoZCDP, found {output_measure}"
+            )
 
         query_expr = GroupByCount(
             child=PrivateSource("private"),

@@ -40,7 +40,12 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 from tmlt.analytics.protected_change import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
@@ -542,6 +547,28 @@ class TestSession:
             session = Session(accountant=mock_accountant, public_sources=dict())
             answer = session.evaluate(
                 query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(10)
+            )
+            self._assert_test_evaluate_correctness(
+                session, mock_accountant, mock_compiler, 10
+            )
+            check_type("answer", answer, DataFrame)
+
+    @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
+    def test_evaluate_puredp_session_approxdp_query(self, spark, d_in):
+        """Tests that :func:`evaluate` calls the right things given a puredp session."""
+        with patch.object(
+            QueryExprCompiler, "__call__", autospec=True
+        ) as mock_compiler, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant_and_compiler(
+                spark, d_in, mock_accountant, mock_compiler
+            )
+            mock_accountant.privacy_budget = ExactNumber(10)
+            session = Session(accountant=mock_accountant, public_sources=dict())
+            answer = session.evaluate(
+                query_expr=PrivateSource("private"),
+                privacy_budget=ApproxDPBudget(10, 0.5),
             )
             self._assert_test_evaluate_correctness(
                 session, mock_accountant, mock_compiler, 10
@@ -1594,6 +1621,13 @@ class TestSessionBuilder:
         [
             (
                 Session.Builder().with_privacy_budget(PureDPBudget(10)),
+                sp.Integer(10),
+                PureDP(),
+                [("df1", 1)],
+                [],
+            ),
+            (
+                Session.Builder().with_privacy_budget(ApproxDPBudget(10, 0.5)),
                 sp.Integer(10),
                 PureDP(),
                 [("df1", 1)],

@@ -37,7 +37,7 @@ class PureDPBudget(PrivacyBudget):
 
     This privacy definition is also known as epsilon-differential privacy, and the
     associated value is the epsilon privacy parameter. The privacy definition can
-    be found `here <https://en.wikipedia.org/wiki/Differential_privacy#Definition_of_%CE%B5-differential_privacy>`_
+    be found `here <https://en.wikipedia.org/wiki/Differential_privacy#Definition_of_%CE%B5-differential_privacy>`__.
     """  # pylint: disable=line-too-long
 
     @typechecked
@@ -73,6 +73,78 @@ class PureDPBudget(PrivacyBudget):
             return ExactNumber.from_float(
                 self.epsilon, False
             ) == ExactNumber.from_float(other.epsilon, False)
+        return False
+
+
+class ApproxDPBudget(PrivacyBudget):
+    """A privacy budget under approximate differential privacy.
+
+    This privacy definition is also known as (ε, δ)-differential privacy, and the
+    associated privacy parameters are epsilon and delta. The formal definition can
+    be found `here <https://desfontain.es/privacy/almost-differential-privacy.html#formal-definition>`__.
+    """  # pylint: disable=line-too-long
+
+    @typechecked
+    def __init__(self, epsilon: Union[int, float], delta: float):
+        """Construct a new ApproxDPBudget.
+
+        Args:
+            epsilon: The epsilon privacy parameter. Must be non-negative.
+                To specify an infinite budget, set epsilon equal to float('inf').
+            delta: The delta privacy parameter. Must be between 0 and 1 (inclusive).
+                If delta is 0, this is equivalent to PureDP.
+        """
+        if math.isnan(epsilon):
+            raise ValueError("Epsilon cannot be a NaN.")
+        if math.isnan(delta):
+            raise ValueError("Delta cannot be a NaN.")
+        if epsilon < 0:
+            raise ValueError(
+                "Epsilon must be non-negative. "
+                f"Cannot construct an ApproxDPBudget with epsilon of {epsilon}."
+            )
+        if delta < 0 or delta > 1:
+            raise ValueError(
+                "Delta must be between 0 and 1 (inclusive). "
+                f"Cannot construct an ApproxDPBudget with delta of {delta}."
+            )
+        self._epsilon = epsilon
+        self._delta = delta
+
+    @property
+    def epsilon(self) -> Union[int, float]:
+        """Returns the value of epsilon."""
+        return self._epsilon
+
+    @property
+    def delta(self) -> float:
+        """Returns the value of delta."""
+        return self._delta
+
+    @property
+    def is_infinite(self) -> bool:
+        """Returns true if epsilon is float('inf') or delta is 1."""
+        return self.epsilon == float("inf") or self.delta == 1
+
+    def __repr__(self) -> str:
+        """Returns the string representation of this ApproxDPBudget."""
+        return f"ApproxDPBudget(epsilon={self.epsilon}, delta={self.delta})"
+
+    def __eq__(self, other) -> bool:
+        """Returns whether two ApproxDPBudgets are equivalent.
+
+        ApproxDPBudgets that provide no privacy guarantee are considered equal (for example, if one has an
+        epsilon of float('inf') and the other has a delta of 1).
+        """
+        if isinstance(other, ApproxDPBudget):
+            are_both_infinite = self.is_infinite and other.is_infinite
+            is_same_epsilon = ExactNumber.from_float(
+                self.epsilon, False
+            ) == ExactNumber.from_float(other.epsilon, False)
+            is_same_delta = ExactNumber.from_float(
+                self.delta, False
+            ) == ExactNumber.from_float(other.delta, False)
+            return are_both_infinite or (is_same_epsilon and is_same_delta)
         return False
 
 

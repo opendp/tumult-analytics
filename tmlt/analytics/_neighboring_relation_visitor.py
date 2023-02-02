@@ -18,7 +18,7 @@ from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -93,7 +93,7 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
             distance = ExactNumber(
                 per_group * ExactNumber(sp.sqrt(relation.max_groups))
             )
-        elif isinstance(self.output_measure, PureDP):
+        elif isinstance(self.output_measure, (PureDP, ApproxDP)):
             agg_metric = SumOf(SymmetricDifference())
             distance = ExactNumber(per_group * relation.max_groups)
         else:
