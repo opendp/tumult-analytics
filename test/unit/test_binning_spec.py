@@ -228,7 +228,6 @@ def test_binning_repeated_names() -> None:
         assert spec(val) == expected_bin
 
 
-# TODO Binning: add tests somwhere around here
 def test_binning_inf_nan() -> None:
     """Binning infinite/NaN values works as expected."""
     spec = BinningSpec(

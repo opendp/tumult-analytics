@@ -58,7 +58,12 @@ from tmlt.analytics._table_reference import (
     lookup_domain,
     lookup_metric,
 )
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 from tmlt.analytics.protected_change import (
     AddMaxRows,
     AddMaxRowsInMaxGroups,
@@ -77,7 +82,7 @@ from tmlt.core.measurements.interactive_measurements import (
     PrivacyAccountantState,
     SequentialComposition,
 )
-from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
 from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
@@ -343,8 +348,14 @@ class Session:
         check_type("compiler", compiler, Optional[QueryExprCompiler])
 
         self._accountant = accountant
+        if isinstance(self._accountant.output_measure, ApproxDP):
+            raise ValueError(
+                "Accountant is using ApproxDP, which is not yet supported. This is"
+                " probably a bug, please let us know so we can fix it!"
+            )
+
         if not isinstance(self._accountant.output_measure, (PureDP, RhoZCDP)):
-            raise ValueError("Accountant is not using PureDP or RhoZCDP privacy.")
+            raise ValueError("Accountant is not using PureDP or RhoZCDP.")
         if not isinstance(self._accountant.input_metric, DictMetric):
             raise ValueError("The input metric to a session must be a DictMetric.")
         if not isinstance(self._accountant.input_domain, DictDomain):
@@ -455,13 +466,32 @@ class Session:
                 Provided as a dictionary {source_id: Dataframe}.
             relation: the :class:`NeighboringRelation` to be used in the session.
         """
-        output_measure: Union[PureDP, RhoZCDP]
+        output_measure: Union[ApproxDP, PureDP, RhoZCDP]
         sympy_budget: sp.Expr
         if isinstance(privacy_budget, PureDPBudget):
             output_measure = PureDP()
             sympy_budget = ExactNumber.from_float(
                 privacy_budget.epsilon, round_up=False
             ).expr
+        elif isinstance(privacy_budget, ApproxDPBudget):
+            output_measure = PureDP()
+            if privacy_budget.is_infinite:
+                warn(
+                    "The use of ApproxDP is not yet fully supported. Because you"
+                    " selected an infinite ApproxDP budget, your session will be"
+                    " initialized with PureDP using an infinite epsilon budget.",
+                    UserWarning,
+                )
+                sympy_budget = ExactNumber.from_float(float("inf"), round_up=False).expr
+            else:
+                warn(
+                    "The use of ApproxDP is not yet fully supported. Your session will"
+                    " be initialized with PureDP using the epsilon provided.",
+                    UserWarning,
+                )
+                sympy_budget = ExactNumber.from_float(
+                    privacy_budget.epsilon, round_up=False
+                ).expr
         elif isinstance(privacy_budget, RhoZCDPBudget):
             output_measure = RhoZCDP()
             sympy_budget = ExactNumber.from_float(
@@ -520,9 +550,16 @@ class Session:
         The type of the budget (e.g., PureDP or rho-zCDP) will be the same as
         the type of the budget the Session was initialized with.
         """
+        output_measure = self._accountant.output_measure
+        if isinstance(output_measure, ApproxDP):
+            raise ValueError(
+                "Accountant is using ApproxDP, which is not yet supported. This is"
+                " probably a bug, please let us know so we can fix it!"
+            )
+
         sympy_budget = self._accountant.privacy_budget
         budget_value = ExactNumber(sympy_budget).to_float(round_up=False)
-        output_measure = self._accountant.output_measure
+
         if output_measure == PureDP():
             return PureDPBudget(budget_value)
         if output_measure == RhoZCDP():
@@ -698,7 +735,7 @@ class Session:
         check_type("privacy_budget", privacy_budget, PrivacyBudget)
 
         self._validate_budget_type_matches_session(privacy_budget)
-        if privacy_budget == PureDPBudget(0) or privacy_budget == RhoZCDPBudget(0):
+        if privacy_budget in [PureDPBudget(0), ApproxDPBudget(0, 0), RhoZCDPBudget(0)]:
             raise ValueError("You need a non-zero privacy budget to evaluate a query.")
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
@@ -824,26 +861,33 @@ class Session:
             try:
                 answers = self._accountant.measure(measurement, d_out=adjusted_budget)
             except InsufficientBudgetError:
-                approx_budget_needed = adjusted_budget.to_float(round_up=True)
+                if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                    raise ValueError(
+                        "Expected privacy_budget to be an ExactNumber, but instead"
+                        f" received {type(self._accountant.privacy_budget)}."
+                    )
+
+                approximate_budget_needed = adjusted_budget.to_float(round_up=True)
                 if not isinstance(self._accountant.privacy_budget, ExactNumber):
                     raise AssertionError(
                         "Unable to convert privacy budget of"
                         f" {self._accountant.privacy_budget} to float. This is probably"
                         " a bug; please let us know about it so we can fix it!"
                     )
-                approx_budget_left = self._accountant.privacy_budget.to_float(
+                approximate_budget_left = self._accountant.privacy_budget.to_float(
                     round_up=False
                 )
-                approx_diff = abs(
+                approximate_diff = abs(
                     (self._accountant.privacy_budget - adjusted_budget).to_float(
                         round_up=True
                     )
                 )
                 raise RuntimeError(
                     "Cannot answer query without exceeding privacy budget: it needs"
-                    f" approximately {approx_budget_needed:.3f}, but the remaining"
-                    f" budget is approximately {approx_budget_left:.3f} (difference:"
-                    f" {approx_diff:.3e})"
+                    f" approximately {approximate_budget_needed:.3f}, but the remaining"
+                    " budget is approximately"
+                    f" {approximate_budget_left:.3f} (difference:"
+                    f" {approximate_diff:.3e})"
                 )
             if len(answers) != 1:
                 raise AssertionError(
@@ -1217,7 +1261,13 @@ class Session:
                 "for more information."
             )
         except InsufficientBudgetError:
-            approx_budget_needed = adjusted_budget.to_float(round_up=True)
+            if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                raise ValueError(
+                    "Expected privacy_budget to be an ExactNumber, but instead"
+                    f" received {type(self._accountant.privacy_budget)}."
+                )
+
+            approximate_budget_needed = adjusted_budget.to_float(round_up=True)
             if not isinstance(self._accountant.privacy_budget, ExactNumber):
                 raise AssertionError(
                     "Unable to convert privacy budget of"
@@ -1225,19 +1275,19 @@ class Session:
                     " bug; please let us know about it so we can fix it!"
                 )
 
-            approx_budget_left = self._accountant.privacy_budget.to_float(
+            approximate_budget_left = self._accountant.privacy_budget.to_float(
                 round_up=False
             )
-            approx_diff = abs(
+            approximate_diff = abs(
                 (self._accountant.privacy_budget - adjusted_budget).to_float(
                     round_up=True
                 )
             )
             raise RuntimeError(
                 "Cannot perform this partition without exceeding privacy budget: it"
-                f" needs approximately {approx_budget_needed:.3f}, but the remaining"
-                f" budget is approximately {approx_budget_left:.3f} (difference:"
-                f" {approx_diff:.3e})"
+                f" needs approximately {approximate_budget_needed:.3f}, but the"
+                " remaining budget is approximately"
+                f" {approximate_budget_left:.3f} (difference: {approximate_diff:.3e})"
             )
 
         for i, source in enumerate(new_sources):
@@ -1271,6 +1321,23 @@ class Session:
             )
         if isinstance(privacy_budget, PureDPBudget):
             return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)
+
+        if isinstance(privacy_budget, ApproxDPBudget):
+            if privacy_budget.is_infinite:
+                warn(
+                    "The use of ApproxDP is not yet fully supported. Because you"
+                    " selected an infinite ApproxDP budget, your budget request will be"
+                    " processed as PureDP with an infinite epsilon budget.",
+                    UserWarning,
+                )
+                return ExactNumber.from_float(float("inf"), round_up=False)
+            else:
+                warn(
+                    "The use of ApproxDP is not yet fully supported. your budget"
+                    " request will be processed as PureDP using the epsilon provided.",
+                    UserWarning,
+                )
+                return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)
         elif isinstance(privacy_budget, RhoZCDPBudget):
             return get_adjusted_budget(privacy_budget.rho, remaining_budget)
         else:
@@ -1290,10 +1357,13 @@ class Session:
         matches_puredp = isinstance(output_measure, PureDP) and isinstance(
             privacy_budget, PureDPBudget
         )
+        matches_approxdp = isinstance(output_measure, PureDP) and isinstance(
+            privacy_budget, ApproxDPBudget
+        )
         matches_zcdp = isinstance(output_measure, RhoZCDP) and isinstance(
             privacy_budget, RhoZCDPBudget
         )
-        if not (matches_puredp or matches_zcdp):
+        if not (matches_puredp or matches_approxdp or matches_zcdp):
             raise ValueError(
                 "Your requested privacy budget type must match the type of the privacy"
                 " budget your Session was created with."
