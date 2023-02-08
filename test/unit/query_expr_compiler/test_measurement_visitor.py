@@ -5,7 +5,7 @@
 
 # pylint: disable=protected-access, no-member, no-self-use
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -21,6 +21,7 @@ from tmlt.analytics._query_expr_compiler._measurement_visitor import (
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_reference import lookup_domain, lookup_metric
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -76,13 +77,6 @@ from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.nan import DropNaNs, DropNulls
-from tmlt.core.transformations.spark_transformations.nan import (
-    ReplaceInfs as ReplaceInfTransformation,
-)
-from tmlt.core.transformations.spark_transformations.select import (
-    Select as SelectTransformation,
-)
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
@@ -1045,50 +1039,12 @@ class TestMeasurementVisitor:
     ):
         """Test _build_common."""
         info = self.visitor._build_common(query)  # pylint: disable=protected-access
-        get_value_transformation: GetValue
-        if expected_new_child is None:
-            assert isinstance(info.transformation, GetValue)
-            get_value_transformation = info.transformation
-        else:
-            expected_null_nan_columns: List[str] = []
-            expected_inf_replace: Dict[str, Tuple[float, float]] = {}
-            if isinstance(expected_new_child, ReplaceInfExpr):
-                expected_inf_replace = expected_new_child.replace_with
-                if isinstance(expected_new_child.child, DropNullAndNan):
-                    expected_null_nan_columns = expected_new_child.child.columns
-            if isinstance(expected_new_child, DropNullAndNan):
-                expected_null_nan_columns = expected_new_child.columns
-            assert isinstance(info.transformation, ChainTT)
-            transformations = chain_to_list(info.transformation)
-            assert isinstance(transformations[0], GetValue)
-            get_value_transformation = transformations[0]
-            got_null_nan_columns: List[str] = []
-            for t in transformations[1:]:
-                assert isinstance(t, (ReplaceInfTransformation, DropNaNs, DropNulls))
-                if isinstance(t, ReplaceInfTransformation):
-                    assert sorted(list(t.replace_map.keys())) == sorted(
-                        list(expected_inf_replace)
-                    )
-                    for k, v in t.replace_map.items():
-                        assert v == expected_inf_replace[k]
-                elif isinstance(t, DropNaNs):
-                    got_null_nan_columns += t.columns
-                elif isinstance(t, DropNulls):
-                    got_null_nan_columns += t.columns
-            assert sorted(list(set(got_null_nan_columns))) == sorted(
-                expected_null_nan_columns
-            )
-        assert get_value_transformation.key == NamedTable("private")
-        assert get_value_transformation.input_domain == self.visitor.input_domain
-        assert get_value_transformation.input_metric == self.visitor.input_metric
-        assert (
-            get_value_transformation.output_domain
-            == self.visitor.input_domain[NamedTable("private")]
-        )
-        assert (
-            get_value_transformation.output_metric
-            == self.visitor.input_metric[NamedTable("private")]
-        )
+        transformation: ChainTT
+        assert isinstance(info.transformation, ChainTT)
+        transformation = info.transformation
+
+        assert transformation.input_domain == self.visitor.input_domain
+        assert transformation.input_metric == self.visitor.input_metric
 
         assert info.mechanism == expected_mechanism
         assert info.mid_stability == expected_mid_stability
@@ -1096,35 +1052,11 @@ class TestMeasurementVisitor:
         assert info.upper_bound == ExactNumber.from_float(query.high, round_up=False)
 
         assert isinstance(info.groupby, GroupBy)
-        table_domain = self.visitor.input_domain[NamedTable("private")]
+        table_domain = transformation.output_domain
         assert isinstance(table_domain, SparkDataFrameDomain)
         expected_groupby_domain = SparkGroupedDataFrameDomain(
             schema=table_domain.schema.copy(), group_keys=query.groupby_keys.dataframe()
         )
-        if expected_new_child is not None:
-            new_transform: QueryExpr = expected_new_child
-            while isinstance(new_transform, (ReplaceInfExpr, DropNullAndNan)):
-                if isinstance(new_transform, ReplaceInfExpr):
-                    replace_inf_expr: ReplaceInfExpr = new_transform
-                    schema = expected_groupby_domain.schema
-                    for col in replace_inf_expr.replace_with:
-                        if isinstance(schema[col], SparkFloatColumnDescriptor):
-                            schema[col] = SparkFloatColumnDescriptor(allow_inf=False)
-                    new_transform = replace_inf_expr.child
-                elif isinstance(new_transform, DropNullAndNan):
-                    drop_null_and_nan_expr: DropNullAndNan = new_transform
-                    schema = expected_groupby_domain.schema
-                    for col in new_transform.columns:
-                        if isinstance(schema[col], SparkFloatColumnDescriptor):
-                            schema[col] = SparkFloatColumnDescriptor(
-                                allow_null=False, allow_nan=False
-                            )
-                        else:
-                            schema[col] = SparkIntegerColumnDescriptor(allow_null=False)
-                    new_transform = drop_null_and_nan_expr.child
-                expected_groupby_domain = SparkGroupedDataFrameDomain(
-                    schema=schema, group_keys=query.groupby_keys.dataframe()
-                )
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert info.groupby.output_domain.schema == expected_groupby_domain.schema
         assert_frame_equal_with_sort(
@@ -1154,23 +1086,14 @@ class TestMeasurementVisitor:
                 self.visitor._validate_measurement(mock_measurement, mid_stability)
             # pylint: enable=protected-access
 
-    def _check_measurement(
-        self, measurement: Measurement, child_is_base_query: bool = True
-    ):
+    def _check_measurement(self, measurement: Measurement):
         """Check the basic attributes of a measurement (for all query exprs).
-
-        If ``child_is_base_query`` is true, it is assumed that the child
-        query was ``PrivateSource("private")``.
 
         The measurement almost certainly looks like this:
         ``child_transformation | mock_measurement``
         so extensive testing of the latter is likely to be counterproductive.
         """
         assert isinstance(measurement, ChainTM)
-
-        if child_is_base_query:
-            assert isinstance(measurement.transformation, GetValue)
-            assert measurement.transformation.key == NamedTable("private")
 
         assert measurement.transformation.input_domain == self.visitor.input_domain
         assert measurement.transformation.input_metric == self.visitor.input_metric
@@ -1214,12 +1137,16 @@ class TestMeasurementVisitor:
     ) -> None:
         """Initialize a mock measurement."""
         # pylint: disable=protected-access
-        transformation = self.visitor._visit_child_transformation(
+        transformation, reference = self.visitor._visit_child_transformation(
             child_query, expected_mechanism
         )
         # pylint: enable=protected-access
-        mock_measurement.input_domain = transformation.output_domain
-        mock_measurement.input_metric = transformation.output_metric
+        mock_measurement.input_domain = lookup_domain(
+            transformation.output_domain, reference
+        )
+        mock_measurement.input_metric = lookup_metric(
+            transformation.output_metric, reference
+        )
         mock_measurement.privacy_function.return_value = self.visitor.budget
 
     @pytest.mark.parametrize(
@@ -1292,7 +1219,6 @@ class TestMeasurementVisitor:
             + "_measurement_visitor.create_count_measurement",
             autospec=True,
         ) as mock_create_count:
-
             self.visitor.output_measure = output_measure
             self._setup_mock_measurement(
                 mock_measurement, query.child, expected_mechanism
@@ -1302,7 +1228,7 @@ class TestMeasurementVisitor:
             measurement = self.visitor.visit_groupby_count(query)
             assert isinstance(measurement, ChainTM)
 
-            self._check_measurement(measurement, query.child == self.base_query)
+            self._check_measurement(measurement)
             self.check_mock_groupby_call(
                 mock_groupby,
                 measurement.transformation,
@@ -1403,7 +1329,6 @@ class TestMeasurementVisitor:
             + "_measurement_visitor.create_count_distinct_measurement",
             autospec=True,
         ) as mock_create_count_distinct:
-
             self.visitor.output_measure = output_measure
 
             mock_measurement.privacy_function.return_value = self.visitor.budget
@@ -1434,28 +1359,12 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_count_distinct(query)
 
-            self._check_measurement(
-                measurement,
-                (query.child == self.base_query and not query_needs_columns_selected),
-            )
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             if query_needs_columns_selected:
                 assert isinstance(measurement.transformation, ChainTT)
-                if query.child == self.base_query:
-                    assert isinstance(
-                        measurement.transformation.transformation1, GetValue
-                    )
-                    get_value = measurement.transformation.transformation1
-                    assert isinstance(get_value, GetValue)
-                    assert get_value.key == NamedTable("private")
-                assert isinstance(
-                    measurement.transformation.transformation2, SelectTransformation
-                )
-                select_transformation = measurement.transformation.transformation2
-                assert isinstance(select_transformation, SelectTransformation)
-                assert isinstance(expected_child_query, SelectExpr)
-                assert select_transformation.columns == expected_child_query.columns
+                assert isinstance(measurement.transformation.transformation2, GetValue)
 
             mid_stability = measurement.transformation.stability_function(
                 self.visitor.stability
@@ -1616,10 +1525,7 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_quantile(query)
 
-            self._check_measurement(
-                measurement,
-                query.child == self.base_query and expected_new_child is None,
-            )
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             self.check_mock_groupby_call(
@@ -1645,38 +1551,6 @@ class TestMeasurementVisitor:
                 groupby_transformation=mock_groupby.return_value,
                 quantile_column=query.output_column,
             )
-
-            # Check for the drop transformations, if expected
-            if expected_new_child is not None:
-                expected_null_nan_columns: List[str] = []
-                expected_inf_replace: Dict[str, Tuple[float, float]] = {}
-                if isinstance(expected_new_child, ReplaceInfExpr):
-                    expected_inf_replace = expected_new_child.replace_with
-                    if isinstance(expected_new_child.child, DropNullAndNan):
-                        expected_null_nan_columns = expected_new_child.child.columns
-                elif isinstance(expected_new_child, DropNullAndNan):
-                    expected_null_nan_columns = expected_new_child.columns
-                assert isinstance(measurement.transformation, ChainTT)
-                transformations = chain_to_list(measurement.transformation)
-                assert isinstance(transformations[0], GetValue)
-                got_null_nan_columns: List[str] = []
-                for t in transformations[1:]:
-                    assert isinstance(
-                        t, (ReplaceInfTransformation, DropNaNs, DropNulls)
-                    )
-                    if isinstance(t, ReplaceInfTransformation):
-                        assert sorted(list(t.replace_map.keys())) == sorted(
-                            list(expected_inf_replace.keys())
-                        )
-                        for k, v in t.replace_map.items():
-                            assert v == expected_inf_replace[k]
-                    elif isinstance(t, DropNaNs):
-                        got_null_nan_columns += t.columns
-                    elif isinstance(t, DropNulls):
-                        got_null_nan_columns += t.columns
-                assert sorted(list(set(got_null_nan_columns))) == sorted(
-                    expected_null_nan_columns
-                )
 
     @pytest.mark.parametrize(
         "query,output_measure,expected_mechanism",
@@ -1761,7 +1635,7 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_bounded_sum(query)
 
-            self._check_measurement(measurement, query.child == self.base_query)
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             self.check_mock_groupby_call(
@@ -1872,7 +1746,7 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_bounded_average(query)
 
-            self._check_measurement(measurement, query.child == self.base_query)
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             self.check_mock_groupby_call(
@@ -1983,7 +1857,7 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_bounded_variance(query)
 
-            self._check_measurement(measurement, query.child == self.base_query)
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             self.check_mock_groupby_call(
@@ -2095,7 +1969,7 @@ class TestMeasurementVisitor:
 
             measurement = self.visitor.visit_groupby_bounded_stdev(query)
 
-            self._check_measurement(measurement, query.child == self.base_query)
+            self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
             self.check_mock_groupby_call(

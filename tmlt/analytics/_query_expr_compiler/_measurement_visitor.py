@@ -21,6 +21,8 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
+from tmlt.analytics._table_reference import TableReference
+from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -125,7 +127,7 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
-    ) -> Transformation:
+    ) -> Tuple[Transformation, TableReference]:
         """Visit a child transformation, producing a transformation."""
         tv = TransformationVisitor(
             input_domain=self.input_domain,
@@ -133,30 +135,11 @@ class MeasurementVisitor(QueryExprVisitor):
             mechanism=mechanism,
             public_sources=self.public_sources,
         )
-        transformation = expr.accept(tv)
-        if not isinstance(transformation, Transformation):
-            raise AssertionError(
-                "Expression failed to produce a transformation. "
-                "This is probably a bug; please let us know about it "
-                "so we can fix it!"
-            )
-        tv.validate_transformation(expr, transformation, self.catalog)
+        child, reference = expr.accept(tv)
 
-        if not isinstance(
-            transformation.output_metric,
-            (SymmetricDifference, HammingDistance, IfGroupedBy),
-        ):
-            raise AssertionError(
-                "Unrecognized output metric. This is probably a bug; "
-                "please let us know about it so we can fix it!"
-            )
-        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized output domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
-            )
+        tv.validate_transformation(expr, child, reference, self.catalog)
 
-        return transformation
+        return child, reference
 
     def _pick_noise_for_count(
         self, query: Union[GroupByCount, GroupByCountDistinct]
@@ -372,7 +355,10 @@ class MeasurementVisitor(QueryExprVisitor):
         measure_column_type = expected_output_domain[query.measure_column]
 
         mechanism = self._pick_noise_for_non_count(query, measure_column_type)
-        transformation = self._visit_child_transformation(query.child, mechanism)
+        child_transformation, table_ref = self._visit_child_transformation(
+            query.child, mechanism
+        )
+        transformation = get_table_from_ref(child_transformation, table_ref)
         # _visit_child_transformation already raises an error if these aren't true
         # these assert statements are just here for MyPy's benefit
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
@@ -411,7 +397,11 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count(query)
         mechanism = self._pick_noise_for_count(query)
-        transformation = self._visit_child_transformation(query.child, mechanism)
+        child_transformation, child_ref = self._visit_child_transformation(
+            query.child, mechanism
+        )
+
+        transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
@@ -461,7 +451,10 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(query)
         mechanism = self._pick_noise_for_count(query)
-        transformation = self._visit_child_transformation(query.child, mechanism)
+        child_transformation, child_ref = self._visit_child_transformation(
+            query.child, mechanism
+        )
+        transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
@@ -531,9 +524,10 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
 
-        transformation = self._visit_child_transformation(
+        child_transformation, child_ref = self._visit_child_transformation(
             query.child, self.default_mechanism
         )
+        transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
@@ -691,6 +685,7 @@ class MeasurementVisitor(QueryExprVisitor):
             groupby_transformation=info.groupby,
             standard_deviation_column=query.output_column,
         )
+
         self._validate_measurement(agg, info.mid_stability)
         return info.transformation | agg
 

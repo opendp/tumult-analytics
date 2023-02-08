@@ -40,6 +40,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -509,13 +510,21 @@ class TestSession:
                         )
                     }
                 ),
-                output_domain=self.sdf_input_domain[NamedTable("private")],
-                output_metric=SymmetricDifference(),
+                output_domain=self.sdf_input_domain,
+                output_metric=DictMetric(
+                    {
+                        NamedTable("private"): IfGroupedBy(
+                            "A", RootSumOfSquared(SymmetricDifference())
+                        )
+                    }
+                ),
                 stability_function_implemented=True,
                 stability_function_return_value=ExactNumber(13),
             )
-            mock_compiler_transform.return_value = view_transformation
-
+            mock_compiler_transform.return_value = (
+                view_transformation,
+                TableReference(path=[NamedTable("private")]),
+            )
             session = Session(accountant=mock_accountant, public_sources=dict())
             session.create_view(
                 query_expr=PrivateSource("private"),

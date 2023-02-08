@@ -45,7 +45,7 @@ def _check_df_schema(types: spark_types.StructType):
 def _check_dict_schema(types: Dict[str, type]) -> None:
     """Raise an exception if the dict contains a type not allowed in a KeySet."""
     allowed_types = {int, str, datetime.date}
-    for (col, dtype) in types.items():
+    for col, dtype in types.items():
         if dtype not in allowed_types:
             raise ValueError(
                 f"Column {col} has type {dtype.__qualname__}, which is "

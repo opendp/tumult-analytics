@@ -58,6 +58,12 @@ from tmlt.analytics._table_reference import (
     lookup_domain,
     lookup_metric,
 )
+from tmlt.analytics._transformation_utils import (
+    delete_table,
+    persist_table,
+    rename_table,
+    unpersist_table,
+)
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -84,15 +90,10 @@ from tmlt.core.measurements.interactive_measurements import (
 )
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
-from tmlt.core.transformations.dictionary import (
-    AugmentDictTransformation,
-    CreateDictFromValue,
-    GetValue,
-    Subset,
-    create_transform_value,
-)
+from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.dictionary import CreateDictFromValue, GetValue
+from tmlt.core.transformations.identity import Identity
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
-from tmlt.core.transformations.spark_transformations.persist import Persist, Unpersist
 from tmlt.core.utils.configuration import SparkConfigError, check_java11
 from tmlt.core.utils.exact_number import ExactNumber
 
@@ -981,7 +982,7 @@ class Session:
 
         if not isinstance(query_expr, QueryExpr):
             raise ValueError("query_expr must be of type QueryBuilder or QueryExpr.")
-        transformation = self._compiler.build_transformation(
+        transformation, table_ref = self._compiler.build_transformation(
             query=query_expr,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
@@ -989,22 +990,18 @@ class Session:
             catalog=self._catalog,
         )
         if cache:
-            transformation = transformation | Persist(
-                domain=cast(SparkDataFrameDomain, transformation.output_domain),
-                metric=transformation.output_metric,
+            transformation, table_ref = persist_table(
+                base_transformation=transformation, base_ref=table_ref
             )
 
-        dict_transformation = AugmentDictTransformation(
-            transformation
-            | CreateDictFromValue(
-                input_domain=transformation.output_domain,
-                input_metric=transformation.output_metric,
-                key=NamedTable(source_id),
-            )
+        transformation, _ = rename_table(
+            base_transformation=transformation,
+            base_ref=table_ref,
+            new_table_id=NamedTable(source_id),
         )
 
         # This is a transform-in-place against the privacy accountant
-        self._accountant.transform_in_place(dict_transformation)
+        self._accountant.transform_in_place(transformation)
 
     def delete_view(self, source_id: str):
         """Deletes a view and decaches it if it was cached.
@@ -1022,36 +1019,24 @@ class Session:
             )
 
         domain = lookup_domain(self._input_domain, ref)
-        metric = lookup_metric(self._input_metric, ref)
         if not isinstance(domain, SparkDataFrameDomain):
             raise RuntimeError(
                 "Table domain is not SparkDataFrameDomain. This is probably a bug; "
                 "please let us know so we can fix it!"
             )
 
-        # Unpersist does nothing if the DataFrame isn't persisted
-        unpersist_source = create_transform_value(
-            input_domain=cast(DictDomain, self._accountant.input_domain),
-            input_metric=cast(DictMetric, self._accountant.input_metric),
-            key=NamedTable(source_id),
-            transformation=Unpersist(domain, metric),
-            hint=lambda d_in, _: d_in,
+        unpersist_source: Transformation = Identity(
+            domain=self._input_domain, metric=self._input_metric
         )
-        self._accountant.transform_in_place(
-            unpersist_source, d_out=self._accountant.d_in
+        # Unpersist does nothing if the DataFrame isn't persisted
+        unpersist_source = unpersist_table(
+            base_transformation=unpersist_source, base_ref=ref
         )
 
-        transformation = Subset(
-            input_domain=self._input_domain,
-            input_metric=self._input_metric,
-            keys=list(
-                set(self._input_domain.key_to_domain.keys()) - {NamedTable(source_id)}
-            ),
+        transformation = delete_table(
+            base_transformation=unpersist_source, base_ref=ref
         )
-        d_out = {
-            k: v for k, v in self._accountant.d_in.items() if k != NamedTable(source_id)
-        }
-        self._accountant.transform_in_place(transformation, d_out)
+        self._accountant.transform_in_place(transformation)
 
     # pylint: disable=line-too-long
     # TODO(#2199): remove the attr_name argument

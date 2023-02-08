@@ -502,7 +502,7 @@ class QueryBuilder:
             ['my_private_data']
             >>> sess.get_schema("my_private_data").column_types
             {'A': 'VARCHAR', 'B': 'DECIMAL', 'X': 'DECIMAL'}
-            >>> # Building a query with a replace_null_and_nan transformation
+            >>> # Building a query with a replace_infinity transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .replace_infinity(
