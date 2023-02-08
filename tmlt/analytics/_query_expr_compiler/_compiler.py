@@ -8,7 +8,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
@@ -21,6 +21,7 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
+from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.query_expr import QueryExpr
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
@@ -171,8 +172,8 @@ class QueryExprCompiler:
         input_metric: DictMetric,
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
-    ) -> Transformation:
-        r"""Returns a transformation for the query.
+    ) -> Tuple[Transformation, TableReference]:
+        r"""Returns a transformation and reference for the query.
 
         Supported
         :class:`~tmlt.analytics.query_expr.QueryExpr`\ s:
@@ -201,11 +202,13 @@ class QueryExprCompiler:
             mechanism=self.mechanism,
             public_sources=public_sources,
         )
-        transformation = query.accept(transformation_visitor)
+        transformation, reference = query.accept(transformation_visitor)
         if not isinstance(transformation, Transformation):
             raise AssertionError(
                 "Unable to create transformation. This is probably "
                 "a bug; please let us know about it so we can fix it!"
             )
-        transformation_visitor.validate_transformation(query, transformation, catalog)
-        return transformation
+        transformation_visitor.validate_transformation(
+            query, transformation, reference, catalog
+        )
+        return transformation, reference

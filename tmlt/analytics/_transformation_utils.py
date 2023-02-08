@@ -14,12 +14,13 @@ from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.metrics import AddRemoveKeys, DictMetric, Metric
 from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.dictionary import GetValue as GetValueTransformation
 from tmlt.core.transformations.dictionary import Subset as SubsetTransformation
 from tmlt.core.transformations.dictionary import (
     create_copy_and_transform_value,
-    create_rename,
     create_transform_value,
 )
+from tmlt.core.transformations.identity import Identity
 from tmlt.core.transformations.spark_transformations.add_remove_keys import (
     PersistValue as PersistValueTransformation,
 )
@@ -105,12 +106,26 @@ def rename_table(
     base_ref: TableReference,
     new_table_id: Identifier,
 ) -> Tuple[Transformation, TableReference]:
-    """Renames tables."""
+    """Renames tables.
+
+    A single value is transformed and added to the dictionary at a new key.
+    Note that the original value is left unchanged in the dictionary.
+    """
 
     def gen_transformation_dictmetric(pd, pm, tgt):
         assert isinstance(pd, DictDomain)
         assert isinstance(pm, DictMetric)
-        return create_rename(pd, pm, base_ref.identifier, tgt)
+        # Note: create_rename drops the original key, hence using this instead
+        return create_copy_and_transform_value(
+            input_domain=pd,
+            input_metric=pm,
+            key=base_ref.identifier,
+            new_key=tgt,
+            transformation=Identity(
+                domain=pd[base_ref.identifier], metric=pm[base_ref.identifier]
+            ),
+            hint=lambda d_in, _: d_in,
+        )
 
     def gen_transformation_ark(pd, pm, tgt):
         assert isinstance(pd, DictDomain)
@@ -157,7 +172,7 @@ def delete_table(
 def persist_table(
     base_transformation: Transformation,
     base_ref: TableReference,
-    new_table_id: Identifier,
+    new_table_id: Optional[Identifier] = None,
 ) -> Tuple[Transformation, TableReference]:
     """Persists tables."""
 
@@ -228,3 +243,23 @@ def unpersist_table(
         base_transformation, base_ref.parent, transformation_generators
     )
     return new_transformation
+
+
+def get_table_from_ref(
+    transformation: Transformation, ref: TableReference
+) -> Transformation:
+    """Returns a GetValue transformation finding the table specified."""
+    for p in ref.path:
+        domain = transformation.output_domain
+        metric = transformation.output_metric
+        assert isinstance(domain, DictDomain), (
+            "Invalid transformation domain. This is probably a bug; please let us"
+            " know about it so we can fix it!"
+        )
+        assert isinstance(metric, (DictMetric, AddRemoveKeys)), (
+            "Invalid transformation domain. This is probably a bug; please let us"
+            " know about it so we can fix it!"
+        )
+
+        transformation = transformation | GetValueTransformation(domain, metric, p)
+    return transformation

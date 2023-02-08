@@ -33,6 +33,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
 )
 from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -1087,13 +1088,16 @@ class TestQueryExprCompiler:
             pd.DataFrame({"A": ["0", "1"], "Y": [0.1, float("nan")]})
         ).fillna(0)
 
-        output_sdf = self.compiler.build_transformation(
+        transformation, reference = self.compiler.build_transformation(
             JoinPublic(PrivateSource("private"), public_sdf),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
-        )({NamedTable("private"): self.sdf})
+        )
+
+        source_dict = {NamedTable("private"): self.sdf}
+        output_sdf = get_table_from_ref(transformation, reference)(source_dict)
 
         assert_frame_equal_with_sort(
             output_sdf.toPandas(),
@@ -1115,7 +1119,7 @@ class TestQueryExprCompiler:
                 [["0", 0], ["0", 2], ["1", 2], ["0", 0], ["1", 4]], columns=["A", "C"]
             )
         )
-        output_sdf = self.compiler.build_transformation(
+        transformation, reference = self.compiler.build_transformation(
             JoinPrivate(
                 child=PrivateSource("private"),
                 right_operand_expr=PrivateSource("private_2"),
@@ -1126,7 +1130,9 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
-        )({NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2})
+        )
+        source_dict = {NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2}
+        output_sdf = get_table_from_ref(transformation, reference)(source_dict)
 
         assert_frame_equal_with_sort(
             output_sdf.toPandas(),
@@ -1200,17 +1206,19 @@ class TestQueryExprCompiler:
     )
     def test_join_private_output_stability(self, join_query, expected_output_stability):
         """Tests that join private gives correct output stability."""
-        transformation = self.compiler.build_transformation(
+        transformation, reference = self.compiler.build_transformation(
             join_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
         )
-        assert (
-            transformation.stability_function(self.stability)
-            == expected_output_stability
-        )
+
+        get_value_transform = get_table_from_ref(transformation, reference)
+
+        output_stability = get_value_transform.stability_function(self.stability)
+
+        assert output_stability == expected_output_stability
 
     def test_join_private_invalid_truncation_strategy(self):
         """Tests that join_private raises error if truncation strategy is invalid."""
@@ -1268,17 +1276,18 @@ class TestQueryExprCompiler:
     ):
         """Tests that flatmap gives correct output stability."""
         compiler = QueryExprCompiler(output_measure=measure)
-        transformation = compiler.build_transformation(
+        transformation, reference = compiler.build_transformation(
             flatmap_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
         )
-        assert (
-            transformation.stability_function(self.stability)
-            == expected_output_stability
-        )
+        get_value_transform = get_table_from_ref(transformation, reference)
+
+        output_stability = get_value_transform.stability_function(self.stability)
+
+        assert output_stability == expected_output_stability
 
     def test_float_groupby_sum(self, spark):
         """Tests that groupby sum on floating-point-valued column uses laplace."""
@@ -1646,7 +1655,6 @@ class TestComponentIsUsed:
             "tmlt.analytics._query_expr_compiler._measurement_visitor."
             "create_count_measurement"
         ) as mock_create_count_measurement:
-
             d_in = sp.Integer(3)
             d_out = sp.Integer(5)
             compiler = QueryExprCompiler(output_measure=output_measure)
