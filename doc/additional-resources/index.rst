@@ -9,5 +9,6 @@ Additional resources
    :maxdepth: 1
 
    changelog
+   citing
    license
    privacy_policy

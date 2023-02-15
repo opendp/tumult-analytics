@@ -33,6 +33,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our deve
 
 If you use Tumult Analytics for a scientific publication, we would appreciate citations to the published software or/and its whitepaper. Both citations can be found below; for the software citation, please replace the version with the version you are using.
 
+```
 @software{tumultanalyticssoftware,
     author = {Tumult Labs},
     title = {Tumult {{Analytics}}},
@@ -41,7 +42,9 @@ If you use Tumult Analytics for a scientific publication, we would appreciate ci
     version = {latest},
     url = {https://tmlt.dev}
 }
+```
 
+```
 @article{tumultanalyticswhitepaper,
   title={Tumult {{Analytics}}: a robust, easy-to-use, scalable, and expressive framework for differential privacy},
   author={Berghel, Skye and Bohannon, Philip and Desfontaines, Damien and Estes, Charles and Haney, Sam and Hartman, Luke and Hay, Michael and Machanavajjhala, Ashwin and Magerlein, Tom and Miklau, Gerome and Pai, Amritha and Sexton, William and Shrestha, Ruchit},
@@ -49,6 +52,7 @@ If you use Tumult Analytics for a scientific publication, we would appreciate ci
   month = dec,
   year={2022}
 }
+```
 
 ## License
 
