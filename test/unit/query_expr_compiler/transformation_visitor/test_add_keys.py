@@ -36,6 +36,7 @@ from tmlt.analytics.query_expr import (
     ReplaceNullAndNan,
     Select,
 )
+from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
     SparkFloatColumnDescriptor,
@@ -302,6 +303,43 @@ class TestAddKeys(TestTransformationVisitor):
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            JoinPrivate(
+                PrivateSource("ids1"),
+                PrivateSource("ids2"),
+                TruncationStrategy.DropExcess(1),
+                TruncationStrategy.DropExcess(1),
+                ["id"],
+            ),
+            JoinPrivate(
+                PrivateSource("ids1"),
+                PrivateSource("ids2"),
+                TruncationStrategy.DropExcess(1),
+                None,
+                ["id"],
+            ),
+            JoinPrivate(
+                PrivateSource("ids1"),
+                PrivateSource("ids2"),
+                None,
+                TruncationStrategy.DropExcess(1),
+                ["id"],
+            ),
+        ],
+    )
+    def test_visit_join_private_raises_warning(self, query) -> None:
+        """Test that warnings are raised appropriately for JoinPrivate expressions."""
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "When joining with IDs, truncation strategies are not required."
+                " Provided truncation parameters will be ignored."
+            ),
+        ):
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "query,expected_df",

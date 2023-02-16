@@ -5,6 +5,7 @@
 
 import dataclasses
 import datetime
+import warnings
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 from pyspark.sql import DataFrame
@@ -562,6 +563,11 @@ class TransformationVisitor(QueryExprVisitor):
         )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
+            if expr.max_num_rows is None:
+                raise ValueError(
+                    "Flat maps on tables without IDs must have a the max_num_rows"
+                    " parameter set."
+                )
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
                 raise AssertionError(
@@ -601,6 +607,12 @@ class TransformationVisitor(QueryExprVisitor):
                 raise ValueError(
                     "Flat maps on tables with the AddOneIdentifier protected "
                     "change cannot be grouping."
+                )
+            if expr.max_num_rows is not None:
+                warnings.warn(
+                    "When performing a flat map on a table with the AddOneIdentifier"
+                    "ProtectedChange(), the max_num_rows parameter"
+                    " is not required."
                 )
             return FlatMapValueTransformation(
                 parent_domain,
@@ -684,7 +696,7 @@ class TransformationVisitor(QueryExprVisitor):
                 or expr.truncation_strategy_right is None
             ):
                 raise ValueError(
-                    "When joining without IDs, truncation strategies are required"
+                    "When joining without IDs, truncation strategies are required."
                 )
             l_trunc_strat, l_trunc_threshold = get_truncation_params(
                 expr.truncation_strategy_left
@@ -719,6 +731,13 @@ class TransformationVisitor(QueryExprVisitor):
             return AugmentDictTransformation(subset | join | create_dict)
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
+            if (expr.truncation_strategy_left is not None) or (
+                expr.truncation_strategy_right is not None
+            ):
+                warnings.warn(
+                    "When joining with IDs, truncation strategies are not required."
+                    " Provided truncation parameters will be ignored."
+                )
             return PrivateJoinOnKeyTransformation(
                 parent_domain,
                 parent_metric,
