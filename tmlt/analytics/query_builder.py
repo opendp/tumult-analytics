@@ -266,21 +266,35 @@ class QueryBuilder:
         )
         return self
 
+    # TODO(2271): Update docs to specify AddRowsWithID protected change, instead of
+    # current general language around protecting IDs.
     def join_private(
         self,
         right_operand: "QueryBuilder",
-        truncation_strategy_left: TruncationStrategy.Type,
-        truncation_strategy_right: TruncationStrategy.Type,
+        truncation_strategy_left: Optional[TruncationStrategy.Type],
+        truncation_strategy_right: Optional[TruncationStrategy.Type],
         join_columns: Optional[Sequence[str]] = None,
     ) -> "QueryBuilder":
         # pylint: disable=protected-access
         """Updates the current query to join with another :class:`QueryBuilder`.
 
         This operation is a natural join, with the same behavior and
-        requirements as :func:`join_public`. However, there is a key difference:
-        before the join is performed, each table is *truncated* based on the
-        corresponding
+        requirements as :func:`join_public`.
+
+        For operations on tables with a
+        :class:`tmlt.analytics.protected_change.ProtectedChange` that protects
+        adding or removing rows
+        (e.g., :class:`~tmlt.analytics.protected_change.AddMaxRows`), there is a key
+        difference: before the join is performed, each table is *truncated* based on
+        the corresponding
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.
+
+        In contrast, operations on tables with a
+        :class:`tmlt.analytics.protected_change.ProtectedChange` which protects
+        the addition/removal of a specified identifier
+        do not require a
+        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`,
+        as no truncation is necessary while performing the join.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -999,6 +1013,7 @@ class QueryBuilder:
         )
         return self
 
+    # TODO(2489): Update docstring to reflect newly optional max_num_rows argument
     def flat_map(
         self,
         f: Callable[[Row], List[Row]],

@@ -421,7 +421,18 @@ class TestAddRows(TestTransformationVisitor):
         with pytest.raises(ValueError, match=expected_error_msg):
             self.visitor.visit_join_private(query2)
 
-    ###TODO: Write Thorough test for this
+        query3 = JoinPrivate(
+            child=PrivateSource("rows1"),
+            right_operand_expr=PrivateSource("rows2"),
+            truncation_strategy_left=None,
+            truncation_strategy_right=None,
+        )
+        with pytest.raises(
+            ValueError,
+            match="When joining without IDs, truncation strategies are required.",
+        ):
+            self.visitor.visit_join_private(query3)
+
     @pytest.mark.parametrize(
         "source_id,join_columns,expected_df",
         [
