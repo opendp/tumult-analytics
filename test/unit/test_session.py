@@ -26,6 +26,7 @@ from pyspark.sql.types import (
 from typeguard import check_type
 
 from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
@@ -39,7 +40,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_columns_descriptor,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_identifier import NamedTable, TableCollection
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -47,7 +48,12 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.analytics.protected_change import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow
+from tmlt.analytics.protected_change import (
+    AddMaxRows,
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+)
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
@@ -61,6 +67,7 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialQueryable,
 )
 from tmlt.core.measures import Measure, PureDP, RhoZCDP
+from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -327,6 +334,84 @@ class TestSession:
             )
 
     @pytest.mark.parametrize(
+        "budget,expected_output_measure,expected_metric,from_dataframe_args",
+        [
+            pytest.param(
+                PureDPBudget(float("inf")),
+                PureDP(),
+                DictMetric(
+                    {
+                        TableCollection("primary_id"): CoreAddRemoveKeys(
+                            {NamedTable("private"): "A"}
+                        )
+                    }
+                ),
+                {
+                    "stability": None,
+                    "grouping_column": None,
+                    "protected_change": AddRowsWithID("A"),
+                },
+                id="puredp-addrowswithID-protected_change",
+            )
+        ],
+    )
+    def test_from_dataframe_add_remove_keys(
+        self,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        expected_output_measure: Union[PureDP, RhoZCDP],
+        expected_metric: Metric,
+        from_dataframe_args: Dict,
+    ) -> None:
+        """Test Session.from_dataframe for AddRemoveKeys.
+
+        AddRemoveKeys doesn't create a DictMetric because it's special.
+        """
+        with patch(
+            "tmlt.analytics.session.SequentialComposition", autospec=True
+        ) as mock_composition_init, patch.object(
+            Session, "__init__", autospec=True, return_value=None
+        ) as mock_session_init:
+            mock_composition_init.return_value = Mock(
+                spec_set=SequentialComposition,
+                return_value=Mock(spec_set=SequentialComposition),
+            )
+            mock_composition_init.return_value.privacy_budget = (
+                _privacy_budget_to_exact_number(budget)
+            )
+            expected_d_in = {TableCollection("primary_id"): 1}
+            mock_composition_init.return_value.d_in = expected_d_in
+            mock_composition_init.return_value.output_measure = expected_output_measure
+
+            Session.from_dataframe(
+                privacy_budget=budget,
+                source_id="private",
+                dataframe=self.sdf,
+                **from_dataframe_args,
+            )
+
+            expected_input_domain = DictDomain(
+                {TableCollection("primary_id"): self.sdf_input_domain}
+            )
+
+            mock_composition_init.assert_called_with(
+                input_domain=expected_input_domain,
+                input_metric=expected_metric,
+                d_in=expected_d_in,
+                privacy_budget=sp.oo,
+                output_measure=expected_output_measure,
+            )
+            mock_composition_init.return_value.assert_called()
+            assert_frame_equal_with_sort(
+                mock_composition_init.return_value.mock_calls[0][1][0][
+                    TableCollection("primary_id")
+                ][NamedTable("private")].toPandas(),
+                self.sdf.toPandas(),
+            )
+            mock_session_init.assert_called_with(
+                self=ANY, accountant=ANY, public_sources=dict(), compiler=ANY
+            )
+
+    @pytest.mark.parametrize(
         "budget,relation,expected_metric,expected_output_measure",
         [
             pytest.param(
@@ -391,6 +476,50 @@ class TestSession:
         assert sess._input_domain == self.sdf_input_domain
         assert sess._input_metric == expected_metric
         assert sess._accountant.d_in == {NamedTable("private"): 6}
+        assert sess._accountant.privacy_budget == sp.oo
+        assert sess._accountant.output_measure == expected_output_measure
+        # pylint: enable=protected-access
+
+    @pytest.mark.parametrize(
+        "budget,relation,expected_metric,expected_output_measure",
+        [
+            pytest.param(
+                PureDPBudget(float("inf")),
+                AddRemoveKeys("private", {"private": "A"}, max_keys=5),
+                DictMetric(
+                    {
+                        TableCollection("private"): CoreAddRemoveKeys(
+                            {NamedTable("private"): "A"}
+                        )
+                    }
+                ),
+                PureDP(),
+                id="addremovekeys_puredp_session",
+            )
+        ],
+    )
+    def test_from_neighboring_relation_add_remove_keys(
+        self,
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        relation: NeighboringRelation,
+        expected_metric: DictMetric,
+        expected_output_measure: Union[PureDP, RhoZCDP],
+    ):
+        """Tests that :func:`Session._from_neighboring_relation` works as expected
+        with a single AddRemoveKeys relation.
+        """
+
+        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+            privacy_budget=budget,
+            private_sources={"private": self.sdf},
+            relation=relation,
+        )
+        # pylint: disable=protected-access
+        assert sess._input_domain == DictDomain(
+            {TableCollection("private"): self.sdf_input_domain}
+        )
+        assert sess._input_metric == expected_metric
+        assert sess._accountant.d_in == {TableCollection("private"): 5}
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
         # pylint: enable=protected-access
@@ -1169,6 +1298,22 @@ class TestInvalidSession:
                 PureDPBudget(1), "private", float_df, grouping_column="F"
             )
 
+    def test_invalid_key_column(self) -> None:  # pylint: disable=unused-argument
+        """Builder raises an error if table's key column is not in dataframe."""
+        with pytest.raises(
+            ValueError,
+            match=(
+                "^Key column 'not_a_column' does not exist in the input. Available"
+                " columns: A, B, X$"
+            ),
+        ):
+            Session.from_dataframe(
+                PureDPBudget(1),
+                "private",
+                self.sdf,
+                protected_change=AddRowsWithID("not_a_column", "random_id"),
+            )
+
     @pytest.mark.parametrize(
         "source_id,exception_type,expected_error_msg",
         [
@@ -1523,8 +1668,9 @@ def setup_session_build_data(spark, request):
     """Setup for tests."""
     df1 = spark.createDataFrame([(1, 2, "A"), (3, 4, "B")], schema=["A", "B", "C"])
     df2 = spark.createDataFrame([("X", "A"), ("Y", "B"), ("Z", "B")], schema=["K", "C"])
+    df3 = spark.createDataFrame([(1, 1, "A"), (2, 2, "B")], schema=["A", "Y", "Z"])
 
-    request.cls.dataframes = {"df1": df1, "df2": df2}
+    request.cls.dataframes = {"df1": df1, "df2": df2, "df3": df3}
 
 
 @pytest.mark.usefixtures("session_builder_data")
@@ -1623,6 +1769,71 @@ class TestSessionBuilder:
             builder.with_public_dataframe(
                 source_id="A", dataframe=self.dataframes["df2"]
             )
+
+    def test_build_invalid_identifier(self):
+        """Tests that build fails if protected change does
+        not have associated primary ID."""
+        builder = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="A",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "random_id"),
+            )
+            .with_privacy_budget(PureDPBudget(1))
+        )
+
+        assert len(builder._primary_ids) == 0  # pylint: disable=protected-access
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "An AddRowsWithID protected change was specified without an "
+                "associated primary identifier"
+            ),
+        ):
+            builder.build()
+
+        builder.with_primary_id("not_random_id")
+        with pytest.raises(
+            ValueError,
+            match=(
+                "An AddRowsWithID protected change was specified without an "
+                "associated primary identifier"
+            ),
+        ):
+            builder.build()
+        ### build should succeed when the primary identifier is added
+        builder = builder.with_primary_id("random_id")
+        with pytest.raises(ValueError, match="This Builder already has a primary ID"):
+            builder.with_primary_id("random_id")
+        assert len(builder._primary_ids) == 2  # pylint: disable=protected-access
+        builder.build()
+
+    def test_build_multiple_ids(self):
+        """Tests that build succeeds with multiple primary IDs."""
+        builder = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="private1",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "primary_id_1"),
+            )
+            .with_primary_id("primary_id_1")
+        )
+        builder.with_private_dataframe(
+            source_id="private2",
+            dataframe=self.dataframes["df2"],
+            protected_change=AddRowsWithID("C", "primary_id_2"),
+        ).with_primary_id("primary_id_2")
+
+        builder.with_private_dataframe(
+            source_id="private3",
+            dataframe=self.dataframes["df3"],
+            protected_change=AddRowsWithID("Y", "primary_id_1"),
+        )
+
+        builder.with_privacy_budget(PureDPBudget(1)).build()
 
     @pytest.mark.parametrize(
         "builder,expected_sympy_budget,expected_output_measure,"

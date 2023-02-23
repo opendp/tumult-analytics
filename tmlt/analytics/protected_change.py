@@ -73,6 +73,14 @@ class AddMaxRowsInMaxGroups(ProtectedChange):
     use should be considered carefully. Note that it only provides improved
     accuracy when used with zCDP -- with pure DP, it is equivalent to using
     :class:`AddMaxRows` with the same total number of rows to be added/removed.
+
+    The most common case where :class:`AddMaxRowsInMaxGroups` is useful is for
+    dealing with datasets that have already undergone some type of preprocessing
+    before being turned over to an analyst. Where possible, it is preferred to
+    do such processing inside of Tumult Analytics instead, as it allows
+    specifying a simpler protected change (e.g. :class:`AddRowsWithID`)
+    and relying on Analytics' privacy tracking to handle the complex parts
+    of the analysis.
     """
 
     grouping_column: str
@@ -91,3 +99,32 @@ class AddMaxRowsInMaxGroups(ProtectedChange):
             raise ValueError("max_groups must be positive")
         if self.max_rows_per_group < 1:
             raise ValueError("max_rows_per_group must be positive")
+
+
+@dataclass(frozen=True)
+class AddRowsWithID(ProtectedChange):
+    """Protect the addition or removal of rows with a specific identifier.
+
+    Instead of limiting the number of rows that may be added or removed,
+    :class:`AddRowsWithID` hides the addition or removal of *all rows*
+    with the same value in the specified column.
+
+    The id column *must* be a string, integer (or long), or date; it cannot
+    be a float or a timestamp.
+    """
+
+    id_column: str
+    """The name of the column containing the identifier."""
+
+    identifier: str = "primary_id"
+    """The identifier of the rows that may be added or removed. If not specified,
+    a default identifier will be assigned."""
+
+    def __post_init__(self):
+        """Validate attributes."""
+        check_type("identifier", self.identifier, str)
+        if self.identifier and self.identifier == "":
+            raise ValueError("identifier must be non-empty")
+        check_type("id_column", self.id_column, str)
+        if self.id_column == "":
+            raise ValueError("id_column must be non-empty")

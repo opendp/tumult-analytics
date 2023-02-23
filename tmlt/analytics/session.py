@@ -37,6 +37,7 @@ from tmlt.analytics._coerce_spark_schema import (
     coerce_spark_schema_or_fail,
 )
 from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
@@ -74,6 +75,7 @@ from tmlt.analytics.protected_change import (
     AddMaxRows,
     AddMaxRowsInMaxGroups,
     AddOneRow,
+    AddRowsWithID,
     ProtectedChange,
 )
 from tmlt.analytics.query_builder import ColumnType, QueryBuilder
@@ -118,6 +120,9 @@ def _generate_neighboring_relation(
 ) -> Conjunction:
     """Convert a collection of private source tuples into a neighboring relation."""
     relations: List[NeighboringRelation] = []
+    # this is used only for AddRemoveKeys.
+    protected_ids_dict: Dict[str, Dict[str, str]] = {}
+
     for name, (_, protected_change, _) in sources.items():
         if isinstance(protected_change, AddMaxRows):
             relations.append(AddRemoveRows(name, protected_change.max_rows))
@@ -130,10 +135,18 @@ def _generate_neighboring_relation(
                     per_group=protected_change.max_rows_per_group,
                 )
             )
+        elif isinstance(protected_change, AddRowsWithID):
+            if protected_ids_dict.get(protected_change.identifier) is None:
+                protected_ids_dict[protected_change.identifier] = {}
+            protected_ids_dict[protected_change.identifier][
+                name
+            ] = protected_change.id_column
         else:
             raise ValueError(
                 f"Unsupported ProtectedChange type: {type(protected_change)}"
             )
+    for identifier, table_to_key_column in protected_ids_dict.items():
+        relations.append(AddRemoveKeys(identifier, table_to_key_column))
     return Conjunction(relations)
 
 
@@ -152,6 +165,7 @@ class Session:
             self._privacy_budget: Optional[PrivacyBudget] = None
             self._private_sources: Dict[str, _PrivateSourceTuple] = {}
             self._public_sources: Dict[str, DataFrame] = {}
+            self._primary_ids: List[str] = []
 
         def build(self) -> "Session":
             """Builds Session with specified configuration."""
@@ -159,7 +173,6 @@ class Session:
                 raise ValueError("Privacy budget must be specified.")
             if not self._private_sources:
                 raise ValueError("At least one private source must be provided.")
-
             neighboring_relation = _generate_neighboring_relation(self._private_sources)
             tables = {
                 source_id: source_tuple.dataframe
@@ -170,6 +183,17 @@ class Session:
                     self._privacy_budget, tables, neighboring_relation
                 )
             )
+            # check list of ARK identifiers agains session's primary IDs
+            assert isinstance(neighboring_relation, Conjunction)
+            for child in neighboring_relation.children:
+                if isinstance(child, AddRemoveKeys):
+                    if child.primary_id not in self._primary_ids:
+                        raise ValueError(
+                            "An AddRowsWithID protected change was specified without "
+                            "an associated primary identifier for the session.\n"
+                            f"AddRowsWithID identifier provided: {child.primary_id}\n"
+                            f"Primary identifiers for the session: {self._primary_ids}"
+                        )
             # add public sources
             for source_id, dataframe in self._public_sources.items():
                 sess.add_public_dataframe(source_id, dataframe)
@@ -308,6 +332,24 @@ class Session:
                 raise ValueError(f"Duplicate source id: '{source_id}'")
             dataframe = coerce_spark_schema_or_fail(dataframe)
             self._public_sources[source_id] = dataframe
+            return self
+
+        def with_primary_id(self, primary_id: str) -> "Session.Builder":
+            """Sets the primary ID for the session.
+
+            This defines the space of identifiers that map 1-to-1 to the identifiers
+            being protected. Any IDs table must have exactly one column containing
+            those identifiers.
+
+            Args:
+                primary_id: The primary ID for the session.
+            """
+            _assert_is_identifier(primary_id)
+            if primary_id in self._primary_ids:
+                raise ValueError(
+                    f"This Builder already has a primary ID of the name: {primary_id}."
+                )
+            self._primary_ids.append(primary_id)
             return self
 
     def __init__(
@@ -449,6 +491,8 @@ class Session:
                 protected_change=protected_change,
             )
         )
+        if isinstance(protected_change, AddRowsWithID):
+            session_builder.with_primary_id(protected_change.identifier)
         return session_builder.build()
 
     @classmethod

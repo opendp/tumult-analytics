@@ -9,15 +9,17 @@ import sympy as sp
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
 )
 from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
-from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_identifier import NamedTable, TableCollection
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -167,6 +169,70 @@ class TestNeighboringRelations:
             self.table1,
         )
 
+    #### Tests for AddRemoveKeys ####
+    def test_add_remove_keys_post_init(self) -> None:
+        """Test post init for AddRemoveKeys."""
+        key_dict = {"table1": "A"}
+        identifier = "primary_id"
+        with pytest.raises(ValueError):
+            AddRemoveKeys(identifier, key_dict, max_keys=0)
+        with pytest.raises(ValueError):
+            AddRemoveKeys(identifier, key_dict, max_keys=-1)
+
+    def test_add_remove_keys_validation(self) -> None:
+        """Test that validate works as expected for AddRemoveKeys."""
+        key_dict = {"table1": "A", "table2": "A"}
+        valid_dict = {"table1": self.table1, "table2": self.table2}
+        identifier = "primary_id"
+        assert AddRemoveKeys(identifier, key_dict).validate_input(valid_dict)
+        assert AddRemoveKeys(identifier, key_dict).validate_input(valid_dict)
+        # Input dict has too few elements
+        with pytest.raises(ValueError):
+            AddRemoveKeys(identifier, key_dict).validate_input({"table1": self.table1})
+        # Table is missing the requested column
+        with pytest.raises(ValueError):
+            AddRemoveKeys(
+                identifier, {"table1": "column_that_does_not_exist"}
+            ).validate_input({"table1": self.table1})
+        # Column has the wrong type
+        with pytest.raises(ValueError):
+            AddRemoveKeys("p_id", {"table3": "A"}).validate_input(
+                {"table3": self.table3}
+            )
+        # Column types don't match
+        with pytest.raises(ValueError):
+            AddRemoveKeys("p_id", {"table1": "A", "table2": "B"}).validate_input(
+                valid_dict
+            )
+
+    def test_add_remove_keys_accept(self) -> None:
+        """Test that accept works as expected for AddRemoveKeys."""
+        pure_visitor = NeighboringRelationCoreVisitor(
+            self.testdfsdict, output_measure=PureDP()
+        )
+        relation = AddRemoveKeys("p_id", {"table1": "B", "table2": "X"}, max_keys=3)
+        expected = NeighboringRelationCoreVisitor.Output(
+            DictDomain(
+                {
+                    NamedTable("table1"): SparkDataFrameDomain.from_spark_schema(
+                        self.table1.schema
+                    ),
+                    NamedTable("table2"): SparkDataFrameDomain.from_spark_schema(
+                        self.table2.schema
+                    ),
+                }
+            ),
+            CoreAddRemoveKeys({NamedTable("table1"): "B", NamedTable("table2"): "X"}),
+            ExactNumber(3),
+            {NamedTable("table1"): self.table1, NamedTable("table2"): self.table2},
+        )
+
+        assert relation.accept(pure_visitor) == expected
+        rho_visitor = NeighboringRelationCoreVisitor(
+            self.testdfsdict, output_measure=RhoZCDP()
+        )
+        assert relation.accept(rho_visitor) == expected
+
     #### Tests for Conjunction ####
 
     def test_conjunction_initialization(self):
@@ -221,6 +287,41 @@ class TestNeighboringRelations:
             },
         )
 
+        assert output == expected_output
+
+    def test_conjunction_accept_with_add_remove_keys(self) -> None:
+        """Test Conjunction.accept when Conjunction contains AddRemoveKeys."""
+        dfs_dict = {"table1": self.table1, "table2": self.table2, "table3": self.table3}
+        visitor = NeighboringRelationCoreVisitor(dfs_dict, PureDP())
+        add_remove_keys = AddRemoveKeys("p_id", {"table1": "B", "table2": "X"})
+        expected_add_remove_keys_result = add_remove_keys.accept(visitor)
+        add_remove_rows = AddRemoveRows("table3", 1)
+        expected_add_remove_rows_result = add_remove_rows.accept(visitor)
+
+        output = Conjunction(add_remove_keys, add_remove_rows).accept(visitor)
+
+        expected_output = NeighboringRelationCoreVisitor.Output(
+            DictDomain(
+                {
+                    TableCollection("p_id"): expected_add_remove_keys_result[0],
+                    NamedTable("table3"): expected_add_remove_rows_result[0],
+                }
+            ),
+            DictMetric(
+                {
+                    TableCollection("p_id"): expected_add_remove_keys_result[1],
+                    NamedTable("table3"): expected_add_remove_rows_result[1],
+                }
+            ),
+            {
+                TableCollection("p_id"): expected_add_remove_keys_result[2],
+                NamedTable("table3"): expected_add_remove_rows_result[2],
+            },
+            {
+                TableCollection("p_id"): expected_add_remove_keys_result[3],
+                NamedTable("table3"): expected_add_remove_rows_result[3],
+            },
+        )
         assert output == expected_output
 
     def test_conjunction_validation(self):

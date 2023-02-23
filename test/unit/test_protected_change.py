@@ -8,7 +8,12 @@ from typing import Any, ContextManager, List
 
 import pytest
 
-from tmlt.analytics.protected_change import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow
+from tmlt.analytics.protected_change import (
+    AddMaxRows,
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+)
 
 
 def test_add_one_row():
@@ -78,3 +83,24 @@ def test_add_max_rows_per_group_invalid(
     """Invalid inputs are rejected by AddMaxRowsInMaxGroups."""
     with expectation:
         AddMaxRowsInMaxGroups(*args)
+
+
+@pytest.mark.parametrize(
+    "args,expectation",
+    [
+        (["x"], does_not_raise()),
+        (["y"], does_not_raise()),
+        (
+            [1],
+            pytest.raises(
+                TypeError, match="^type of id_column must be str; got int instead$"
+            ),
+        ),
+    ],
+)
+def test_add_rows_with_id_invalid(
+    args: List[Any], expectation: ContextManager[None]
+) -> None:
+    """Invalid arguments are rejected by AddRowsWithID."""
+    with expectation:
+        AddRowsWithID(*args)

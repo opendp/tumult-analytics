@@ -3,7 +3,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DateType, IntegerType, LongType, StringType
@@ -54,7 +54,7 @@ class AddRemoveRows(NeighboringRelation):
     table: str
     """The name of the table in this relation."""
     n: int = field(default=1)
-    """The max number of rows wich may be differ for two instances of the table to
+    """The max number of rows which may be differ for two instances of the table to
      be neighbors.
      """
 
@@ -189,6 +189,107 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
         return visitor.visit_add_remove_rows_across_groups(self)
 
 
+@dataclass(frozen=True)
+class AddRemoveKeys(NeighboringRelation):
+    """A relation of tables differing by a certain number of keys.
+
+    Two tables are considered neighbors under this definition if they
+    differ only by the addition/removal of all rows with max_keys distinct values under
+    the columns indicated.
+
+    Note that AddRemoveKeys is a neighboring relation that covers *multiple*
+    tables.
+    """
+
+    primary_id: str
+    """The id protected in the relation."""
+    table_to_key_column: Dict[str, str]
+    """A dictionary mapping table names to key columns."""
+    max_keys: int = field(default=1)
+    """The maximum number of keys which may differ for two instances of the table
+    to be neighbors.
+    """
+
+    def __post_init__(self) -> None:
+        """Checks arguments to constructor."""
+        check_type("primary_id", self.primary_id, str)
+        check_type("table_to_key_column", self.table_to_key_column, Dict[str, str])
+        check_type("max_keys", self.max_keys, int)
+        if self.primary_id == "":
+            raise ValueError("primary id must be non-empty")
+        if len(self.table_to_key_column) == 0:
+            raise ValueError("table_to_key_column must contain at least one table")
+        if self.max_keys < 1:
+            raise ValueError("max_keys must be positive")
+
+    def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
+        """Does nothing if input is valid, otherwise raises an informative exception.
+
+        Used only for top-level validation.
+        """
+        self._validate(dfs)
+        return True
+
+    def _validate(self, dfs: Dict[str, DataFrame]) -> List[str]:
+        """Private validation checks.
+
+        These are the validation checks to be done in all cases
+        (regardless of whether the relation is top level).
+        """
+        # checks needed here:
+        # - input type
+        check_type("dfs", dfs, Dict[str, DataFrame])
+        # - all tables present in table_to_key_column are in the input tables
+        difference = set(self.table_to_key_column.keys()).difference(set(dfs.keys()))
+        if difference:
+            raise ValueError(
+                "It appears that the list of input tables doesn't contain some of the"
+                " tables used in the relation. Tables that appear only in the relation:"
+                f" {difference}"
+            )
+        allowed_types = [LongType(), StringType(), DateType()]
+        key_type: Optional[Union[LongType, StringType, DateType]] = None
+        for table_name, df in dfs.items():
+            # check that each table has the requisite column
+            # and that the column is the requisite type
+            if table_name in self.table_to_key_column:
+                key_column = self.table_to_key_column[table_name]
+                if key_column not in df.columns:
+                    raise ValueError(
+                        f"Key column '{key_column}' does not exist in the input."
+                        f" Available columns: {', '.join(df.columns)}"
+                    )
+                coerced_df = coerce_spark_schema_or_fail(df)
+                for df_field in coerced_df.schema:
+                    if not df_field.name == key_column:
+                        continue
+                    if df_field.dataType not in allowed_types:
+                        raise ValueError(
+                            f"Key column '{key_column}' is not of a type allowed for"
+                            " keys. Supported types are: LongType(),"
+                            " StringType(), DateType(), IntegerType()."
+                        )
+                    if key_type is None:
+                        assert isinstance(
+                            df_field.dataType, (LongType, StringType, DateType)
+                        )
+                        key_type = df_field.dataType
+                    else:
+                        if not df_field.dataType == key_type:
+                            raise ValueError(
+                                f"Key column '{key_column}' has type "
+                                f"{df_field.dataType}, but in another"
+                                f" table it has type {key_type}. Key types"
+                                " must match across tables"
+                            )
+
+        return list(self.table_to_key_column.keys())
+
+    def accept(self, visitor: "NeighboringRelationVisitor") -> Any:
+        """Visit this NeighboringRelation with a Visitor."""
+        return visitor.visit_add_remove_keys(self)
+
+
 @dataclass(init=False, frozen=True)
 class Conjunction(NeighboringRelation):
     """A conjunction composed of other neighboring relations."""
@@ -208,6 +309,9 @@ class Conjunction(NeighboringRelation):
             object.__setattr__(self, "children", self._flatten(children[0]))
         else:
             object.__setattr__(self, "children", self._flatten(list(children)))
+        # post_init is not automatically called if a dataclass has
+        # init=False in its decorator
+        self.__post_init__()
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -280,6 +384,10 @@ class NeighboringRelationVisitor(ABC):
         self, relation: AddRemoveRowsAcrossGroups
     ) -> Any:
         """Visit a :class:`AddRemoveRowsAcrossGroups`."""
+
+    @abstractmethod
+    def visit_add_remove_keys(self, relation: AddRemoveKeys) -> Any:
+        """Visit a :class:`AddRemoveKeys`."""
 
     @abstractmethod
     def visit_conjunction(self, relation: Conjunction) -> Any:

@@ -9,16 +9,18 @@ import sympy as sp
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
     AddRemoveRows,
     AddRemoveRowsAcrossGroups,
     Conjunction,
     NeighboringRelationVisitor,
 )
-from tmlt.analytics._table_identifier import Identifier, NamedTable
+from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -40,6 +42,17 @@ class _RelationIDVisitor(NeighboringRelationVisitor):
         self, relation: AddRemoveRowsAcrossGroups
     ) -> Identifier:
         return NamedTable(relation.table)
+
+    def visit_str(self, s: str) -> Identifier:  # pylint: disable=no-self-use
+        """Visit a string.
+
+        Helper method for relations like AddRemoveKeys that need to get
+        identifiers from strings.
+        """
+        return NamedTable(s)
+
+    def visit_add_remove_keys(self, relation: AddRemoveKeys) -> Identifier:
+        return TableCollection(relation.primary_id)
 
     def visit_conjunction(self, relation: Conjunction) -> Identifier:
         # Since conjunctions are automatically flattened, they should never need names.
@@ -107,12 +120,29 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
         domain = SparkDataFrameDomain.from_spark_schema(data.schema)
         return self.Output(domain, metric, distance, data)
 
+    def visit_add_remove_keys(self, relation: AddRemoveKeys) -> Output:
+        """Build Core state from ``AddRemoveKeys`` neighboring relation."""
+        distance = ExactNumber(relation.max_keys)
+        metric_dict: Dict[Identifier, str] = {}
+        data_dict: Dict[Identifier, Any] = {}
+        domain_dict: Dict[Identifier, Any] = {}
+        for table_name, key_column in relation.table_to_key_column.items():
+            table_id = _RelationIDVisitor().visit_str(table_name)
+            data = self.tables[table_name]
+            domain_dict[table_id] = SparkDataFrameDomain.from_spark_schema(data.schema)
+            metric_dict[table_id] = key_column
+            data_dict[table_id] = data
+
+        return self.Output(
+            DictDomain(domain_dict), CoreAddRemoveKeys(metric_dict), distance, data_dict
+        )
+
     def visit_conjunction(self, relation: Conjunction) -> Output:
         """Build Core state from ``Conjunction`` neighboring relation."""
         domain_dict: Dict[Identifier, Any] = {}
         metric_dict: Dict[Identifier, Any] = {}
         distance_dict: Dict[Identifier, Any] = {}
-        data_dict: Dict[Union[str, int], Any] = {}
+        data_dict: Dict[Identifier, Any] = {}
 
         for child in relation.children:
             child_id = child.accept(_RelationIDVisitor())
