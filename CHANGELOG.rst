@@ -6,6 +6,13 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Added a new :class:`tmlt.analytics.protected_change.AddRowsWithID` class, which protects the addition or removal of all rows with the same value in a specified column.
+  When creating a session with AddRowsWithID for multiple tables, you must use the new :meth:`Session.Builder.with_primary_id <tmlt.analytics.session.Session.Builder.with_primary_id>` method to specify the primary identifier(s) of the tables.
+  See the documentation for :class:`tmlt.analytics.protected_change.AddRowsWithID` for more information.
+
+
 Changed
 ~~~~~~~
 - *Backwards-incompatible*: Analytics no longer allows users to set lower bounds equal to upper bounds for quantile, sum, average, variance, and standard deviation queries. Now, the lower bound must be strictly less than the upper bound.
