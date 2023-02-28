@@ -74,7 +74,8 @@ class TestAddRows(TestTransformationVisitor):
 
     visitor: TransformationVisitor
     catalog: Catalog
-    dataframes: Dict[Identifier, DataFrame]
+    input_data: Dict[Identifier, Union[DataFrame, Dict[Identifier, DataFrame]]]
+    dataframes: Dict[str, DataFrame]
 
     def _validate_transform_basics(
         self, t: Transformation, reference: TableReference, query: QueryExpr
@@ -103,7 +104,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_private_source(self, source_id: str) -> None:
         """Test visit_private_source"""
         query = PrivateSource(source_id=source_id)
-        transformation, reference = self.visitor.visit_private_source(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         assert isinstance(transformation, IdentityTransformation)
         assert isinstance(reference, TableReference)
         assert isinstance(reference.identifier, Identifier)
@@ -114,12 +115,13 @@ class TestAddRows(TestTransformationVisitor):
             lookup_metric(transformation.output_metric, reference)
             == SymmetricDifference()
         )
+        assert constraints == []
 
     def test_invalid_private_source(self) -> None:
         """Test visiting an invalid private source."""
         query = PrivateSource(source_id="source_that_does_not_exist")
         with pytest.raises((KeyError, ValueError)):
-            self.visitor.visit_private_source(query)
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "mapper,expected_df",
@@ -143,12 +145,13 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_rename(self, mapper: Dict[str, str], expected_df: DataFrame) -> None:
         """Test visit_rename."""
         query = Rename(column_mapper=mapper, child=PrivateSource(source_id="rows1"))
-        transformation, reference = self.visitor.visit_rename(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         # check dataframe renamed as expected
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_invalid_rename(self) -> None:
         """Test visit_rename with an invalid query."""
@@ -157,7 +160,7 @@ class TestAddRows(TestTransformationVisitor):
             child=PrivateSource(source_id="rows1"),
         )
         with pytest.raises(ValueError):
-            self.visitor.visit_rename(query)
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "filter_expr,expected_df",
@@ -175,11 +178,12 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_filter(self, filter_expr: str, expected_df: DataFrame) -> None:
         """Test visit_filter."""
         query = Filter(condition=filter_expr, child=PrivateSource(source_id="rows1"))
-        transformation, reference = self.visitor.visit_filter(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_invalid_filter(self) -> None:
         """Test visit_filter with an invalid query."""
@@ -187,7 +191,7 @@ class TestAddRows(TestTransformationVisitor):
             condition="not a valid condition", child=PrivateSource(source_id="rows1")
         )
         with pytest.raises(ValueError):
-            self.visitor.visit_filter(query)
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "columns,expected_df",
@@ -199,11 +203,12 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_select(self, columns: List[str], expected_df: DataFrame) -> None:
         """Test visit_select."""
         query = Select(columns=columns, child=PrivateSource(source_id="rows1"))
-        transformation, reference = self.visitor.visit_select(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_invalid_select(self) -> None:
         """Test visit_select with invalid query."""
@@ -212,7 +217,7 @@ class TestAddRows(TestTransformationVisitor):
             child=PrivateSource(source_id="rows1"),
         )
         with pytest.raises(ValueError):
-            self.visitor.visit_select(query)
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -242,12 +247,12 @@ class TestAddRows(TestTransformationVisitor):
     )
     def test_visit_map(self, query: Map, expected_df: DataFrame) -> None:
         """Test visit_map."""
-        transformation, reference = self.visitor.visit_map(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -291,11 +296,12 @@ class TestAddRows(TestTransformationVisitor):
         self, query: FlatMap, expected_df: DataFrame
     ) -> None:
         """Test visit_flat_map when query has no grouping_column."""
-        transformation, reference = self.visitor.visit_flat_map(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -322,11 +328,12 @@ class TestAddRows(TestTransformationVisitor):
         self, query: FlatMap, expected_df: DataFrame
     ) -> None:
         """Test visit_flat_map when query has a grouping_column."""
-        transformation, reference = self.visitor.visit_flat_map(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -362,12 +369,9 @@ class TestAddRows(TestTransformationVisitor):
         self, query: JoinPrivate, expected_df: DataFrame
     ) -> None:
         """Test visit_join_private."""
-        transformation, reference = self.visitor.visit_join_private(query)
-
+        transformation, reference, constraints = query.accept(self.visitor)
         assert transformation.input_domain == self.visitor.input_domain
         assert transformation.input_metric == self.visitor.input_metric
-
-        assert isinstance(transformation, ChainTT)
 
         expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
@@ -391,8 +395,8 @@ class TestAddRows(TestTransformationVisitor):
 
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_join_private_with_invalid_truncation_strategy(self) -> None:
         """Test visit_join_private raises an error with an invalid strategy."""
@@ -410,7 +414,7 @@ class TestAddRows(TestTransformationVisitor):
             f"Truncation strategy type {InvalidStrategy.__qualname__} is not supported."
         )
         with pytest.raises(ValueError, match=expected_error_msg):
-            self.visitor.visit_join_private(query1)
+            query1.accept(self.visitor)
 
         query2 = JoinPrivate(
             child=PrivateSource("rows1"),
@@ -419,7 +423,7 @@ class TestAddRows(TestTransformationVisitor):
             truncation_strategy_right=InvalidStrategy(),
         )
         with pytest.raises(ValueError, match=expected_error_msg):
-            self.visitor.visit_join_private(query2)
+            query2.accept(self.visitor)
 
         query3 = JoinPrivate(
             child=PrivateSource("rows1"),
@@ -463,12 +467,12 @@ class TestAddRows(TestTransformationVisitor):
             public_table=source_id,
             join_columns=join_columns,
         )
-        transformation, reference = self.visitor.visit_join_public(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "df,df_schema,expected_df",
@@ -506,12 +510,12 @@ class TestAddRows(TestTransformationVisitor):
         query = JoinPublic(
             child=PrivateSource(source_id="rows1"), public_table=public_df
         )
-        transformation, reference = self.visitor.visit_join_public(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "replace_with,expected_df",
@@ -553,7 +557,7 @@ class TestAddRows(TestTransformationVisitor):
         query = ReplaceNullAndNan(
             child=PrivateSource(source_id="rows_infs_nans"), replace_with=replace_with
         )
-        transformation, reference = self.visitor.visit_replace_null_and_nan(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
@@ -568,8 +572,8 @@ class TestAddRows(TestTransformationVisitor):
         assert expected_output_domain == lookup_domain(
             transformation.output_domain, reference
         )
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_replace_null_and_nan_with_grouping_column(self) -> None:
         """Test behavior of visit_replace_null_and_nan with IfGroupedBy metric."""
@@ -593,11 +597,11 @@ class TestAddRows(TestTransformationVisitor):
             invalid_replace_query = ReplaceNullAndNan(
                 child=flatmap_query, replace_with={"group": -10}
             )
-            self.visitor.visit_replace_null_and_nan(invalid_replace_query)
+            invalid_replace_query.accept(self.visitor)
 
         valid_replace_query = ReplaceNullAndNan(child=flatmap_query, replace_with={})
-        transformation, reference = self.visitor.visit_replace_null_and_nan(
-            valid_replace_query
+        transformation, reference, constraints = valid_replace_query.accept(
+            self.visitor
         )
         self._validate_transform_basics(transformation, reference, valid_replace_query)
         assert isinstance(transformation, ChainTT)
@@ -610,6 +614,7 @@ class TestAddRows(TestTransformationVisitor):
             columns=["inf", "null", "nan", "group"],
         )
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "replace_with,expected_df",
@@ -637,9 +642,9 @@ class TestAddRows(TestTransformationVisitor):
         query = ReplaceInfinity(
             child=PrivateSource(source_id="rows_infs_nans"), replace_with=replace_with
         )
-        transformation, reference = self.visitor.visit_replace_infinity(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
-        assert isinstance(transformation, ChainTT)
+
         expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
@@ -649,9 +654,10 @@ class TestAddRows(TestTransformationVisitor):
             == expected_output_domain
         )
 
+        assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_drop_null_and_nan_with_grouping_column(self) -> None:
         """Test behavior of visit_drop_null_and_nan with IfGroupedBy metric."""
@@ -673,11 +679,9 @@ class TestAddRows(TestTransformationVisitor):
             ),
         ):
             invalid_drop_query = DropNullAndNan(child=flatmap_query, columns=["group"])
-            self.visitor.visit_drop_null_and_nan(invalid_drop_query)
+            invalid_drop_query.accept(self.visitor)
         valid_drop_query = DropNullAndNan(child=flatmap_query, columns=[])
-        transformation, reference = self.visitor.visit_drop_null_and_nan(
-            valid_drop_query
-        )
+        transformation, reference, constraints = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
         transformations = chain_to_list(transformation)
@@ -688,6 +692,7 @@ class TestAddRows(TestTransformationVisitor):
         ###expect group col added, row dropped
         expected_df = pd.DataFrame(columns=["inf", "null", "nan", "group"])
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_drop_infinity_with_grouping_column(self) -> None:
         """Test behavior of visit_drop_infinity with IfGroupedBy metric."""
@@ -709,9 +714,9 @@ class TestAddRows(TestTransformationVisitor):
             ),
         ):
             invalid_drop_query = DropInfExpr(child=flatmap_query, columns=["group"])
-            self.visitor.visit_drop_infinity(invalid_drop_query)
+            invalid_drop_query.accept(self.visitor)
         valid_drop_query = DropInfExpr(child=flatmap_query, columns=[])
-        transformation, reference = self.visitor.visit_drop_infinity(valid_drop_query)
+        transformation, reference, constraints = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
         transformations = chain_to_list(transformation)
@@ -721,6 +726,7 @@ class TestAddRows(TestTransformationVisitor):
         expected_df = pd.DataFrame(columns=["inf", "null", "nan", "group"])
 
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_measurement_visits(self):
         """Test that visiting measurement queries raises an error."""
@@ -858,8 +864,9 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
         query = DropNullAndNan(PrivateSource("rows"), query_columns)
-        transformation, reference = self.visitor.visit_drop_null_and_nan(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
+        assert constraints == []
 
         output_domain = lookup_domain(transformation.output_domain, reference)
         assert isinstance(output_domain, SparkDataFrameDomain)
@@ -884,8 +891,9 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
     ) -> None:
         """Test generating transformations from a DropInfinity."""
         query = DropInfExpr(child=PrivateSource("rows"), columns=query_columns)
-        transformation, reference = self.visitor.visit_drop_infinity(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
+        assert constraints == []
 
         output_domain = lookup_domain(transformation.output_domain, reference)
         assert isinstance(output_domain, SparkDataFrameDomain)

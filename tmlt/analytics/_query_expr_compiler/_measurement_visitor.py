@@ -21,17 +21,16 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
+from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
+from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-    DropInfinity,
     DropNullAndNan,
-    Filter,
-    FlatMap,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -39,15 +38,9 @@ from tmlt.analytics.query_expr import (
     GroupByCount,
     GroupByCountDistinct,
     GroupByQuantile,
-    JoinPrivate,
-    JoinPublic,
-    Map,
-    PrivateSource,
     QueryExpr,
     QueryExprVisitor,
-    Rename,
     ReplaceInfinity,
-    ReplaceNullAndNan,
     Select,
     StdevMechanism,
     SumMechanism,
@@ -114,6 +107,7 @@ class MeasurementVisitor(QueryExprVisitor):
         default_mechanism: NoiseMechanism,
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
+        table_constraints: Dict[Identifier, List[Constraint]],
     ):
         """Constructor for MeasurementVisitor."""
         self.budget = per_query_privacy_budget
@@ -124,6 +118,7 @@ class MeasurementVisitor(QueryExprVisitor):
         self.public_sources = public_sources
         self.output_measure = output_measure
         self.catalog = catalog
+        self.table_constraints = table_constraints
 
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
@@ -134,8 +129,9 @@ class MeasurementVisitor(QueryExprVisitor):
             input_metric=self.input_metric,
             mechanism=mechanism,
             public_sources=self.public_sources,
+            table_constraints=self.table_constraints,
         )
-        child, reference = expr.accept(tv)
+        child, reference, _constraints = expr.accept(tv)
 
         tv.validate_transformation(expr, child, reference, self.catalog)
 
@@ -690,50 +686,54 @@ class MeasurementVisitor(QueryExprVisitor):
         return info.transformation | agg
 
     # None of these produce measurements, so they all return a NotImplementedError
-    def visit_private_source(self, expr: PrivateSource) -> Any:
+    def visit_private_source(self, expr) -> Any:
         """Visit a PrivateSource query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_rename(self, expr: Rename) -> Any:
+    def visit_rename(self, expr) -> Any:
         """Visit a Rename query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_filter(self, expr: Filter) -> Any:
+    def visit_filter(self, expr) -> Any:
         """Visit a Filter query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_select(self, expr: Select) -> Any:
+    def visit_select(self, expr) -> Any:
         """Visit a Select query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_map(self, expr: Map) -> Any:
+    def visit_map(self, expr) -> Any:
         """Visit a Map query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_flat_map(self, expr: FlatMap) -> Any:
+    def visit_flat_map(self, expr) -> Any:
         """Visit a FlatMap query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_join_private(self, expr: JoinPrivate) -> Any:
+    def visit_join_private(self, expr) -> Any:
         """Visit a JoinPrivate query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_join_public(self, expr: JoinPublic) -> Any:
+    def visit_join_public(self, expr) -> Any:
         """Visit a JoinPublic query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Any:
+    def visit_replace_null_and_nan(self, expr) -> Any:
         """Visit a ReplaceNullAndNan query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_replace_infinity(self, expr: ReplaceInfinity) -> Any:
+    def visit_replace_infinity(self, expr) -> Any:
         """Visit a ReplaceInfinity query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_drop_infinity(self, expr: DropInfinity) -> Any:
+    def visit_drop_infinity(self, expr) -> Any:
         """Visit a DropInfinity query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Any:
+    def visit_drop_null_and_nan(self, expr) -> Any:
         """Visit a DropNullAndNan query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_enforce_constraint(self, expr) -> Any:
+        """Visit an EnforceConstraint query expression (raises an error)."""
         raise NotImplementedError

@@ -21,7 +21,9 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
+from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
+from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.query_expr import QueryExpr
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
@@ -111,6 +113,7 @@ class QueryExprCompiler:
         input_metric: DictMetric,
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
+        table_constraints: Dict[Identifier, List[Constraint]],
     ) -> Measurement:
         """Returns a compiled DP measurement.
 
@@ -122,6 +125,7 @@ class QueryExprCompiler:
             input_metric: The input metric of the compiled query.
             public_sources: Public data sources for the queries.
             catalog: The catalog, used only for query validation.
+            table_constraints: A mapping of tables to the existing constraints on them.
         """
         if len(queries) == 0:
             raise ValueError("At least one query needs to be provided")
@@ -137,6 +141,7 @@ class QueryExprCompiler:
             default_mechanism=self._mechanism,
             public_sources=public_sources,
             catalog=catalog,
+            table_constraints=table_constraints,
         )
         for query in queries:
             query_measurement = query.accept(visitor)
@@ -172,7 +177,8 @@ class QueryExprCompiler:
         input_metric: DictMetric,
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
-    ) -> Tuple[Transformation, TableReference]:
+        table_constraints: Dict[Identifier, List[Constraint]],
+    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
         r"""Returns a transformation and reference for the query.
 
         Supported
@@ -193,6 +199,7 @@ class QueryExprCompiler:
             input_metric: The input metric of the compiled query.
             public_sources: Public data sources for the queries.
             catalog: The catalog, used only for query validation.
+            table_constraints: A mapping of tables to the existing constraints on them.
         """
         query.accept(OutputSchemaVisitor(catalog))
 
@@ -201,8 +208,9 @@ class QueryExprCompiler:
             input_metric=input_metric,
             mechanism=self.mechanism,
             public_sources=public_sources,
+            table_constraints=table_constraints,
         )
-        transformation, reference = query.accept(transformation_visitor)
+        transformation, reference, constraints = query.accept(transformation_visitor)
         if not isinstance(transformation, Transformation):
             raise AssertionError(
                 "Unable to create transformation. This is probably "
@@ -211,4 +219,4 @@ class QueryExprCompiler:
         transformation_visitor.validate_transformation(
             query, transformation, reference, catalog
         )
-        return transformation, reference
+        return transformation, reference, constraints

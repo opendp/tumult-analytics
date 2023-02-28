@@ -44,6 +44,8 @@ from ..conftest import assert_frame_equal_with_sort  # pylint: disable=no-name-i
 PRIVATE_ID = "private"
 
 Row = Dict[str, Any]
+
+
 ###DEFINE ROOT BUILDER###
 def root_builder():
     """Set up QueryBuilder."""

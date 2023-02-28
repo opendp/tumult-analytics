@@ -6,7 +6,18 @@
 import dataclasses
 import datetime
 import warnings
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 from pyspark.sql import DataFrame
 
@@ -22,7 +33,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics._table_identifier import TemporaryTable
+from tmlt.analytics._table_identifier import Identifier, TemporaryTable
 from tmlt.analytics._table_reference import (
     TableReference,
     find_named_tables,
@@ -31,9 +42,10 @@ from tmlt.analytics._table_reference import (
     lookup_metric,
 )
 from tmlt.analytics._transformation_utils import generate_nested_transformation
+from tmlt.analytics.constraints import Constraint, simplify_constraints
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics.query_expr import DropNullAndNan
+from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
 from tmlt.analytics.query_expr import Filter as FilterExpr
 from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
 from tmlt.analytics.query_expr import (
@@ -164,12 +176,20 @@ from tmlt.core.transformations.spark_transformations.select import (
 class TransformationVisitor(QueryExprVisitor):
     """A visitor to create a transformation from a query expression."""
 
+    class Output(NamedTuple):
+        """A container for the outputs of the visitor."""
+
+        transformation: Transformation
+        reference: TableReference
+        constraints: List[Constraint]
+
     def __init__(
         self,
         input_domain: DictDomain,
         input_metric: DictMetric,
         mechanism: NoiseMechanism,
         public_sources: Dict[str, DataFrame],
+        table_constraints: Dict[Identifier, List[Constraint]],
     ):
         """Constructor for a TransformationVisitor.
 
@@ -178,11 +198,13 @@ class TransformationVisitor(QueryExprVisitor):
             input_metric: The input metric that the transformation should have.
             mechanism: The noise mechanism (only used for FlatMaps).
             public_sources: Public sources to use for JoinPublic queries.
+            table_constraints: A mapping of tables to the existing constraints on them.
         """
         self.input_domain = input_domain
         self.input_metric = input_metric
         self.mechanism = mechanism
         self.public_sources = public_sources
+        self.table_constraints = table_constraints
 
     def validate_transformation(
         self,
@@ -196,11 +218,17 @@ class TransformationVisitor(QueryExprVisitor):
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
-        expected_output_metric = (
-            SymmetricDifference()
-            if expected_schema.grouping_column is None
-            else IfGroupedBy(expected_schema.grouping_column, self.inner_metric())
-        )
+        # The output schema visitor doesn't track whether a table is
+        # AddRemoveKeys or not -- this is propagated through the transformations
+        # themselves -- so there are multiple possible IfGroupedBy output
+        # metrics.
+        if expected_schema.grouping_column is None:
+            allowed_output_metrics: Set[Metric] = {SymmetricDifference()}
+        else:
+            allowed_output_metrics = {
+                IfGroupedBy(expected_schema.grouping_column, self.inner_metric()),
+                IfGroupedBy(expected_schema.grouping_column, SymmetricDifference()),
+            }
         if (
             lookup_domain(transformation.output_domain, reference)
             != expected_output_domain
@@ -211,7 +239,7 @@ class TransformationVisitor(QueryExprVisitor):
             )
         if (
             lookup_metric(transformation.output_metric, reference)
-            != expected_output_metric
+            not in allowed_output_metrics
         ):
             raise AssertionError(
                 "Unexpected output metric. This is probably a bug; "
@@ -233,9 +261,9 @@ class TransformationVisitor(QueryExprVisitor):
                 )
             return RootSumOfSquared(SymmetricDifference())
 
-    def _visit_child(self, child: QueryExpr) -> Tuple[Transformation, TableReference]:
+    def _visit_child(self, child: QueryExpr) -> Output:
         """Visit a child query and raise assertion errors if needed."""
-        transformation, reference = child.accept(self)
+        transformation, reference, constraints = child.accept(self)
         if not isinstance(transformation, Transformation):
             raise AssertionError(
                 "Child query did not create a transformation. "
@@ -258,17 +286,20 @@ class TransformationVisitor(QueryExprVisitor):
                 "This is probably a bug; please let us know about "
                 "it so we can fix it!"
             )
-        return transformation, reference
+        return self.Output(transformation, reference, constraints)
 
-    @staticmethod
+    @classmethod
     def _ensure_not_hamming(
-        transformation: Transformation, reference: TableReference
-    ) -> Tuple[Transformation, TableReference]:
+        cls,
+        transformation: Transformation,
+        reference: TableReference,
+        constraints: List[Constraint],
+    ) -> Output:
         """Convert transformation to one with a SymmetricDifference() output metric."""
         input_domain = lookup_domain(transformation.output_domain, reference)
         input_metric = lookup_metric(transformation.output_metric, reference)
         if not isinstance(input_metric, HammingDistance):
-            return transformation, reference
+            return cls.Output(transformation, reference, constraints)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
@@ -290,11 +321,14 @@ class TransformationVisitor(QueryExprVisitor):
             DictMetric: gen_transformation_dictmetric
         }
 
-        return generate_nested_transformation(
-            transformation, reference.parent, transformation_generator
+        return cls.Output(
+            *generate_nested_transformation(
+                transformation, reference.parent, transformation_generator
+            ),
+            constraints,
         )
 
-    def visit_private_source(self, expr) -> Tuple[Transformation, TableReference]:
+    def visit_private_source(self, expr) -> Output:
         """Create a transformation from a PrivateSource query expression."""
         ref = find_reference(expr.source_id, self.input_domain)
         if ref is None:
@@ -304,11 +338,18 @@ class TransformationVisitor(QueryExprVisitor):
                 f"Available tables are: {named_tables}"
             )
         transformation = IdentityTransformation(self.input_metric, self.input_domain)
-        return transformation, ref
+        try:
+            constraints = self.table_constraints[ref.identifier]
+        except KeyError:
+            raise AssertionError(
+                f"Table {ref.identifier} not present in constraints dictionary. "
+                "This is probably a bug; please let us know about it so we can fix it!"
+            )
+        return self.Output(transformation, ref, constraints)
 
-    def visit_rename(self, expr: RenameExpr) -> Tuple[Transformation, TableReference]:
+    def visit_rename(self, expr: RenameExpr) -> Output:
         """Create a transformation from a Rename query expression."""
-        child_transformation, child_ref = expr.child.accept(self)
+        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -352,13 +393,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_filter(self, expr: FilterExpr) -> Tuple[Transformation, TableReference]:
+    def visit_filter(self, expr: FilterExpr) -> Output:
         """Create a transformation from a FilterExpr query expression."""
-        child_transformation, child_ref = expr.child.accept(self)
+        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -396,13 +440,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_select(self, expr: SelectExpr) -> Tuple[Transformation, TableReference]:
+    def visit_select(self, expr: SelectExpr) -> Output:
         """Create a transformation from a Select query expression."""
-        child_transformation, child_ref = expr.child.accept(self)
+        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -439,13 +486,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_map(self, expr: MapExpr) -> Tuple[Transformation, TableReference]:
+    def visit_map(self, expr: MapExpr) -> Output:
         """Create a transformation from a Map query expression."""
-        child_transformation, child_ref = expr.child.accept(self)
+        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
 
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
@@ -518,15 +568,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_flat_map(
-        self, expr: FlatMapExpr
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_flat_map(self, expr: FlatMapExpr) -> Output:
         """Create a transformation from a FlatMap query expression."""
-        child_transformation, child_ref = self._ensure_not_hamming(
+        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
             *expr.child.accept(self)
         )
 
@@ -628,22 +679,28 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_join_private(
-        self, expr: JoinPrivateExpr
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_join_private(self, expr: JoinPrivateExpr) -> Output:
         """Create a transformation from a JoinPrivate query expression."""
-        left_transformation, left_ref = expr.child.accept(self)
+        left_transformation, left_ref, _left_constraints = expr.child.accept(self)
         right_visitor = TransformationVisitor(
             left_transformation.output_domain,
             left_transformation.output_metric,
             self.mechanism,
             self.public_sources,
+            self.table_constraints,
         )
-        right_transformation, right_ref = expr.right_operand_expr.accept(right_visitor)
+        (
+            right_transformation,
+            right_ref,
+            _right_constraints,
+        ) = expr.right_operand_expr.accept(right_visitor)
 
         if left_ref.parent != right_ref.parent:
             raise ValueError(
@@ -752,18 +809,20 @@ class TransformationVisitor(QueryExprVisitor):
             DictMetric: gen_transformation_dictmetric,
             AddRemoveKeys: gen_transformation_ark,
         }
-        return generate_nested_transformation(
-            # right_ref.parent and left_ref.parent are the same, so either works here.
-            child_transformation,
-            right_ref.parent,
-            transformation_generators,
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation,
+                # right_ref.parent and left_ref.parent must be the same,
+                # so either works here.
+                right_ref.parent,
+                transformation_generators,
+            ),
+            [],
         )
 
-    def visit_join_public(
-        self, expr: JoinPublicExpr
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_join_public(self, expr: JoinPublicExpr) -> Output:
         """Create a transformation from a JoinPublic query expression."""
-        child_transformation, child_ref = self._ensure_not_hamming(
+        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
 
@@ -834,8 +893,11 @@ class TransformationVisitor(QueryExprVisitor):
             DictMetric: gen_transformation_dictmetric,
             AddRemoveKeys: gen_transformation_ark,
         }
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
     @staticmethod
@@ -887,11 +949,11 @@ class TransformationVisitor(QueryExprVisitor):
 
         return replace_with
 
-    def visit_replace_null_and_nan(
-        self, expr: ReplaceNullAndNan
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Output:
         """Create a transformation from a ReplaceNullAndNan query expression."""
-        child_transformation, child_ref = self._visit_child(expr.child)
+        child_transformation, child_ref, _child_constraints = self._visit_child(
+            expr.child
+        )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         input_metric = lookup_metric(child_transformation.output_metric, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
@@ -1021,15 +1083,18 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_replace_infinity(
-        self, expr: ReplaceInfinity
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_replace_infinity(self, expr: ReplaceInfinity) -> Output:
         """Create a transformation from a ReplaceInfinity query expression."""
-        child_transformation, child_ref = self._visit_child(expr.child)
+        child_transformation, child_ref, _child_constraints = self._visit_child(
+            expr.child
+        )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         input_metric = lookup_metric(child_transformation.output_metric, child_ref)
 
@@ -1084,15 +1149,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_drop_infinity(
-        self, expr: DropInfExpr
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_drop_infinity(self, expr: DropInfExpr) -> Output:
         """Create a transformation from a DropInfinity query expression."""
-        child_transformation, child_ref = self._ensure_not_hamming(
+        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1163,15 +1229,16 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
         )
 
-    def visit_drop_null_and_nan(
-        self, expr: DropNullAndNan
-    ) -> Tuple[Transformation, TableReference]:
+    def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Output:
         """Create a transformation from a DropNullAndNan query expression."""
-        child_transformation, child_ref = self._ensure_not_hamming(
+        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1287,8 +1354,32 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        return generate_nested_transformation(
-            child_transformation, child_ref.parent, transformation_generators
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            [],
+        )
+
+    def visit_enforce_constraint(self, expr: EnforceConstraint) -> Output:
+        """Create a transformation from an EnforceConstraint query expression."""
+        # Note: at present, enforcing one constraint can never invalidate
+        # another constraint, so just adding the new constraint to the list of
+        # constraints is perfectly fine. If a new constraint is added that can
+        # invalidate other constraints, this will have to be broken out into
+        # per-constraint-type logic.
+        child_transformation, child_ref, child_constraints = self._visit_child(
+            expr.child
+        )
+        # pylint: disable=protected-access
+        transformation, ref = expr.constraint._enforce(
+            child_transformation, child_ref, *expr.options
+        )
+        # pylint: enable=protected-access
+        return self.Output(
+            transformation,
+            ref,
+            simplify_constraints(child_constraints + [expr.constraint]),
         )
 
     # None of the queries that produce measurements are implemented

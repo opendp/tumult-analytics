@@ -292,6 +292,7 @@ def prepare_visitor(spark, request):
         default_mechanism=NoiseMechanism.LAPLACE,
         public_sources=public_sources,
         catalog=catalog,
+        table_constraints={t: [] for t in stability},
     )
     # for the methods which alter the output measure of a visitor.
     request.cls.pick_noise_visitor = MeasurementVisitor(
@@ -303,6 +304,7 @@ def prepare_visitor(spark, request):
         default_mechanism=NoiseMechanism.LAPLACE,
         public_sources=public_sources,
         catalog=catalog,
+        table_constraints={t: [] for t in stability},
     )
 
 

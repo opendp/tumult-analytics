@@ -60,7 +60,8 @@ class TestAddKeys(TestTransformationVisitor):
 
     visitor: TransformationVisitor
     catalog: Catalog
-    dataframes: Dict[Identifier, DataFrame]
+    input_data: Dict[Identifier, Union[DataFrame, Dict[Identifier, DataFrame]]]
+    dataframes: Dict[str, DataFrame]
 
     def _validate_transform_basics(
         self,
@@ -90,9 +91,11 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_private_source(self, source_id: str) -> None:
         """Test generating transformations from a PrivateSource."""
         query = PrivateSource(source_id)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         assert reference.path == [TableCollection("ids"), NamedTable(source_id)]
         assert isinstance(transformation, IdentityTransformation)
+        # TODO@tmager: Update this once views work
+        assert constraints == []
 
     def test_invalid_private_source(self) -> None:
         """Test that invalid PrivateSource expressions are handled."""
@@ -122,9 +125,10 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_rename(self, mapper: Dict[str, str], expected_df: DataFrame) -> None:
         """Test generating transformations from a Rename."""
         query = Rename(PrivateSource("ids1"), mapper)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_rename_invalid(self) -> None:
         """Test that invalid Rename expressions are handled."""
@@ -148,9 +152,10 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_filter(self, filter_expr: str, expected_df: DataFrame) -> None:
         """Test visit_filter."""
         query = Filter(PrivateSource(source_id="ids1"), filter_expr)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "columns,expected_df",
@@ -165,9 +170,10 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_select(self, columns: List[str], expected_df: DataFrame) -> None:
         """Test generating transformations from a Select."""
         query = Select(PrivateSource(source_id="ids1"), columns)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -200,9 +206,10 @@ class TestAddKeys(TestTransformationVisitor):
     )
     def test_visit_map(self, query: Map, expected_df: DataFrame) -> None:
         """Test generating transformations from a Map."""
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_map_invalid(self) -> None:
         """Test that invalid Map expressions are handled."""
@@ -247,9 +254,10 @@ class TestAddKeys(TestTransformationVisitor):
     )
     def test_visit_flat_map(self, query: FlatMap, expected_df: DataFrame) -> None:
         """Test generating transformations from a non-grouping FlatMap."""
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_flatmap_invalid(self) -> None:
         """Test that invalid FlatMap expressions are handled."""
@@ -300,9 +308,10 @@ class TestAddKeys(TestTransformationVisitor):
         self, query: JoinPrivate, expected_df: DataFrame
     ) -> None:
         """Test generating transformations from a JoinPrivate."""
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "query",
@@ -364,9 +373,10 @@ class TestAddKeys(TestTransformationVisitor):
         self, query: JoinPublic, expected_df: DataFrame
     ) -> None:
         """Test generating transformations from a JoinPublic."""
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     def test_visit_join_public_df(self) -> None:
         """Test generating transformations from a JoinPublic using a dataframe."""
@@ -377,9 +387,10 @@ class TestAddKeys(TestTransformationVisitor):
             [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],
             columns=["id", "S", "I", "F", "D", "T", "public"],
         )
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
     @pytest.mark.parametrize(
         "replace_with,expected_df",
@@ -429,9 +440,10 @@ class TestAddKeys(TestTransformationVisitor):
     ):
         """Test generating transformations from a ReplaceNullAndNan."""
         query = ReplaceNullAndNan(PrivateSource("ids_infs_nans"), replace_with)
-        transformation, reference = self.visitor.visit_replace_null_and_nan(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
         expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
@@ -469,9 +481,10 @@ class TestAddKeys(TestTransformationVisitor):
     ):
         """Test generating transformations from a ReplaceInfinity."""
         query = ReplaceInfinity(PrivateSource("ids_infs_nans"), replace_with)
-        transformation, reference = self.visitor.visit_replace_infinity(query)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
+        assert constraints == []
 
         expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
         expected_output_domain = SparkDataFrameDomain(
@@ -547,8 +560,9 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
         query = DropNullAndNan(PrivateSource("ids"), query_columns)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
+        assert constraints == []
 
         output_domain = lookup_domain(transformation.output_domain, reference)
         assert isinstance(output_domain, SparkDataFrameDomain)
@@ -574,8 +588,9 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
     ) -> None:
         """Test generating transformations from a DropInfinity."""
         query = DropInfinity(PrivateSource("ids"), query_columns)
-        transformation, reference = query.accept(self.visitor)
+        transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
+        assert constraints == []
 
         output_domain = lookup_domain(transformation.output_domain, reference)
         assert isinstance(output_domain, SparkDataFrameDomain)

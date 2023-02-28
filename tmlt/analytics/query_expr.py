@@ -23,6 +23,7 @@ from typeguard import check_type
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import Schema
+from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -649,6 +650,25 @@ class DropInfinity(QueryExpr):
         return visitor.visit_drop_infinity(self)
 
 
+@dataclass(frozen=True)
+class EnforceConstraint(QueryExpr):
+    """Enforces a constraint on the data."""
+
+    child: QueryExpr
+    """The QueryExpr to which the constraint will be applied."""
+    constraint: Constraint
+    """A constraint to be enforced."""
+    options: Dict[str, Any] = field(default_factory=dict)
+    """Options to be used when enforcing the constraint.
+
+    Appropriate values here vary depending on the constraint. These options are
+    to support advanced use cases, and generally should not be used."""
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_enforce_constraint(self)
+
+
 @dataclass
 class GroupByCount(QueryExpr):
     """Returns the count of each combination of the groupby domains."""
@@ -1064,6 +1084,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_drop_infinity(self, expr: DropInfinity) -> Any:
         """Visit a :class:`DropInfinity`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_enforce_constraint(self, expr: EnforceConstraint) -> Any:
+        """Visit a :class:`EnforceConstraint`."""
         raise NotImplementedError
 
     @abstractmethod

@@ -653,6 +653,7 @@ class TestSession:
             mock_compiler_transform.return_value = (
                 view_transformation,
                 TableReference(path=[NamedTable("private")]),
+                [],
             )
             session = Session(accountant=mock_accountant, public_sources=dict())
             session.create_view(
@@ -668,6 +669,7 @@ class TestSession:
                 input_metric=mock_accountant.input_metric,
                 public_sources={},
                 catalog=ANY,
+                table_constraints=ANY,
             )
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
@@ -880,6 +882,7 @@ class TestSession:
             privacy_budget=sp.Integer(budget),
             public_sources={},
             catalog=ANY,
+            table_constraints={t: [] for t in mock_accountant.d_in.keys()},
         )
 
         mock_accountant.measure.assert_called_with(

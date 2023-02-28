@@ -20,6 +20,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics.query_expr import (
     DropInfinity,
     DropNullAndNan,
+    EnforceConstraint,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -773,6 +774,13 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=input_schema.grouping_column,
         )
+
+    def visit_enforce_constraint(self, expr: EnforceConstraint) -> Schema:
+        """Returns the resulting schema from evaluating an EnforceConstraint."""
+        # No current constraints modify the schema. If that changes in the
+        # future, the logic for it may have to be pushed into the Constraint
+        # type (like how constraint._enforce() works), but for now this works.
+        return expr.child.accept(self)
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCount.

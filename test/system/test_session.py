@@ -25,6 +25,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.binning_spec import BinningSpec
+from tmlt.analytics.constraints import MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -32,7 +33,11 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups, AddOneRow
+from tmlt.analytics.protected_change import (
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+)
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     AnalyticsDefault,
@@ -1613,6 +1618,28 @@ class TestSession:
         assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 1
         session.delete_view("view2")
         assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 0
+
+    def test_view_constraint(self):
+        """Test that constraints are saved when creating views."""
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(float("inf")),
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddRowsWithID("A"),
+        )
+        query = QueryBuilder("private").enforce(MaxRowsPerID(1))
+        session.create_view(query, "view", cache=False)
+        # pylint: disable=protected-access
+        assert session._table_constraints[NamedTable("view")] == [MaxRowsPerID(1)]
+        # pylint: enable=protected-access
+
+        # TODO(#2252): Test that aggregations work on the view without
+        # additional truncation.
+
+        session.delete_view("view")
+        # pylint: disable=protected-access
+        assert NamedTable("view") not in session._table_constraints
+        # pylint: enable=protected-access
 
     def test_grouping_noninteger_stability(self, spark) -> None:
         """Test that zCDP grouping_column and non-integer stabilities work."""

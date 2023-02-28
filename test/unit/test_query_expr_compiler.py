@@ -32,7 +32,7 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
-from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
@@ -710,6 +710,7 @@ class TestQueryExprCompiler:
                 "groupby_one_column": self.groupby_one_column_df,
             },
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): count_distinct_df})
         assert len(actual) == 1
@@ -736,6 +737,7 @@ class TestQueryExprCompiler:
                 "groupby_one_column": self.groupby_one_column_df,
             },
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
         assert len(actual) == len(expected)
@@ -964,6 +966,7 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={"public": self.join_df},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
         assert len(actual) == len(expected)
@@ -1076,6 +1079,7 @@ class TestQueryExprCompiler:
                 input_metric=self.input_metric,
                 public_sources={"public": self.join_df},
                 catalog=self.catalog,
+                table_constraints={t: [] for t in self.stability.keys()},
             )
 
     def test_join_public_dataframe(self, spark):
@@ -1088,12 +1092,13 @@ class TestQueryExprCompiler:
             pd.DataFrame({"A": ["0", "1"], "Y": [0.1, float("nan")]})
         ).fillna(0)
 
-        transformation, reference = self.compiler.build_transformation(
+        transformation, reference, _constraints = self.compiler.build_transformation(
             JoinPublic(PrivateSource("private"), public_sdf),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
 
         source_dict = {NamedTable("private"): self.sdf}
@@ -1119,7 +1124,7 @@ class TestQueryExprCompiler:
                 [["0", 0], ["0", 2], ["1", 2], ["0", 0], ["1", 4]], columns=["A", "C"]
             )
         )
-        transformation, reference = self.compiler.build_transformation(
+        transformation, reference, _constraints = self.compiler.build_transformation(
             JoinPrivate(
                 child=PrivateSource("private"),
                 right_operand_expr=PrivateSource("private_2"),
@@ -1130,6 +1135,7 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         source_dict = {NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2}
         output_sdf = get_table_from_ref(transformation, reference)(source_dict)
@@ -1206,12 +1212,13 @@ class TestQueryExprCompiler:
     )
     def test_join_private_output_stability(self, join_query, expected_output_stability):
         """Tests that join private gives correct output stability."""
-        transformation, reference = self.compiler.build_transformation(
+        transformation, reference, _constraints = self.compiler.build_transformation(
             join_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
 
         get_value_transform = get_table_from_ref(transformation, reference)
@@ -1242,6 +1249,7 @@ class TestQueryExprCompiler:
                 input_metric=self.input_metric,
                 public_sources={},
                 catalog=self.catalog,
+                table_constraints={t: [] for t in self.stability.keys()},
             )
 
     @pytest.mark.parametrize(
@@ -1276,12 +1284,13 @@ class TestQueryExprCompiler:
     ):
         """Tests that flatmap gives correct output stability."""
         compiler = QueryExprCompiler(output_measure=measure)
-        transformation, reference = compiler.build_transformation(
+        transformation, reference, _constraints = compiler.build_transformation(
             flatmap_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         get_value_transform = get_table_from_ref(transformation, reference)
 
@@ -1316,6 +1325,7 @@ class TestQueryExprCompiler:
             input_metric=self.input_metric,
             public_sources={},
             catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): sdf_float})
         expected = [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})]
@@ -1366,6 +1376,7 @@ class TestQueryExprCompiler:
                 input_metric=self.input_metric,
                 public_sources={"public": self.join_df},
                 catalog=self.catalog,
+                table_constraints={t: [] for t in self.stability.keys()},
             )
 
     def test_different_source_id(self):
@@ -1411,6 +1422,7 @@ class TestQueryExprCompiler:
             input_metric=input_metric,
             public_sources={"public": self.join_df},
             catalog=self.catalog,
+            table_constraints={t: [] for t in stability.keys()},
         )
         assert measurement.privacy_relation(stability, sp.Integer(10))
 
@@ -1427,6 +1439,7 @@ class TestQueryExprCompiler:
                 input_metric=self.input_metric,
                 public_sources={"public": self.join_df},
                 catalog=self.catalog,
+                table_constraints={t: [] for t in self.stability.keys()},
             )
 
 
@@ -1497,6 +1510,7 @@ class TestCompileGroupByQuantile:
             input_metric=input_metric,
             public_sources={},
             catalog=catalog,
+            table_constraints={t: [] for t in stability},
         )
         assert measurement.input_domain == input_domain
         assert measurement.input_metric == input_metric
@@ -1534,7 +1548,7 @@ def setup_components(request):
 class TestComponentIsUsed:
     """Tests that specific components are used inside of compiled measurements."""
 
-    _stability: Dict[str, sp.Integer]
+    _stability: Dict[Identifier, sp.Integer]
     _privacy_budget: sp.Integer
     _input_domain: DictDomain
     _input_metric: DictMetric
@@ -1682,6 +1696,7 @@ class TestComponentIsUsed:
                 input_metric=self._input_metric,
                 public_sources={},
                 catalog=self._catalog,
+                table_constraints={t: [] for t in self._stability.keys()},
             )
             expected_arguments = {  # Other arguments are not checked
                 "input_domain": self._input_domain[NamedTable("test")],

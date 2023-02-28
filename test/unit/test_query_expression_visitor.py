@@ -7,10 +7,12 @@
 import pytest
 
 from tmlt.analytics._schema import Schema
+from tmlt.analytics.constraints import MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     DropInfinity,
     DropNullAndNan,
+    EnforceConstraint,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -73,6 +75,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     def visit_drop_null_and_nan(self, expr):
         return "DropNullAndNan"
 
+    def visit_enforce_constraint(self, expr):
+        return "EnforceConstraint"
+
     def visit_groupby_count(self, expr):
         return "GroupByCount"
 
@@ -129,6 +134,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         ),
         (DropInfinity(PrivateSource("P"), ["column"]), "DropInfinity"),
         (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
+        (EnforceConstraint(PrivateSource("P"), MaxRowsPerID(5)), "EnforceConstraint"),
         (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
         (
             GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),
