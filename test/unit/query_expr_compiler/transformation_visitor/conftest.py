@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2023
 
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import pandas as pd
 import pytest
@@ -43,9 +43,7 @@ from tmlt.core.metrics import AddRemoveKeys, DictMetric, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 
-from ....conftest import (  # pylint: disable=no-name-in-module
-    assert_frame_equal_with_sort,
-)
+from ....conftest import assert_frame_equal_with_sort
 
 # Example date and timestamp
 DATE1 = datetime.date.fromisoformat("2022-01-01")
@@ -140,7 +138,19 @@ def _dataframes(request, spark):
         ),
     )
 
-    input_data_dict = {
+    ids_duplicates = spark.createDataFrame(
+        pd.DataFrame(
+            [
+                [123, 123, 123, 456, 456, 456, 789, 789, 789, 789],
+                ["A", "A", "A", "A", "B", "C", "A", "A", "B", "B"],
+            ]
+        ).transpose(),
+        schema=StructType(
+            [StructField("id", LongType(), True), StructField("St", StringType(), True)]
+        ),
+    )
+
+    request.cls.input_data = {
         NamedTable("rows1"): rows1,
         NamedTable("rows2"): rows2,
         NamedTable("rows_infs_nans"): rows_infs_nans,
@@ -148,9 +158,18 @@ def _dataframes(request, spark):
             NamedTable("ids1"): ids1,
             NamedTable("ids2"): ids2,
             NamedTable("ids_infs_nans"): ids_infs_nans,
+            NamedTable("ids_duplicates"): ids_duplicates,
         },
     }
-    request.cls.dataframes = input_data_dict
+    request.cls.dataframes = {
+        "rows1": rows1,
+        "rows2": rows2,
+        "rows_infs_nans": rows_infs_nans,
+        "ids1": ids1,
+        "ids2": ids2,
+        "ids_infs_nans": ids_infs_nans,
+        "ids_duplicates": ids_duplicates,
+    }
 
 
 @pytest.fixture(scope="class")
@@ -222,6 +241,14 @@ def _catalog(request):
             "nan": ColumnDescriptor(
                 ColumnType.DECIMAL, allow_nan=True, allow_null=True
             ),
+        },
+        grouping_column="id",
+    )
+    catalog.add_private_table(
+        "ids_duplicates",
+        {
+            "id": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "St": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         },
         grouping_column="id",
     )
@@ -298,6 +325,12 @@ def _visitor(spark, request):
                             ),
                         }
                     ),
+                    NamedTable("ids_duplicates"): SparkDataFrameDomain(
+                        {
+                            "id": SparkIntegerColumnDescriptor(allow_null=True),
+                            "St": SparkStringColumnDescriptor(allow_null=True),
+                        }
+                    ),
                 }
             ),
         }
@@ -312,6 +345,7 @@ def _visitor(spark, request):
                     NamedTable("ids1"): "id",
                     NamedTable("ids2"): "id",
                     NamedTable("ids_infs_nans"): "id",
+                    NamedTable("ids_duplicates"): "id",
                 }
             ),
         }
@@ -333,6 +367,18 @@ def _visitor(spark, request):
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
         public_sources=public_sources,
+        table_constraints={
+            NamedTable(t): []
+            for t in (
+                "rows1",
+                "rows2",
+                "rows_infs_nans",
+                "ids1",
+                "ids2",
+                "ids_infs_nans",
+                "ids_duplicates",
+            )
+        },
     )
     request.cls.visitor = visitor
 
@@ -343,15 +389,19 @@ class TestTransformationVisitor:
 
     visitor: TransformationVisitor
     catalog: Catalog
-    dataframes: Dict[Identifier, DataFrame]
+    input_data: Dict[Identifier, Union[DataFrame, Dict[Identifier, DataFrame]]]
+    dataframes: Dict[str, DataFrame]
+
+    def _get_result(self, t: Transformation, ref: TableReference) -> pd.DataFrame:
+        return get_table_from_ref(t, ref)(self.input_data).toPandas()
 
     def _validate_result(
         self, t: Transformation, ref: TableReference, transformed_df: DataFrame
     ) -> None:
         assert isinstance(t.output_domain, DictDomain)
         assert isinstance(t.output_metric, (DictMetric, AddRemoveKeys))
-        result_df = get_table_from_ref(t, ref)(self.dataframes)
-        assert_frame_equal_with_sort(result_df.toPandas(), transformed_df)
+        result_df = self._get_result(t, ref)
+        assert_frame_equal_with_sort(result_df, transformed_df)
 
 
 @pytest.fixture(scope="class")
@@ -424,6 +474,7 @@ def _nulls_visitor(request):
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
         public_sources={},
+        table_constraints={NamedTable(t): [] for t in ("rows", "ids")},
     )
     request.cls.visitor = visitor
 

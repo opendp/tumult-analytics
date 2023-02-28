@@ -52,7 +52,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.analytics._table_reference import (
     find_named_tables,
     find_reference,
@@ -65,6 +65,7 @@ from tmlt.analytics._transformation_utils import (
     rename_table,
     unpersist_table,
 )
+from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -413,6 +414,9 @@ class Session:
                 f" {compiler.output_measure}."
             )
         self._compiler = compiler
+        self._table_constraints: Dict[Identifier, List[Constraint]] = {
+            NamedTable(t): [] for t in self.private_sources
+        }
 
     # pylint: disable=line-too-long
     @classmethod
@@ -793,6 +797,7 @@ class Session:
             input_metric=self._input_metric,
             public_sources=self._public_sources,
             catalog=self._catalog,
+            table_constraints=self._table_constraints,
         )
         return (measurement, adjusted_budget)
 
@@ -1026,26 +1031,26 @@ class Session:
 
         if not isinstance(query_expr, QueryExpr):
             raise ValueError("query_expr must be of type QueryBuilder or QueryExpr.")
-        transformation, table_ref = self._compiler.build_transformation(
+        transformation, ref, constraints = self._compiler.build_transformation(
             query=query_expr,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             public_sources=self._public_sources,
             catalog=self._catalog,
+            table_constraints=self._table_constraints,
         )
         if cache:
-            transformation, table_ref = persist_table(
-                base_transformation=transformation, base_ref=table_ref
+            transformation, ref = persist_table(
+                base_transformation=transformation, base_ref=ref
             )
 
         transformation, _ = rename_table(
             base_transformation=transformation,
-            base_ref=table_ref,
+            base_ref=ref,
             new_table_id=NamedTable(source_id),
         )
-
-        # This is a transform-in-place against the privacy accountant
         self._accountant.transform_in_place(transformation)
+        self._table_constraints[NamedTable(source_id)] = constraints
 
     def delete_view(self, source_id: str):
         """Deletes a view and decaches it if it was cached.
@@ -1081,6 +1086,7 @@ class Session:
             base_transformation=unpersist_source, base_ref=ref
         )
         self._accountant.transform_in_place(transformation)
+        self._table_constraints.pop(ref.identifier, None)
 
     # pylint: disable=line-too-long
     # TODO(#2199): remove the attr_name argument

@@ -36,6 +36,7 @@ from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.binning_spec import BinningSpec, BinT
+from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -43,6 +44,7 @@ from tmlt.analytics.query_expr import (
     CountMechanism,
     DropInfinity,
     DropNullAndNan,
+    EnforceConstraint,
     Filter,
     FlatMap,
     GroupByBoundedAverage,
@@ -1309,6 +1311,16 @@ class QueryBuilder:
 
         keys = KeySet.from_dict({name: spec.bins()})
         return self.bin_column(column, spec, name).groupby(keys).count()
+
+    def enforce(self, constraint: Constraint) -> "QueryBuilder":
+        """Enforce a :mod:`~tmlt.analytics.constraints.Constraint` on the current table.
+
+        This method can be used to enforce constraints on the current table. See
+        the :mod:`~tmlt.analytics.constraints` module for information about the
+        available constraints and what they are used for.
+        """
+        self._query_expr = EnforceConstraint(self._query_expr, constraint, options={})
+        return self
 
     def groupby(self, keys: KeySet) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
