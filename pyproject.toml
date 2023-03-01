@@ -35,11 +35,11 @@ packages = [
 ]
 
 
-### Note If Updating Dependencies ###
-# Also make sure to update the dependency matrix
-# located in noxfile.py:test_multi_deps(), if needed.
 [tool.poetry.dependencies]
 python = "^3.7.1, <3.10.0"
+
+# When updating Core, PySpark, Pandas or SymPy, remember to update
+# test_multi_deps in the Noxfile.
 
 "tmlt.core" = "^0.8.0"
 
@@ -48,6 +48,7 @@ pyspark = { version = "^3.0.0,<3.4.0", extras = ["sql"] }
 sympy = "^1.8,<1.10"
 typeguard = "^2.12.1,<2.13.0"
 typing-extensions = "^3.10.0"
+
 
 [tool.poetry.dev-dependencies]
 # Build scripting
@@ -83,6 +84,7 @@ seaborn = "^0.11.1"
 # click 8.1.0 removes _unicodefun which breaks the CI; remove this after
 # upgrading Black.
 click = "8.0.4"
+
 
 [build-system]
 build-backend = "poetry_dynamic_versioning.backend"
