@@ -9,7 +9,7 @@ column.
 # Copyright Tumult Labs 2023
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from typeguard import check_type
 
@@ -20,16 +20,26 @@ from tmlt.analytics._transformation_utils import (
     get_table_from_ref,
 )
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.metrics import AddRemoveKeys, IfGroupedBy, SymmetricDifference
+from tmlt.core.metrics import (
+    AddRemoveKeys,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
     CreateDictFromValue,
 )
 from tmlt.core.transformations.spark_transformations.add_remove_keys import (
+    LimitKeysPerGroupValue,
     LimitRowsPerGroupValue,
 )
-from tmlt.core.transformations.spark_transformations.truncation import LimitRowsPerGroup
+from tmlt.core.transformations.spark_transformations.truncation import (
+    LimitKeysPerGroup,
+    LimitRowsPerGroup,
+)
 
 from ._base import Constraint
 
@@ -37,14 +47,23 @@ from ._base import Constraint
 def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Constraint]:
     """Remove redundant truncation constraints from a list of constraints."""
     max_rows_per_id, other_constraints = [], []
+    max_groups_per_id: Dict[str, int] = {}
     for c in constraints:
         if isinstance(c, MaxRowsPerID):
             max_rows_per_id.append(c)
+        elif isinstance(c, MaxGroupsPerID):
+            if max_groups_per_id.get(c.grouping_column) is None:
+                max_groups_per_id[c.grouping_column] = c.max
+            elif max_groups_per_id[c.grouping_column] > c.max:
+                max_groups_per_id[c.grouping_column] = c.max
         else:
             other_constraints.append(c)
 
     if max_rows_per_id:
         other_constraints.append(MaxRowsPerID(min(c.max for c in max_rows_per_id)))
+    if max_groups_per_id:
+        for grouping_column, max_groups in max_groups_per_id.items():
+            other_constraints.append(MaxGroupsPerID(grouping_column, max_groups))
     return other_constraints
 
 
@@ -109,6 +128,97 @@ class MaxRowsPerID(Constraint):
             def gen_tranformation_ark(parent_domain, parent_metric, target):
                 return LimitRowsPerGroupValue(
                     parent_domain, parent_metric, child_ref.identifier, target, self.max
+                )
+
+            return generate_nested_transformation(
+                child_transformation,
+                child_ref.parent,
+                {AddRemoveKeys: gen_tranformation_ark},
+            )
+
+
+@dataclass(frozen=True)
+class MaxGroupsPerID(Constraint):
+    """A constraint limiting the number of distinct groups per ID.
+
+    This constraint limits how many times a distinct value may appear in the grouping
+    column for each distinct value in the table's ID column. For example,
+    ``MaxGroupsPerID("grouping_column", 4)`` guarantees that there are at most four
+    distinct values of ``grouping_column`` for each distinct value of ``ID_column``.
+    """
+
+    grouping_column: str
+    """The name of the grouping column."""
+    max: int
+    """The maximum number of distinct values in the grouping column
+    for each distinct value in the ID column."""
+
+    def __post_init__(self):
+        """Check constructor arguments."""
+        check_type("grouping_column", self.grouping_column, str)
+        check_type("max", self.max, int)
+        if self.grouping_column == "":
+            raise ValueError("grouping_column cannot be empty")
+        if self.max < 1:
+            raise ValueError(f"max must be a positive integer, not {self.max}")
+
+    def _enforce(
+        self,
+        child_transformation: Transformation,
+        child_ref: TableReference,
+        to_symmetric_difference: bool = False,
+    ) -> Tuple[Transformation, TableReference]:
+        parent_metric = lookup_metric(
+            child_transformation.output_metric, child_ref.parent
+        )
+        if not isinstance(parent_metric, AddRemoveKeys):
+            raise ValueError(
+                "The MaxGroupsPerID constraint can only be applied to tables with "
+                "the AddRowsWithID protected change."
+            )
+
+        if to_symmetric_difference:
+            target_table = TemporaryTable()
+            transformation = get_table_from_ref(child_transformation, child_ref)
+            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+            assert isinstance(transformation.output_metric, IfGroupedBy)
+            if not isinstance(
+                transformation.output_metric.inner_metric, (SumOf, RootSumOfSquared)
+            ):
+                raise ValueError(
+                    "Only transformations with an `IfGroupedBy(key_column, "
+                    "SumOf(IfGroupedBy(grouping_column, SymmetricDifference())))` or "
+                    "`IfGroupedBy(key_column, RootSumOfSquared(IfGroupedBy("
+                    "grouping_column, SymmetricDifference())))` output metric can be "
+                    "converted to SymmetricDifference()."
+                )
+            transformation |= LimitKeysPerGroup(
+                transformation.output_domain,
+                transformation.output_metric,
+                transformation.output_metric.column,
+                self.grouping_column,
+                self.max,
+            )
+            transformation = AugmentDictTransformation(
+                transformation
+                | CreateDictFromValue(
+                    transformation.output_domain,
+                    transformation.output_metric,
+                    key=target_table,
+                )
+            )
+            return transformation, TableReference([target_table])
+
+        else:
+
+            def gen_tranformation_ark(parent_domain, parent_metric, target):
+                return LimitKeysPerGroupValue(
+                    parent_domain,
+                    parent_metric,
+                    child_ref.identifier,
+                    target,
+                    self.grouping_column,
+                    self.max,
                 )
 
             return generate_nested_transformation(

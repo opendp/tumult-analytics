@@ -25,7 +25,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.binning_spec import BinningSpec
-from tmlt.analytics.constraints import MaxRowsPerID
+from tmlt.analytics.constraints import MaxGroupsPerID, MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -1627,10 +1627,17 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddRowsWithID("A"),
         )
-        query = QueryBuilder("private").enforce(MaxRowsPerID(1))
+        query = (
+            QueryBuilder("private")
+            .enforce(MaxRowsPerID(1))
+            .enforce(MaxGroupsPerID("B", 1))
+        )
         session.create_view(query, "view", cache=False)
         # pylint: disable=protected-access
-        assert session._table_constraints[NamedTable("view")] == [MaxRowsPerID(1)]
+        assert session._table_constraints[NamedTable("view")] == [
+            MaxRowsPerID(1),
+            MaxGroupsPerID("B", 1),
+        ]
         # pylint: enable=protected-access
 
         # TODO(#2252): Test that aggregations work on the view without
