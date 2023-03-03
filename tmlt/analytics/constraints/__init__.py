@@ -5,4 +5,4 @@
 
 from ._base import Constraint
 from ._simplify import simplify_constraints
-from ._truncation import MaxGroupsPerID, MaxRowsPerID
+from ._truncation import MaxGroupsPerID, MaxRowsPerGroupPerID, MaxRowsPerID

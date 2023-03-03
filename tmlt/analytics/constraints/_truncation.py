@@ -35,10 +35,12 @@ from tmlt.core.transformations.dictionary import (
 from tmlt.core.transformations.spark_transformations.add_remove_keys import (
     LimitKeysPerGroupValue,
     LimitRowsPerGroupValue,
+    LimitRowsPerKeyPerGroupValue,
 )
 from tmlt.core.transformations.spark_transformations.truncation import (
     LimitKeysPerGroup,
     LimitRowsPerGroup,
+    LimitRowsPerKeyPerGroup,
 )
 
 from ._base import Constraint
@@ -48,6 +50,7 @@ def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Const
     """Remove redundant truncation constraints from a list of constraints."""
     max_rows_per_id, other_constraints = [], []
     max_groups_per_id: Dict[str, int] = {}
+    max_rows_per_group_per_id: Dict[str, int] = {}
     for c in constraints:
         if isinstance(c, MaxRowsPerID):
             max_rows_per_id.append(c)
@@ -56,6 +59,11 @@ def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Const
                 max_groups_per_id[c.grouping_column] = c.max
             elif max_groups_per_id[c.grouping_column] > c.max:
                 max_groups_per_id[c.grouping_column] = c.max
+        elif isinstance(c, MaxRowsPerGroupPerID):
+            if max_rows_per_group_per_id.get(c.grouping_column) is None:
+                max_rows_per_group_per_id[c.grouping_column] = c.max
+            elif max_rows_per_group_per_id[c.grouping_column] > c.max:
+                max_rows_per_group_per_id[c.grouping_column] = c.max
         else:
             other_constraints.append(c)
 
@@ -64,6 +72,10 @@ def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Const
     if max_groups_per_id:
         for grouping_column, max_groups in max_groups_per_id.items():
             other_constraints.append(MaxGroupsPerID(grouping_column, max_groups))
+    if max_rows_per_group_per_id:
+        for grouping_column, max_groups in max_rows_per_group_per_id.items():
+            other_constraints.append(MaxRowsPerGroupPerID(grouping_column, max_groups))
+
     return other_constraints
 
 
@@ -213,6 +225,95 @@ class MaxGroupsPerID(Constraint):
 
             def gen_tranformation_ark(parent_domain, parent_metric, target):
                 return LimitKeysPerGroupValue(
+                    parent_domain,
+                    parent_metric,
+                    child_ref.identifier,
+                    target,
+                    self.grouping_column,
+                    self.max,
+                )
+
+            return generate_nested_transformation(
+                child_transformation,
+                child_ref.parent,
+                {AddRemoveKeys: gen_tranformation_ark},
+            )
+
+
+@dataclass(frozen=True)
+class MaxRowsPerGroupPerID(Constraint):
+    """A constraint limiting the number of rows associated with each unique (ID, grouping column) pair in a table.
+
+    For example, ``MaxRowsPerGroupPerID("group_col", 5)`` guarantees that each
+    ID appears in at most five rows for each distinct value of group_col".
+    """  # pylint: disable=line-too-long
+
+    grouping_column: str
+    """Name of column defining the groups to truncate."""
+
+    max: int
+    """The maximum number of times each distinct value may appear in the column."""
+
+    def __post_init__(self):
+        """Check constructor arguments."""
+        check_type("max", self.max, int)
+        if self.max < 1:
+            raise ValueError(f"max must be a positive integer, not {self.max}")
+        check_type("grouping_column", self.grouping_column, str)
+        if self.grouping_column == "":
+            raise ValueError("grouping_column cannot be empty")
+
+    def _enforce(
+        self,
+        child_transformation: Transformation,
+        child_ref: TableReference,
+        to_symmetric_difference: bool = False,
+    ) -> Tuple[Transformation, TableReference]:
+        parent_metric = lookup_metric(
+            child_transformation.output_metric, child_ref.parent
+        )
+        if not isinstance(parent_metric, AddRemoveKeys):
+            raise ValueError(
+                "The MaxRowsPerGroupPerID constraint can only be applied to tables with"
+                " the AddRowsWithID protected change."
+            )
+
+        if to_symmetric_difference:
+            # Only reached when building measurement
+
+            target_table = TemporaryTable()
+            transformation = get_table_from_ref(child_transformation, child_ref)
+            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+            assert isinstance(transformation.output_metric, IfGroupedBy)
+            transformation |= LimitRowsPerKeyPerGroup(
+                transformation.output_domain,
+                IfGroupedBy(
+                    self.grouping_column,
+                    SumOf(
+                        IfGroupedBy(
+                            transformation.output_metric.column, SymmetricDifference()
+                        )
+                    ),
+                ),
+                transformation.output_metric.column,
+                self.grouping_column,
+                self.max,
+            )
+
+            transformation = AugmentDictTransformation(
+                transformation
+                | CreateDictFromValue(
+                    transformation.output_domain,
+                    transformation.output_metric,
+                    target_table,
+                )
+            )
+            return transformation, TableReference([target_table])
+
+        else:
+
+            def gen_tranformation_ark(parent_domain, parent_metric, target):
+                return LimitRowsPerKeyPerGroupValue(
                     parent_domain,
                     parent_metric,
                     child_ref.identifier,
