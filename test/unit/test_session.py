@@ -992,6 +992,44 @@ class TestSession:
             assert isinstance(new_session_name, str)
             assert isinstance(new_session, Session)
 
+    def test_describe(self, spark):
+        """Test that :func:`_describe` works correctly."""
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+
+            public_df_1 = spark.createDataFrame(
+                pd.DataFrame([["blah", 1], ["blah", 2]], columns=["A", "B"])
+            )
+            public_df_2 = spark.createDataFrame(pd.DataFrame({"X": [1.1, 2.2, 3.3]}))
+            session = Session(
+                accountant=mock_accountant,
+                public_sources={"public1": public_df_1, "public2": public_df_2},
+            )
+            # pylint: disable=line-too-long
+            expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
+The following private tables are available:
+Table 'private':
+\tColumns:
+\t\t- 'A'\tVARCHAR
+\t\t- 'B'\tINTEGER
+\t\t- 'X'\tINTEGER
+The following public tables are available:
+Public table 'public1':
+\tColumns:
+\t\t- 'A'\tVARCHAR
+\t\t- 'B'\tINTEGER
+Public table 'public2':
+\tColumns:
+\t\t- 'X'\tDECIMAL"""
+            # pylint: enable=line-too-long
+            # pylint: disable=protected-access
+            session._describe()
+            # pylint: enable=protected-access
+            mock_print.assert_called_with(expected)
+
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
         alltypes_sdf = spark.createDataFrame(
