@@ -30,7 +30,7 @@ from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
 from typeguard import check_type, typechecked
 
-from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._coerce_spark_schema import (
     SUPPORTED_SPARK_TYPES,
     TYPE_COERCION_MAP,
@@ -1427,6 +1427,75 @@ class Session:
     def stop(self) -> None:
         """Close out this session, allowing other sessions to become active."""
         self._accountant.retire()
+
+    def _describe(self) -> None:
+        """Describe the current state of this session."""
+        out = []
+        state = self._accountant.state
+        if state == PrivacyAccountantState.ACTIVE:
+            # Don't add anything to output if the session is active
+            pass
+        elif state == PrivacyAccountantState.RETIRED:
+            out.append("This session has been stopped, and can no longer be used.")
+        elif state == PrivacyAccountantState.WAITING_FOR_CHILDREN:
+            out.append(
+                "This session is waiting for its children (created with"
+                " `partition_and_create`) to finish."
+            )
+        elif state == PrivacyAccountantState.WAITING_FOR_SIBLING:
+            out.append(
+                "This session is waiting for its sibling(s) (created with"
+                " `partition_and_create`) to finish."
+            )
+        else:
+            raise AssertionError(
+                f"Unrecognized accountant state {out}. This is probably a bug; please"
+                " let us know about it so we can fix it!"
+            )
+        budget: PrivacyBudget = self.remaining_privacy_budget
+        out.append(f"The session has a remaining privacy budget of {budget}.")
+        if len(self._catalog.tables) == 0:
+            out.append("The session has no tables available.")
+        else:
+            public_table_descs = []
+            private_table_descs = []
+            for name, table in self._catalog.tables.items():
+                # First, get all of the descriptions of all the columns
+                column_strs = []
+                for column_name, cd in table.schema.column_descs.items():
+                    column_str = f"\t\t- '{column_name}'\t{cd.column_type}"
+                    if not cd.allow_null:
+                        column_str += ", not null"
+                    if cd.column_type == ColumnType.DECIMAL:
+                        if not cd.allow_nan:
+                            column_str += ", not NaN"
+                        if not cd.allow_inf:
+                            column_str += ", not infinity"
+                    column_strs.append(column_str)
+                columns_desc = "\tColumns:\n" + "\n".join(column_strs)
+                if isinstance(table, PublicTable):
+                    table_desc = f"Public table '{name}':\n" + columns_desc
+                    public_table_descs.append(table_desc)
+                elif isinstance(table, PrivateTable):
+                    table_desc = f"Table '{name}':\n" + columns_desc
+                    private_table_descs.append(table_desc)
+                else:
+                    raise AssertionError(
+                        f"Table {name} has an unrecognized type: {type(table)}. This is"
+                        " probably a bug; please let us know about it so we can"
+                        " fix it!"
+                    )
+            if len(private_table_descs) != 0:
+                out.append(
+                    "The following private tables are available:\n"
+                    + "\n".join(private_table_descs)
+                )
+            if len(public_table_descs) != 0:
+                out.append(
+                    "The following public tables are available:\n"
+                    + "\n".join(public_table_descs)
+                )
+        print("\n".join(out))
 
 
 def _assert_is_identifier(source_id: str):
