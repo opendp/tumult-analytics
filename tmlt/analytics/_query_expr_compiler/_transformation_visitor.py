@@ -6,18 +6,7 @@
 import dataclasses
 import datetime
 import warnings
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 from pyspark.sql import DataFrame
 
@@ -218,17 +207,29 @@ class TransformationVisitor(QueryExprVisitor):
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
-        # The output schema visitor doesn't track whether a table is
-        # AddRemoveKeys or not -- this is propagated through the transformations
-        # themselves -- so there are multiple possible IfGroupedBy output
-        # metrics.
-        if expected_schema.grouping_column is None:
-            allowed_output_metrics: Set[Metric] = {SymmetricDifference()}
+
+        expected_output_metric: Metric
+        if (
+            expected_schema.grouping_column is not None
+            and expected_schema.id_column is not None
+        ):
+            raise AssertionError(
+                "Output schema from a transformation had both an ID column "
+                "and a grouping column, which is not allowed. This is probably a bug; "
+                "please let us know about it so we can fix it!"
+            )
+
+        if expected_schema.grouping_column is not None:
+            expected_output_metric = IfGroupedBy(
+                expected_schema.grouping_column, self.inner_metric()
+            )
+        elif expected_schema.id_column is not None:
+            expected_output_metric = IfGroupedBy(
+                expected_schema.id_column, SymmetricDifference()
+            )
         else:
-            allowed_output_metrics = {
-                IfGroupedBy(expected_schema.grouping_column, self.inner_metric()),
-                IfGroupedBy(expected_schema.grouping_column, SymmetricDifference()),
-            }
+            expected_output_metric = SymmetricDifference()
+
         if (
             lookup_domain(transformation.output_domain, reference)
             != expected_output_domain
@@ -239,7 +240,7 @@ class TransformationVisitor(QueryExprVisitor):
             )
         if (
             lookup_metric(transformation.output_metric, reference)
-            not in allowed_output_metrics
+            != expected_output_metric
         ):
             raise AssertionError(
                 "Unexpected output metric. This is probably a bug; "
@@ -552,8 +553,8 @@ class TransformationVisitor(QueryExprVisitor):
         def gen_transformation_ark(parent_domain, parent_metric, target):
             if not expr.augment:
                 raise ValueError(
-                    "Maps on tables with the AddOneIdentifier protected change "
-                    "must be augmenting."
+                    "Maps on tables with the AddRowsWithID protected change "
+                    "must be augmenting"
                 )
             return MapValueTransformation(
                 parent_domain,
@@ -616,8 +617,8 @@ class TransformationVisitor(QueryExprVisitor):
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if expr.max_num_rows is None:
                 raise ValueError(
-                    "Flat maps on tables without IDs must have a the max_num_rows"
-                    " parameter set."
+                    "Flat maps on tables without IDs must have a the max_num_rows "
+                    "parameter set"
                 )
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
@@ -651,19 +652,19 @@ class TransformationVisitor(QueryExprVisitor):
         def gen_transformation_ark(parent_domain, parent_metric, target):
             if not expr.augment:
                 raise ValueError(
-                    "Flat maps on tables with the AddOneIdentifier protected change "
-                    "must be augmenting."
+                    "Flat maps on tables with the AddRowsWithID protected change "
+                    "must be augmenting"
                 )
             if expr.schema_new_columns.grouping_column is not None:
                 raise ValueError(
-                    "Flat maps on tables with the AddOneIdentifier protected "
-                    "change cannot be grouping."
+                    "Flat maps on tables with the AddRowsWithID protected "
+                    "change cannot be grouping"
                 )
             if expr.max_num_rows is not None:
                 warnings.warn(
-                    "When performing a flat map on a table with the AddOneIdentifier"
-                    "ProtectedChange(), the max_num_rows parameter"
-                    " is not required."
+                    "When performing a flat map on a table with the AddRowsWithID "
+                    "ProtectedChange(), the max_num_rows parameter "
+                    "is not required and will be ignored."
                 )
             return FlatMapValueTransformation(
                 parent_domain,
@@ -1092,7 +1093,7 @@ class TransformationVisitor(QueryExprVisitor):
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Output:
         """Create a transformation from a ReplaceInfinity query expression."""
-        child_transformation, child_ref, _child_constraints = self._visit_child(
+        child_transformation, child_ref, child_constraints = self._visit_child(
             expr.child
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1153,12 +1154,15 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            # This is safe because MaxRowsPerID only cares about values in the
+            # ID column, which is not allowed to have replacement done on it. As
+            # new constraints are added it may require some more complex logic.
+            child_constraints,
         )
 
     def visit_drop_infinity(self, expr: DropInfExpr) -> Output:
         """Create a transformation from a DropInfinity query expression."""
-        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
+        child_transformation, child_ref, child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1233,12 +1237,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            child_constraints,
         )
 
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Output:
         """Create a transformation from a DropNullAndNan query expression."""
-        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
+        child_transformation, child_ref, child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1358,7 +1362,7 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            child_constraints,
         )
 
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Output:

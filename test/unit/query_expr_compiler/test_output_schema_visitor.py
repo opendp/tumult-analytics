@@ -6,7 +6,6 @@
 # pylint: disable=no-self-use, protected-access, no-member
 
 import datetime
-import re
 from typing import Dict, List, Type
 
 import pytest
@@ -75,23 +74,23 @@ GET_GROUPBY_COLUMN_WRONG_TYPE = (
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
         PrivateSource("public"),
-        "Attempted query on 'public'. 'public' is not a private table.",
+        "Attempted query on table 'public', which is not a private table",
     ),
     (  # JoinPublic has invalid public_id
         JoinPublic(child=PrivateSource("private"), public_table="private"),
-        "Attempted JoinPublic on 'private' table. 'private' is not a public table.",
+        "Attempted public join on table 'private', which is not a public table",
     ),
     (  # JoinPublic references invalid private source
         JoinPublic(
             child=PrivateSource("private_source_not_in_catalog"), public_table="public"
         ),
-        "Query references invalid source 'private_source_not_in_catalog'.",
+        "Query references nonexistent table 'private_source_not_in_catalog'",
     ),
     (  # JoinPublic on columns not common to both tables
         JoinPublic(
             child=PrivateSource("private"), public_table="public", join_columns=["B"]
         ),
-        "Join columns must be common to both tables.",
+        "Join columns must be common to both tables",
     ),
     (  # JoinPrivate on columns not common to both tables
         JoinPrivate(
@@ -101,31 +100,29 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             TruncationStrategy.DropExcess(1),
             join_columns=["B"],
         ),
-        "Join columns must be common to both tables.",
+        "Join columns must be common to both tables",
     ),
     (  # JoinPublic on tables with no common columns
         JoinPublic(
             child=Rename(PrivateSource("private"), {"A": "Q"}), public_table="public"
         ),
-        "Tables have no common columns to join on.",
+        "Tables have no common columns to join on",
     ),
     (  # JoinPrivate on tables with no common columns
         JoinPrivate(
             PrivateSource("private"),
-            Rename(
-                PrivateSource("private"),
-                {"A": "ZA", "B": "ZB", "X": "ZX", "D": "ZD", "T": "ZT"},
-            ),
+            Rename(Select(PrivateSource("private"), ["A"]), {"A": "Z"}),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
         ),
-        "Tables have no common columns to join on.",
+        "Tables have no common columns to join on",
     ),
     (  # JoinPublic on column with mismatched types
         JoinPublic(
             child=PrivateSource("private"), public_table="public", join_columns=["A"]
         ),
-        "Join columns must have identical types on both tables.",
+        "Join columns must have identical types on both tables, "
+        "but column 'A' does not",
     ),
     (  # JoinPrivate on column with mismatched types
         JoinPrivate(
@@ -135,23 +132,24 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             TruncationStrategy.DropExcess(1),
             join_columns=["A"],
         ),
-        "Join columns must have identical types on both tables.",
+        "Join columns must have identical types on both tables, "
+        "but column 'A' does not",
     ),
     (  # Filter on invalid column
         Filter(child=PrivateSource("private"), condition="NONEXISTENT>1"),
-        "Invalid filter condition: 'NONEXISTENT>1' in Filter query.",
+        "Invalid filter condition 'NONEXISTENT>1'.*",
     ),
     (  # Rename on non-existent column
         Rename(child=PrivateSource("private"), column_mapper={"NONEXISTENT": "Z"}),
-        "Non existent columns {'NONEXISTENT'} in Rename query.",
+        "Nonexistent columns {'NONEXISTENT'} in rename query",
     ),
     (  # Rename when column exists
         Rename(child=PrivateSource("private"), column_mapper={"A": "B"}),
-        "Cannot rename 'A' to 'B'. Column 'B' already exists.",
+        "Cannot rename 'A' to 'B': column 'B' already exists",
     ),
     (  # Select non-existent column
         Select(child=PrivateSource("private"), columns=["NONEXISTENT"]),
-        "Non existent columns {'NONEXISTENT'} in Select query.",
+        "Nonexistent columns {'NONEXISTENT'} in select query",
     ),
     (  # Nested grouping FlatMap
         FlatMap(
@@ -184,8 +182,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             schema_new_columns=Schema({"j": "INTEGER"}),
             augment=False,
         ),
-        "Need to set augment=True to ensure that the grouping column is available"
-        " for groupby.",
+        "Flat map must set augment=True to ensure that grouping column 'i' is not lost",
     ),
     (  # Map with inner grouping FlatMap but outer augment=False
         Map(
@@ -200,51 +197,43 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             schema_new_columns=Schema({"C": "VARCHAR"}),
             augment=False,
         ),
-        "Need to set augment=True to ensure that the grouping column is available"
-        " for groupby.",
+        "Map must set augment=True to ensure that grouping column 'i' is not lost",
     ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
-            child=PrivateSource("private"), replace_with={"bad_column": "new_string"}
+            child=PrivateSource("private"), replace_with={"bad": "new_string"}
         ),
-        "ReplaceNullAndNan.replace_with contains a replacement value for the column"
-        " bad_column, but data has no column named bad_column",
+        r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (
         # ReplaceNullAndNan with bad replacement type
         ReplaceNullAndNan(
             child=PrivateSource("private"), replace_with={"B": "not_an_int"}
         ),
-        "ReplaceNullAndNan.replace_with has column B's default value set to"
-        " not_an_int, which does not match the column type INTEGER",
+        "Column 'B' cannot have nulls replaced with 'not_an_int', as .* type INTEGER",
     ),
     (
         # ReplaceInfinity with nonexistent column
         ReplaceInfinity(
             child=PrivateSource("private"), replace_with={"wrong": (-1, 1)}
         ),
-        "ReplaceInfinity.replace_with contains replacement values for the column"
-        " wrong, but data has no column named wrong",
+        r"Column 'wrong' does not exist in this table, available columns are \[.*\]",
     ),
     (
         #  ReplaceInfinity with non-decimal column
         ReplaceInfinity(child=PrivateSource("private"), replace_with={"A": (-1, 1)}),
-        re.escape(
-            "ReplaceInfinity.replace_with contains replacement values for the column A,"
-            " but the column A has type VARCHAR (not DECIMAL)"
-        ),
+        r"Column 'A' has a replacement value provided.*of type VARCHAR \(not DECIMAL\) "
+        "and so cannot contain infinite values",
     ),
     (
         # DropNullAndNan with column that doesn't exist
         DropNullAndNan(child=PrivateSource("private"), columns=["bad"]),
-        "DropNullAndNan.columns contains the column bad, but data has no column"
-        " named bad",
+        r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (
         # DropInfinity with column that doesn't exist
         DropInfinity(child=PrivateSource("private"), columns=["bad"]),
-        "DropInfinity.columns contains the column bad, but data has no column"
-        " named bad",
+        r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (  # Type mismatch for the measure column of GroupByQuantile
         GroupByQuantile(
@@ -281,7 +270,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({"B": [0, 1, 2]}),
         ),
-        "Column produced by grouping transformation 'i' is not in groupby columns",
+        "Column 'i' produced by grouping transformation is not in groupby columns",
     ),
     (  # Grouping column is set but not used in a later groupby_public_source
         GroupByCount(
@@ -295,7 +284,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_COLUMN_A),
         ),
-        "Column produced by grouping transformation 'i' is not in groupby columns",
+        "Column 'i' produced by grouping transformation is not in groupby columns",
     ),
 ]
 
@@ -519,20 +508,6 @@ class TestValidationWithNulls:
         self, query_expr: QueryExpr, expected_error_msg: str
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
-        # There's one query where you need to rename all the columns,
-        # and this set of tests has a column named NOTNULL
-        # where the other doesn't.
-        # we could either copy-and-paste every single other test case,
-        # or we can fix just this one test case, right here
-        if (
-            isinstance(query_expr, JoinPrivate)
-            and expected_error_msg == "Tables have no common columns to join on."
-        ):
-            # Help whoever is debugging this, if the isinstance assertion ever fails
-            assert isinstance(query_expr.right_operand_expr, Rename)
-            # type assertion for mypy's benefit
-            # rename the NOTNULL column too
-            query_expr.right_operand_expr.column_mapper["NOTNULL"] = "ZNOTNULL"
         with pytest.raises(ValueError, match=expected_error_msg):
             query_expr.accept(self.visitor)
 

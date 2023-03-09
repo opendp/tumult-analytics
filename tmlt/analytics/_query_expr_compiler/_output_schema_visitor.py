@@ -47,6 +47,11 @@ def _output_schema_for_join(
 ) -> Schema:
     """Return the resulting schema from joining two tables.
 
+    It is assumed that if either schema has an ID column, the one from
+    left_schema should be used. This is because the appropriate behavior here
+    depends on the type of join being performed, so checks for compatibility of
+    ID columns must happen outside this function.
+
     Args:
         left_schema: Schema for the left table.
         right_schema: Schema for the right table.
@@ -60,16 +65,16 @@ def _output_schema_for_join(
         grouping_column = left_schema.grouping_column
     else:
         raise ValueError(
-            "Both tables having different grouping columns is not supported"
+            "Joining tables which both have grouping columns is only supported "
+            "if they have the same grouping column"
         )
     common_columns = set(left_schema) & set(right_schema)
-
     if join_columns is None and not common_columns:
-        raise ValueError("Tables have no common columns to join on.")
+        raise ValueError("Tables have no common columns to join on")
     if join_columns is not None and not join_columns:
         # This error case should be caught when constructing the query
         # expression, so it should never get here.
-        raise ValueError(
+        raise AssertionError(
             "Empty list of join columns provided. This is probably a bug; "
             "please let us know about it so we can fix it!"
         )
@@ -81,14 +86,14 @@ def _output_schema_for_join(
     )
 
     if not set(join_columns) <= common_columns:
-        raise ValueError("Join columns must be common to both tables.")
+        raise ValueError("Join columns must be common to both tables")
 
     for column in join_columns:
         if left_schema[column].column_type != right_schema[column].column_type:
             raise ValueError(
-                "Join columns must have identical types on both "
-                f"tables. {left_schema[column]} and "
-                f"{right_schema[column]} are incompatible."
+                "Join columns must have identical types on both tables, "
+                f"but column '{column}' does not: {left_schema[column]} and "
+                f"{right_schema[column]} are incompatible"
             )
 
     output_schema = {
@@ -105,7 +110,9 @@ def _output_schema_for_join(
             if column not in join_columns
         },
     }
-    return Schema(output_schema, grouping_column=grouping_column)
+    return Schema(
+        output_schema, grouping_column=grouping_column, id_column=left_schema.id_column
+    )
 
 
 def _validate_groupby(
@@ -154,7 +161,7 @@ def _validate_groupby(
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:
         raise ValueError(
-            f"Column produced by grouping transformation '{grouping_column}' "
+            f"Column '{grouping_column}' produced by grouping transformation "
             f"is not in groupby columns {list(groupby_columns)}."
         )
     if (
@@ -252,12 +259,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
             {'A': 'VARCHAR', 'B': 'INTEGER'}
         """
         if expr.source_id not in self._catalog.tables:
-            raise ValueError(f"Query references invalid source '{expr.source_id}'.")
+            raise ValueError(f"Query references nonexistent table '{expr.source_id}'")
         table = self._catalog.tables[expr.source_id]
         if not isinstance(table, PrivateTable):
             raise ValueError(
-                f"Attempted query on '{expr.source_id}'. "
-                f"'{expr.source_id}' is not a private table."
+                f"Attempted query on table '{expr.source_id}', which is "
+                "not a private table"
             )
         return table.schema
 
@@ -281,24 +288,29 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """
         input_schema = expr.child.accept(self)
         grouping_column = input_schema.grouping_column
+        id_column = input_schema.id_column
         nonexistent_columns = set(expr.column_mapper) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
-                f"Non existent columns {nonexistent_columns} in Rename query."
+                f"Nonexistent columns {nonexistent_columns} in rename query"
             )
         for old, new in expr.column_mapper.items():
             if new in input_schema and new != old:
                 raise ValueError(
-                    f"Cannot rename '{old}' to '{new}'. Column '{new}' already exists."
+                    f"Cannot rename '{old}' to '{new}': column '{new}' already exists"
                 )
             if old == grouping_column:
                 grouping_column = new
+            if old == id_column:
+                id_column = new
+
         return Schema(
             {
                 expr.column_mapper.get(column, column): input_schema[column]
                 for column in input_schema
             },
             grouping_column=grouping_column,
+            id_column=id_column,
         )
 
     def visit_filter(self, expr: Filter) -> Schema:
@@ -327,9 +339,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         try:
             test_df.filter(expr.condition)
         except Exception as e:
-            raise ValueError(
-                f"Invalid filter condition: '{expr.condition}' in Filter query: {e}"
-            )
+            raise ValueError(f"Invalid filter condition '{expr.condition}': {e}")
         return input_schema
 
     def visit_select(self, expr: Select) -> Schema:
@@ -351,19 +361,29 @@ class OutputSchemaVisitor(QueryExprVisitor):
             {'A': 'VARCHAR'}
         """
         input_schema = expr.child.accept(self)
+
         grouping_column = input_schema.grouping_column
+        id_column = input_schema.id_column
+        if grouping_column is not None and grouping_column not in expr.columns:
+            raise ValueError(
+                f"Grouping column '{grouping_column}' may not "
+                "be dropped by select query"
+            )
+        if id_column is not None and id_column not in expr.columns:
+            raise ValueError(
+                f"ID column '{id_column}' may not be dropped by select query"
+            )
+
         nonexistent_columns = set(expr.columns) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
-                f"Non existent columns {nonexistent_columns} in Select query."
+                f"Nonexistent columns {nonexistent_columns} in select query."
             )
-        if grouping_column is not None and grouping_column not in expr.columns:
-            raise ValueError(
-                f"grouping column {grouping_column} must be included in Select query"
-            )
+
         return Schema(
             {column: input_schema[column] for column in expr.columns},
             grouping_column=grouping_column,
+            id_column=id_column,
         )
 
     def visit_map(self, expr: Map) -> Schema:
@@ -415,11 +435,17 @@ class OutputSchemaVisitor(QueryExprVisitor):
             return Schema(
                 {**input_schema, **new_columns},
                 grouping_column=input_schema.grouping_column,
+                id_column=input_schema.id_column,
             )
         elif input_schema.grouping_column:
             raise ValueError(
-                "Need to set augment=True to ensure that the grouping column "
-                "is available for groupby."
+                "Map must set augment=True to ensure that "
+                f"grouping column '{input_schema.grouping_column}' is not lost."
+            )
+        elif input_schema.id_column:
+            raise ValueError(
+                "Map must set augment=True to ensure that "
+                f"ID column '{input_schema.id_column}' is not lost."
             )
         return new_columns
 
@@ -469,15 +495,20 @@ class OutputSchemaVisitor(QueryExprVisitor):
             {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
         """
         input_schema = expr.child.accept(self)
-        if expr.schema_new_columns.grouping_column is None:
-            grouping_column = input_schema.grouping_column
-        else:
+        if expr.schema_new_columns.grouping_column is not None:
             if input_schema.grouping_column:
                 raise ValueError(
                     "Multiple grouping transformations are used in this query. "
                     "Only one grouping transformation is allowed."
                 )
-            (grouping_column,) = expr.schema_new_columns
+            if input_schema.id_column:
+                raise ValueError(
+                    "Grouping flat map cannot be used on tables with "
+                    "the AddRowsWithID protected change"
+                )
+            grouping_column = expr.schema_new_columns.grouping_column
+        else:
+            grouping_column = input_schema.grouping_column
 
         # Make a deep copy - that way we don't modify the schema
         # that the user provided
@@ -487,13 +518,21 @@ class OutputSchemaVisitor(QueryExprVisitor):
             new_columns[name].allow_null = True
         if expr.augment:
             return Schema(
-                {**input_schema, **new_columns}, grouping_column=grouping_column
+                {**input_schema, **new_columns},
+                grouping_column=grouping_column,
+                id_column=input_schema.id_column,
             )
-        elif input_schema.grouping_column is not None:
+        elif input_schema.grouping_column:
             raise ValueError(
-                "Need to set augment=True to ensure that the grouping column "
-                "is available for groupby."
+                "Flat map must set augment=True to ensure that "
+                f"grouping column '{input_schema.grouping_column}' is not lost"
             )
+        elif input_schema.id_column:
+            raise ValueError(
+                "Flat map must set augment=True to ensure that "
+                f"ID column '{input_schema.id_column}' is not lost"
+            )
+
         return new_columns
 
     def visit_join_private(self, expr: JoinPrivate) -> Schema:
@@ -555,9 +594,22 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query2.accept(output_schema_visitor).column_types
             {'common3': 'INTEGER', 'left_only': 'DECIMAL', 'common1_left': 'INTEGER', 'common2_left': 'VARCHAR', 'common1_right': 'INTEGER', 'common2_right': 'VARCHAR', 'right_only': 'VARCHAR'}
         """
+        left_schema = expr.child.accept(self)
+        right_schema = expr.right_operand_expr.accept(self)
+        if left_schema.id_column != right_schema.id_column:
+            if left_schema.id_column is None or right_schema.id_column is None:
+                raise ValueError(
+                    "Private joins can only be performed between two tables "
+                    "with the same type of protected change"
+                )
+            raise ValueError(
+                "Private joins between tables with the AddRowsWithID "
+                "protected change are only possible when the ID columns of "
+                "the two tables have the same name"
+            )
         return _output_schema_for_join(
-            left_schema=expr.child.accept(self),
-            right_schema=expr.right_operand_expr.accept(self),
+            left_schema=left_schema,
+            right_schema=right_schema,
             join_columns=expr.join_columns,
         )
 
@@ -592,8 +644,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
             public_table = self._catalog.tables[expr.public_table]
             if not isinstance(public_table, PublicTable):
                 raise ValueError(
-                    f"Attempted JoinPublic on '{expr.public_table}' table. "
-                    f"'{expr.public_table}' is not a public table."
+                    f"Attempted public join on table '{expr.public_table}', "
+                    "which is not a public table"
                 )
             right_schema = public_table.schema
         else:
@@ -609,31 +661,39 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a ReplaceNullAndNan."""
         input_schema = expr.child.accept(self)
+
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in expr.replace_with
         ):
             raise ValueError(
-                f"Cannot replace null values in column {input_schema.grouping_column},"
-                " because it is being used as a grouping column"
+                "Cannot replace null values in column "
+                f"'{input_schema.grouping_column}', as it is a grouping column"
             )
+        if input_schema.id_column and input_schema.id_column in expr.replace_with:
+            raise ValueError(
+                f"Cannot replace null values in column '{input_schema.id_column}', "
+                "as it is an ID column"
+            )
+
         if len(expr.replace_with) != 0:
             pytypes = analytics_to_py_types(input_schema)
             for col, val in expr.replace_with.items():
                 if col not in input_schema.keys():
                     raise ValueError(
-                        "ReplaceNullAndNan.replace_with contains a replacement value"
-                        f" for the column {col}, but data has no column named {col}"
+                        f"Column '{col}' does not exist in this table, "
+                        f"available columns are {list(input_schema.keys())}"
                     )
                 if not isinstance(val, pytypes[col]):
                     # it's ok to use an int as a float
                     # so don't raise an error in that case
                     if not (isinstance(val, int) and pytypes[col] == float):
                         raise ValueError(
-                            f"ReplaceNullAndNan.replace_with has column {col}'s default"
-                            f" value set to {val}, which does not match the column type"
-                            f" {input_schema[col].column_type.name}"
+                            f"Column '{col}' cannot have nulls replaced with "
+                            f"{repr(val)}, as that value's type does not match the "
+                            f"column type {input_schema[col].column_type.name}"
                         )
+
         columns_to_change = list(dict(expr.replace_with).keys())
         if len(columns_to_change) == 0:
             columns_to_change = [
@@ -642,6 +702,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 if (input_schema[col].allow_null or input_schema[col].allow_nan)
                 and not (col == input_schema.grouping_column)
             ]
+
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -653,11 +714,28 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 for name, cd in input_schema.column_descs.items()
             },
             grouping_column=input_schema.grouping_column,
+            id_column=input_schema.id_column,
         )
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Schema:
         """Returns the resulting schema from evaluating a ReplaceInfinity."""
         input_schema = expr.child.accept(self)
+
+        if (
+            input_schema.grouping_column
+            and input_schema.grouping_column in expr.replace_with
+        ):
+            raise ValueError(
+                "Cannot drop infinite values in column "
+                f"'{input_schema.grouping_column}', as it is a grouping column"
+            )
+        # Float-valued columns cannot be ID columns, but include this to be safe.
+        if input_schema.id_column and input_schema.id_column in expr.replace_with:
+            raise ValueError(
+                f"Cannot replace infinite values in column '{input_schema.id_column}', "
+                "as it is an ID column"
+            )
+
         columns_to_change = list(expr.replace_with.keys())
         if len(columns_to_change) == 0:
             columns_to_change = [
@@ -669,15 +747,15 @@ class OutputSchemaVisitor(QueryExprVisitor):
             for name in expr.replace_with:
                 if name not in input_schema.keys():
                     raise ValueError(
-                        "ReplaceInfinity.replace_with contains replacement values for"
-                        f" the column {name}, but data has no column named {name}"
+                        f"Column '{name}' does not exist in this table, "
+                        f"available columns are {list(input_schema.keys())}"
                     )
                 if input_schema[name].column_type != ColumnType.DECIMAL:
                     raise ValueError(
-                        "ReplaceInfinity.replace_with contains replacement values for"
-                        f" the column {name}, but the column {name} has type"
-                        f" {input_schema[name].column_type.name} (not"
-                        f" {ColumnType.DECIMAL.name})"
+                        f"Column '{name}' has a replacement value provided, but it is "
+                        f"of type {input_schema[name].column_type.name} (not "
+                        f"{ColumnType.DECIMAL.name}) and so cannot "
+                        "contain infinite values"
                     )
         return Schema(
             {
@@ -692,61 +770,24 @@ class OutputSchemaVisitor(QueryExprVisitor):
             grouping_column=input_schema.grouping_column,
         )
 
-    def visit_drop_infinity(self, expr: DropInfinity) -> Schema:
-        """Returns the resulting schema from evaluating a DropInfinity."""
-        input_schema = expr.child.accept(self)
-        if (
-            input_schema.grouping_column
-            and input_schema.grouping_column in expr.columns
-        ):
-            raise ValueError(
-                f"Cannot drop null values in column {input_schema.grouping_column},"
-                " because it is being used as a grouping column"
-            )
-        columns = expr.columns.copy()
-        if len(columns) == 0:
-            columns = [
-                name
-                for name, cd in input_schema.column_descs.items()
-                if (cd.allow_inf) and not name == input_schema.grouping_column
-            ]
-        else:
-            for name in columns:
-                if name not in input_schema.keys():
-                    raise ValueError(
-                        "DropInfinity.columns contains the column"
-                        f" {name}, but data has no column named {name}"
-                    )
-                if input_schema[name].column_type != ColumnType.DECIMAL:
-                    raise ValueError(
-                        f"DropInfinity.columns contains the column {name}, but the"
-                        f" column {name} is not a DECIMAL column and cannot contain"
-                        " infinite values"
-                    )
-        return Schema(
-            {
-                name: ColumnDescriptor(
-                    column_type=cd.column_type,
-                    allow_null=cd.allow_null,
-                    allow_nan=cd.allow_nan,
-                    allow_inf=(cd.allow_inf and not name in columns),
-                )
-                for name, cd in input_schema.column_descs.items()
-            },
-            grouping_column=input_schema.grouping_column,
-        )
-
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a DropNullAndNan."""
         input_schema = expr.child.accept(self)
+
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in expr.columns
         ):
             raise ValueError(
-                f"Cannot drop null values in column {input_schema.grouping_column},"
-                " because it is being used as a grouping column"
+                f"Cannot drop null values in column '{input_schema.grouping_column}', "
+                "as it is a grouping column"
             )
+        if input_schema.id_column and input_schema.id_column in expr.columns:
+            raise ValueError(
+                f"Cannot drop null values in column '{input_schema.id_column}', "
+                "as it is an ID column"
+            )
+
         columns = expr.columns.copy()
         if len(columns) == 0:
             columns = [
@@ -759,9 +800,10 @@ class OutputSchemaVisitor(QueryExprVisitor):
             for name in columns:
                 if name not in input_schema.keys():
                     raise ValueError(
-                        "DropNullAndNan.columns contains the column"
-                        f" {name}, but data has no column named {name}"
+                        f"Column '{name}' does not exist in this table, "
+                        f"available columns are {list(input_schema.keys())}"
                     )
+
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -769,6 +811,62 @@ class OutputSchemaVisitor(QueryExprVisitor):
                     allow_null=(cd.allow_null and not name in columns),
                     allow_nan=(cd.allow_nan and not name in columns),
                     allow_inf=(cd.allow_inf),
+                )
+                for name, cd in input_schema.column_descs.items()
+            },
+            grouping_column=input_schema.grouping_column,
+            id_column=input_schema.id_column,
+        )
+
+    def visit_drop_infinity(self, expr: DropInfinity) -> Schema:
+        """Returns the resulting schema from evaluating a DropInfinity."""
+        input_schema = expr.child.accept(self)
+
+        if (
+            input_schema.grouping_column
+            and input_schema.grouping_column in expr.columns
+        ):
+            raise ValueError(
+                "Cannot drop infinite values in column "
+                f"'{input_schema.grouping_column}', as it is a grouping column"
+            )
+        # Float-valued columns cannot be ID columns, but include this to be safe.
+        if input_schema.id_column and input_schema.id_column in expr.columns:
+            raise ValueError(
+                f"Cannot drop infinite values in column '{input_schema.id_column}', "
+                "as it is an ID column"
+            )
+
+        columns = expr.columns.copy()
+        if len(columns) == 0:
+            columns = [
+                name
+                for name, cd in input_schema.column_descs.items()
+                if (cd.allow_inf) and not name == input_schema.grouping_column
+            ]
+        else:
+            for name in columns:
+                if name not in input_schema.keys():
+                    raise ValueError(
+                        f"Column '{name}' does not exist in this table, "
+                        f"available columns are {list(input_schema.keys())}"
+                    )
+                if input_schema[name].column_type != ColumnType.DECIMAL:
+                    raise ValueError(
+                        f"Column '{name}' was given as a column to drop "
+                        "infinite values from, but it is of type"
+                        f"{input_schema[name].column_type.name} (not "
+                        f"{ColumnType.DECIMAL.name}) and so cannot "
+                        "contain infinite values"
+                    )
+
+        return Schema(
+            {
+                name: ColumnDescriptor(
+                    column_type=cd.column_type,
+                    allow_null=cd.allow_null,
+                    allow_nan=cd.allow_nan,
+                    allow_inf=(cd.allow_inf and not name in columns),
                 )
                 for name, cd in input_schema.column_descs.items()
             },
