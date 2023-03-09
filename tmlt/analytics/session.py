@@ -92,7 +92,13 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
 )
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import DictMetric, IfGroupedBy, SymmetricDifference
+from tmlt.core.metrics import (
+    DictMetric,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.dictionary import CreateDictFromValue, GetValue
 from tmlt.core.transformations.identity import Identity
@@ -700,7 +706,36 @@ class Session:
                 f"Available private tables are: {', '.join(self.private_sources)}"
             )
         metric = lookup_metric(self._input_metric, ref)
-        return metric.column if isinstance(metric, IfGroupedBy) else None
+        if isinstance(metric, IfGroupedBy) and isinstance(
+            metric.inner_metric, (SumOf, RootSumOfSquared)
+        ):
+            return metric.column
+        return None
+
+    @typechecked
+    def get_id_column(self, source_id: str) -> Optional[str]:
+        """Returns the ID column of a table, if it has one.
+
+        Args:
+            source_id: The name of the table whose ID column is being retrieved.
+        """
+        ref = find_reference(source_id, self._input_domain)
+        if ref is None:
+            if source_id in self.public_sources:
+                raise ValueError(
+                    f"Table '{source_id}' is a public table, which cannot have a "
+                    "grouping column."
+                )
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available private tables are: {', '.join(self.private_sources)}"
+            )
+        metric = lookup_metric(self._input_metric, ref)
+        if isinstance(metric, IfGroupedBy) and isinstance(
+            metric.inner_metric, SymmetricDifference
+        ):
+            return metric.column
+        return None
 
     @property
     def _catalog(self) -> Catalog:
@@ -708,7 +743,10 @@ class Session:
         catalog = Catalog()
         for table in self.private_sources:
             catalog.add_private_table(
-                table, self.get_schema(table), self.get_grouping_column(table)
+                table,
+                self.get_schema(table),
+                grouping_column=self.get_grouping_column(table),
+                id_column=self.get_id_column(table),
             )
         for table in self.public_sources:
             catalog.add_public_table(

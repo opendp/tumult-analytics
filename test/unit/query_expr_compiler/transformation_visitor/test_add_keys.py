@@ -214,7 +214,7 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_map_invalid(self) -> None:
         """Test that invalid Map expressions are handled."""
         query = Map(PrivateSource("ids1"), lambda row: {}, Schema({}), augment=False)
-        with pytest.raises(ValueError, match="Maps on tables.*must be augmenting."):
+        with pytest.raises(ValueError, match="Maps on tables.*must be augmenting"):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
@@ -264,9 +264,7 @@ class TestAddKeys(TestTransformationVisitor):
         query = FlatMap(
             PrivateSource("ids1"), lambda row: [{}], 1, Schema({}), augment=False
         )
-        with pytest.raises(
-            ValueError, match="Flat maps on tables.*must be augmenting."
-        ):
+        with pytest.raises(ValueError, match="Flat maps on tables.*must be augmenting"):
             query.accept(self.visitor)
 
         query = FlatMap(
@@ -276,9 +274,7 @@ class TestAddKeys(TestTransformationVisitor):
             Schema({"X": "INTEGER"}, "X"),
             augment=True,
         )
-        with pytest.raises(
-            ValueError, match="Flat maps on tables.*cannot be grouping."
-        ):
+        with pytest.raises(ValueError, match="Flat maps on tables.*cannot be grouping"):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(

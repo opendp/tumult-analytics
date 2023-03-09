@@ -65,6 +65,7 @@ class Catalog:
         source_id: str,
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         grouping_column: Optional[str] = None,
+        id_column: Optional[str] = None,
     ):
         """Adds a private table to catalog. There may only be a single private table.
 
@@ -73,6 +74,7 @@ class Catalog:
             col_types: Mapping from column names to types for private table.
             grouping_column: Name of the column (if any) that must be grouped by in any
                 groupby aggregations that use this table.
+            id_column: Name of the ID column for this table (if any).
 
         Raises:
             ValueError: If there is already a private table.
@@ -80,7 +82,9 @@ class Catalog:
         self._add_table(
             PrivateTable(
                 source_id=source_id,
-                schema=Schema(col_types, grouping_column=grouping_column),
+                schema=Schema(
+                    col_types, grouping_column=grouping_column, id_column=id_column
+                ),
             )
         )
 

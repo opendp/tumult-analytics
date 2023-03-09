@@ -93,6 +93,7 @@ class Schema(Mapping):
         self,
         column_descs: MappingType[str, Union[str, ColumnType, ColumnDescriptor]],
         grouping_column: Optional[str] = None,
+        id_column: Optional[str] = None,
         default_allow_null: bool = False,
         default_allow_nan: bool = False,
         default_allow_inf: bool = False,
@@ -102,6 +103,7 @@ class Schema(Mapping):
         Args:
             column_descs: Mapping from column names to supported types.
             grouping_column: Optional column that must be grouped by in this query.
+            id_column: The ID column on this table, if one exists.
             default_allow_null: When a ColumnType or string is used as the value
                 in the ColumnDescriptors mapping, the column will allow_null if
                 default_allow_null is True.
@@ -115,7 +117,17 @@ class Schema(Mapping):
         # TODO(#1539): update Schema interface to use ColumnDescriptor everywhere.
         if "" in column_descs:
             raise ValueError('"" (the empty string) is not a supported column name')
+        if grouping_column is not None and grouping_column not in column_descs:
+            raise KeyError(
+                f"Grouping column '{grouping_column}' is not one of the provided"
+                " columns"
+            )
         self._grouping_column = grouping_column
+        if id_column is not None and id_column not in column_descs:
+            raise KeyError(
+                f"ID column '{id_column}' is not one of the provided columns"
+            )
+        self._id_column = id_column
 
         supported_types: List[str] = [t.name for t in list(ColumnType)]
         column_types: List[str] = []
@@ -132,10 +144,7 @@ class Schema(Mapping):
                 f"Column types {invalid_types} not supported; "
                 f"use supported types {supported_types}."
             )
-        if grouping_column is not None and grouping_column not in column_descs:
-            raise KeyError(
-                f"grouping_column ({grouping_column}) is not in column_descs"
-            )
+
         self._column_descs: Dict[str, ColumnDescriptor] = {}
         for col, ty in column_descs.items():
             if isinstance(ty, ColumnDescriptor):
@@ -171,6 +180,11 @@ class Schema(Mapping):
         """Returns the optional column that must be grouped by."""
         return self._grouping_column
 
+    @property
+    def id_column(self) -> Optional[str]:
+        """Return whether the grouping column is an ID column."""
+        return self._id_column
+
     def __eq__(self, other: object) -> bool:
         """Returns True if schemas are equal.
 
@@ -202,10 +216,18 @@ class Schema(Mapping):
 
     def __repr__(self) -> str:
         """Return a string representation of self."""
-        if self.grouping_column:
+        if self.grouping_column and self.id_column:
+            return (
+                f"Schema({self.column_descs}, "
+                f"grouping_column='{self.grouping_column}', "
+                f"id_column={self.id_column})"
+            )
+        elif self.grouping_column:
             return (
                 f"Schema({self.column_descs}, grouping_column='{self.grouping_column}')"
             )
+        elif self.id_column:
+            return f"Schema({self.column_descs}, id_column='{self.id_column}')"
         return f"Schema({self.column_descs})"
 
 

@@ -1722,7 +1722,7 @@ class TestInvalidSession:
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
                 ),
                 ValueError,
-                "Query references invalid source 'private_source_not_in_catalog'.",
+                "Query references nonexistent table 'private_source_not_in_catalog'",
             )
         ],
     )
@@ -1825,8 +1825,8 @@ class TestInvalidSession:
         with pytest.raises(
             ValueError,
             match=(
-                "Column produced by grouping transformation 'repeated' is not in "
-                "groupby columns"
+                "Column 'repeated' produced by grouping transformation is not in "
+                r"groupby columns \['A'\]"
             ),
         ):
             session.evaluate(

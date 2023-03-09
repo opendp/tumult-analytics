@@ -75,8 +75,10 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
-from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
+from tmlt.core.transformations.spark_transformations.select import (
+    Select as SelectTransformation,
+)
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
@@ -912,7 +914,7 @@ class TestMeasurementVisitor:
         assert got.output_metric == expected_output_metric
 
     @pytest.mark.parametrize(
-        "query,expected_mid_stability,expected_mechanism,expected_new_child",
+        "query,expected_mid_stability,expected_mechanism",
         [
             (
                 GroupByBoundedAverage(
@@ -925,7 +927,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.GEOMETRIC,
-                None,
             ),
             (
                 GroupByBoundedAverage(
@@ -938,7 +939,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropNullAndNan(child=PrivateSource("private"), columns=["nan"]),
             ),
             (
                 GroupByBoundedSum(
@@ -951,7 +951,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                None,
             ),
             (
                 GroupByBoundedSum(
@@ -964,7 +963,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                DropNullAndNan(child=PrivateSource("private"), columns=["null"]),
             ),
             (
                 GroupByBoundedVariance(
@@ -977,7 +975,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.DISCRETE_GAUSSIAN,
-                None,
             ),
             (
                 GroupByBoundedVariance(
@@ -990,9 +987,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                ReplaceInfExpr(
-                    child=PrivateSource("private"), replace_with={"inf": (-100, 100)}
-                ),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1005,7 +999,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.GEOMETRIC,
-                None,
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1018,12 +1011,6 @@ class TestMeasurementVisitor:
                 ),
                 ExactNumber(3).expr,
                 NoiseMechanism.LAPLACE,
-                ReplaceInfExpr(
-                    child=DropNullAndNan(
-                        child=PrivateSource("private"), columns=["null_and_nan_and_inf"]
-                    ),
-                    replace_with={"null_and_nan_and_inf": (-100, 100)},
-                ),
             ),
         ],
     )
@@ -1037,7 +1024,6 @@ class TestMeasurementVisitor:
         ],
         expected_mid_stability: sp.Expr,
         expected_mechanism: NoiseMechanism,
-        expected_new_child: Optional[QueryExpr],
     ):
         """Test _build_common."""
         info = self.visitor._build_common(query)  # pylint: disable=protected-access
@@ -1065,7 +1051,6 @@ class TestMeasurementVisitor:
             info.groupby.output_domain.group_keys.toPandas(),
             expected_groupby_domain.group_keys.toPandas(),
         )
-        assert info.new_child == expected_new_child
 
     def test_validate_measurement(self):
         """Test _validate_measurement."""
@@ -1139,7 +1124,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Initialize a mock measurement."""
         # pylint: disable=protected-access
-        transformation, reference = self.visitor._visit_child_transformation(
+        transformation, reference, _ = self.visitor._visit_child_transformation(
             child_query, expected_mechanism
         )
         # pylint: enable=protected-access
@@ -1333,40 +1318,35 @@ class TestMeasurementVisitor:
         ) as mock_create_count_distinct:
             self.visitor.output_measure = output_measure
 
-            mock_measurement.privacy_function.return_value = self.visitor.budget
             mock_create_count_distinct.return_value = mock_measurement
-            # Sometimes a CountDistinct query needs to know which columns to select
-            query_needs_columns_selected = (
-                query.columns_to_count is not None and len(query.columns_to_count) > 0
-            )
-
-            expected_child_query: QueryExpr
-            expected_child_query = query.child
-            # If it is expected that a query will need a
-            # specific set of columns selected,
-            # make that expected Select query now
-            # (since the function modifies the query)
-            if query_needs_columns_selected:
-                # Build the list of columns that we're expecting to group by
-                groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
-                # There is literally no way this cannot be true,
-                # but if you leave this out then MyPy will complain.
-                assert query.columns_to_count is not None
-                expected_child_query = SelectExpr(
-                    child=query.child, columns=query.columns_to_count + groupby_columns
-                )
             self._setup_mock_measurement(
-                mock_measurement, expected_child_query, expected_mechanism
+                mock_measurement, query.child, expected_mechanism
             )
+            if query.columns_to_count:
+                select_columns = query.columns_to_count + list(
+                    query.groupby_keys.schema().keys()
+                )
+                mock_measurement.input_domain = SparkDataFrameDomain(
+                    {
+                        c: d
+                        for c, d in mock_measurement.input_domain.schema.items()
+                        if c in select_columns
+                    }
+                )
 
             measurement = self.visitor.visit_groupby_count_distinct(query)
 
             self._check_measurement(measurement)
             assert isinstance(measurement, ChainTM)
             assert measurement.measurement == mock_measurement
-            if query_needs_columns_selected:
+            if query.columns_to_count:
                 assert isinstance(measurement.transformation, ChainTT)
-                assert isinstance(measurement.transformation.transformation2, GetValue)
+                assert isinstance(
+                    measurement.transformation.transformation2, SelectTransformation
+                )
+                assert (
+                    measurement.transformation.transformation2.columns == select_columns
+                )
 
             mid_stability = measurement.transformation.stability_function(
                 self.visitor.stability

@@ -24,7 +24,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.constraints import Constraint
+from tmlt.analytics.constraints import Constraint, MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -41,7 +41,6 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     QueryExprVisitor,
     ReplaceInfinity,
-    Select,
     StdevMechanism,
     SumMechanism,
     VarianceMechanism,
@@ -73,6 +72,9 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
+from tmlt.core.transformations.spark_transformations.select import (
+    Select as SelectTransformation,
+)
 from tmlt.core.utils.exact_number import ExactNumber
 
 
@@ -122,7 +124,7 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
-    ) -> Tuple[Transformation, TableReference]:
+    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
         """Visit a child transformation, producing a transformation."""
         tv = TransformationVisitor(
             input_domain=self.input_domain,
@@ -131,11 +133,40 @@ class MeasurementVisitor(QueryExprVisitor):
             public_sources=self.public_sources,
             table_constraints=self.table_constraints,
         )
-        child, reference, _constraints = expr.accept(tv)
+        child, reference, constraints = expr.accept(tv)
 
         tv.validate_transformation(expr, child, reference, self.catalog)
 
-        return child, reference
+        return child, reference, constraints
+
+    @staticmethod
+    def _truncate_table(
+        transformation: Transformation,
+        reference: TableReference,
+        constraints: List[Constraint],
+    ) -> Tuple[Transformation, TableReference]:
+        table_transformation = get_table_from_ref(transformation, reference)
+        table_metric = table_transformation.output_metric
+        if (
+            isinstance(table_metric, IfGroupedBy)
+            and table_metric.inner_metric == SymmetricDifference()
+        ):
+            # Because of constraint simplification, there should be at most one
+            # MaxRowsPerID constraint.
+            max_rows_per_id = next(
+                (c for c in constraints if isinstance(c, MaxRowsPerID)), None
+            )
+            if max_rows_per_id is None:
+                raise RuntimeError(
+                    "A constraint on the number of rows contributed by each ID "
+                    "is needed to perform this query."
+                )
+            return max_rows_per_id._enforce(  # pylint: disable=protected-access
+                transformation, reference, to_symmetric_difference=True
+            )
+        else:
+            # Tables without IDs don't need truncation
+            return transformation, reference
 
     def _pick_noise_for_count(
         self, query: Union[GroupByCount, GroupByCountDistinct]
@@ -293,7 +324,6 @@ class MeasurementVisitor(QueryExprVisitor):
         groupby: GroupBy
         lower_bound: ExactNumber
         upper_bound: ExactNumber
-        new_child: Optional[QueryExpr]
 
     def _build_common(
         self,
@@ -322,6 +352,7 @@ class MeasurementVisitor(QueryExprVisitor):
             raise KeyError(
                 f"Measure column {query.measure_column} is not in the input schema."
             )
+
         new_child: Optional[QueryExpr] = None
         # If null or NaN values are allowed ...
         if measure_desc.allow_null or (
@@ -351,8 +382,8 @@ class MeasurementVisitor(QueryExprVisitor):
         measure_column_type = expected_output_domain[query.measure_column]
 
         mechanism = self._pick_noise_for_non_count(query, measure_column_type)
-        child_transformation, table_ref = self._visit_child_transformation(
-            query.child, mechanism
+        child_transformation, table_ref = self._truncate_table(
+            *self._visit_child_transformation(query.child, mechanism)
         )
         transformation = get_table_from_ref(child_transformation, table_ref)
         # _visit_child_transformation already raises an error if these aren't true
@@ -376,7 +407,6 @@ class MeasurementVisitor(QueryExprVisitor):
             groupby=groupby,
             lower_bound=lower_bound,
             upper_bound=upper_bound,
-            new_child=new_child,
         )
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
@@ -393,8 +423,8 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count(query)
         mechanism = self._pick_noise_for_count(query)
-        child_transformation, child_ref = self._visit_child_transformation(
-            query.child, mechanism
+        child_transformation, child_ref = self._truncate_table(
+            *self._visit_child_transformation(query.child, mechanism)
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -428,31 +458,30 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_count_distinct(self, query: GroupByCountDistinct) -> Measurement:
         """Create a measurement from a GroupByCountDistinct query expression."""
-        # Yes, you need both of these:
-        # columns_to_count=[] means something different from
-        # columns_to_count=None
-        if query.columns_to_count is not None and len(query.columns_to_count) > 0:
-            # select all relevant columns
-            groupby_columns: List[str] = list(query.groupby_keys.schema().keys())
-            # select_cols = all columns to count + groupby_columns
-            select_query = Select(
-                child=query.child, columns=query.columns_to_count + groupby_columns
-            )
-            # Use of dataclasses.replace guarantees that a copy is created,
-            # rather than mutating the original QueryExpr.
-            query = dataclasses.replace(
-                query, child=select_query, columns_to_count=None
-            )
-
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(query)
         mechanism = self._pick_noise_for_count(query)
-        child_transformation, child_ref = self._visit_child_transformation(
-            query.child, mechanism
+        child_transformation, child_ref = self._truncate_table(
+            *self._visit_child_transformation(query.child, mechanism)
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
+
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            transformation.output_metric,
+            (IfGroupedBy, HammingDistance, SymmetricDifference),
+        )
+        # If not counting all columns, drop the ones that are neither counted
+        # nor grouped on.
+        if query.columns_to_count:
+            groupby_columns = list(query.groupby_keys.schema().keys())
+            transformation |= SelectTransformation(
+                transformation.output_domain,
+                transformation.output_metric,
+                query.columns_to_count + groupby_columns,
+            )
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
         assert isinstance(
             transformation.output_metric,
@@ -520,8 +549,8 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
 
-        child_transformation, child_ref = self._visit_child_transformation(
-            query.child, self.default_mechanism
+        child_transformation, child_ref = self._truncate_table(
+            *self._visit_child_transformation(query.child, self.default_mechanism)
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
@@ -561,8 +590,6 @@ class MeasurementVisitor(QueryExprVisitor):
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(query)
 
         info = self._build_common(query)
-        if info.new_child is not None:
-            query = dataclasses.replace(query, child=info.new_child)
         # _build_common already checks these;
         # these asserts are just for mypy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -594,8 +621,6 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_average(query)
         info = self._build_common(query)
-        if info.new_child is not None:
-            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -627,8 +652,6 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_variance(query)
         info = self._build_common(query)
-        if info.new_child is not None:
-            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -658,8 +681,6 @@ class MeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_stdev(query)
         info = self._build_common(query)
-        if info.new_child is not None:
-            query = dataclasses.replace(query, child=info.new_child)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
