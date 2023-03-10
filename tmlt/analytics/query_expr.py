@@ -326,8 +326,6 @@ class FlatMap(QueryExpr):
     """The QueryExpr to apply the flat map on."""
     f: Callable[[Row], List[Row]]
     """The flat map function."""
-    max_num_rows: int
-    """The enforced limit on number of rows from each f(row)."""
     schema_new_columns: Schema
     """The expected schema for new columns produced by ``f``.
 
@@ -339,17 +337,19 @@ class FlatMap(QueryExpr):
     """Whether to keep the existing columns.
 
     If True, schema = old schema + schema_new_columns, otherwise only keeps the new
-    columns (schema = schema_new_columns).
-    """
+    columns (schema = schema_new_columns)."""
+
+    max_num_rows: Optional[int] = None
+    """The enforced limit on number of rows from each f(row)."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
         check_type("f", self.f, Callable[[Row], List[Row]])
-        check_type("max_num_rows", self.max_num_rows, int)
+        check_type("max_num_rows", self.max_num_rows, Optional[int])
         check_type("schema_new_columns", self.schema_new_columns, Schema)
         check_type("augment", self.augment, bool)
-        if self.max_num_rows < 0:
+        if self.max_num_rows and self.max_num_rows < 0:
             raise ValueError(
                 f"Limit on number of rows '{self.max_num_rows}' must be nonnegative."
             )

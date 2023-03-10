@@ -274,7 +274,7 @@ EVALUATE_TESTS = [
     (  # FlatMap
         QueryBuilder("private")
         .flat_map(
-            f=lambda _: [{}, {}], max_num_rows=2, new_column_types={}, augment=True
+            f=lambda _: [{}, {}], new_column_types={}, augment=True, max_num_rows=2
         )
         .replace_null_and_nan()
         .sum(column="X", low=0, high=3),
@@ -284,9 +284,9 @@ EVALUATE_TESTS = [
                 child=FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{}, {}],
-                    max_num_rows=2,
                     schema_new_columns=Schema({}),
                     augment=True,
+                    max_num_rows=2,
                 ),
             ),
             groupby_keys=KeySet.from_dict({}),
@@ -302,15 +302,15 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
+            max_num_rows=1,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=False,
+            max_num_rows=2,
         )
         .replace_null_and_nan()
         .sum(column="i", low=0, high=3),
@@ -321,14 +321,14 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
                         schema_new_columns=Schema({"Repeat": "INTEGER"}),
                         augment=True,
+                        max_num_rows=1,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
+                    max_num_rows=2,
                 ),
             ),
             groupby_keys=KeySet.from_dict({}),
@@ -345,16 +345,16 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
             grouping=True,
+            max_num_rows=1,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
+            max_num_rows=2,
         )
         .replace_null_and_nan()
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
@@ -366,16 +366,16 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
                         schema_new_columns=Schema(
                             {"Repeat": "INTEGER"}, grouping_column="Repeat"
                         ),
                         augment=True,
+                        max_num_rows=1,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
+                    max_num_rows=2,
                 ),
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
@@ -390,16 +390,16 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             grouping=True,
             augment=True,
+            max_num_rows=1,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
+            max_num_rows=2,
         )
         .replace_null_and_nan()
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
@@ -411,16 +411,16 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
                         schema_new_columns=Schema(
                             {"Repeat": "INTEGER"}, grouping_column="Repeat"
                         ),
                         augment=True,
+                        max_num_rows=1,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
+                    max_num_rows=2,
                 ),
             ),
             groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
@@ -931,9 +931,9 @@ class TestSession:
             query_expr=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"C": 1 if row["A"] == "0" else 2}],
-                max_num_rows=1,
                 schema_new_columns=Schema({"C": "INTEGER"}),
                 augment=True,
+                max_num_rows=1,
             ),
             source_id="private_2",
             cache=False,
@@ -1050,9 +1050,9 @@ class TestSession:
         transformation_query = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{}, {}],
-            max_num_rows=2,
             schema_new_columns=Schema({}),
             augment=True,
+            max_num_rows=1,
         )
         session.create_view(transformation_query, "flatmap_transformation", cache=False)
 
@@ -1131,9 +1131,9 @@ class TestSession:
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda _: [{}, {}],
-                max_num_rows=2,
                 schema_new_columns=Schema({}),
                 augment=True,
+                max_num_rows=2,
             ),
         )
         session1.create_view(transformation_query, "flatmap", True)
@@ -1242,9 +1242,9 @@ class TestSession:
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{}, {}],
-                max_num_rows=2,
                 schema_new_columns=Schema({}),
                 augment=True,
+                max_num_rows=2,
             ),
         )
         session1.create_view(transformation_query1, "transform1", cache=False)
@@ -1274,9 +1274,9 @@ class TestSession:
             child=FlatMap(
                 child=PrivateSource("private0"),
                 f=lambda row: [{}, {}, {}],
-                max_num_rows=3,
                 schema_new_columns=Schema({}),
                 augment=True,
+                max_num_rows=2,
             ),
         )
         session2.create_view(transformation_query2, "transform2", cache=False)
@@ -1412,10 +1412,10 @@ class TestSession:
         )
         grouping_flat_map = QueryBuilder("private").flat_map(
             f=lambda row: [{"new": 1}, {"new": 2}],
-            max_num_rows=2,
             new_column_types={"new": ColumnType.INTEGER},
             augment=True,
             grouping=True,
+            max_num_rows=2,
         )
         session.create_view(grouping_flat_map, "duplicated", cache=False)
         new_sessions = session.partition_and_create(
@@ -1440,10 +1440,10 @@ class TestSession:
         )
         grouping_flat_map = QueryBuilder("private").flat_map(
             f=lambda row: [{"new": 1}, {"new": 2}],
-            max_num_rows=2,
             new_column_types={"new": ColumnType.INTEGER},
             augment=True,
             grouping=True,
+            max_num_rows=2,
         )
         session.create_view(grouping_flat_map, "duplicated", cache=False)
         new_sessions = session.partition_and_create(
@@ -1473,9 +1473,9 @@ class TestSession:
         transformation_query1 = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{}, {}],
-            max_num_rows=2,
             schema_new_columns=Schema({}),
             augment=True,
+            max_num_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
         # pylint: disable=protected-access
@@ -1485,9 +1485,9 @@ class TestSession:
         transformation_query2 = FlatMap(
             child=PrivateSource("flatmap1"),
             f=lambda row: [{}, {}],
-            max_num_rows=3,
             schema_new_columns=Schema({}),
             augment=True,
+            max_num_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
         # pylint: disable=protected-access
@@ -1508,18 +1508,18 @@ class TestSession:
         transformation_query1 = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{}, {}],
-            max_num_rows=2,
             schema_new_columns=Schema({}),
             augment=True,
+            max_num_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
 
         transformation_query2 = FlatMap(
             child=PrivateSource("flatmap1"),
             f=lambda row: [{}, {}],
-            max_num_rows=3,
             schema_new_columns=Schema({}),
             augment=True,
+            max_num_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
@@ -1557,17 +1557,17 @@ class TestSession:
         transformation_query1 = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             schema_new_columns=Schema({"Repeat": "INTEGER"}),
             augment=True,
+            max_num_rows=1,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
         transformation_query2 = FlatMap(
             child=PrivateSource("flatmap1"),
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             schema_new_columns=Schema({"i": "INTEGER"}),
             augment=False,
+            max_num_rows=2,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
@@ -1812,9 +1812,9 @@ class TestInvalidSession:
         grouping_flatmap = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
             augment=True,
+            max_num_rows=1,
         )
         session.create_view(
             Rename(child=grouping_flatmap, column_mapper={"Repeat": "repeated"}),
@@ -1854,18 +1854,18 @@ class TestInvalidSession:
         grouping_flatmap = FlatMap(
             child=PrivateSource("private"),
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
             schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
             augment=True,
+            max_num_rows=1,
         )
         session.create_view(grouping_flatmap, "grouping_flatmap", cache=False)
 
         grouping_flatmap_2 = FlatMap(
             child=PrivateSource("grouping_flatmap"),
             f=lambda row: [{"i": row["X"]} for _ in range(row["Repeat"])],
-            max_num_rows=2,
             schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
             augment=True,
+            max_num_rows=2,
         )
 
         with pytest.raises(

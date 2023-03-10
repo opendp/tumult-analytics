@@ -273,8 +273,8 @@ there are many members with three, so we set ``max_num_rows=3``.
         QueryBuilder("members")
         .flat_map(
             expand_genre,
-            max_num_rows=3,
             new_column_types={"genre": ColumnType.VARCHAR},
+            max_num_rows=3,
         )
         .groupby(genre_keys)
         .count()

@@ -156,14 +156,14 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
+                max_num_rows=2,
             ),
             f=lambda row: [{"j": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             schema_new_columns=Schema({"j": "INTEGER"}, grouping_column="j"),
             augment=True,
+            max_num_rows=2,
         ),
         "Multiple grouping transformations are used in this query. "
         "Only one grouping transformation is allowed.",
@@ -173,14 +173,14 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
+                max_num_rows=2,
             ),
             f=lambda row: [{"j": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
             schema_new_columns=Schema({"j": "INTEGER"}),
             augment=False,
+            max_num_rows=2,
         ),
         "Flat map must set augment=True to ensure that grouping column 'i' is not lost",
     ),
@@ -189,9 +189,9 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
+                max_num_rows=2,
             ),
             f=lambda row: {"C": 2 * str(row["B"])},
             schema_new_columns=Schema({"C": "VARCHAR"}),
@@ -264,9 +264,9 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"i": row["B"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
+                max_num_rows=2,
             ),
             groupby_keys=KeySet.from_dict({"B": [0, 1, 2]}),
         ),
@@ -277,9 +277,9 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"i": row["B"]} for i in range(row["Repeat"])],
-                max_num_rows=2,
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
+                max_num_rows=2,
             ),
             # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_COLUMN_A),
@@ -877,11 +877,11 @@ class TestValidationWithNulls:
                 FlatMap(
                     child=PrivateSource("private"),
                     f=lambda row: [{"i": i} for i in range(len(row["A"] + 1))],
-                    max_num_rows=10,
                     schema_new_columns=Schema(
                         {"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
                     ),
                     augment=True,
+                    max_num_rows=10,
                 ),
                 Schema(
                     {
@@ -906,11 +906,11 @@ class TestValidationWithNulls:
                 FlatMap(
                     child=PrivateSource("private"),
                     f=lambda row: [{"i": i} for i in range(len(row["A"] + 1))],
-                    max_num_rows=10,
                     schema_new_columns=Schema(
                         {"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
                     ),
                     augment=False,
+                    max_num_rows=10,
                 ),
                 Schema({"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}),
             ),

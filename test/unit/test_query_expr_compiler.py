@@ -215,9 +215,9 @@ QUERY_EXPR_COMPILER_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{}, {}],
-                        max_num_rows=2,
                         schema_new_columns=Schema({}),
                         augment=True,
+                        max_num_rows=2,
                     ),
                 ),
                 groupby_keys=KeySet.from_dict({}),
@@ -237,14 +237,14 @@ QUERY_EXPR_COMPILER_TESTS = [
                         child=FlatMap(
                             child=PrivateSource("private"),
                             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                            max_num_rows=1,
                             schema_new_columns=Schema({"Repeat": "INTEGER"}),
                             augment=True,
+                            max_num_rows=1,
                         ),
                         f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                        max_num_rows=2,
                         schema_new_columns=Schema({"i": "DECIMAL"}),
                         augment=False,
+                        max_num_rows=2,
                     ),
                 ),
                 groupby_keys=KeySet.from_dict({}),
@@ -264,16 +264,16 @@ QUERY_EXPR_COMPILER_TESTS = [
                         child=FlatMap(
                             child=PrivateSource("private"),
                             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                            max_num_rows=1,
                             schema_new_columns=Schema(
                                 {"Repeat": "INTEGER"}, grouping_column="Repeat"
                             ),
                             augment=True,
+                            max_num_rows=1,
                         ),
                         f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                        max_num_rows=2,
                         schema_new_columns=Schema({"i": "DECIMAL"}),
                         augment=True,
+                        max_num_rows=2,
                     ),
                 ),
                 groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
@@ -925,18 +925,18 @@ class TestQueryExprCompiler:
                             child=FlatMap(
                                 child=PrivateSource("private"),
                                 f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                                max_num_rows=1,
                                 schema_new_columns=Schema(
                                     {"Repeat": "INTEGER"}, grouping_column="Repeat"
                                 ),
                                 augment=True,
+                                max_num_rows=1,
                             ),
                             f=lambda row: [
                                 {"i": row["X"]} for i in range(row["Repeat"])
                             ],
-                            max_num_rows=2,
                             schema_new_columns=Schema({"i": "DECIMAL"}),
                             augment=True,
+                            max_num_rows=2,
                         ),
                     ),
                     groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
@@ -1037,18 +1037,18 @@ class TestQueryExprCompiler:
                                     f=lambda row: [
                                         {"Repeat": 1 if row["A"] == "0" else 2}
                                     ],
-                                    max_num_rows=1,
                                     schema_new_columns=Schema(
                                         {"Repeat": "INTEGER"}, grouping_column="Repeat"
                                     ),
                                     augment=True,
+                                    max_num_rows=1,
                                 ),
                                 f=lambda row: [
                                     {"i": row["X"]} for i in range(row["Repeat"])
                                 ],
-                                max_num_rows=2,
                                 schema_new_columns=Schema({"i": "DECIMAL"}),
                                 augment=True,
+                                max_num_rows=2,
                             ),
                         ),
                         groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
@@ -1259,9 +1259,9 @@ class TestQueryExprCompiler:
                 FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{"G": "a"}, {"G": "b"}],
-                    max_num_rows=2,
                     schema_new_columns=Schema({"G": "VARCHAR"}, grouping_column="G"),
                     augment=True,
+                    max_num_rows=2,
                 ),
                 RhoZCDP(),
                 3 * sp.sqrt(2),
@@ -1270,9 +1270,9 @@ class TestQueryExprCompiler:
                 FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{"G": "a"}, {"G": "b"}],
-                    max_num_rows=2,
                     schema_new_columns=Schema({"G": "VARCHAR"}),
                     augment=True,
+                    max_num_rows=2,
                 ),
                 PureDP(),
                 6,
@@ -1341,9 +1341,9 @@ class TestQueryExprCompiler:
                     FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{}, {}],
-                        max_num_rows=2,
                         schema_new_columns=Schema({}),
                         augment=True,
+                        max_num_rows=2,
                     )
                 ]
             ),
@@ -1566,9 +1566,9 @@ class TestComponentIsUsed:
                         child=FlatMap(
                             child=PrivateSource(source_id="test"),
                             f=lambda row: [{}, {}],
-                            max_num_rows=2,
                             schema_new_columns=Schema({}),
                             augment=True,
+                            max_num_rows=2,
                         ),
                     ),
                     2,

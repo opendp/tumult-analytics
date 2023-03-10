@@ -261,9 +261,9 @@ class TestAddRows(TestTransformationVisitor):
                 FlatMap(
                     child=PrivateSource("rows1"),
                     f=lambda row: [{"S_is_zero": 1 if row["S"] == "0" else 2}],
-                    max_num_rows=1,
                     schema_new_columns=Schema({"S_is_zero": "INTEGER"}),
                     augment=True,
+                    max_num_rows=1,
                 ),
                 pd.DataFrame(
                     [["0", 0, 0.1, DATE1, TIMESTAMP1, 1]],
@@ -274,9 +274,9 @@ class TestAddRows(TestTransformationVisitor):
                 FlatMap(
                     child=PrivateSource("rows1"),
                     f=lambda row: [{"i": n for n in range(row["I"] + 1)}],
-                    max_num_rows=10,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
+                    max_num_rows=10,
                 ),
                 pd.DataFrame([[0]], columns=["i"]),
             ),
@@ -284,9 +284,9 @@ class TestAddRows(TestTransformationVisitor):
                 FlatMap(
                     child=PrivateSource("rows1"),
                     f=lambda row: [{"i": n} for n in range(row["I"] + 10)],
-                    max_num_rows=3,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
+                    max_num_rows=3,
                 ),
                 pd.DataFrame([[0], [1], [2]], columns=["i"]),
             ),
@@ -310,12 +310,12 @@ class TestAddRows(TestTransformationVisitor):
                 FlatMap(
                     child=PrivateSource("rows1"),
                     f=lambda row: [{"group": 0 if row["F"] == 0 else 17}],
-                    max_num_rows=2,
                     schema_new_columns=Schema(
                         {"group": ColumnDescriptor(ColumnType.INTEGER)},
                         grouping_column="group",
                     ),
                     augment=True,
+                    max_num_rows=2,
                 ),
                 pd.DataFrame(
                     [["0", 0, 0.1, DATE1, TIMESTAMP1, 17]],
@@ -334,6 +334,26 @@ class TestAddRows(TestTransformationVisitor):
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
         self._validate_result(transformation, reference, expected_df)
         assert constraints == []
+
+    def test_visit_flat_map_invalid(self) -> None:
+        """Test visit_flat_map with invalid query."""
+        query = FlatMap(
+            child=PrivateSource("rows1"),
+            f=lambda row: [{"group": 0 if row["F"] == 0 else 17}],
+            schema_new_columns=Schema(
+                {"group": ColumnDescriptor(ColumnType.INTEGER)}, grouping_column="group"
+            ),
+            augment=True,
+            max_num_rows=None,
+        )
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Flat maps on tables without IDs must have"
+                " a defined max_num_rows parameter."
+            ),
+        ):
+            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "query,expected_df",
@@ -580,12 +600,12 @@ class TestAddRows(TestTransformationVisitor):
         flatmap_query = FlatMap(
             child=PrivateSource("rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
-            max_num_rows=2,
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
                 grouping_column="group",
             ),
             augment=True,
+            max_num_rows=2,
         )
         with pytest.raises(
             ValueError,
@@ -664,12 +684,12 @@ class TestAddRows(TestTransformationVisitor):
         flatmap_query = FlatMap(
             child=PrivateSource("rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
-            max_num_rows=2,
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
                 grouping_column="group",
             ),
             augment=True,
+            max_num_rows=2,
         )
         with pytest.raises(
             ValueError,
@@ -699,12 +719,12 @@ class TestAddRows(TestTransformationVisitor):
         flatmap_query = FlatMap(
             child=PrivateSource("rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
-            max_num_rows=2,
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
                 grouping_column="group",
             ),
             augment=True,
+            max_num_rows=2,
         )
         with pytest.raises(
             ValueError,

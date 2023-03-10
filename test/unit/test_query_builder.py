@@ -303,10 +303,10 @@ def test_invalid_flat_map() -> None:
     ):
         root_builder().flat_map(
             f=duplicate_rows,
-            max_num_rows=2,
             new_column_types={"": "VARCHAR"},
             augment=False,
             grouping=False,
+            max_num_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -314,10 +314,10 @@ def test_invalid_flat_map() -> None:
     ):
         root_builder().flat_map(
             f=duplicate_rows,
-            max_num_rows=2,
             new_column_types={"": "VARCHAR"},
             augment=False,
             grouping=True,
+            max_num_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -325,10 +325,10 @@ def test_invalid_flat_map() -> None:
     ):
         root_builder().flat_map(
             f=duplicate_rows,
-            max_num_rows=2,
             new_column_types={"": "VARCHAR"},
             augment=True,
             grouping=False,
+            max_num_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -336,10 +336,10 @@ def test_invalid_flat_map() -> None:
     ):
         root_builder().flat_map(
             f=duplicate_rows,
-            max_num_rows=2,
             new_column_types={"": "VARCHAR"},
             augment=True,
             grouping=True,
+            max_num_rows=2,
         )
 
 
@@ -356,7 +356,12 @@ def test_flat_map_augment_is_false():
 
     query = (
         root_builder()
-        .flat_map(duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, augment=False)
+        .flat_map(
+            duplicate_rows,
+            new_column_types={"C": "VARCHAR"},
+            augment=False,
+            max_num_rows=2,
+        )
         .groupby(KeySet.from_dict({"C": ["0", "1"]}))
         .count()
     )
@@ -395,7 +400,12 @@ def test_flat_map_augment_is_true():
 
     query = (
         root_builder()
-        .flat_map(duplicate_rows, 2, new_column_types={"C": "VARCHAR"}, augment=True)
+        .flat_map(
+            duplicate_rows,
+            new_column_types={"C": "VARCHAR"},
+            augment=True,
+            max_num_rows=2,
+        )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()
     )
@@ -431,13 +441,13 @@ def test_flat_map_grouping_is_true():
         root_builder()
         .flat_map(
             duplicate_rows,
-            2,
             new_column_types={
                 "C": ColumnDescriptor(
                     ColumnType.VARCHAR, allow_null=True, allow_nan=True, allow_inf=True
                 )
             },
             grouping=True,
+            max_num_rows=2,
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()

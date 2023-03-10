@@ -1998,9 +1998,9 @@ class TestMeasurementVisitor:
                 FlatMap(
                     child=PrivateSource("private"),
                     f=lambda row: [{"i": n for n in range(row["B"] + 1)}],
-                    max_num_rows=11,
                     schema_new_columns=Schema({"i": "DECIMAL"}),
                     augment=False,
+                    max_num_rows=11,
                 )
             ),
             (
