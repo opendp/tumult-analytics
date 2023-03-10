@@ -17,8 +17,10 @@ Added
 
 Changed
 ~~~~~~~
+- Argument ``max_num_rows`` of ``QueryBuilder.flat_map`` is now optional for tables with a :class:`tmlt.analytics.protected_change.AddRowsWithID` protected change.
+- *Backwards-incompatible*: Argument ``max_num_rows`` is now the last parameter specified for ``QueryBuilder.flat_map``.
 - *Backwards-incompatible*: Analytics no longer allows users to set lower bounds equal to upper bounds for quantile, sum, average, variance, and standard deviation queries. Now, the lower bound must be strictly less than the upper bound.
-- *Backwards-incompatible*: Renamed ``QueryBuilder.filter`` arguement from "predicate" to "condition".
+- *Backwards-incompatible*: Renamed ``QueryBuilder.filter`` argument from "predicate" to "condition".
 - *Backwards-incompatible*: Renamed ``query_expr.Filter`` property from "predicate" to "condition".
 - *Backwards-incompatible*: Renamed ``KeySet.filter`` argument from "expr" to "condition".
 

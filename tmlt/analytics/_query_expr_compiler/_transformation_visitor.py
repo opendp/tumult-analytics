@@ -617,8 +617,8 @@ class TransformationVisitor(QueryExprVisitor):
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if expr.max_num_rows is None:
                 raise ValueError(
-                    "Flat maps on tables without IDs must have a the max_num_rows "
-                    "parameter set"
+                    "Flat maps on tables without IDs must have a defined max_num_rows"
+                    " parameter."
                 )
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):

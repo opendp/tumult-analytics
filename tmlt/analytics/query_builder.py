@@ -268,8 +268,6 @@ class QueryBuilder:
         )
         return self
 
-    # TODO(2271): Update docs to specify AddRowsWithID protected change, instead of
-    # current general language around protecting IDs.
     def join_private(
         self,
         right_operand: "QueryBuilder",
@@ -280,23 +278,21 @@ class QueryBuilder:
         # pylint: disable=protected-access
         """Updates the current query to join with another :class:`QueryBuilder`.
 
-        This operation is a natural join, with the same behavior and
-        requirements as :func:`join_public`.
+        This operation is a natural join, with the same behavior and requirements as
+        :func:`join_public`.
 
         For operations on tables with a
-        :class:`tmlt.analytics.protected_change.ProtectedChange` that protects
-        adding or removing rows
-        (e.g., :class:`~tmlt.analytics.protected_change.AddMaxRows`), there is a key
-        difference: before the join is performed, each table is *truncated* based on
-        the corresponding
+        :class:`tmlt.analytics.protected_change.ProtectedChange` that protects adding or
+        removing rows (e.g., :class:`~tmlt.analytics.protected_change.AddMaxRows`),
+        there is a key difference: before the join is performed, each table is
+        *truncated* based on the corresponding
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.
 
         In contrast, operations on tables with a
-        :class:`tmlt.analytics.protected_change.ProtectedChange` which protects
-        the addition/removal of a specified identifier
-        do not require a
-        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`,
-        as no truncation is necessary while performing the join.
+        :class:`tmlt.analytics.protected_change.AddRowsWithID`
+        :class:`tmlt.analytics.protected_change.ProtectedChange` do not require a
+        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`, as no
+        truncation is necessary while performing the join.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1015,20 +1011,25 @@ class QueryBuilder:
         )
         return self
 
-    # TODO(2489): Update docstring to reflect newly optional max_num_rows argument
     def flat_map(
         self,
         f: Callable[[Row], List[Row]],
-        max_num_rows: int,
         new_column_types: Mapping[str, Union[str, ColumnDescriptor, ColumnType]],
         augment: bool = False,
         grouping: bool = False,
+        max_num_rows: Optional[int] = None,
     ) -> "QueryBuilder":
         """Updates the current query to apply a flat map.
 
         If you provide only a ColumnType for the new column types, Analytics
         assumes that all new columns created may contain null values (and that
         DECIMAL columns may contain NaN or infinite values).
+
+        Operations on tables with a
+        :class:`tmlt.analytics.protected_change.AddRowsWithID`
+        :class:`tmlt.analytics.protected_change.ProtectedChange` do not require a
+        ``max_num_rows`` argument, since it is not necessary to impose a limit on
+        the number of new rows.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1068,13 +1069,13 @@ class QueryBuilder:
             ...     QueryBuilder("my_private_data")
             ...     .flat_map(
             ...         lambda row: [{"i_B": i} for i in range(int(row["B"])+1)],
-            ...         max_num_rows=3,
             ...         new_column_types={"i_B": ColumnDescriptor(
             ...             ColumnType.INTEGER,
             ...             allow_null=False,
             ...         )},
             ...         augment=True,
-            ...         grouping=False
+            ...         grouping=False,
+            ...         max_num_rows=3,
             ...     )
             ...     .groupby(KeySet.from_dict({"B": [0, 1, 2, 3]}))
             ...     .count()
@@ -1101,9 +1102,6 @@ class QueryBuilder:
                 dictionaries should match the column type specified in
                 ``new_column_types``. The function should not have any side effects
                 (in particular, f cannot raise exceptions).
-            max_num_rows: The enforced limit on the number of rows from each f(row).
-                If f produces more rows than this, only the first ``max_num_rows``
-                rows will be in the output.
             new_column_types: Mapping from column names to types, for new columns
                 produced by f. Using
                 :class:`tmlt.analytics.query_builder.ColumnDescriptor`
@@ -1116,6 +1114,9 @@ class QueryBuilder:
                 query include the new column as a groupby column. Only one new column
                 is supported, and the new column must have distinct values for each
                 input row.
+            max_num_rows: The enforced limit on the number of rows from each f(row).
+                If f produces more rows than this, only the first ``max_num_rows``
+                rows will be in the output.
         """
         grouping_column: Optional[str]
         if grouping:
@@ -1131,7 +1132,6 @@ class QueryBuilder:
         self._query_expr = FlatMap(
             child=self._query_expr,
             f=f,
-            max_num_rows=max_num_rows,
             schema_new_columns=Schema(
                 dict(new_column_types),
                 grouping_column=grouping_column,
@@ -1140,6 +1140,7 @@ class QueryBuilder:
                 default_allow_inf=True,
             ),
             augment=augment,
+            max_num_rows=max_num_rows,
         )
         return self
 

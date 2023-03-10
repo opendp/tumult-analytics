@@ -157,9 +157,9 @@ def test_invalid_map(
             FlatMap(
                 child=PrivateSource("private"),
                 f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                max_num_rows=1,
                 schema_new_columns=Schema({"Repeat": "INTEGER"}),
                 augment=True,
+                max_num_rows=1,
             ),
             lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             2,
@@ -188,7 +188,7 @@ def test_invalid_flatmap(
 ):
     """Tests that invalid FlatMap errors on post-init."""
     with pytest.raises((TypeError, ValueError), match=expected_error_msg):
-        FlatMap(child, func, max_num_rows, schema_new_columns, augment)
+        FlatMap(child, func, schema_new_columns, augment, max_num_rows)
 
 
 @pytest.mark.parametrize(

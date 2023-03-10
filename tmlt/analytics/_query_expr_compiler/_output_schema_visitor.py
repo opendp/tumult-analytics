@@ -467,29 +467,29 @@ class OutputSchemaVisitor(QueryExprVisitor):
             >>> query1 = FlatMap( # Augment = False example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     max_num_rows=2,
             ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
             ...     augment=False,
+            ...     max_num_rows=2,
             ... )
             >>> query1.accept(output_schema_visitor).column_types
             {'C': 'INTEGER'}
             >>> query2 = FlatMap( # Augment = True example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     max_num_rows=2,
             ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
             ...     augment=True,
+            ...     max_num_rows=2,
             ... )
             >>> query2.accept(output_schema_visitor).column_types
             {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
             >>> query3 = FlatMap( # Grouping example
             ...     child=PrivateSource("private"),
             ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     max_num_rows=2,
             ...     schema_new_columns=Schema(
             ...         {"C": ColumnType.INTEGER}, grouping_column="C",
             ...     ),
             ...     augment=True,
+            ...     max_num_rows=2,
             ... )
             >>> query3.accept(output_schema_visitor).column_types
             {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}

@@ -110,7 +110,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         (Map(PrivateSource("P"), lambda r: r, Schema({"A": "VARCHAR"}), True), "Map"),
         (
             FlatMap(
-                PrivateSource("P"), lambda r: [r], 1, Schema({"A": "VARCHAR"}), True
+                PrivateSource("P"), lambda r: [r], Schema({"A": "VARCHAR"}), True, 1
             ),
             "FlatMap",
         ),
