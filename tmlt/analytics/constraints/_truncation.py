@@ -9,7 +9,7 @@ column.
 # Copyright Tumult Labs 2023
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from typeguard import check_type
 
@@ -103,7 +103,7 @@ class MaxRowsPerID(Constraint):
         self,
         child_transformation: Transformation,
         child_ref: TableReference,
-        to_symmetric_difference: bool = False,
+        update_metric: bool = False,
     ) -> Tuple[Transformation, TableReference]:
         parent_metric = lookup_metric(
             child_transformation.output_metric, child_ref.parent
@@ -114,7 +114,7 @@ class MaxRowsPerID(Constraint):
                 "the AddRowsWithID protected change."
             )
 
-        if to_symmetric_difference:
+        if update_metric:
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
             assert isinstance(transformation.output_domain, SparkDataFrameDomain)
@@ -178,35 +178,44 @@ class MaxGroupsPerID(Constraint):
         self,
         child_transformation: Transformation,
         child_ref: TableReference,
-        to_symmetric_difference: bool = False,
+        update_metric: bool = False,
+        use_l2: bool = False,
     ) -> Tuple[Transformation, TableReference]:
-        parent_metric = lookup_metric(
-            child_transformation.output_metric, child_ref.parent
-        )
-        if not isinstance(parent_metric, AddRemoveKeys):
-            raise ValueError(
-                "The MaxGroupsPerID constraint can only be applied to tables with "
-                "the AddRowsWithID protected change."
+        if update_metric:
+            parent_metric = lookup_metric(
+                child_transformation.output_metric, child_ref.parent
             )
+            if not isinstance(parent_metric, AddRemoveKeys):
+                raise ValueError(
+                    "The MaxGroupsPerID constraint can only be applied to tables with "
+                    "the AddRowsWithID protected change."
+                )
 
-        if to_symmetric_difference:
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
             assert isinstance(transformation.output_domain, SparkDataFrameDomain)
             assert isinstance(transformation.output_metric, IfGroupedBy)
-            if not isinstance(
-                transformation.output_metric.inner_metric, (SumOf, RootSumOfSquared)
-            ):
-                raise ValueError(
-                    "Only transformations with an `IfGroupedBy(key_column, "
-                    "SumOf(IfGroupedBy(grouping_column, SymmetricDifference())))` or "
-                    "`IfGroupedBy(key_column, RootSumOfSquared(IfGroupedBy("
-                    "grouping_column, SymmetricDifference())))` output metric can be "
-                    "converted to SymmetricDifference()."
+            assert isinstance(
+                transformation.output_metric.inner_metric, SymmetricDifference
+            )
+
+            inner_metric: Union[SumOf, RootSumOfSquared]
+            if use_l2:
+                inner_metric = RootSumOfSquared(
+                    IfGroupedBy(
+                        transformation.output_metric.column, SymmetricDifference()
+                    )
                 )
+            else:
+                inner_metric = SumOf(
+                    IfGroupedBy(
+                        transformation.output_metric.column, SymmetricDifference()
+                    )
+                )
+
             transformation |= LimitKeysPerGroup(
                 transformation.output_domain,
-                transformation.output_metric,
+                IfGroupedBy(self.grouping_column, inner_metric),
                 transformation.output_metric.column,
                 self.grouping_column,
                 self.max,
@@ -267,35 +276,23 @@ class MaxRowsPerGroupPerID(Constraint):
         self,
         child_transformation: Transformation,
         child_ref: TableReference,
-        to_symmetric_difference: bool = False,
+        update_metric: bool = False,
     ) -> Tuple[Transformation, TableReference]:
-        parent_metric = lookup_metric(
-            child_transformation.output_metric, child_ref.parent
-        )
-        if not isinstance(parent_metric, AddRemoveKeys):
-            raise ValueError(
-                "The MaxRowsPerGroupPerID constraint can only be applied to tables with"
-                " the AddRowsWithID protected change."
-            )
-
-        if to_symmetric_difference:
-            # Only reached when building measurement
-
+        if update_metric:
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
             assert isinstance(transformation.output_domain, SparkDataFrameDomain)
             assert isinstance(transformation.output_metric, IfGroupedBy)
+            assert isinstance(
+                transformation.output_metric.inner_metric, (SumOf, RootSumOfSquared)
+            )
+            assert isinstance(
+                transformation.output_metric.inner_metric.inner_metric, IfGroupedBy
+            )
             transformation |= LimitRowsPerKeyPerGroup(
                 transformation.output_domain,
-                IfGroupedBy(
-                    self.grouping_column,
-                    SumOf(
-                        IfGroupedBy(
-                            transformation.output_metric.column, SymmetricDifference()
-                        )
-                    ),
-                ),
-                transformation.output_metric.column,
+                transformation.output_metric,
+                transformation.output_metric.inner_metric.inner_metric.column,
                 self.grouping_column,
                 self.max,
             )
@@ -311,6 +308,14 @@ class MaxRowsPerGroupPerID(Constraint):
             return transformation, TableReference([target_table])
 
         else:
+            parent_metric = lookup_metric(
+                child_transformation.output_metric, child_ref.parent
+            )
+            if not isinstance(parent_metric, AddRemoveKeys):
+                raise ValueError(
+                    "The MaxRowsPerGroupPerID constraint can only be applied to tables"
+                    " with the AddRowsWithID protected change."
+                )
 
             def gen_tranformation_ark(parent_domain, parent_metric, target):
                 return LimitRowsPerKeyPerGroupValue(
