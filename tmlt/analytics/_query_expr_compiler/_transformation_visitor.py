@@ -31,7 +31,13 @@ from tmlt.analytics._table_reference import (
     lookup_metric,
 )
 from tmlt.analytics._transformation_utils import generate_nested_transformation
-from tmlt.analytics.constraints import Constraint, simplify_constraints
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+    simplify_constraints,
+)
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
@@ -1150,14 +1156,31 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        # The following constraints can be propagated through this operation unmodified:
+        # * MaxRowsPerID, because the ID column cannot have replacement
+        #   performed on it, so no rows can have their IDs changed by this
+        #   operation.
+        # * MaxGroupsPerID, because again the ID column can't have values
+        #   replaced, and in the grouping column two values are replaced by (at
+        #   most) two different values, which doesn't invalidate the constraint.
+        # * MaxRowsPerGroupPerID when the grouping column doesn't have values
+        #   replaced, because again the ID column can't have values replaced. If
+        #   the grouping column has values replaced, that can move some rows
+        #   that were in one group to an existing group, increasing the number
+        #   of rows in that group and invalidating the constraint.
+        constraint_propagatable_p = lambda c: (
+            isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
+            or (
+                isinstance(c, MaxRowsPerGroupPerID)
+                and c.grouping_column not in replace_with
+            )
+        )
+
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            # This is safe because MaxRowsPerID only cares about values in the
-            # ID column, which is not allowed to have replacement done on it. As
-            # new constraints are added it may require some more complex logic.
-            child_constraints,
+            list(filter(constraint_propagatable_p, child_constraints)),
         )
 
     def visit_drop_infinity(self, expr: DropInfExpr) -> Output:

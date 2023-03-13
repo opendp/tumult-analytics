@@ -94,7 +94,6 @@ class TestAddKeys(TestTransformationVisitor):
         transformation, reference, constraints = query.accept(self.visitor)
         assert reference.path == [TableCollection("ids"), NamedTable(source_id)]
         assert isinstance(transformation, IdentityTransformation)
-        # TODO@tmager: Update this once views work
         assert constraints == []
 
     def test_invalid_private_source(self) -> None:

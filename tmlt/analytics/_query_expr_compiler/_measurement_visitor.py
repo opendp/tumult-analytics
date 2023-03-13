@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2023
 
 import dataclasses
+import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sympy as sp
@@ -24,7 +25,12 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.constraints import Constraint, MaxRowsPerID
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+)
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -96,6 +102,70 @@ def _get_query_bounds(
     return (lower_ceiling, upper_floor)
 
 
+def _get_truncatable_constraints(
+    constraints: List[Constraint],
+) -> List[Tuple[Constraint, ...]]:
+    """Get sets of constraints that produce a finite aggregation stability."""
+    # Because of constraint simplification, there should be at most one
+    # MaxRowsPerID constraint, and at most one MaxGroupsPerID and
+    # MaxRowsPerGroupPerID each per column.
+    max_rows_per_id = next(
+        (c for c in constraints if isinstance(c, MaxRowsPerID)), None
+    )
+    max_groups_per_id = {
+        c.grouping_column: c for c in constraints if isinstance(c, MaxGroupsPerID)
+    }
+    max_rows_per_group_per_id = {
+        c.grouping_column: c for c in constraints if isinstance(c, MaxRowsPerGroupPerID)
+    }
+
+    ret: List[Tuple[Constraint, ...]] = [
+        (max_groups_per_id[col], max_rows_per_group_per_id[col])
+        for col in set(max_groups_per_id) & set(max_rows_per_group_per_id)
+    ]
+    if max_rows_per_id:
+        ret.append((max_rows_per_id,))
+    return ret
+
+
+def _constraint_stability(
+    constraints: Tuple[Constraint, ...],
+    output_measure: Union[PureDP, RhoZCDP],
+    grouping_columns: List[str],
+) -> float:
+    """Compute the transformation stability of applying the given constraints.
+
+    The values produced by this method are not intended for use doing actual
+    stability calculations, they are just to provide an easy way to evaluate the
+    relative stabilities of different possible truncations.
+    """
+    if len(constraints) == 1 and isinstance(constraints[0], MaxRowsPerID):
+        return constraints[0].max
+    elif (
+        len(constraints) == 2
+        and isinstance(constraints[0], MaxGroupsPerID)
+        and isinstance(constraints[1], MaxRowsPerGroupPerID)
+    ):
+        if (
+            output_measure == PureDP()
+            or constraints[0].grouping_column not in grouping_columns
+        ):
+            return constraints[0].max * constraints[1].max
+        elif output_measure == RhoZCDP():
+            return math.sqrt(constraints[0].max) * constraints[1].max
+        else:
+            raise AssertionError(
+                f"Unknown output measure {output_measure}. "
+                "This is probably a bug; please let us know about it so we can fix it!"
+            )
+    else:
+        raise AssertionError(
+            f"Constraints {constraints} are not a combination for which a stability "
+            "can be computed. This is probably a bug; please let us know about it "
+            "so we can fix it!"
+        )
+
+
 class MeasurementVisitor(QueryExprVisitor):
     """A visitor to create a measurement from a query expression."""
 
@@ -139,11 +209,12 @@ class MeasurementVisitor(QueryExprVisitor):
 
         return child, reference, constraints
 
-    @staticmethod
     def _truncate_table(
+        self,
         transformation: Transformation,
         reference: TableReference,
         constraints: List[Constraint],
+        grouping_columns: List[str],
     ) -> Tuple[Transformation, TableReference]:
         table_transformation = get_table_from_ref(transformation, reference)
         table_metric = table_transformation.output_metric
@@ -151,19 +222,44 @@ class MeasurementVisitor(QueryExprVisitor):
             isinstance(table_metric, IfGroupedBy)
             and table_metric.inner_metric == SymmetricDifference()
         ):
-            # Because of constraint simplification, there should be at most one
-            # MaxRowsPerID constraint.
-            max_rows_per_id = next(
-                (c for c in constraints if isinstance(c, MaxRowsPerID)), None
+            truncatable_constraints = _get_truncatable_constraints(constraints)
+            truncatable_constraints.sort(
+                key=lambda cs: _constraint_stability(
+                    cs, self.output_measure, grouping_columns
+                )
             )
-            if max_rows_per_id is None:
+            if not truncatable_constraints:
                 raise RuntimeError(
                     "A constraint on the number of rows contributed by each ID "
                     "is needed to perform this query."
                 )
-            return max_rows_per_id._enforce(  # pylint: disable=protected-access
-                transformation, reference, to_symmetric_difference=True
-            )
+
+            for c in truncatable_constraints[0]:
+                assert isinstance(
+                    c, (MaxRowsPerID, MaxGroupsPerID, MaxRowsPerGroupPerID)
+                )
+                if isinstance(c, MaxGroupsPerID):
+                    # Taking advantage of the L2 noise behavior only works for
+                    # RhoZCDP Sessions, and then only when the grouping column
+                    # of the constraints is being grouped on.
+                    use_l2 = (
+                        isinstance(self.output_measure, RhoZCDP)
+                        and c.grouping_column in grouping_columns
+                    )
+                    # pylint: disable=protected-access
+                    transformation, reference = c._enforce(
+                        transformation, reference, update_metric=True, use_l2=use_l2
+                    )
+                    # pylint: enable=protected-access
+                else:
+                    (
+                        transformation,
+                        reference,
+                    ) = c._enforce(  # pylint: disable=protected-access
+                        transformation, reference, update_metric=True
+                    )
+            return transformation, reference
+
         else:
             # Tables without IDs don't need truncation
             return transformation, reference
@@ -383,7 +479,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
         mechanism = self._pick_noise_for_non_count(query, measure_column_type)
         child_transformation, table_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, mechanism)
+            *self._visit_child_transformation(query.child, mechanism),
+            grouping_columns=query.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, table_ref)
         # _visit_child_transformation already raises an error if these aren't true
@@ -424,7 +521,8 @@ class MeasurementVisitor(QueryExprVisitor):
         OutputSchemaVisitor(self.catalog).visit_groupby_count(query)
         mechanism = self._pick_noise_for_count(query)
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, mechanism)
+            *self._visit_child_transformation(query.child, mechanism),
+            grouping_columns=query.groupby_keys.dataframe().columns,
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -462,7 +560,8 @@ class MeasurementVisitor(QueryExprVisitor):
         OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(query)
         mechanism = self._pick_noise_for_count(query)
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, mechanism)
+            *self._visit_child_transformation(query.child, mechanism),
+            grouping_columns=query.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
 
@@ -550,7 +649,8 @@ class MeasurementVisitor(QueryExprVisitor):
         OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
 
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, self.default_mechanism)
+            *self._visit_child_transformation(query.child, self.default_mechanism),
+            grouping_columns=query.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
