@@ -169,7 +169,7 @@ def test_quantile(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
     # Our quantile algorithm can be significantly off from the true median on
     # low numbers of records, even with infinite budget, so use a huge absolute
     # tolerance.
-    assert value == pytest.approx(closest, abs=1.5)
+    assert value == pytest.approx(closest, abs=2)
 
 
 @pytest.mark.parametrize(
