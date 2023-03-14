@@ -110,7 +110,7 @@ __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
 
 class _PrivateSourceTuple(NamedTuple):
-    """Named tuple of private Dataframe, domain and stability."""
+    """Named tuple of private Dataframe, domain and protected change."""
 
     dataframe: DataFrame
     """Private DataFrame."""
