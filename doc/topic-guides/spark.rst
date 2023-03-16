@@ -155,3 +155,45 @@ Performance and profiling
 All queries made with Analytics are executed by Spark. If you are having
 performance problems, you will probably want to look at
 `Spark performance-tuning options <https://spark.apache.org/docs/latest/sql-performance-tuning.html>`_.
+
+RAM usage
+^^^^^^^^^
+
+By default, Spark allocates itself 1GB of RAM 
+(see `Spark's configuration documentation <https://spark.apache.org/docs/latest/configuration.html#application-properties>`_).
+Analytics programs often need more RAM than this.
+Usually, a program needs more RAM because:
+
+* the input data is large (10M rows or more)
+* a keyset used for a grouping operation is large (10k rows or more)
+* the output data is large (10M rows or more)
+
+You can adjust the amount of memory available to Spark when creating your
+Spark session. For example, to configure Spark with 8 gigabytes of RAM, you
+can run this code:
+
+.. code-block::
+
+    spark = SparkSession.builder.config('spark.driver.memory', '8gb').getOrCreate()
+
+This only applies when running Spark on a single, local node; see Spark's
+documentation for how to configure Spark to use more RAM across a cluster.
+
+Saving results (to CSV or other formats)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Converting large Spark dataframes (10M rows or more) to Pandas dataframes can
+be very resource-intensive. We recommend using 
+:meth:`pyspark.sql.DataFrame.write` to save results
+to file, instead of using 
+:meth:`pyspark.sql.DataFrame.toPandas` and then saving the Pandas
+dataframe.
+
+For example, to save a dataframe as CSV, you can do this:
+
+.. code-block::
+
+    import os
+    import tempfile
+
+    df.write.csv(os.path.join(tempfile.mkdtemp(), 'data'))

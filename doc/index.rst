@@ -88,8 +88,9 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
    **Additional resources**
    ^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Additional resources include the :ref:`changelog <analytics-changelog>`, which
-   describes notable changes to the library, :ref:`citation instructions <citing>`
+   Additional resources include the :ref:`changelog <analytics-changelog>`,
+   our :ref:`troubleshooting guide <troubleshooting>`,
+   :ref:`citation instructions <citing>`
    if you use Tumult Analytics for a scientific publication, and 
    :ref:`license information <License>`.
 
