@@ -19,3 +19,4 @@ to the Tumult Analytics library.
     spark
     nulls-nans-infinities
     bigquery/index
+    troubleshooting
