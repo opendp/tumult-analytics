@@ -105,6 +105,7 @@ from tmlt.core.transformations.identity import Identity
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.configuration import SparkConfigError, check_java11
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.type_utils import assert_never
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
@@ -1466,7 +1467,40 @@ class Session:
         """Close out this session, allowing other sessions to become active."""
         self._accountant.retire()
 
-    def _describe(self) -> None:
+    def _describe(
+        self, x: Optional[Union[QueryExpr, QueryBuilder, str]] = None
+    ) -> None:
+        """Describe this session, or a query, or a table.
+
+        If ``x`` is ``None``, ``session._describe(x)`` will describe the session.
+
+        If ``x`` is a
+        :class:`~tmlt.analytics.query_expr.QueryExpr`,
+        ``session._describe(x)`` will describe
+        the schema resulting from that query expression.
+
+        If x is a
+        :class:`~tmlt.analytics.query_builder.QueryBuilder`,
+        ``session._describe(x) will describe the query constructed by the
+        query builder. This is equivalent to calling
+        ``session._describe(x.query_expr)``.
+
+        If x is a string, x is assumed to be a table name. In this case,
+        ``session._describe(x)`` is equivalent to
+        ``session._describe(QueryBuilder(x))``.
+        """
+        if x is None:
+            self._describe_self()
+        elif isinstance(x, QueryExpr):
+            self._describe_query(x)
+        elif isinstance(x, QueryBuilder):
+            self._describe_query(x.query_expr)
+        elif isinstance(x, str):
+            self._describe_query(QueryBuilder(x).query_expr)
+        else:
+            assert_never(x)
+
+    def _describe_self(self) -> None:
         """Describe the current state of this session."""
         out = []
         state = self._accountant.state
@@ -1498,19 +1532,8 @@ class Session:
             public_table_descs = []
             private_table_descs = []
             for name, table in self._catalog.tables.items():
-                # First, get all of the descriptions of all the columns
-                column_strs = []
-                for column_name, cd in table.schema.column_descs.items():
-                    column_str = f"\t\t- '{column_name}'\t{cd.column_type}"
-                    if not cd.allow_null:
-                        column_str += ", not null"
-                    if cd.column_type == ColumnType.DECIMAL:
-                        if not cd.allow_nan:
-                            column_str += ", not NaN"
-                        if not cd.allow_inf:
-                            column_str += ", not infinity"
-                    column_strs.append(column_str)
-                columns_desc = "\tColumns:\n" + "\n".join(column_strs)
+                column_strs = ["\t" + e for e in _describe_schema(table.schema)]
+                columns_desc = "\n".join(column_strs)
                 if isinstance(table, PublicTable):
                     table_desc = f"Public table '{name}':\n" + columns_desc
                     public_table_descs.append(table_desc)
@@ -1535,6 +1558,12 @@ class Session:
                 )
         print("\n".join(out))
 
+    def _describe_query(self, query: QueryExpr):
+        """Describe the output schema of a query and the constraints on it."""
+        schema = self._compiler.query_schema(query, self._catalog)
+        out = _describe_schema(schema)
+        print("\n".join(out))
+
 
 def _assert_is_identifier(source_id: str):
     """Checks that the ``source_id`` is a valid Python identifier.
@@ -1548,3 +1577,26 @@ def _assert_is_identifier(source_id: str):
             " only contain alphanumeric letters (a-z) and (0-9), or underscores (_),"
             " and it cannot start with a number, or contain any spaces."
         )
+
+
+def _describe_schema(schema: Schema) -> List[str]:
+    """Get a list of strings to print that describe columns of a schema.
+
+    This is a list so that it's easy to append tabs to each line.
+    """
+    description = ["Columns:"]
+    for column_name, cd in schema.column_descs.items():
+        column_str = f"\t- '{column_name}'\t{cd.column_type}"
+        if column_name == schema.id_column:
+            column_str += ", ID column"
+        if column_name == schema.grouping_column:
+            column_str += ", grouping column"
+        if not cd.allow_null:
+            column_str += ", not null"
+        if cd.column_type == ColumnType.DECIMAL:
+            if not cd.allow_nan:
+                column_str += ", not NaN"
+            if not cd.allow_inf:
+                column_str += ", not infinity"
+        description.append(column_str)
+    return description
