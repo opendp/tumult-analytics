@@ -1030,6 +1030,65 @@ Public table 'public2':
             # pylint: enable=protected-access
             mock_print.assert_called_with(expected)
 
+    @pytest.mark.parametrize(
+        "query,expected_output",
+        [
+            pytest.param(
+                "private",
+                """Columns:
+\t- 'A'\tVARCHAR
+\t- 'B'\tINTEGER
+\t- 'X'\tINTEGER""",
+                id="table_name",
+            ),
+            pytest.param(
+                PrivateSource("private"),
+                """Columns:
+\t- 'A'\tVARCHAR
+\t- 'B'\tINTEGER
+\t- 'X'\tINTEGER""",
+                id="private_source_query",
+            ),
+            pytest.param(
+                QueryBuilder("private"),
+                """Columns:
+\t- 'A'\tVARCHAR
+\t- 'B'\tINTEGER
+\t- 'X'\tINTEGER""",
+                id="query_builder_private_source",
+            ),
+            pytest.param(
+                QueryBuilder("private").drop_null_and_nan(["A", "B", "X"]),
+                """Columns:
+\t- 'A'\tVARCHAR, not null
+\t- 'B'\tINTEGER, not null
+\t- 'X'\tINTEGER, not null""",
+                id="query_builder_drop_null",
+            ),
+        ],
+    )
+    def test_describe_query(
+        self, spark, query: Union[str, QueryBuilder, QueryExpr], expected_output: str
+    ):
+        """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+
+            public_df_1 = spark.createDataFrame(
+                pd.DataFrame([["blah", 1], ["blah", 2]], columns=["A", "B"])
+            )
+            public_df_2 = spark.createDataFrame(pd.DataFrame({"X": [1.1, 2.2, 3.3]}))
+            session = Session(
+                accountant=mock_accountant,
+                public_sources={"public1": public_df_1, "public2": public_df_2},
+            )
+
+            session._describe(query)  # pylint: disable=protected-access
+            mock_print.assert_called_with(expected_output)
+
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
         alltypes_sdf = spark.createDataFrame(

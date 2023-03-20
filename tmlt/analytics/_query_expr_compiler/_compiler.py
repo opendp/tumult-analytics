@@ -21,6 +21,7 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
+from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import Constraint
@@ -103,6 +104,18 @@ class QueryExprCompiler:
     def output_measure(self) -> Union[PureDP, RhoZCDP]:
         """Return the distance measure for the measurement's output."""
         return self._output_measure
+
+    @staticmethod
+    def query_schema(query: QueryExpr, catalog: Catalog) -> Schema:
+        """Return the schema created by a given query."""
+        result = query.accept(OutputSchemaVisitor(catalog=catalog))
+        assert isinstance(result, Schema), (
+            f"schema for this query is not a Schema but is instead a(n) {type(result)}."
+            " This is probably a bug; please let us know about it so we can fix it!"
+        )
+        return result
+
+    # pylint: enable=no-self-use
 
     def __call__(
         self,
