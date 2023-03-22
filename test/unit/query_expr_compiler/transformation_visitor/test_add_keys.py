@@ -313,6 +313,15 @@ class TestAddKeys(TestTransformationVisitor):
                     columns=["id", "S", "I_left", "I_right", "F", "D", "T", "field"],
                 ),
             ),
+            (
+                JoinPrivate(
+                    PrivateSource("ids1"), PrivateSource("ids2"), join_columns=["id"]
+                ),
+                pd.DataFrame(
+                    [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "a"]],
+                    columns=["id", "S", "I_left", "I_right", "F", "D", "T", "field"],
+                ),
+            ),
         ],
     )
     def test_visit_join_private(
