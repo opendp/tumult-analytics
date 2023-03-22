@@ -399,9 +399,9 @@ class JoinPrivate(QueryExpr):
     """The QueryExpr to join with right operand."""
     right_operand_expr: QueryExpr
     """The QueryExpr for private source to join with."""
-    truncation_strategy_left: Optional[TruncationStrategy.Type]
+    truncation_strategy_left: Optional[TruncationStrategy.Type] = None
     """Truncation strategy to be used for the left table."""
-    truncation_strategy_right: Optional[TruncationStrategy.Type]
+    truncation_strategy_right: Optional[TruncationStrategy.Type] = None
     """Truncation strategy to be used for the right table."""
     join_columns: Optional[List[str]] = None
     """The columns used for joining the tables, or None to use all common columns."""

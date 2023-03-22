@@ -271,8 +271,8 @@ class QueryBuilder:
     def join_private(
         self,
         right_operand: "QueryBuilder",
-        truncation_strategy_left: Optional[TruncationStrategy.Type],
-        truncation_strategy_right: Optional[TruncationStrategy.Type],
+        truncation_strategy_left: Optional[TruncationStrategy.Type] = None,
+        truncation_strategy_right: Optional[TruncationStrategy.Type] = None,
         join_columns: Optional[Sequence[str]] = None,
     ) -> "QueryBuilder":
         # pylint: disable=protected-access
