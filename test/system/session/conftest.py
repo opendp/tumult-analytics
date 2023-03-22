@@ -5,9 +5,10 @@
 
 import pandas as pd
 import pytest
+from pyspark.sql.types import LongType, StringType, StructField, StructType
 
 from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.protected_change import AddRowsWithID
+from tmlt.analytics.protected_change import AddMaxRows, AddRowsWithID
 from tmlt.analytics.session import Session
 
 INF_BUDGET = PureDPBudget(float("inf"))
@@ -57,7 +58,17 @@ def _session_data(spark):
             [[1, 12], [1, 15], [1, 18], [2, 21], [3, 24], [3, 27]], columns=["id", "x"]
         )
     )
-    return {"id1": df_id1, "id2": df_id2}
+    df_rows1 = spark.createDataFrame(
+        [["0", 0, 0], ["0", 0, 1], ["0", 1, 2], ["1", 0, 3]],
+        schema=StructType(
+            [
+                StructField("A", StringType(), nullable=False),
+                StructField("B", LongType(), nullable=False),
+                StructField("X", LongType(), nullable=False),
+            ]
+        ),
+    )
+    return {"id1": df_id1, "id2": df_id2, "rows1": df_rows1}
 
 
 @pytest.fixture(scope="module")
@@ -96,6 +107,9 @@ def session(_session_data, request):
         )
         .with_private_dataframe(
             "id_b2", _session_data["id1"], protected_change=AddRowsWithID("id", "b")
+        )
+        .with_private_dataframe(
+            "rows_1", _session_data["rows1"], protected_change=AddMaxRows(2)
         )
         .build()
     )

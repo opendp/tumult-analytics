@@ -113,7 +113,7 @@ def test_count_grouped(
     "base_query,expected", zip(_BASE_QUERIES, [{3}, {3}, {3}, {3}, {3}, {3}])
 )
 def test_count_distinct(base_query: QueryBuilder, expected: Set[int], session):
-    """Ungrouped count-distincts on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped count-distincts on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.count_distinct(["id"]), session.remaining_privacy_budget
     ).toPandas()
@@ -141,7 +141,7 @@ def test_count_distinct(base_query: QueryBuilder, expected: Set[int], session):
 def test_count_distinct_grouped(
     base_query: QueryBuilder, expected: Set[Tuple[int, int]], session
 ):
-    """Grouped count-distincts on tables with IDs work using MaxRowsPerID."""
+    """Grouped count-distincts on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).count_distinct(["id"]),
         session.remaining_privacy_budget,
@@ -159,7 +159,7 @@ def test_count_distinct_grouped(
 )
 @pytest.mark.parametrize("base_query,ns", zip(_BASE_QUERIES, _BASE_QUERY_NS))
 def test_quantile(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
-    """Ungrouped quantiles on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped quantiles on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.quantile("n", 0.5, 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -177,7 +177,7 @@ def test_quantile(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
 )
 @pytest.mark.parametrize("base_query", _BASE_QUERIES)
 def test_quantile_grouped(base_query: QueryBuilder, session):
-    """Grouped quantiles on tables with IDs work using MaxRowsPerID."""
+    """Grouped quantiles on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).quantile("n", 0.5, 0, 10),
         session.remaining_privacy_budget,
@@ -198,7 +198,7 @@ def test_quantile_grouped(base_query: QueryBuilder, session):
 )
 @pytest.mark.parametrize("base_query,ns", zip(_BASE_QUERIES, _BASE_QUERY_NS))
 def test_sum(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
-    """Ungrouped sums on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped sums on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.sum("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -213,7 +213,7 @@ def test_sum(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
 def test_sum_grouped(
     base_query: QueryBuilder, ns: Set[Tuple[Tuple[int, ...], Tuple[int, ...]]], session
 ):
-    """Grouped sums on tables with IDs work using MaxRowsPerID."""
+    """Grouped sums on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).sum("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -229,7 +229,7 @@ def test_sum_grouped(
 )
 @pytest.mark.parametrize("base_query,ns", zip(_BASE_QUERIES, _BASE_QUERY_NS))
 def test_average(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
-    """Ungrouped averages on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped averages on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.average("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -244,7 +244,7 @@ def test_average(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
 def test_average_grouped(
     base_query: QueryBuilder, ns: Set[Tuple[Tuple[int, ...], Tuple[int, ...]]], session
 ):
-    """Grouped averages on tables with IDs work using MaxRowsPerID."""
+    """Grouped averages on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).average("n", 0, 10),
         session.remaining_privacy_budget,
@@ -261,7 +261,7 @@ def test_average_grouped(
 )
 @pytest.mark.parametrize("base_query,ns", zip(_BASE_QUERIES, _BASE_QUERY_NS))
 def test_variance(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
-    """Ungrouped variances on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped variances on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.variance("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -283,7 +283,7 @@ def test_variance(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
 def test_variance_grouped(
     base_query: QueryBuilder, ns: Set[Tuple[Tuple[int, ...], Tuple[int, ...]]], session
 ):
-    """Grouped variances on tables with IDs work using MaxRowsPerID."""
+    """Grouped variances on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).variance("n", 0, 10),
         session.remaining_privacy_budget,
@@ -305,7 +305,7 @@ def test_variance_grouped(
 )
 @pytest.mark.parametrize("base_query,ns", zip(_BASE_QUERIES, _BASE_QUERY_NS))
 def test_stdev(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
-    """Ungrouped stdevs on tables with IDs work using MaxRowsPerID."""
+    """Ungrouped stdevs on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.stdev("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
@@ -327,7 +327,7 @@ def test_stdev(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
 def test_stdev_grouped(
     base_query: QueryBuilder, ns: Set[Tuple[Tuple[int, ...], Tuple[int, ...]]], session
 ):
-    """Grouped stdevs on tables with IDs work using MaxRowsPerID."""
+    """Grouped stdevs on tables with IDs work using L0 + L-inf."""
     res = session.evaluate(
         base_query.groupby(_KEYSET).stdev("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
