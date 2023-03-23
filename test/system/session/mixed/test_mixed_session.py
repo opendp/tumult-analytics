@@ -137,7 +137,6 @@ def test_mixed_session(
     non_ids_expected: int,
 ):
     """Sanity check that a session can evaluate both ID and non-ID queries."""
-
     assert (
         session.evaluate(
             ids_query.count(), session.remaining_privacy_budget
@@ -145,8 +144,8 @@ def test_mixed_session(
         == ids_expected
     )
     assert (
-        session.evaluate(
-            non_ids_query.count(), session.remaining_privacy_budget
-        ).toPandas()["count"][0]
+        session.evaluate(non_ids_query.count(), session.remaining_privacy_budget)
+        .toPandas()
+        .sort_values("count", ascending=False, ignore_index=True)["count"][0]
         == non_ids_expected
     )
