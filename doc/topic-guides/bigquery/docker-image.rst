@@ -7,20 +7,14 @@ Creating a Docker image for GCP
     SPDX-License-Identifier: CC-BY-SA-4.0
     Copyright Tumult Labs 2022
 
-In the third part of the topic guide, we will create a Docker 
-image to run our Tumult Analytics program on GCP. A working knowledge
-of Docker is useful to understand this section, but if you have never
-used Docker before, you can still follow the instructions below.
+In this final part of the topic guide, we will customize our own 
+Docker image to contain additional libraries and dependencies.
+A working knowledge of Docker is useful to understand this section, 
+but if you have never used Docker before, you can still follow the 
+instructions below.
 
-This section is optional, and you can use the default image provided by
-Tumult Labs, allowing you to skip this part and proceed to the 
-:ref:`next<bigquery stored procedures>`. However, if you want to 
-customize the image, or use your own dependencies, you will need 
-to create your own image.
-
-.. This image can be customized to your needs, but for this example, we will 
-.. stick to the default settings.
-
+The instructions below show how the public Tumult Analytics demo 
+image was created, and can be used as a template for your own image.
 
 First, we will need to create a new Docker repository in the `Artifact Registry`_.
 
@@ -80,5 +74,9 @@ If it ran successfully, you should see a new completed image in the `Artifact Re
 
 .. _Artifact Registry: https://console.cloud.google.com/artifacts
 
-In the :ref:`next part of this topic guide<bigquery stored procedures>`, 
-we will see how to create BigQuery stored procedures.
+With the guide complete, you should be able to run Tumult Analytics
+programs on Google Cloud Platform. If you have any questions,
+please feel free to join our `Slack`_, or contact us at `our support email`_.
+
+.. _Slack: https://tmlt.dev/slack
+.. _our support email: support@tmlt.io
