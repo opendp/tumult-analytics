@@ -1,7 +1,7 @@
-.. _BigQuery setup:
+.. _GCP setup:
 
-BigQuery setup
-==============
+GCP setup
+=========
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
@@ -46,5 +46,5 @@ contact your organization administrator.
 * Use BigQuery Datasets (BigQuery Data Editor)
 * View remote procedures (BigQuery Metadata Viewer)
 
-In the :ref:`next part of this topic guide<bigquery inputs and outputs>`, 
-we will see how to specify BigQuery inputs and outputs in Tumult Analytics.
+In the :ref:`next part of this topic guide<bigquery setup>`, 
+we will see how to use BigQuery and how to upload our dataset to it.
