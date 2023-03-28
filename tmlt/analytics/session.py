@@ -1538,7 +1538,23 @@ class Session:
                     table_desc = f"Public table '{name}':\n" + columns_desc
                     public_table_descs.append(table_desc)
                 elif isinstance(table, PrivateTable):
-                    table_desc = f"Table '{name}':\n" + columns_desc
+                    table_desc = f"Table '{name}':\n"
+                    table_desc += columns_desc
+
+                    constraints: Optional[
+                        List[Constraint]
+                    ] = self._table_constraints.get(NamedTable(name))
+                    if not constraints:
+                        table_desc = (
+                            f"Table '{name}' (no constraints):\n" + columns_desc
+                        )
+                    else:
+                        table_desc = (
+                            f"Table '{name}':\n" + columns_desc + "\n\tConstraints:\n"
+                        )
+                        constraints_strs = [f"\t\t- {e}" for e in constraints]
+                        table_desc += "\n".join(constraints_strs)
+
                     private_table_descs.append(table_desc)
                 else:
                     raise AssertionError(
@@ -1585,8 +1601,15 @@ def _describe_schema(schema: Schema) -> List[str]:
     This is a list so that it's easy to append tabs to each line.
     """
     description = ["Columns:"]
+    # We actually care about the maximum length of the column name
+    # *as enclosed in quotes*,
+    # so we add 2 to account for the opening and closing quotation marks
+    column_length = (
+        max(len(column_name) for column_name in schema.column_descs.keys()) + 2
+    )
     for column_name, cd in schema.column_descs.items():
-        column_str = f"\t- '{column_name}'\t{cd.column_type}"
+        quoted_column_name = f"'{column_name}'"
+        column_str = f"\t- {quoted_column_name:<{column_length}}  {cd.column_type}"
         if column_name == schema.id_column:
             column_str += ", ID column"
         if column_name == schema.grouping_column:
