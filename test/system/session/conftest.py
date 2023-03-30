@@ -19,7 +19,7 @@ def closest_value(value, collection):
     """Find the element of a collection numerically closest to a given value.
 
     Given a collection and a value, find the element of the collection that is
-    closest to at value and return it. For numbers, the closest element is the
+    closest to that value and return it. For numbers, the closest element is the
     one which has the smallest absolute difference with the value; for tuples of
     numbers, it is the one which has the smallest total absolute difference
     between corresponding pairs of values. If the collection is empty, None is
@@ -43,19 +43,27 @@ def _session_data(spark):
     df_id1 = spark.createDataFrame(
         pd.DataFrame(
             [
-                [1, "A", "X", 4],
-                [1, "A", "Y", 5],
-                [1, "A", "X", 6],
-                [2, "A", "Y", 7],
-                [3, "A", "X", 8],
-                [3, "B", "Y", 9],
+                [1, "A", "X", 4, 4.0],
+                [1, "A", "Y", 5, 5.0],
+                [1, "A", "X", 6, 6.0],
+                [2, "A", "Y", 7, 7.0],
+                [3, "A", "X", 8, 8.0],
+                [3, "B", "Y", 9, 9.0],
             ],
-            columns=["id", "group", "group2", "n"],
+            columns=["id", "group", "group2", "n", "float_n"],
         )
     )
     df_id2 = spark.createDataFrame(
         pd.DataFrame(
-            [[1, 12], [1, 15], [1, 18], [2, 21], [3, 24], [3, 27]], columns=["id", "x"]
+            [
+                [1, "A", 12],
+                [1, "B", 15],
+                [1, "A", 18],
+                [2, "B", 21],
+                [3, "A", 24],
+                [3, "B", 27],
+            ],
+            columns=["id", "group", "x"],
         )
     )
     df_rows1 = spark.createDataFrame(
@@ -71,7 +79,7 @@ def _session_data(spark):
     return {"id1": df_id1, "id2": df_id2, "rows1": df_rows1}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def session(_session_data, request):
     """A Session with some sample data.
 

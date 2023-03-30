@@ -11,6 +11,16 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type,
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._query_expr_compiler._constraint_propagation import (
+    propagate_flat_map,
+    propagate_join_private,
+    propagate_join_public,
+    propagate_map,
+    propagate_rename,
+    propagate_replace,
+    propagate_select,
+    propagate_unmodified,
+)
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
@@ -31,13 +41,7 @@ from tmlt.analytics._table_reference import (
     lookup_metric,
 )
 from tmlt.analytics._transformation_utils import generate_nested_transformation
-from tmlt.analytics.constraints import (
-    Constraint,
-    MaxGroupsPerID,
-    MaxRowsPerGroupPerID,
-    MaxRowsPerID,
-    simplify_constraints,
-)
+from tmlt.analytics.constraints import Constraint, simplify_constraints
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
@@ -356,7 +360,7 @@ class TransformationVisitor(QueryExprVisitor):
 
     def visit_rename(self, expr: RenameExpr) -> Output:
         """Create a transformation from a Rename query expression."""
-        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
+        child_transformation, child_ref, child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -382,6 +386,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
             key_column = parent_metric.df_to_key_column[child_ref.identifier]
+            # TODO(#2542): Remove this check.
             if key_column in expr.column_mapper:
                 raise ValueError(
                     f"Column '{key_column}' cannot be renamed because it contains "
@@ -404,12 +409,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_rename(expr, child_constraints)),
         )
 
     def visit_filter(self, expr: FilterExpr) -> Output:
         """Create a transformation from a FilterExpr query expression."""
-        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
+        child_transformation, child_ref, child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -451,12 +456,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_unmodified(expr, child_constraints)),
         )
 
     def visit_select(self, expr: SelectExpr) -> Output:
         """Create a transformation from a Select query expression."""
-        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
+        child_transformation, child_ref, child_constraints = expr.child.accept(self)
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -497,12 +502,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_select(expr, child_constraints)),
         )
 
     def visit_map(self, expr: MapExpr) -> Output:
         """Create a transformation from a Map query expression."""
-        child_transformation, child_ref, _child_constraints = expr.child.accept(self)
+        child_transformation, child_ref, child_constraints = expr.child.accept(self)
 
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
@@ -579,12 +584,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_map(expr, child_constraints)),
         )
 
     def visit_flat_map(self, expr: FlatMapExpr) -> Output:
         """Create a transformation from a FlatMap query expression."""
-        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
+        child_transformation, child_ref, child_constraints = self._ensure_not_hamming(
             *expr.child.accept(self)
         )
 
@@ -690,12 +695,12 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_flat_map(expr, child_constraints)),
         )
 
     def visit_join_private(self, expr: JoinPrivateExpr) -> Output:
         """Create a transformation from a JoinPrivate query expression."""
-        left_transformation, left_ref, _left_constraints = expr.child.accept(self)
+        left_transformation, left_ref, left_constraints = expr.child.accept(self)
         right_visitor = TransformationVisitor(
             left_transformation.output_domain,
             left_transformation.output_metric,
@@ -706,7 +711,7 @@ class TransformationVisitor(QueryExprVisitor):
         (
             right_transformation,
             right_ref,
-            _right_constraints,
+            right_constraints,
         ) = expr.right_operand_expr.accept(right_visitor)
 
         if left_ref.parent != right_ref.parent:
@@ -728,17 +733,6 @@ class TransformationVisitor(QueryExprVisitor):
             raise AssertionError(
                 "Unrecognized input domain. This is probably a bug; "
                 "please let us know about it so we can fix it!"
-            )
-
-        if expr.join_columns is None:
-            join_on_nulls = any(
-                [v.allow_null for v in dict(left_domain.schema).values()]
-                + [v.allow_null for v in dict(right_domain.schema).values()]
-            )
-        else:
-            join_on_nulls = any(
-                left_domain[c].allow_null and right_domain[c].allow_null
-                for c in expr.join_columns
             )
 
         def get_truncation_params(
@@ -787,7 +781,7 @@ class TransformationVisitor(QueryExprVisitor):
                 left_truncation_threshold=l_trunc_threshold,
                 right_truncation_threshold=r_trunc_threshold,
                 join_cols=expr.join_columns,
-                join_on_nulls=join_on_nulls,
+                join_on_nulls=True,
             )
             create_dict = CreateDictFromValue(
                 join.output_domain, join.output_metric, key=target
@@ -809,8 +803,15 @@ class TransformationVisitor(QueryExprVisitor):
                 right_ref.identifier,
                 target,
                 expr.join_columns,
-                join_on_nulls,
+                join_on_nulls=True,
             )
+
+        common_cols = set(left_domain.schema) & set(right_domain.schema)
+        join_cols = set(expr.join_columns or common_cols)
+        overlapping_cols = common_cols - join_cols
+        constraints = propagate_join_private(
+            join_cols, overlapping_cols, left_constraints, right_constraints
+        )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
@@ -824,12 +825,12 @@ class TransformationVisitor(QueryExprVisitor):
                 right_ref.parent,
                 transformation_generators,
             ),
-            [],
+            simplify_constraints(constraints),
         )
 
     def visit_join_public(self, expr: JoinPublicExpr) -> Output:
         """Create a transformation from a JoinPublic query expression."""
-        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
+        child_transformation, child_ref, child_constraints = self._ensure_not_hamming(
             *self._visit_child(expr.child)
         )
 
@@ -896,6 +897,20 @@ class TransformationVisitor(QueryExprVisitor):
                 join_on_nulls=join_null_cols,
             )
 
+        child_domain = lookup_domain(child_transformation.output_domain, child_ref)
+        if not isinstance(child_domain, SparkDataFrameDomain):
+            raise AssertionError(
+                "Unrecognized input domain. This is probably a bug; "
+                "please let us know about it so we can fix it!"
+            )
+
+        common_cols = set(child_domain.schema) & set(public_df_schema)
+        join_cols = set(expr.join_columns or common_cols)
+        overlapping_cols = common_cols - join_cols
+        constraints = propagate_join_public(
+            join_cols, overlapping_cols, public_df, child_constraints
+        )
+
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
             AddRemoveKeys: gen_transformation_ark,
@@ -904,7 +919,7 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(constraints),
         )
 
     @staticmethod
@@ -958,7 +973,7 @@ class TransformationVisitor(QueryExprVisitor):
 
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Output:
         """Create a transformation from a ReplaceNullAndNan query expression."""
-        child_transformation, child_ref, _child_constraints = self._visit_child(
+        child_transformation, child_ref, child_constraints = self._visit_child(
             expr.child
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
@@ -1094,7 +1109,7 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            [],
+            simplify_constraints(propagate_replace(expr, child_constraints)),
         )
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Output:
@@ -1156,31 +1171,11 @@ class TransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
-        # The following constraints can be propagated through this operation unmodified:
-        # * MaxRowsPerID, because the ID column cannot have replacement
-        #   performed on it, so no rows can have their IDs changed by this
-        #   operation.
-        # * MaxGroupsPerID, because again the ID column can't have values
-        #   replaced, and in the grouping column two values are replaced by (at
-        #   most) two different values, which doesn't invalidate the constraint.
-        # * MaxRowsPerGroupPerID when the grouping column doesn't have values
-        #   replaced, because again the ID column can't have values replaced. If
-        #   the grouping column has values replaced, that can move some rows
-        #   that were in one group to an existing group, increasing the number
-        #   of rows in that group and invalidating the constraint.
-        constraint_propagatable_p = lambda c: (
-            isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
-            or (
-                isinstance(c, MaxRowsPerGroupPerID)
-                and c.grouping_column not in replace_with
-            )
-        )
-
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            list(filter(constraint_propagatable_p, child_constraints)),
+            simplify_constraints(propagate_replace(expr, child_constraints)),
         )
 
     def visit_drop_infinity(self, expr: DropInfExpr) -> Output:
@@ -1260,7 +1255,7 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            child_constraints,
+            simplify_constraints(propagate_unmodified(expr, child_constraints)),
         )
 
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Output:
@@ -1385,7 +1380,7 @@ class TransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            child_constraints,
+            simplify_constraints(propagate_unmodified(expr, child_constraints)),
         )
 
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Output:

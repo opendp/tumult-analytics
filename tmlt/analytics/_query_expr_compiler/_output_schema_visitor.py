@@ -726,7 +726,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             and input_schema.grouping_column in expr.replace_with
         ):
             raise ValueError(
-                "Cannot drop infinite values in column "
+                "Cannot replace infinite values in column "
                 f"'{input_schema.grouping_column}', as it is a grouping column"
             )
         # Float-valued columns cannot be ID columns, but include this to be safe.
@@ -768,6 +768,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 for name, cd in input_schema.column_descs.items()
             },
             grouping_column=input_schema.grouping_column,
+            id_column=input_schema.id_column,
         )
 
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Schema:
@@ -871,6 +872,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 for name, cd in input_schema.column_descs.items()
             },
             grouping_column=input_schema.grouping_column,
+            id_column=input_schema.id_column,
         )
 
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Schema:
