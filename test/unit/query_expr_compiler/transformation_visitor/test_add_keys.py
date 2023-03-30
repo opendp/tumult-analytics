@@ -119,6 +119,16 @@ class TestAddKeys(TestTransformationVisitor):
                     columns=["id", "S", "I", "F", "date", "time"],
                 ),
             ),
+            pytest.param(
+                {"id": "id2"},
+                pd.DataFrame(
+                    [[1, "0", 0, 0.1, DATE1, TIMESTAMP1]],
+                    columns=["id2", "S", "I", "F", "date", "time"],
+                ),
+                marks=pytest.mark.xfail(
+                    reason="TODO(#2542): enable once renaming ID columns is supported"
+                ),
+            ),
         ],
     )
     def test_visit_rename(self, mapper: Dict[str, str], expected_df: DataFrame) -> None:

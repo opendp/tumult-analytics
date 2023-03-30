@@ -60,7 +60,7 @@ def test_view_constraint(session):
         (QueryBuilder("id_a2").enforce(MaxRowsPerID(3)), "x < 24", 6, 2),
         (
             QueryBuilder("id_a1")
-            .enforce(MaxRowsPerID(3))
+            .enforce(MaxGroupsPerID("group", 3))
             .enforce(MaxRowsPerGroupPerID("group", 2)),
             "n > 4",
             5,
@@ -81,8 +81,15 @@ def test_evaluate_view(
         QueryBuilder("query_view").count(), session.remaining_privacy_budget
     ).toPandas()
     assert aggregation_res["count"][0] == expected_first_res
-    # apply an aggregation to the view without a constraint
-    query_2 = QueryBuilder("query_view").filter(condition)
+
+    # Invalidate constraints using flat_map, verifying that the flat map is
+    # still in IDs (doesn't need truncation) and that aggregating without adding
+    # new constraints doesn't work.
+    query2 = (
+        QueryBuilder("query_view")
+        .flat_map(lambda _: [{}], {}, augment=True)
+        .filter(condition)
+    )
     with pytest.raises(
         RuntimeError,
         match=(
@@ -90,11 +97,11 @@ def test_evaluate_view(
             "is needed to perform this query."
         ),
     ):
-        session.evaluate(query_2.count(), session.remaining_privacy_budget).toPandas()
-    # aggregate with a constraint
-    query_2 = query_2.enforce(MaxRowsPerID(1))
+        session.evaluate(query2.count(), session.remaining_privacy_budget).toPandas()
+
+    query2 = query2.enforce(MaxRowsPerID(1))
     transformation_res = session.evaluate(
-        query_2.count(), session.remaining_privacy_budget
+        query2.count(), session.remaining_privacy_budget
     ).toPandas()
     assert transformation_res["count"][0] == expected_second_res
 
