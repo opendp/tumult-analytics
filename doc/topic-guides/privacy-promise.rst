@@ -9,12 +9,14 @@ Tumult Analytics' privacy promise
 
 This topic guide outlines the "privacy promise" provided by Tumult Analytics,
 along with its caveats. This guarantee is based on one of the core abstractions
-of Tumult Analytics: :class:`Sessions<tmlt.analytics.session.Session>`.
+of Tumult Analytics: :class:`Sessions <tmlt.analytics.session.Session>`.
 
 At a high level, a Session allows you to evaluate queries on private data in a
 way that satisfies differential privacy. When creating a Session, private data
-must first be loaded into it, along with a
-:ref:`privacy budget<Privacy budget fundamentals>`. You can then evaluate
+must first be loaded into it, along with
+a :mod:`protected change<tmlt.analytics.protected_change>` for each
+table, and a Session-wide :ref:`privacy budget<Privacy budget fundamentals>`. You
+can then evaluate
 queries on your private data, consuming at most the privacy budget provided at
 initialization time.
 
@@ -23,9 +25,9 @@ The privacy promise in more detail
 
 A :class:`~tmlt.analytics.session.Session` is initialized with:
 
-* one or more private data sources (data you wish to query in a differentially
-  private way);
-* one or more public data sources (data that does not require privacy
+* one or more private tables (containing data you wish to query in a differentially
+  private way), each associated to a :mod:`protected change<tmlt.analytics.protected_change>`;
+* zero or more public tables (containing data that does not require privacy
   protection, but may be used as auxiliary input to your computation);
 * a privacy definition along with its associated privacy parameters (e.g.
   tutorials use `PureDBBudget`, corresponding to pure differential privacy, and
@@ -40,23 +42,50 @@ using the specified parameters. For example, a Session initialized with
 
 .. _privacy-promise#unit-of-protection:
 
-Subtlety 1: unit of protection
-------------------------------
+Understanding the protected change
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In the simplest case, the privacy guarantee from a :class:`~tmlt.analytics.session.Session` prevents an attacker from learning whether *one individual row* was added or removed in each private dataset -- the :class:`~tmlt.analytics.protected_change.AddOneRow` protected change.
-If the data of a single individual can span multiple rows in the same private dataset, then this individual is not covered by the privacy promise, only individual rows are.
+Each table's differential privacy guarantee hides a *protected change* in
+data, preventing an attacker from learning whether a table was changed 
+in some specified way. When you add a private table to a session, you must
+specify what kind of protected change to use for this table.
 
-If you know that a single individual can appear in at most *k* rows in an input dataset, you can load that dataset into a Session using a different value for the ``protected_change`` parameter.
-For example, using ``AddMaxRows(k)`` will cause Tumult Analytics to hide the addition or removal of up to *k* rows at once from the corresponding private dataset, providing individual-level protection.
-Other possible protected changes are also available, though they are typically only needed for advanced use cases.
+* In the simplest case, the privacy guarantee from a
+  :class:`~tmlt.analytics.session.Session` prevents an attacker from learning 
+  whether *one individual row* was added or removed in each private table -- the 
+  :class:`~tmlt.analytics.protected_change.AddOneRow` protected change.
+  If the data of a single individual can span multiple rows in the same private
+  table, then this individual is not covered by the privacy promise, only
+  individual rows are.
 
-Because the privacy of individuals depends on how often they appear in a dataset, you should be careful of what kind of pre-processing is done to the private data before loading it into a Session.
-If you start from a DataFrame where each individual appears in a single record, but this property stops being true before the data is loaded into a Session, then you might not get the expected privacy guarantees.
+* If you know that a single individual can appear in at most *k* rows in a private 
+  table, you can load that table into a Session using a different value for the
+  ``protected_change`` parameter.
+  For example, using ``AddMaxRows(k)`` will cause Tumult Analytics to hide the
+  addition or removal of up to *k* rows at once from the corresponding private table.
 
-Subtlety 2: covered inputs & outputs
+* If you want to protect the addition or removal of *arbitrarily many* rows that
+  all share the same *identifier* (in some column), you can use the 
+  :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+  If you add multiple tables that all use ``AddRowsWithID``, the
+  :attr:`~tmlt.analytics.protected_change.AddRowsWithID.identifier` property
+  determines which ID space each table belongs to.
+
+Other possible protected changes are also available, though they are typically
+only needed for advanced use cases.
+See our :mod:`~tmlt.analytics.protected_change` documentation for more information.
+
+Because the privacy of individuals depends on how often they appear in a table,
+you should be careful of what kind of pre-processing is done to the private data
+before loading it into a Session.
+For example, if you start from a table where each individual appears in a single
+record, but this property stops being true before the data is loaded into a Session,
+then using ``AddOneRow`` as a protected change might not reflect the privacy guarantee that you want to achieve.
+
+Subtlety 1: covered inputs & outputs
 ------------------------------------
 
-A Session only provides guarantees on the private datasets, and this guarantee
+A Session only provides guarantees on the private tables, and this guarantee
 only covers data returned by ``evaluate`` calls. Use of the private data in any
 other way is not protected by the Session.
 
@@ -67,7 +96,7 @@ particular, public sources and parameters like ``groupby`` information or
 clamping bounds are not protected. They can reveal private information if the
 private data is used directly to determine them.
 
-Subtlety 3: adversarial model
+Subtlety 2: adversarial model
 -----------------------------
 
 Tumult Analytics, and in particular the Session interface, is designed to make
