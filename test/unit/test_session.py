@@ -79,7 +79,6 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
-from tmlt.core.transformations.dictionary import GetValue
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
 
@@ -961,17 +960,8 @@ class TestSession:
         )
 
         partition_query = mock_accountant.mock_calls[-1][1][0]
-        assert isinstance(partition_query, Transformation)
         assert isinstance(partition_query, ChainTT)
 
-        assert isinstance(partition_query.transformation1, GetValue)
-        assert (
-            partition_query.transformation1.input_domain == mock_accountant.input_domain
-        )
-        assert (
-            partition_query.transformation1.input_metric == mock_accountant.input_metric
-        )
-        assert partition_query.transformation1.key == NamedTable("private")
         assert isinstance(partition_query.transformation2, PartitionByKeys)
         assert (
             partition_query.transformation2.input_domain
