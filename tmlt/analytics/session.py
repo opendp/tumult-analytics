@@ -54,6 +54,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.analytics._table_reference import (
+    TableReference,
     find_named_tables,
     find_reference,
     lookup_domain,
@@ -61,11 +62,12 @@ from tmlt.analytics._table_reference import (
 )
 from tmlt.analytics._transformation_utils import (
     delete_table,
+    get_table_from_ref,
     persist_table,
     rename_table,
     unpersist_table,
 )
-from tmlt.analytics.constraints import Constraint
+from tmlt.analytics.constraints import Constraint, MaxGroupsPerID
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -92,6 +94,7 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
 )
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import AddRemoveKeys as AddRemoveKeysMetric
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -100,7 +103,7 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.dictionary import CreateDictFromValue, GetValue
+from tmlt.core.transformations.dictionary import CreateDictFromValue
 from tmlt.core.transformations.identity import Identity
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.configuration import SparkConfigError, check_java11
@@ -1249,17 +1252,50 @@ class Session:
         self._validate_budget_type_matches_session(privacy_budget)
         self._activate_accountant()
 
-        transformation = GetValue(
-            input_domain=self._input_domain,
-            input_metric=self._input_metric,
-            key=NamedTable(source_id),
+        transformation: Transformation = Identity(
+            domain=self._input_domain, metric=self._input_metric
         )
-        d_mid = self._accountant.d_in[NamedTable(source_id)]
-        if not transformation.stability_relation(self._accountant.d_in, d_mid):
-            raise ValueError(
-                "This partition is unstable: close inputs will not produce "
-                "close outputs."
+        table_ref = find_reference(source_id, self._input_domain)
+        assert isinstance(table_ref, TableReference)
+
+        # Either DictMetric or AddRemoveKeys
+        parent_metric = lookup_metric(self._input_metric, table_ref.parent)
+        table_has_ids: bool = isinstance(parent_metric, AddRemoveKeysMetric)
+        if table_has_ids:
+            parent_last_element = table_ref.parent.identifier
+            constraints = self._table_constraints.get(NamedTable(source_id))
+            if constraints is None:
+                raise AssertionError(
+                    f"Table '{source_id}' has no constraints. This is probably a"
+                    " bug; please let us know about it so we can fix it!"
+                )
+
+            constraint = next(
+                (
+                    c
+                    for c in constraints
+                    if (isinstance(c, MaxGroupsPerID) and c.grouping_column == column)
+                ),
+                None,
             )
+
+            if constraint is None:
+                raise ValueError(
+                    "You must create MaxGroupsPerID constraint before using"
+                    " partition_and_create on tables with the AddRowsWithID"
+                    " protected change."
+                )
+
+            (
+                transformation,
+                table_ref,
+            ) = constraint._enforce(  # pylint: disable=protected-access
+                child_transformation=transformation,
+                child_ref=table_ref,
+                update_metric=True,
+                use_l2=isinstance(self._compiler.output_measure, RhoZCDP),
+            )
+        transformation = get_table_from_ref(transformation, table_ref)
         if not isinstance(
             transformation.output_metric, (IfGroupedBy, SymmetricDifference)
         ):
@@ -1298,14 +1334,32 @@ class Session:
                 )
             new_sources.append(split_name)
             split_vals.append((split_val,))
+
         element_metric: Union[IfGroupedBy, SymmetricDifference]
-        if (
+        if isinstance(transformation.output_metric, SymmetricDifference) or (
             isinstance(transformation.output_metric, IfGroupedBy)
             and column != transformation.output_metric.column
         ):
             element_metric = transformation.output_metric
+        elif (
+            isinstance(transformation.output_metric, IfGroupedBy)
+            and column == transformation.output_metric.column
+        ):
+            assert isinstance(
+                transformation.output_metric.inner_metric,
+                (IfGroupedBy, RootSumOfSquared, SumOf),
+            )
+            assert isinstance(
+                transformation.output_metric.inner_metric.inner_metric,
+                (IfGroupedBy, SymmetricDifference),
+            )
+            element_metric = transformation.output_metric.inner_metric.inner_metric
         else:
-            element_metric = SymmetricDifference()
+            raise AssertionError(
+                "Transformation has an unrecognized output metric. This is "
+                "probably a bug; please let us know about it so  we can fix it!"
+            )
+
         partition_transformation = PartitionByKeys(
             input_domain=transformation_domain,
             input_metric=transformation.output_metric,
@@ -1314,12 +1368,6 @@ class Session:
             list_values=split_vals,
         )
         chained_partition = transformation | partition_transformation
-        if transformation.stability_function(self._accountant.d_in) != d_mid:
-            raise AssertionError(
-                "Transformation's stability function does not match "
-                "transformed data. This is probably a bug; please let us "
-                "know about it so we can fix it!"
-            )
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
@@ -1365,11 +1413,25 @@ class Session:
             )
 
         for i, source in enumerate(new_sources):
-            dict_transformation_wrapper = CreateDictFromValue(
-                input_domain=transformation_domain,
-                input_metric=element_metric,
-                key=NamedTable(source),
-            )
+            if table_has_ids:
+                create_dict = CreateDictFromValue(
+                    input_domain=transformation_domain,
+                    input_metric=element_metric,
+                    key=NamedTable(source),
+                    use_add_remove_keys=True,
+                )
+                dict_transformation_wrapper = create_dict | CreateDictFromValue(
+                    input_domain=create_dict.output_domain,
+                    input_metric=create_dict.output_metric,
+                    key=parent_last_element,
+                )
+            else:
+                dict_transformation_wrapper = CreateDictFromValue(
+                    input_domain=transformation_domain,
+                    input_metric=element_metric,
+                    key=NamedTable(source),
+                )
+
             new_accountants[i].queue_transformation(
                 transformation=dict_transformation_wrapper
             )
