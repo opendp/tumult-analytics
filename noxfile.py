@@ -42,7 +42,8 @@ PACKAGE_SOURCE_DIR = "tmlt/analytics"
 # TODO(#2177): Once we have a better way to self-test our code, use it here in
 #              place of this import check.
 SMOKETEST_SCRIPT = """
-from tmlt.analytics.session import Session
+from tmlt.analytics.utils import check_installation
+check_installation()
 """
 """Python script to run as a quick self-test."""
 
@@ -259,6 +260,13 @@ def _test(
     session.run("coverage", "html", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*", f"--directory={CWD}/coverage/")
     session.run("coverage", "report", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*", f"--fail-under={min_coverage}")
 
+@install_package
+@show_installed
+@with_clean_workdir
+def _smoketest(session):
+    """Run a no-extra-dependencies smoketest on the package."""
+    session.run("python", "-c", SMOKETEST_SCRIPT)
+
 # Only this session, test_doctest, and test_examples one get the 'test' tag,
 # because the others are just subsets of this session so there's no need to run
 # them again.
@@ -267,10 +275,70 @@ def test(session):
     """Run all tests."""
     _test(session)
 
+@poetry_session(python="3.7")
+def test_fast(session):
+    """Run tests without the slow attribute."""
+    _test(session, extra_args=["-m", "not slow"])
+
+@poetry_session(python="3.7")
+def test_slow(session):
+    """Run tests with the slow attribute."""
+    _test(session, min_coverage=0, extra_args=['-m', 'slow'])
+
+@poetry_session(tags=["test"], python="3.7")
+def test_doctest(session):
+    """Run doctest on code examples in docstrings."""
+    _test(
+        session, test_dirs=[Path(PACKAGE_SOURCE_DIR).resolve()],
+        min_coverage=0, extra_args=["--doctest-modules"]
+    )
+
+@poetry_session(tags=["test"])
+def test_smoketest(session):
+    """Smoke test a wheel as it would be installed on a user's machine."""
+    _smoketest(session)
+
+@poetry_session(tags=["test"], python="3.7")
+@install_package
+@install("notebook", "nbconvert")
+@show_installed
+def test_examples(session):
+    """Run all examples."""
+    examples_path = CWD / "examples"
+    if not examples_path.exists():
+        session.error("No examples directory found, nothing to run")
+    examples_py = []
+    examples_ipynb = []
+    unknown = []
+    ignored = []
+    for f in examples_path.iterdir():
+        if f.is_file and f.suffix == ".py":
+            examples_py.append(f)
+        elif f.is_file and f.suffix == ".ipynb":
+            if ".nbconvert" not in f.suffixes:
+                examples_ipynb.append(f)
+            else:
+                ignored.append(f)
+        else:
+            unknown.append(f)
+    for py in examples_py:
+        session.run("python", str(py))
+    for nb in examples_ipynb:
+        session.run("jupyter", "nbconvert", "--to=notebook", "--execute", str(nb))
+    if ignored:
+        session.log(
+            f"Ignored: {', '.join(str(f) for f in ignored)}"
+        )
+    if unknown:
+        session.warn(
+            f"Found unknown files in examples: {', '.join(str(f) for f in unknown)}"
+        )
+
 ### Test various dependency configurations ###
 # Test each with oldest and newest allowable deps. Typeguard and typing-extensions
 # excluded because all of the allowed versions in pyproject.toml claim support
 # for all allowable python versions.
+
 @nox_session
 @install("pytest", "coverage")
 @with_clean_workdir
@@ -322,60 +390,6 @@ def test_multi_deps(session, pyspark, sympy, pandas, core):
      f"--directory={CWD}/coverage/")
     session.run("coverage", "report", f"--include={CWD}/{PACKAGE_SOURCE_DIR}/*",
      "--fail-under=75")
-
-@poetry_session(python="3.7")
-def test_fast(session):
-    """Run tests without the slow attribute."""
-    _test(session, extra_args=["-m", "not slow"])
-
-@poetry_session(python="3.7")
-def test_slow(session):
-    """Run tests with the slow attribute."""
-    _test(session, min_coverage=0, extra_args=['-m', 'slow'])
-
-@poetry_session(tags=["test"], python="3.7")
-def test_doctest(session):
-    """Run doctest on code examples in docstrings."""
-    _test(
-        session, test_dirs=[Path(PACKAGE_SOURCE_DIR).resolve()],
-        min_coverage=0, extra_args=["--doctest-modules"]
-    )
-
-@poetry_session(tags=["test"], python="3.7")
-@install_package
-@install("notebook", "nbconvert")
-@show_installed
-def test_examples(session):
-    """Run all examples."""
-    examples_path = CWD / "examples"
-    if not examples_path.exists():
-        session.error("No examples directory found, nothing to run")
-    examples_py = []
-    examples_ipynb = []
-    unknown = []
-    ignored = []
-    for f in examples_path.iterdir():
-        if f.is_file and f.suffix == ".py":
-            examples_py.append(f)
-        elif f.is_file and f.suffix == ".ipynb":
-            if ".nbconvert" not in f.suffixes:
-                examples_ipynb.append(f)
-            else:
-                ignored.append(f)
-        else:
-            unknown.append(f)
-    for py in examples_py:
-        session.run("python", str(py))
-    for nb in examples_ipynb:
-        session.run("jupyter", "nbconvert", "--to=notebook", "--execute", str(nb))
-    if ignored:
-        session.log(
-            f"Ignored: {', '.join(str(f) for f in ignored)}"
-        )
-    if unknown:
-        session.warn(
-            f"Found unknown files in examples: {', '.join(str(f) for f in unknown)}"
-        )
 
 #### Documentation ####
 
@@ -454,9 +468,6 @@ def prepare_release(session):
         session.log("Prerelease, skipping CHANGELOG.rst update...")
 
 @nox_session()
-@install_package
-@show_installed
-@with_clean_workdir
 def release_smoketest(session):
     """Smoke test a wheel as it would be installed on a user's machine.
 
@@ -466,7 +477,7 @@ def release_smoketest(session):
     Note: This session doesn't do anything useful when run with the `--no-venv`
           option, as it requires a clean environment to install things in.
     """
-    session.run("python", "-c", SMOKETEST_SCRIPT)
+    _smoketest(session)
 
 @nox_session()
 def release_test(session):
