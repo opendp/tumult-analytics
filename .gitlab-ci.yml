@@ -90,7 +90,7 @@ lint:
 # This is a separate job from a regular "lint"
 # so that it can inherit artifacts from core
 lint_from_core:
-  extends: lint 
+  extends: lint
   needs:
     - project: tumult-labs/core
       job: package_linux
@@ -104,7 +104,7 @@ lint_from_core:
 # This is a separate job from a regular "test"
 # so that it can inherit artifacts from core
 test_from_core:
-  extends: test 
+  extends: test
   needs:
     - project: tumult-labs/core
       job: package_linux
@@ -120,9 +120,9 @@ test:
   stage: test
   needs: ["package"]
   script:
-    # Run doctest first so that it doesn't overwrite the coverage report
-    # from test_fast.
-    - nox -s test_doctest test_fast
+    # Run doctest before test_fast so that it doesn't overwrite the coverage
+    # report from test_fast.
+    - nox -s test_smoketest test_doctest test_fast
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     paths: ["coverage/"]
