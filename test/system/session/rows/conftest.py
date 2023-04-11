@@ -595,6 +595,7 @@ EVALUATE_TESTS = [
     ),
 ]
 
+
 ### DATA FOR GENERAL SESSIONS ###
 @pytest.fixture(name="session_data", scope="class")
 def sess_data(spark, request):

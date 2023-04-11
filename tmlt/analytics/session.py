@@ -544,8 +544,8 @@ class Session:
                 sympy_budget = ExactNumber.from_float(float("inf"), round_up=False).expr
             else:
                 warn(
-                    "The use of ApproxDP is not yet fully supported. Your session will"
-                    " be initialized with PureDP using the epsilon provided.",
+                    "The use of ApproxDP is not yet fully supported. Your session"
+                    " will be initialized with PureDP using the epsilon provided.",
                     UserWarning,
                 )
                 sympy_budget = ExactNumber.from_float(
@@ -1462,15 +1462,16 @@ class Session:
             if privacy_budget.is_infinite:
                 warn(
                     "The use of ApproxDP is not yet fully supported. Because you"
-                    " selected an infinite ApproxDP budget, your budget request will be"
-                    " processed as PureDP with an infinite epsilon budget.",
+                    " selected an infinite ApproxDP budget, your budget request"
+                    " will be processed as PureDP with an infinite epsilon budget.",
                     UserWarning,
                 )
                 return ExactNumber.from_float(float("inf"), round_up=False)
             else:
                 warn(
                     "The use of ApproxDP is not yet fully supported. your budget"
-                    " request will be processed as PureDP using the epsilon provided.",
+                    " request will be processed as PureDP using the epsilon"
+                    " provided.",
                     UserWarning,
                 )
                 return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)

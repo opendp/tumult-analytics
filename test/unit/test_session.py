@@ -1863,8 +1863,8 @@ class TestSessionBuilder:
             (
                 None,
                 "A",
-                "Providing a grouping_column parameter instead of a protected_change"
-                " parameter is deprecated",
+                "Providing a grouping_column parameter instead of a"
+                " protected_change parameter is deprecated",
             ),
             (
                 1,
@@ -1874,8 +1874,8 @@ class TestSessionBuilder:
             (
                 1,
                 "A",
-                "Providing a grouping_column parameter instead of a protected_change"
-                " parameter is deprecated",
+                "Providing a grouping_column parameter instead of a"
+                " protected_change parameter is deprecated",
             ),
         ],
     )

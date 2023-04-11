@@ -18,3 +18,4 @@ and help you get started making differentially private queries.
    clamping-bounds
    groupby-queries
    simple-transformations
+   privacy-id-basics
