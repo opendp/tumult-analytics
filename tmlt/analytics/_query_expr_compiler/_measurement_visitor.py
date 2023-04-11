@@ -231,7 +231,7 @@ class MeasurementVisitor(QueryExprVisitor):
             if not truncatable_constraints:
                 raise RuntimeError(
                     "A constraint on the number of rows contributed by each ID "
-                    "is needed to perform this query."
+                    "is needed to perform this query (e.g. MaxRowsPerID)."
                 )
 
             for c in truncatable_constraints[0]:
