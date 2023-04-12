@@ -147,9 +147,9 @@ def _generate_neighboring_relation(
                 )
             )
         elif isinstance(protected_change, AddRowsWithID):
-            if protected_ids_dict.get(protected_change.identifier) is None:
-                protected_ids_dict[protected_change.identifier] = {}
-            protected_ids_dict[protected_change.identifier][
+            if protected_ids_dict.get(protected_change.id_space) is None:
+                protected_ids_dict[protected_change.id_space] = {}
+            protected_ids_dict[protected_change.id_space][
                 name
             ] = protected_change.id_column
         else:
@@ -176,7 +176,7 @@ class Session:
             self._privacy_budget: Optional[PrivacyBudget] = None
             self._private_sources: Dict[str, _PrivateSourceTuple] = {}
             self._public_sources: Dict[str, DataFrame] = {}
-            self._primary_ids: List[str] = []
+            self._id_spaces: List[str] = []
 
         def build(self) -> "Session":
             """Builds Session with specified configuration."""
@@ -194,16 +194,16 @@ class Session:
                     self._privacy_budget, tables, neighboring_relation
                 )
             )
-            # check list of ARK identifiers agains session's primary IDs
+            # check list of ARK identifiers agains session's ID spaces
             assert isinstance(neighboring_relation, Conjunction)
             for child in neighboring_relation.children:
                 if isinstance(child, AddRemoveKeys):
-                    if child.primary_id not in self._primary_ids:
+                    if child.id_space not in self._id_spaces:
                         raise ValueError(
                             "An AddRowsWithID protected change was specified without "
-                            "an associated primary identifier for the session.\n"
-                            f"AddRowsWithID identifier provided: {child.primary_id}\n"
-                            f"Primary identifiers for the session: {self._primary_ids}"
+                            "an associated identifier space for the session.\n"
+                            f"AddRowsWithID identifier provided: {child.id_space}\n"
+                            f"Identifier spaces for the session: {self._id_spaces}"
                         )
             # add public sources
             for source_id, dataframe in self._public_sources.items():
@@ -345,22 +345,22 @@ class Session:
             self._public_sources[source_id] = dataframe
             return self
 
-        def with_primary_id(self, primary_id: str) -> "Session.Builder":
-            """Sets the primary ID for the session.
+        def with_id_space(self, id_space: str) -> "Session.Builder":
+            """Sets the identifier space for the session.
 
             This defines the space of identifiers that map 1-to-1 to the identifiers
             being protected. Any IDs table must have exactly one column containing
             those identifiers.
 
             Args:
-                primary_id: The primary ID for the session.
+                id_space: The identifier space for the session.
             """
-            _assert_is_identifier(primary_id)
-            if primary_id in self._primary_ids:
+            _assert_is_identifier(id_space)
+            if id_space in self._id_spaces:
                 raise ValueError(
-                    f"This Builder already has a primary ID of the name: {primary_id}."
+                    f"This Builder already has an ID space of the name: {id_space}."
                 )
-            self._primary_ids.append(primary_id)
+            self._id_spaces.append(id_space)
             return self
 
     def __init__(
@@ -506,7 +506,7 @@ class Session:
             )
         )
         if isinstance(protected_change, AddRowsWithID):
-            session_builder.with_primary_id(protected_change.identifier)
+            session_builder.with_id_space(protected_change.id_space)
         return session_builder.build()
 
     @classmethod

@@ -99,8 +99,8 @@ def session(_session_data, request):
     sess = (
         Session.Builder()
         .with_privacy_budget(budget)
-        .with_primary_id("a")
-        .with_primary_id("b")
+        .with_id_space("a")
+        .with_id_space("b")
         # a and b use the same data, but they're still separate identifier
         # spaces; this is just to check that things like cross-ID-space joins
         # are detected.

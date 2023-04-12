@@ -173,7 +173,7 @@ class TestNeighboringRelations:
     def test_add_remove_keys_post_init(self) -> None:
         """Test post init for AddRemoveKeys."""
         key_dict = {"table1": "A"}
-        identifier = "primary_id"
+        identifier = "item_id"
         with pytest.raises(ValueError):
             AddRemoveKeys(identifier, key_dict, max_keys=0)
         with pytest.raises(ValueError):
@@ -183,7 +183,7 @@ class TestNeighboringRelations:
         """Test that validate works as expected for AddRemoveKeys."""
         key_dict = {"table1": "A", "table2": "A"}
         valid_dict = {"table1": self.table1, "table2": self.table2}
-        identifier = "primary_id"
+        identifier = "item_id"
         assert AddRemoveKeys(identifier, key_dict).validate_input(valid_dict)
         assert AddRemoveKeys(identifier, key_dict).validate_input(valid_dict)
         # Input dict has too few elements

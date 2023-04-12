@@ -96,6 +96,8 @@ def test_add_max_rows_per_group_invalid(
                 TypeError, match="^type of id_column must be str; got int instead$"
             ),
         ),
+        (["x", "x_space"], does_not_raise()),
+        (["x", ""], pytest.raises(ValueError, match="identifier must be non-empty")),
     ],
 )
 def test_add_rows_with_id_invalid(

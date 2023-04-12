@@ -116,14 +116,15 @@ class AddRowsWithID(ProtectedChange):
     id_column: str
     """The name of the column containing the identifier."""
 
-    identifier: str = "primary_id"
-    """The identifier of the rows that may be added or removed. If not specified,
-    a default identifier will be assigned."""
+    id_space: str = "default_id_space"
+    """The identifier space of the rows that may be added or removed. If not specified,
+    a default will be assigned when using this protected change with
+    :class:`tmlt.analytics.session.Session.from_dataframe`."""
 
     def __post_init__(self):
         """Validate attributes."""
-        check_type("identifier", self.identifier, str)
-        if self.identifier and self.identifier == "":
+        check_type("id_space", self.id_space, str)
+        if self.id_space == "":
             raise ValueError("identifier must be non-empty")
         check_type("id_column", self.id_column, str)
         if self.id_column == "":
