@@ -139,6 +139,37 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
     assert isinstance(query, GroupByCount)
 
 
+def test_join_private_str() -> None:
+    """Test join_private("table_name") works as expected."""
+    query = (
+        root_builder()
+        .join_private(
+            right_operand="private_2",
+            truncation_strategy_left=TruncationStrategy.DropExcess(1),
+            truncation_strategy_right=TruncationStrategy.DropExcess(2),
+            join_columns=None,
+        )
+        .groupby(KeySet.from_dict({"A": ["1", "2"]}))
+        .count()
+    )
+
+    assert isinstance(query, GroupByCount)
+    private_join_expr = query.child
+    assert isinstance(private_join_expr, JoinPrivate)
+    assert private_join_expr.join_columns is None
+    assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
+        1
+    )
+    assert private_join_expr.truncation_strategy_right == TruncationStrategy.DropExcess(
+        2
+    )
+    right_operand_expr = private_join_expr.right_operand_expr
+    assert isinstance(right_operand_expr, PrivateSource)
+    assert right_operand_expr.source_id == "private_2"
+
+    assert isinstance(query, GroupByCount)
+
+
 def test_rename():
     """QueryBuilder rename works as expected."""
     column_mapper = {"A": "Z"}

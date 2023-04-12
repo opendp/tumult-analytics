@@ -270,13 +270,16 @@ class QueryBuilder:
 
     def join_private(
         self,
-        right_operand: "QueryBuilder",
+        right_operand: Union["QueryBuilder", str],
         truncation_strategy_left: Optional[TruncationStrategy.Type] = None,
         truncation_strategy_right: Optional[TruncationStrategy.Type] = None,
         join_columns: Optional[Sequence[str]] = None,
     ) -> "QueryBuilder":
         # pylint: disable=protected-access
         """Updates the current query to join with another :class:`QueryBuilder`.
+
+        The current query can also join with a named private table (represented
+        as a string).
 
         This operation is a natural join, with the same behavior and requirements as
         :func:`join_public`.
@@ -377,11 +380,15 @@ class QueryBuilder:
                             When calling ``query_a.join_private(query_b, ...)``, we
                             refer to ``query_a`` as the *left table* and ``query_b`` as
                             the *right table*.
+                            ``query_a.join_private("table")`` is shorthand for
+                            ``query_a.join_private(QueryBuilder("table"))``.
             truncation_strategy_left: Strategy for truncation of the left table.
             truncation_strategy_right: Strategy for truncation of the right table.
             join_columns: The columns to join on. If ``join_columns`` is not specified,
                           the tables will be joined on all common columns.
         """
+        if isinstance(right_operand, str):
+            right_operand = QueryBuilder(right_operand)
         self._query_expr = JoinPrivate(
             self._query_expr,
             right_operand._query_expr,
