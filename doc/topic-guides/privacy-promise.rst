@@ -68,7 +68,7 @@ specify what kind of protected change to use for this table.
   all share the same *identifier* (in some column), you can use the 
   :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
   If you add multiple tables that all use ``AddRowsWithID``, the
-  :attr:`~tmlt.analytics.protected_change.AddRowsWithID.identifier` property
+  :attr:`~tmlt.analytics.protected_change.AddRowsWithID.id_space` property
   determines which ID space each table belongs to.
 
 Other possible protected changes are also available, though they are typically

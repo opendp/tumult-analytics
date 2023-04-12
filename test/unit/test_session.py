@@ -341,7 +341,7 @@ class TestSession:
                 PureDP(),
                 DictMetric(
                     {
-                        TableCollection("primary_id"): CoreAddRemoveKeys(
+                        TableCollection("default_id_space"): CoreAddRemoveKeys(
                             {NamedTable("private"): "A"}
                         )
                     }
@@ -378,7 +378,7 @@ class TestSession:
             mock_composition_init.return_value.privacy_budget = (
                 _privacy_budget_to_exact_number(budget)
             )
-            expected_d_in = {TableCollection("primary_id"): 1}
+            expected_d_in = {TableCollection("default_id_space"): 1}
             mock_composition_init.return_value.d_in = expected_d_in
             mock_composition_init.return_value.output_measure = expected_output_measure
 
@@ -390,7 +390,7 @@ class TestSession:
             )
 
             expected_input_domain = DictDomain(
-                {TableCollection("primary_id"): self.sdf_input_domain}
+                {TableCollection("default_id_space"): self.sdf_input_domain}
             )
 
             mock_composition_init.assert_called_with(
@@ -403,7 +403,7 @@ class TestSession:
             mock_composition_init.return_value.assert_called()
             assert_frame_equal_with_sort(
                 mock_composition_init.return_value.mock_calls[0][1][0][
-                    TableCollection("primary_id")
+                    TableCollection("default_id_space")
                 ][NamedTable("private")].toPandas(),
                 self.sdf.toPandas(),
             )
@@ -1920,7 +1920,7 @@ class TestSessionBuilder:
 
     def test_build_invalid_identifier(self):
         """Tests that build fails if protected change does
-        not have associated primary ID."""
+        not have associated ID space."""
         builder = (
             Session.Builder()
             .with_private_dataframe(
@@ -1931,54 +1931,54 @@ class TestSessionBuilder:
             .with_privacy_budget(PureDPBudget(1))
         )
 
-        assert len(builder._primary_ids) == 0  # pylint: disable=protected-access
+        assert len(builder._id_spaces) == 0  # pylint: disable=protected-access
 
         with pytest.raises(
             ValueError,
             match=(
                 "An AddRowsWithID protected change was specified without an "
-                "associated primary identifier"
+                "associated identifier space"
             ),
         ):
             builder.build()
 
-        builder.with_primary_id("not_random_id")
+        builder.with_id_space("not_random_id")
         with pytest.raises(
             ValueError,
             match=(
                 "An AddRowsWithID protected change was specified without an "
-                "associated primary identifier"
+                "associated identifier space"
             ),
         ):
             builder.build()
-        ### build should succeed when the primary identifier is added
-        builder = builder.with_primary_id("random_id")
-        with pytest.raises(ValueError, match="This Builder already has a primary ID"):
-            builder.with_primary_id("random_id")
-        assert len(builder._primary_ids) == 2  # pylint: disable=protected-access
+        ### build should succeed when the identifier space is added
+        builder = builder.with_id_space("random_id")
+        with pytest.raises(ValueError, match="This Builder already has an ID space"):
+            builder.with_id_space("random_id")
+        assert len(builder._id_spaces) == 2  # pylint: disable=protected-access
         builder.build()
 
     def test_build_multiple_ids(self):
-        """Tests that build succeeds with multiple primary IDs."""
+        """Tests that build succeeds with multiple ID spaces."""
         builder = (
             Session.Builder()
             .with_private_dataframe(
                 source_id="private1",
                 dataframe=self.dataframes["df1"],
-                protected_change=AddRowsWithID("A", "primary_id_1"),
+                protected_change=AddRowsWithID("A", "id_space_1"),
             )
-            .with_primary_id("primary_id_1")
+            .with_id_space("id_space_1")
         )
         builder.with_private_dataframe(
             source_id="private2",
             dataframe=self.dataframes["df2"],
-            protected_change=AddRowsWithID("C", "primary_id_2"),
-        ).with_primary_id("primary_id_2")
+            protected_change=AddRowsWithID("C", "id_space_2"),
+        ).with_id_space("id_space_2")
 
         builder.with_private_dataframe(
             source_id="private3",
             dataframe=self.dataframes["df3"],
-            protected_change=AddRowsWithID("Y", "primary_id_1"),
+            protected_change=AddRowsWithID("Y", "id_space_1"),
         )
 
         builder.with_privacy_budget(PureDPBudget(1)).build()

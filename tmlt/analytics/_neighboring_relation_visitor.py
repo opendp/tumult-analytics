@@ -52,7 +52,7 @@ class _RelationIDVisitor(NeighboringRelationVisitor):
         return NamedTable(s)
 
     def visit_add_remove_keys(self, relation: AddRemoveKeys) -> Identifier:
-        return TableCollection(relation.primary_id)
+        return TableCollection(relation.id_space)
 
     def visit_conjunction(self, relation: Conjunction) -> Identifier:
         # Since conjunctions are automatically flattened, they should never need names.

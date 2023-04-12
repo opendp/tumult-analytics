@@ -201,8 +201,8 @@ class AddRemoveKeys(NeighboringRelation):
     tables.
     """
 
-    primary_id: str
-    """The id protected in the relation."""
+    id_space: str
+    """The identifier space protected in the relation."""
     table_to_key_column: Dict[str, str]
     """A dictionary mapping table names to key columns."""
     max_keys: int = field(default=1)
@@ -212,11 +212,11 @@ class AddRemoveKeys(NeighboringRelation):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("primary_id", self.primary_id, str)
+        check_type("id_space", self.id_space, str)
         check_type("table_to_key_column", self.table_to_key_column, Dict[str, str])
         check_type("max_keys", self.max_keys, int)
-        if self.primary_id == "":
-            raise ValueError("primary id must be non-empty")
+        if self.id_space == "":
+            raise ValueError("id space must be non-empty")
         if len(self.table_to_key_column) == 0:
             raise ValueError("table_to_key_column must contain at least one table")
         if self.max_keys < 1:
