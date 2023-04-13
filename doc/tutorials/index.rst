@@ -19,3 +19,4 @@ and help you get started making differentially private queries.
    groupby-queries
    simple-transformations
    privacy-id-basics
+   more-with-privacy-ids
