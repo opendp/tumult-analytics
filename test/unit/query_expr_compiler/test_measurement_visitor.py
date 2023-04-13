@@ -1043,7 +1043,7 @@ class TestMeasurementVisitor:
         table_domain = transformation.output_domain
         assert isinstance(table_domain, SparkDataFrameDomain)
         expected_groupby_domain = SparkGroupedDataFrameDomain(
-            schema=table_domain.schema.copy(), group_keys=query.groupby_keys.dataframe()
+            schema=dict(table_domain.schema), group_keys=query.groupby_keys.dataframe()
         )
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert info.groupby.output_domain.schema == expected_groupby_domain.schema

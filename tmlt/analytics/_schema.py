@@ -30,6 +30,7 @@ from pyspark.sql.types import (
 
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.spark_domains import (
+    SparkColumnDescriptor,
     SparkColumnsDescriptor,
     SparkDataFrameDomain,
     SparkDateColumnDescriptor,
@@ -295,7 +296,7 @@ def analytics_to_spark_columns_descriptor(
     analytics_schema: Schema,
 ) -> SparkColumnsDescriptor:
     """Convert a schema in Analytics representation to a Spark columns descriptor."""
-    out: SparkColumnsDescriptor = {}
+    out: Dict[str, SparkColumnDescriptor] = {}
     for column_name, column_desc in analytics_schema.column_descs.items():
         if column_desc.column_type == ColumnType.DECIMAL:
             out[column_name] = SparkFloatColumnDescriptor(
