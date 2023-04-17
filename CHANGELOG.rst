@@ -25,6 +25,7 @@ Changed
 - *Backwards-incompatible*: Renamed ``query_expr.Filter`` property from "predicate" to "condition".
 - *Backwards-incompatible*: Renamed ``KeySet.filter`` argument from "expr" to "condition".
 - ``QueryBuilder.join_private`` now accepts a string as a ``right_operand``. ``QueryBuilder("table").join_private("foo")`` is equivalent to ``QueryBuilder("table").join_private(QueryBuilder("foo"))``.
+- *Backwards-incompatible*: Removed the ``attr_name`` argument from ``Session.partition_and_create``.
 
 Fixed
 ~~~~~
