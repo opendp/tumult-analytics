@@ -13,6 +13,7 @@ Added
 - Added a new :class:`tmlt.analytics.protected_change.AddRowsWithID` class, which protects the addition or removal of all rows with the same value in a specified column.
   When creating a session with AddRowsWithID for multiple tables, you must use the new :meth:`Session.Builder.with_id_space <tmlt.analytics.session.Session.Builder.with_id_space>` method to specify the identifier space(s) of the tables.
   See the documentation for :class:`tmlt.analytics.protected_change.AddRowsWithID` for more information.
+- Added a new method, :meth:`tmlt.analytics.session.Session.describe`, which describes a session, query, or table.
 
 
 Changed

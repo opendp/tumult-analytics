@@ -43,7 +43,10 @@ from tmlt.analytics.query_expr import (
 
 
 def _output_schema_for_join(
-    left_schema: Schema, right_schema: Schema, join_columns: Optional[List[str]]
+    left_schema: Schema,
+    right_schema: Schema,
+    join_columns: Optional[List[str]],
+    join_id_space: Optional[str] = None,
 ) -> Schema:
     """Return the resulting schema from joining two tables.
 
@@ -56,6 +59,7 @@ def _output_schema_for_join(
         left_schema: Schema for the left table.
         right_schema: Schema for the right table.
         join_columns: The set of columns to join on.
+        join_id_space: The ID space of the resulting join.
     """
     if left_schema.grouping_column is None:
         grouping_column = right_schema.grouping_column
@@ -111,7 +115,10 @@ def _output_schema_for_join(
         },
     }
     return Schema(
-        output_schema, grouping_column=grouping_column, id_column=left_schema.id_column
+        output_schema,
+        grouping_column=grouping_column,
+        id_column=left_schema.id_column,
+        id_space=join_id_space,
     )
 
 
@@ -289,6 +296,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         input_schema = expr.child.accept(self)
         grouping_column = input_schema.grouping_column
         id_column = input_schema.id_column
+        id_space = input_schema.id_space
         nonexistent_columns = set(expr.column_mapper) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
@@ -311,6 +319,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=grouping_column,
             id_column=id_column,
+            id_space=id_space,
         )
 
     def visit_filter(self, expr: Filter) -> Schema:
@@ -384,6 +393,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             {column: input_schema[column] for column in expr.columns},
             grouping_column=grouping_column,
             id_column=id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_map(self, expr: Map) -> Schema:
@@ -436,6 +446,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 {**input_schema, **new_columns},
                 grouping_column=input_schema.grouping_column,
                 id_column=input_schema.id_column,
+                id_space=input_schema.id_space,
             )
         elif input_schema.grouping_column:
             raise ValueError(
@@ -521,6 +532,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 {**input_schema, **new_columns},
                 grouping_column=grouping_column,
                 id_column=input_schema.id_column,
+                id_space=input_schema.id_space,
             )
         elif input_schema.grouping_column:
             raise ValueError(
@@ -607,10 +619,23 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 "protected change are only possible when the ID columns of "
                 "the two tables have the same name"
             )
+        if (
+            left_schema.id_space
+            and right_schema.id_space
+            and left_schema.id_space != right_schema.id_space
+        ):
+            raise ValueError(
+                "Private joins between tables with the AddRowsWithID protected change"
+                " are only possible when both tables are in the same ID space"
+            )
+        join_id_space: Optional[str] = None
+        if left_schema.id_space and right_schema.id_space:
+            join_id_space = left_schema.id_space
         return _output_schema_for_join(
             left_schema=left_schema,
             right_schema=right_schema,
             join_columns=expr.join_columns,
+            join_id_space=join_id_space,
         )
 
     def visit_join_public(self, expr: JoinPublic) -> Schema:
@@ -656,6 +681,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             left_schema=input_schema,
             right_schema=right_schema,
             join_columns=expr.join_columns,
+            join_id_space=input_schema.id_space,
         )
 
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
@@ -715,6 +741,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=input_schema.grouping_column,
             id_column=input_schema.id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Schema:
@@ -769,6 +796,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=input_schema.grouping_column,
             id_column=input_schema.id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Schema:
@@ -817,6 +845,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=input_schema.grouping_column,
             id_column=input_schema.id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_drop_infinity(self, expr: DropInfinity) -> Schema:
@@ -873,6 +902,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             },
             grouping_column=input_schema.grouping_column,
             id_column=input_schema.id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Schema:

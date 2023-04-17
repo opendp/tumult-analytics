@@ -52,7 +52,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics._table_identifier import Identifier, NamedTable
+from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.analytics._table_reference import (
     TableReference,
     find_named_tables,
@@ -660,15 +660,21 @@ class Session:
                 are being retrieved.
         """
         ref = find_reference(source_id, self._input_domain)
+        id_space: Optional[str] = None
+        if source_id in self.private_sources:
+            id_space = self.get_id_space(source_id)
         if ref is not None:
             domain = lookup_domain(self._input_domain, ref)
-            return Schema(spark_dataframe_domain_to_analytics_columns(domain))
+            return Schema(
+                spark_dataframe_domain_to_analytics_columns(domain), id_space=id_space
+            )
         else:
             try:
                 return Schema(
                     spark_schema_to_analytics_columns(
                         self.public_source_dataframes[source_id].schema
-                    )
+                    ),
+                    id_space=id_space,
                 )
             except KeyError:
                 raise KeyError(
@@ -741,6 +747,37 @@ class Session:
             return metric.column
         return None
 
+    @typechecked
+    def get_id_space(self, source_id: str) -> Optional[str]:
+        """Returns the ID space of a table, if it has one.
+
+        Args:
+            source_id: The name of the table whose ID space is being retrieved.
+        """
+        # Make sure the table exists
+        ref = find_reference(source_id, self._input_domain)
+        if ref is None:
+            if source_id in self.public_sources:
+                raise ValueError(
+                    f"Table '{source_id}' is a public table, which cannot have an "
+                    "ID space."
+                )
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available private tables are: {', '.join(self.private_sources)}"
+            )
+        # Tables not in an ID space will have a parent of ([])
+        if ref.parent == TableReference([]):
+            return None
+        # Otherwise, the parent should be a TableCollection("id_space")
+        parent_identifier = ref.parent.identifier
+        assert isinstance(parent_identifier, TableCollection), (
+            "Expected parent to be a table collection but got"
+            f" {parent_identifier} instead. This is probably a bug; please let us know"
+            " about it so we can fix it!"
+        )
+        return parent_identifier.name
+
     @property
     def _catalog(self) -> Catalog:
         """Returns a Catalog of tables in the Session."""
@@ -751,6 +788,7 @@ class Session:
                 self.get_schema(table),
                 grouping_column=self.get_grouping_column(table),
                 id_column=self.get_id_column(table),
+                id_space=self.get_id_space(table),
             )
         for table in self.public_sources:
             catalog.add_public_table(
@@ -1530,9 +1568,7 @@ class Session:
         """Close out this session, allowing other sessions to become active."""
         self._accountant.retire()
 
-    def _describe(
-        self, x: Optional[Union[QueryExpr, QueryBuilder, str]] = None
-    ) -> None:
+    def describe(self, x: Optional[Union[QueryExpr, QueryBuilder, str]] = None) -> None:
         """Describe this session, or a query, or a table.
 
         If ``x`` is ``None``, ``session._describe(x)`` will describe the session.
@@ -1674,7 +1710,7 @@ def _describe_schema(schema: Schema) -> List[str]:
         quoted_column_name = f"'{column_name}'"
         column_str = f"\t- {quoted_column_name:<{column_length}}  {cd.column_type}"
         if column_name == schema.id_column:
-            column_str += ", ID column"
+            column_str += f", ID column (in ID space {schema.id_space})"
         if column_name == schema.grouping_column:
             column_str += ", grouping column"
         if not cd.allow_null:
