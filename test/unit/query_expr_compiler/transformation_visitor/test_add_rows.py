@@ -501,8 +501,8 @@ class TestAddRows(TestTransformationVisitor):
                 pd.DataFrame({"S": ["asdf", "qwer"], "I": [0, 1]}),
                 StructType(
                     [
-                        StructField("S", StringType(), False),
-                        StructField("I", LongType(), False),
+                        StructField("S", StringType(), True),
+                        StructField("I", LongType(), True),
                     ]
                 ),
                 pd.DataFrame([], columns=["S", "I", "F", "D", "T"]),

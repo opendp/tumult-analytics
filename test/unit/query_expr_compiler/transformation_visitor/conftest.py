@@ -255,7 +255,7 @@ def _catalog(request):
     catalog.add_public_table(
         "public",
         {
-            "S": ColumnDescriptor(ColumnType.VARCHAR),
+            "S": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
             "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "public": ColumnDescriptor(ColumnType.VARCHAR),
         },
@@ -355,7 +355,7 @@ def _visitor(spark, request):
             pd.DataFrame({"S": ["0", "1"], "I": [0, 1], "public": ["x", "y"]}),
             schema=StructType(
                 [
-                    StructField("S", StringType(), False),
+                    StructField("S", StringType(), True),
                     StructField("I", LongType(), True),
                     StructField("public", StringType(), False),
                 ]
