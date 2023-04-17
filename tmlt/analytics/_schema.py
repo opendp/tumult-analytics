@@ -95,6 +95,7 @@ class Schema(Mapping):
         column_descs: MappingType[str, Union[str, ColumnType, ColumnDescriptor]],
         grouping_column: Optional[str] = None,
         id_column: Optional[str] = None,
+        id_space: Optional[str] = None,
         default_allow_null: bool = False,
         default_allow_nan: bool = False,
         default_allow_inf: bool = False,
@@ -105,6 +106,7 @@ class Schema(Mapping):
             column_descs: Mapping from column names to supported types.
             grouping_column: Optional column that must be grouped by in this query.
             id_column: The ID column on this table, if one exists.
+            id_space: The ID space for this table, if one exists.
             default_allow_null: When a ColumnType or string is used as the value
                 in the ColumnDescriptors mapping, the column will allow_null if
                 default_allow_null is True.
@@ -129,6 +131,7 @@ class Schema(Mapping):
                 f"ID column '{id_column}' is not one of the provided columns"
             )
         self._id_column = id_column
+        self._id_space = id_space
 
         supported_types: List[str] = [t.name for t in list(ColumnType)]
         column_types: List[str] = []
@@ -186,6 +189,11 @@ class Schema(Mapping):
         """Return whether the grouping column is an ID column."""
         return self._id_column
 
+    @property
+    def id_space(self) -> Optional[str]:
+        """Return the ID space for this schema."""
+        return self._id_space
+
     def __eq__(self, other: object) -> bool:
         """Returns True if schemas are equal.
 
@@ -196,6 +204,8 @@ class Schema(Mapping):
             return (
                 self.column_descs == other.column_descs
                 and self.grouping_column == other.grouping_column
+                and self.id_column == other.id_column
+                and self.id_space == other.id_space
             )
         return False
 
@@ -217,19 +227,15 @@ class Schema(Mapping):
 
     def __repr__(self) -> str:
         """Return a string representation of self."""
-        if self.grouping_column and self.id_column:
-            return (
-                f"Schema({self.column_descs}, "
-                f"grouping_column='{self.grouping_column}', "
-                f"id_column={self.id_column})"
-            )
-        elif self.grouping_column:
-            return (
-                f"Schema({self.column_descs}, grouping_column='{self.grouping_column}')"
-            )
-        elif self.id_column:
-            return f"Schema({self.column_descs}, id_column='{self.id_column}')"
-        return f"Schema({self.column_descs})"
+        out = f"Schema({self.column_descs}"
+        if self.grouping_column:
+            out += f", grouping_column={self.grouping_column}"
+        if self.id_column:
+            out += f", id_column={self.id_column}"
+        if self.id_space:
+            out += f", id_space={self.id_space}"
+        out += ")"
+        return out
 
 
 _SPARK_TO_ANALYTICS: Dict[DataType, ColumnType] = {

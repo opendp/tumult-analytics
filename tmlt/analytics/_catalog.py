@@ -18,6 +18,8 @@ class Table(ABC):
     """The source id, or unique identifier, for the table."""
     schema: Schema
     """The analytics schema for the table. Describes the column types."""
+    id_space: Optional[str] = None
+    """The identifier space for the table."""
 
 
 @dataclass
@@ -66,6 +68,7 @@ class Catalog:
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         grouping_column: Optional[str] = None,
         id_column: Optional[str] = None,
+        id_space: Optional[str] = None,
     ):
         """Adds a private table to catalog. There may only be a single private table.
 
@@ -75,6 +78,7 @@ class Catalog:
             grouping_column: Name of the column (if any) that must be grouped by in any
                 groupby aggregations that use this table.
             id_column: Name of the ID column for this table (if any).
+            id_space: Name of the identifier space for this table (if any).
 
         Raises:
             ValueError: If there is already a private table.
@@ -83,7 +87,10 @@ class Catalog:
             PrivateTable(
                 source_id=source_id,
                 schema=Schema(
-                    col_types, grouping_column=grouping_column, id_column=id_column
+                    col_types,
+                    grouping_column=grouping_column,
+                    id_column=id_column,
+                    id_space=id_space,
                 ),
             )
         )

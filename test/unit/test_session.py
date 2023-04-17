@@ -59,7 +59,11 @@ from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
 from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.domains.spark_domains import (
+    SparkDataFrameDomain,
+    SparkIntegerColumnDescriptor,
+    SparkStringColumnDescriptor,
+)
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.interactive_measurements import (
     PrivacyAccountant,
@@ -841,6 +845,40 @@ class TestSession:
         else:
             mock_accountant.privacy_budget = ExactNumber(10)
 
+    def _setup_accountant_with_id(self, mock_accountant, privacy_budget=None) -> None:
+        mock_accountant.output_measure = PureDP()
+        mock_accountant.input_metric = DictMetric(
+            key_to_metric={
+                TableCollection(name="identifier_A"): CoreAddRemoveKeys(
+                    df_to_key_column={NamedTable(name="private"): "A"}
+                )
+            }
+        )
+        mock_accountant.input_domain = DictDomain(
+            key_to_domain={
+                TableCollection(name="identifier_A"): DictDomain(
+                    key_to_domain={
+                        NamedTable(name="private"): SparkDataFrameDomain(
+                            schema={
+                                "A": SparkStringColumnDescriptor(allow_null=True),
+                                "B": SparkIntegerColumnDescriptor(
+                                    allow_null=True, size=64
+                                ),
+                                "X": SparkIntegerColumnDescriptor(
+                                    allow_null=True, size=64
+                                ),
+                            }
+                        )
+                    }
+                )
+            }
+        )
+        mock_accountant.d_in = {TableCollection(name="identifier_A"): 1}
+        if privacy_budget is not None:
+            mock_accountant.privacy_budget = privacy_budget
+        else:
+            mock_accountant.privacy_budget = ExactNumber(10)
+
     def _setup_accountant_and_compiler(
         self, spark, d_in, mock_accountant, mock_compiler
     ):
@@ -1024,9 +1062,7 @@ Public table 'public2':
 \t\t- 'X'                      DECIMAL
 \t\t- 'very_long_column_name'  VARCHAR"""
             # pylint: enable=line-too-long
-            # pylint: disable=protected-access
-            session._describe()
-            # pylint: enable=protected-access
+            session.describe()
             mock_print.assert_called_with(expected)
 
     def test_describe_with_constraints(self, spark):
@@ -1054,8 +1090,10 @@ Public table 'public2':
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
 
-            # pylint: disable=protected-access, line-too-long
+            # pylint: disable=protected-access
             session._table_constraints[NamedTable("private")] = [MaxRowsPerID(5)]
+            # pylint: enable=protected-access
+            # pylint: disable=line-too-long
             expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
 The following private tables are available:
 Table 'private':
@@ -1074,8 +1112,56 @@ Public table 'public2':
 \tColumns:
 \t\t- 'X'                      DECIMAL
 \t\t- 'very_long_column_name'  VARCHAR"""
-            session._describe()
-            # pylint: enable=protected-access, line-too-long
+            session.describe()
+            # pylint: enable=line-too-long
+            mock_print.assert_called_with(expected)
+
+    def test_describe_with_id_column(self, spark):
+        """Test :func:`_describe` with a table with an ID column."""
+
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant_with_id(
+                mock_accountant, privacy_budget=ExactNumber(10)
+            )
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+
+            public_df_1 = spark.createDataFrame(
+                pd.DataFrame([["blah", 1], ["blah", 2]], columns=["A", "B"])
+            )
+            public_df_2 = spark.createDataFrame(
+                pd.DataFrame(
+                    {
+                        "X": [1.1, 2.2, 3.3],
+                        "very_long_column_name": ["blah", "blah", "blah"],
+                    }
+                )
+            )
+
+            session = Session(
+                accountant=mock_accountant,
+                public_sources={"public1": public_df_1, "public2": public_df_2},
+            )
+            # pylint: disable=line-too-long
+            expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
+The following private tables are available:
+Table 'private' (no constraints):
+\tColumns:
+\t\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
+\t\t- 'B'  INTEGER
+\t\t- 'X'  INTEGER
+The following public tables are available:
+Public table 'public1':
+\tColumns:
+\t\t- 'A'  VARCHAR
+\t\t- 'B'  INTEGER
+Public table 'public2':
+\tColumns:
+\t\t- 'X'                      DECIMAL
+\t\t- 'very_long_column_name'  VARCHAR"""
+            # pylint: enable=line-too-long
+            session.describe()
             mock_print.assert_called_with(expected)
 
     @pytest.mark.parametrize(
@@ -1134,7 +1220,7 @@ Public table 'public2':
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
 
-            session._describe(query)  # pylint: disable=protected-access
+            session.describe(query)
             mock_print.assert_called_with(expected_output)
 
     def test_supported_spark_types(self, spark):
