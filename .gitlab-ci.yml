@@ -332,7 +332,8 @@ trigger_release:
     - git checkout -B "release/$VERSION"
     - git add -u
     - git diff --staged --stat
-    - git commit -m "[auto] Prepare release $VERSION" --author "$CI_COMMIT_AUTHOR"
+    # This commit may be empty for pre-releases, because they don't update the changelog.
+    - git commit -m "[auto] Release $VERSION" --author "$CI_COMMIT_AUTHOR" --allow-empty
     - git tag "$VERSION"
     - |
       git remote add origin-https \
