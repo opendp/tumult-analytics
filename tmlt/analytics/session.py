@@ -1131,7 +1131,6 @@ class Session:
         self._table_constraints.pop(ref.identifier, None)
 
     # pylint: disable=line-too-long
-    # TODO(#2199): remove the attr_name argument
     @typechecked
     def partition_and_create(
         self,
@@ -1139,7 +1138,6 @@ class Session:
         privacy_budget: PrivacyBudget,
         column: Optional[str] = None,
         splits: Optional[Union[Dict[str, str], Dict[str, int]]] = None,
-        attr_name: Optional[str] = None,
     ) -> Dict[str, "Session"]:
         """Returns new sessions from a partition mapped to split name/``source_id``.
 
@@ -1223,21 +1221,8 @@ class Session:
             column: The name of the column partitioning on.
             splits: Mapping of split name to value of partition.
                 Split name is ``source_id`` in new session.
-            attr_name: Deprecated synonym for ``column``. Using the ``column`` argument
-                is preferred.
         """
         # pylint: enable=line-too-long
-        if column is None and attr_name is None:
-            raise ValueError("Please specify a column using the column parameter")
-        if column is not None and attr_name is not None:
-            raise ValueError("You cannot specify both a column and an attr_name")
-        if attr_name is not None:
-            warn(
-                "The attr_name argument is deprecated and will be removed in a"
-                " future release",
-                DeprecationWarning,
-            )
-            column = attr_name
         if splits is None:
             raise ValueError(
                 "You must provide a dictionary mapping split names (new source_ids) to"

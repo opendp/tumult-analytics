@@ -912,23 +912,6 @@ class TestSession:
 
             session = Session(accountant=mock_accountant, public_sources=dict())
 
-        # Test that you need exactly one of column, attr_name
-        with pytest.raises(ValueError, match="Please specify a column"):
-            session.partition_and_create(
-                source_id="private",
-                privacy_budget=PureDPBudget(10),
-                splits={"part0": "0", "part1": "1"},
-            )
-        with pytest.raises(
-            ValueError, match="You cannot specify both a column and an attr_name"
-        ):
-            session.partition_and_create(
-                source_id="private",
-                privacy_budget=PureDPBudget(10),
-                column="A",
-                attr_name="A",
-                splits={"part0": "0", "part1": "1"},
-            )
         # Test that you need to provide splits
         with pytest.raises(
             ValueError,
@@ -939,17 +922,6 @@ class TestSession:
         ):
             session.partition_and_create(
                 source_id="private", privacy_budget=PureDPBudget(10), column="A"
-            )
-
-        # Make a new session so that testing for warnings doesn't
-        # impact the later tests
-        warn_session = Session(accountant=mock_accountant, public_sources=dict())
-        with pytest.warns(DeprecationWarning, match="attr_name argument is deprecated"):
-            warn_session.partition_and_create(
-                source_id="private",
-                privacy_budget=PureDPBudget(10),
-                attr_name="A",
-                splits={"part0": "0", "part1": "1"},
             )
 
         new_sessions = session.partition_and_create(
@@ -1221,7 +1193,7 @@ Public table 'public2':
                 session.partition_and_create(
                     "private",
                     privacy_budget=PureDPBudget(1),
-                    attr_name="A",
+                    column="A",
                     splits={"part0": 0, "part1": 1},
                 )
 
