@@ -55,14 +55,7 @@ def _test_propagation(query, expected_constraints, session):
                 MaxRowsPerGroupPerID("group2", 1),
             ],
         ),
-        pytest.param(
-            {"id": "id2"},
-            _CONSTRAINTS0,
-            _CONSTRAINTS0,
-            marks=pytest.mark.xfail(
-                reason="TODO(#2542): enable once renaming ID columns is supported"
-            ),
-        ),
+        ({"id": "id2"}, _CONSTRAINTS0, _CONSTRAINTS0),
     ],
 )
 def test_rename(

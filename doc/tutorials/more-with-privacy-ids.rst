@@ -51,7 +51,7 @@ as well as the library members dataset used in all other tutorials:
     )
     members_df = spark.read.csv(
         SparkFiles.get("library-members.csv"), header=True, inferSchema=True
-    ).withColumnRenamed("id", "member_id")
+    )
 
 Initializing a Session with multiple IDs tables
 -----------------------------------------------
@@ -81,7 +81,7 @@ This is done as follows.
         .with_private_dataframe(
             "members",
             members_df,
-            protected_change=AddRowsWithID(id_column="member_id", id_space=id_space),
+            protected_change=AddRowsWithID(id_column="id", id_space=id_space),
         )
         .build()
     )
@@ -175,25 +175,43 @@ education level.
 
 First, we join the dataframes, and hold the result in another in-session view:
 
-.. testcode::
+.. code-block::
 
-    # use rename once analytics functionality is in
     session.create_view(
         QueryBuilder("checkouts_single_genre").join_private(QueryBuilder("members")),
         "checkouts_joined",
         cache=False,
     )
 
+The join produces an error, because the ID columns in the two tables have different names:
+
+.. code-block:: text
+
+    Traceback (most recent call last):
+    ValueError: Private joins between tables with the AddRowsWithID protected change are
+    only possible when the ID columns of the two tables have the same name
+
+To fix this, we can use the :meth:`QueryBuilder.rename<tmlt.analytics.query_builder.QueryBuilder.rename>`
+method to rename the ID column in the members table to match the ID column in the checkouts table:
+
+.. testcode::
+
+    session.create_view(
+        QueryBuilder("checkouts_single_genre")
+        .join_private(QueryBuilder("members").rename({"id": "member_id"})),
+        "checkouts_joined",
+        cache=False,
+    )
     print(f"Private dataframes: {session.private_sources}")
 
-
 .. testoutput::
-   :options: +NORMALIZE_WHITESPACE
+    :options: +NORMALIZE_WHITESPACE
 
     Private dataframes: ['checkouts_joined', 'checkouts_single_genre', 'members', 'checkouts']
 
-``Joins`` on two private tables in the same ID space work seamlessly, as long as the ID
-columns are part of the join. Like with ``flat_maps``, no truncation is necessary.
+Using :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
+columns are part of the join and have the same name in both tables. Like with
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, no truncation is necessary.
 
 Computing the statistic
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -385,13 +385,6 @@ class TransformationVisitor(QueryExprVisitor):
             )
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
-            key_column = parent_metric.df_to_key_column[child_ref.identifier]
-            # TODO(#2542): Remove this check.
-            if key_column in expr.column_mapper:
-                raise ValueError(
-                    f"Column '{key_column}' cannot be renamed because it contains "
-                    "identifiers."
-                )
             return RenameValueTransformation(
                 parent_domain,
                 parent_metric,

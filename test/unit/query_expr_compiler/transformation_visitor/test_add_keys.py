@@ -68,6 +68,7 @@ class TestAddKeys(TestTransformationVisitor):
         transformation: Transformation,
         reference: TableReference,
         query: QueryExpr,
+        grouping_column: str = "id",
     ) -> None:
         assert transformation.input_domain == self.visitor.input_domain
         assert transformation.input_metric == self.visitor.input_metric
@@ -76,12 +77,12 @@ class TestAddKeys(TestTransformationVisitor):
         assert isinstance(first_transform, IdentityTransformation)
 
         expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
-        assert expected_schema.grouping_column == "id"
+        assert expected_schema.grouping_column == grouping_column
 
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
-        expected_output_metric = IfGroupedBy("id", SymmetricDifference())
+        expected_output_metric = IfGroupedBy(grouping_column, SymmetricDifference())
 
         table_transform = get_table_from_ref(transformation, reference)
         assert table_transform.output_domain == expected_output_domain
@@ -103,7 +104,7 @@ class TestAddKeys(TestTransformationVisitor):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
-        "mapper,expected_df",
+        "mapper,expected_df,grouping_column",
         [
             (
                 {"S": "columnS"},
@@ -111,6 +112,7 @@ class TestAddKeys(TestTransformationVisitor):
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1]],
                     columns=["id", "columnS", "I", "F", "D", "T"],
                 ),
+                "id",
             ),
             (
                 {"D": "date", "T": "time"},
@@ -118,32 +120,29 @@ class TestAddKeys(TestTransformationVisitor):
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1]],
                     columns=["id", "S", "I", "F", "date", "time"],
                 ),
+                "id",
             ),
-            pytest.param(
+            (
                 {"id": "id2"},
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1]],
-                    columns=["id2", "S", "I", "F", "date", "time"],
+                    columns=["id2", "S", "I", "F", "D", "T"],
                 ),
-                marks=pytest.mark.xfail(
-                    reason="TODO(#2542): enable once renaming ID columns is supported"
-                ),
+                "id2",
             ),
         ],
     )
-    def test_visit_rename(self, mapper: Dict[str, str], expected_df: DataFrame) -> None:
+    def test_visit_rename(
+        self, mapper: Dict[str, str], expected_df: DataFrame, grouping_column: str
+    ) -> None:
         """Test generating transformations from a Rename."""
         query = Rename(PrivateSource("ids1"), mapper)
         transformation, reference, constraints = query.accept(self.visitor)
-        self._validate_transform_basics(transformation, reference, query)
+        self._validate_transform_basics(
+            transformation, reference, query, grouping_column
+        )
         self._validate_result(transformation, reference, expected_df)
         assert constraints == []
-
-    def test_visit_rename_invalid(self) -> None:
-        """Test that invalid Rename expressions are handled."""
-        query = Rename(PrivateSource("ids1"), {"id": "pid"})
-        with pytest.raises(ValueError, match="Column 'id' cannot be renamed"):
-            query.accept(self.visitor)
 
     @pytest.mark.parametrize(
         "filter_expr,expected_df",
