@@ -17,6 +17,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_schema,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics.constraints import MaxGroupsPerID, MaxRowsPerGroupPerID
 from tmlt.analytics.query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -907,10 +908,32 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Schema:
         """Returns the resulting schema from evaluating an EnforceConstraint."""
+        input_schema = expr.child.accept(self)
+        constraint = expr.constraint
+
+        if not input_schema.id_column:
+            raise ValueError(
+                f"Constraint {expr.constraint} can only be applied to tables"
+                " with the AddRowsWithID protected change"
+            )
+        if isinstance(constraint, (MaxGroupsPerID, MaxRowsPerGroupPerID)):
+            grouping_column = constraint.grouping_column
+            if grouping_column not in input_schema:
+                raise ValueError(
+                    f"The grouping column of constraint {constraint}"
+                    " does not exist in this table; available columns"
+                    f" are: {', '.join(input_schema.keys())}"
+                )
+            if grouping_column == input_schema.id_column:
+                raise ValueError(
+                    f"The grouping column of constraint {constraint} cannot be"
+                    " the ID column of the table it is applied to"
+                )
+
         # No current constraints modify the schema. If that changes in the
         # future, the logic for it may have to be pushed into the Constraint
         # type (like how constraint._enforce() works), but for now this works.
-        return expr.child.accept(self)
+        return input_schema
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCount.
