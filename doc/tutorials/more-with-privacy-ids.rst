@@ -98,7 +98,7 @@ The
 method and the :class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>`
 protected change work together to accomplish our desired notion of privacy.
 
-- The ``with_primary_id`` function defines our ID space, ``member_id_space``. This is
+- The ``with_id_space`` function defines our ID space, ``member_id_space``. This is
   how we indicate that the same person is associated with the same ID in both tables.
 
 - This ID space is then specified to ``AddRowsWithID``’s ``identifier``
