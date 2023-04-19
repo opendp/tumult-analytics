@@ -86,7 +86,30 @@ protected change. This protected change will protect adding and removing
     )
 
 Initializing our Session like this protects members of our library,
-regardless of how many books they've checked out.
+regardless of how many books they've checked out. Let's take a look at our Session:
+
+.. testcode::
+
+    session.describe()
+
+.. testoutput::
+    :options: +NORMALIZE_WHITESPACE
+
+    The session has a remaining privacy budget of PureDPBudget(epsilon=inf).
+    The following private tables are available:
+    Table 'checkouts' (no constraints):
+        Columns:
+            - 'checkout_date'     TIMESTAMP
+            - 'member_id'         INTEGER, ID column (in ID space default_id_space)
+            - 'title'             VARCHAR
+            - 'author'            VARCHAR
+            - 'isbn'              VARCHAR
+            - 'publication_date'  INTEGER
+            - 'publisher'         VARCHAR
+            - 'genres'            VARCHAR
+
+We can see that our Session has a single table, ``checkouts``, with 7 columns, and that
+the 'member_id' column is marked as our ID column.
 
 A simple query with privacy IDs
 -------------------------------

@@ -82,6 +82,30 @@ allocate a fixed privacy budget of ``epsilon=2.5`` to it, using the classical
        protected_change=AddOneRow(),
    )
 
+Let's check that we initialized the Session as intended using the
+:meth:`describe<tmlt.analytics.session.Session.describe>` method:
+
+.. testcode::
+
+   session.describe()
+
+.. testoutput::
+   :options: +NORMALIZE_WHITESPACE
+
+   The session has a remaining privacy budget of PureDPBudget(epsilon=2.5).
+   The following private tables are available:
+   Table 'members' (no constraints):
+      Columns:
+         - 'id'               INTEGER
+         - 'name'             VARCHAR
+         - 'age'              INTEGER
+         - 'gender'           VARCHAR
+         - 'education_level'  VARCHAR
+         - 'zip_code'         VARCHAR
+         - 'books_borrowed'   INTEGER
+         - 'favorite_genres'  VARCHAR
+         - 'date_joined'      TIMESTAMP
+
 Initializing a Session with a finite privacy budget gives a simple interface
 promise: all queries evaluated on this Session, *taken together*, will provide
 differentially private results with at most ``epsilon=2.5``. This parameter
