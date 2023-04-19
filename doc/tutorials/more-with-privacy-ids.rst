@@ -209,6 +209,34 @@ method to rename the ID column in the members table to match the ID column in th
 
     Private dataframes: ['checkouts_joined', 'checkouts_single_genre', 'members', 'checkouts']
 
+Let's inspect the result of the join to make sure it looks right:
+
+.. testcode::
+
+    session.describe("checkouts_joined")
+
+.. testoutput::
+    :options: +NORMALIZE_WHITESPACE
+
+    Columns:
+	- 'member_id'         INTEGER, ID column (in ID space member_id_space)
+	- 'checkout_date'     TIMESTAMP
+	- 'title'             VARCHAR
+	- 'author'            VARCHAR
+	- 'isbn'              VARCHAR
+	- 'publication_date'  INTEGER
+	- 'publisher'         VARCHAR
+	- 'genres'            VARCHAR
+	- 'genre'             VARCHAR
+	- 'name'              VARCHAR
+	- 'age'               INTEGER
+	- 'gender'            VARCHAR
+	- 'education_level'   VARCHAR
+	- 'zip_code'          VARCHAR
+	- 'books_borrowed'    INTEGER
+	- 'favorite_genres'   VARCHAR
+	- 'date_joined'       TIMESTAMP
+
 Using :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
 columns are part of the join and have the same name in both tables. Like with
 :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, no truncation is necessary.
