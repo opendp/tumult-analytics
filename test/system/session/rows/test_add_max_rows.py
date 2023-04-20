@@ -957,6 +957,58 @@ class TestSession:
         session.delete_view("view2")
         assert len(list(spark.sparkContext._jsc.sc().getRDDStorageInfo())) == 0
 
+    # regression test for #2491
+    def test_filter_regression(self, spark) -> None:
+        """Regression tests for issue 2491.
+
+        This issue caused incorrect results when joining a dataframe with
+        another dataframe derived from the first (in this case, a KeySet
+        derived from the private data).
+        """
+        sdf = spark.createDataFrame(
+            pd.DataFrame(
+                [["0", 1, 100000], ["1", 0, 20000], ["1", 2, 20000]],
+                columns=["A", "B", "X"],
+            )
+        )
+        total_budget = 10
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(total_budget),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
+        )
+
+        all_keys = KeySet.from_dataframe(sdf)
+        keyset = all_keys["A", "B"]
+        budget_per_query = PureDPBudget(total_budget / 3)
+        expected_a_b = pd.DataFrame([["0", 1], ["1", 0], ["1", 2]], columns=["A", "B"])
+
+        count_query = QueryBuilder("private").filter("B == 2").groupby(keyset).count()
+        count_result = session.evaluate(count_query, budget_per_query)
+        count_a_b = count_result.select("A", "B")
+        assert_frame_equal_with_sort(count_a_b.toPandas(), expected_a_b)
+
+        median_query = (
+            QueryBuilder("private")
+            .filter("B == 2")
+            .groupby(keyset)
+            .median("X", 0, 10 ** 6, "dp_median")
+        )
+        median_result = session.evaluate(median_query, budget_per_query)
+        median_a_b = median_result.select("A", "B")
+        assert_frame_equal_with_sort(median_a_b.toPandas(), expected_a_b)
+
+        average_query = (
+            QueryBuilder("private")
+            .filter("B == 2")
+            .groupby(keyset)
+            .average("X", 0, 10 ** 6, "dp_average")
+        )
+        average_result = session.evaluate(average_query, budget_per_query)
+        average_a_b = average_result.select("A", "B")
+        assert_frame_equal_with_sort(average_a_b.toPandas(), expected_a_b)
+
     def test_grouping_noninteger_stability(self, spark) -> None:
         """Test that zCDP grouping_column and non-integer stabilities work."""
         grouped_df = spark.createDataFrame(
