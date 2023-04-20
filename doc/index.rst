@@ -5,11 +5,12 @@ Tumult Analytics documentation
    :hidden:
    :maxdepth: 1
 
-   Installation <installation>
+   Installation <howto-guides/installation>
    tutorials/index
+   How-to guides <howto-guides/index>
    topic-guides/index
    API reference <reference/tmlt/analytics/index>
-   additional-resources/index
+   Release notes <changelog>
 
 Tumult Analytics is a Python library for computing aggregate queries on tabular
 data using differential privacy.
@@ -53,6 +54,20 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
        :classes: stretched-link
 
    ---
+   :img-top: images/index_howto_guides.svg
+
+   **How-to guides**
+   ^^^^^^^^^^^^^^^^
+
+   How-to guides are step-by-step instructions on how to install and
+   troubleshoot the library locally or on a cloud platform.
+
+   .. link-button:: howto-guides/index
+       :type: ref
+       :text:
+       :classes: stretched-link
+
+   ---
    :img-top: images/index_topic_guides.svg
 
    **Topic guides**
@@ -81,28 +96,61 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
        :text:
        :classes: stretched-link
 
-   ---
-   :img-top: images/index_more.svg
+.. 
+   This Additional Resources section forces "Contact Us", etc to be subsubsections.
+   Without it, "Contact Us" (and subsequent headers) become subsections,
+   which have huge text.
 
+Additional resources
+--------------------
 
-   **Additional resources**
-   ^^^^^^^^^^^^^^^^^^^^^^^^
-
-   Additional resources include the :ref:`changelog <analytics-changelog>`,
-   our :ref:`troubleshooting guide <troubleshooting>`,
-   :ref:`citation instructions <citing>`
-   if you use Tumult Analytics for a scientific publication, and 
-   :ref:`license information <License>`.
-
-Contact Information
-^^^^^^^^^^^^^^^^^^^
+Contact us 
+^^^^^^^^^^
 The best place to ask questions, file feature requests, or give feedback about Tumult Analytics
 is our `Slack server <https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#>`__.
 We also use it for announcements of new releases and feature additions.
 
-Documentation License
-^^^^^^^^^^^^^^^^^^^^^
+Cite us
+^^^^^^^
+
+If you use Tumult Analytics for a scientific publication, we would appreciate citations to the published software and/or its whitepaper.
+Both citations can be found below; for the software citation, please replace the version with the version you are using.
+
+.. code-block::
+
+    @software{tumultanalyticssoftware,
+        author = {Tumult Labs},
+        title = {Tumult {{Analytics}}},
+        month = dec,
+        year = 2022,
+        version = {latest},
+        url = {https://tmlt.dev}
+    }
+
+
+.. code-block::
+
+    @article{tumultanalyticswhitepaper,
+        title={Tumult {{Analytics}}: a robust, easy-to-use, scalable, and expressive framework for differential privacy},
+        author={Berghel, Skye and Bohannon, Philip and Desfontaines, Damien and Estes, Charles and Haney, Sam and Hartman, Luke and Hay, Michael and Machanavajjhala, Ashwin and Magerlein, Tom and Miklau, Gerome and Pai, Amritha and Sexton, William and Shrestha, Ruchit},
+        journal={arXiv preprint arXiv:2212.04133},
+        month = dec,
+        year={2022}
+    }
+
+License
+^^^^^^^
+The Tumult Analytics source code and documentation are copyright Tumult Labs 2023.
+
 This documentation is licensed under the
 Creative Commons Attribution-ShareAlike 4.0 Unported License.
 To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
 or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
+The Tumult Analytics source code is licensed under the Apache License, version 2.0 (`Apache-2.0 <https://gitlab.com/tumult-labs/core/-/blob/dev/LICENSE>`_).
+
+Privacy Policy
+^^^^^^^^^^^^^^
+
+See our :ref:`privacy policy <privacy-policy>` for how your
+information is used.
