@@ -1,4 +1,6 @@
-.. _privacy_policy:
+:orphan:
+
+.. _privacy-policy:
 
 Privacy Policy
 ==============
