@@ -182,7 +182,6 @@ per library member.
     |...|...|...|...|
     +--------------------+--------------------+----------+-----+
 
-
 .. code-block::
 
     +--------------------+--------------------+----------+-----+
@@ -198,7 +197,7 @@ per library member.
 With this additional step limiting the maximum contribution of each privacy ID,
 we are now able to run the query and find the five most popular books. This
 step is also called *truncation*: we dropped (or *truncated*) some of the data
-to enforce the desired constraint. 
+to enforce the desired constraint.
 
 More constraints
 ----------------
@@ -211,13 +210,14 @@ by computing how many patrons have checked out each of our top five books.
 
 For this query, we will combine two constraints to truncate our data:
 
-* :class:`~tmlt.analytics.constraints.MaxGroupsPerID`: limiting
-  the number of groups (here, distinct books) that any library patron can contribute to
-* :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID`:
-  limiting the number of rows that any library patron can provide for each group.
+* :class:`~tmlt.analytics.constraints.MaxGroupsPerID`: limiting the number of
+  groups (here, distinct books) that any library patron can contribute to; and
+* :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID`: limiting the number
+  of rows that any library patron can provide for each group.
 
-We will limit each patron to 5 groups (we only consider the 5 most popular books) and have
-patrons only appear once per group (we don't want to count the same patron twice for the same book).
+We will limit each patron to 5 groups (we only consider the 5 most popular
+books) and have patrons only appear once per group (we don't want to count the
+same patron twice for the same book).
 
 Then, we will create a keyset from our top 5 books and perform a count query:
 
@@ -226,7 +226,8 @@ Then, we will create a keyset from our top 5 books and perform a count query:
     top_five_keyset = KeySet.from_dataframe(
         top_five.select("title", "author", "isbn"),
     )
-    count_distinct_query = (QueryBuilder("checkouts")
+    count_distinct_query = (
+        QueryBuilder("checkouts")
         .enforce(MaxGroupsPerID("isbn", 5))
         .enforce(MaxRowsPerGroupPerID("isbn", 1))
         .groupby(top_five_keyset)
@@ -261,7 +262,52 @@ Then, we will create a keyset from our top 5 books and perform a count query:
     |The Tipping Point...|    Malcolm Gladwell|0316346624|  549|
     +--------------------+--------------------+----------+-----+
 
-We can display this data as a graph:
+We could also express this query using
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.count_distinct`: limiting each
+ID to a single row per library member (per ISBN) is the same as counting
+distinct IDs.
+
+.. testcode::
+
+    top_five_keyset = KeySet.from_dataframe(top_five.select("isbn"))
+    count_distinct_query = (
+        QueryBuilder("checkouts")
+        .enforce(MaxGroupsPerID("isbn", 5))
+        .groupby(top_five_keyset)
+        .count_distinct(["member_id"], name="count")
+    )
+    result = session.evaluate(
+        count_distinct_query, PureDPBudget(1.5)
+    ).join(  # Add title/author back to result
+        top_five.select("title", "author", "isbn"), on=["isbn"], how="left"
+    ).select(  # Reorder dataframe columns
+        "title", "author", "isbn", "count"
+    )
+
+.. testcode::
+    :hide:
+
+    result.show()
+
+.. testoutput::
+    :hide:
+    :options: +NORMALIZE_WHITESPACE
+
+    +--------------------+--------------------+----------+-----+
+    |               title|              author|      isbn|count|
+    +--------------------+--------------------+----------+-----+
+    |...|...|...|...|
+    |...|...|...|...|
+    |...|...|...|...|
+    |...|...|...|...|
+    |...|...|...|...|
+    +--------------------+--------------------+----------+-----+
+
+When using `count_distinct` on the ID column, we no longer need to specify the
+`MaxRowsPerGroupPerID` constraint: Tumult Analytics understands that each ID can
+contribute at most once per group.
+
+We can then display the results as a graph:
 
 .. code-block::
 
@@ -280,8 +326,10 @@ We can display this data as a graph:
         lambda row: shorten_title(row), axis=1
     )
 
-    g = sns.barplot(x="short_title", y="count", data=data_to_plot, color="#1f77b4")
-    g.set_xticklabels(g.get_xticklabels(), rotation=45, horizontalalignment="right")
+    g = sns.barplot(x="title", y="count", data=data_to_plot, color="#1f77b4")
+    g.set_xticklabels(
+        data_to_plot["short_title"], rotation=45, horizontalalignment="right"
+    )
     plt.title("How many members have checked out popular books")
     plt.xlabel("Book Title")
     plt.ylabel("Members")

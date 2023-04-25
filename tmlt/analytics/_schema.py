@@ -169,6 +169,11 @@ class Schema(Mapping):
                 )
 
     @property
+    def columns(self):
+        """Return the names of the columns in the schema."""
+        return self._column_descs.keys()
+
+    @property
     def column_descs(self) -> Dict[str, ColumnDescriptor]:
         """Returns a mapping from column name to column descriptor."""
         return dict(self._column_descs)
