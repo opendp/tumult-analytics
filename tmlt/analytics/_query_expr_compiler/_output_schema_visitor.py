@@ -233,6 +233,7 @@ def _validate_groupby(
             },
         },
         grouping_column=None,
+        id_column=None,
     )
     return output_schema
 

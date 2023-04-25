@@ -294,9 +294,6 @@ def test_stdev_grouped(
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).count(), [1]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(2)).count(), [2]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).count(), [5]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).count_distinct(["id"]), [1]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(2)).count_distinct(["id"]), [2]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).count_distinct(["id"]), [5]),
         # Two aggregations, a sum and a count, each with half the budget
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).average("n", 0, 10), [10, 2]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).average("n", 0, 10), [50, 10]),
@@ -320,9 +317,6 @@ def test_noise_scale_puredp(query: QueryExpr, expected_noise: List[float], sessi
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).count(), [0.5]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(2)).count(), [2]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).count(), [12.5]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).count_distinct(["id"]), [0.5]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(2)).count_distinct(["id"]), [2]),
-        (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).count_distinct(["id"]), [12.5]),
         # Two aggregations, a sum and a count, each with half the budget
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).average("n", 0, 10), [25, 1]),
         (QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).average("n", 0, 10), [625, 25]),

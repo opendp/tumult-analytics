@@ -37,6 +37,7 @@ from tmlt.analytics.query_expr import (
     CountDistinctMechanism,
     CountMechanism,
     DropNullAndNan,
+    EnforceConstraint,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -164,6 +165,90 @@ def _constraint_stability(
             "can be computed. This is probably a bug; please let us know about it "
             "so we can fix it!"
         )
+
+
+def _generate_constrained_count_distinct(
+    query: GroupByCountDistinct, schema: Schema, constraints: List[Constraint]
+) -> Optional[GroupByCount]:
+    """Return a more optimal query for the given count-distinct, if one exists.
+
+    This method handles inferring additional constraints on a
+    GroupByCountDistinct query and using those constraints to generate more
+    optimal queries. This is possible in two cases, both on IDs tables:
+
+    - Only the ID column is being counted, and no groupby is performed. When
+      this happens, each ID can contribute at most once to the resulting count,
+      equivalent to a ``MaxRowsPerID(1)`` constraint.
+
+    - Only the ID column is being counted, and the result is grouped on exactly
+      one column which has a MaxGroupsPerID constraint on it. In this case, each
+      ID can contribute at most once to the count of each group, equivalent to a
+      ``MaxRowsPerGroupPerID(other_column, 1)`` constraint.
+
+    In both of these cases, a performance optimization is also possible: because
+    enforcing the constraints drops all but one of the rows per ID in the first
+    case or per (ID, group) value pair in the second, a normal count query will
+    produce the same result and should run faster because it doesn't need to
+    handle deduplicating the values.
+    """
+    columns_to_count = set(query.columns_to_count or schema.columns)
+    groupby_columns = query.groupby_keys.dataframe().columns
+
+    # For non-IDs cases or cases where columns other than the ID column must be
+    # distinct, there's no optimization to make.
+    if schema.id_column is None or columns_to_count != {schema.id_column}:
+        return None
+
+    mechanism = (
+        CountMechanism.DEFAULT
+        if query.mechanism == CountDistinctMechanism.DEFAULT
+        else CountMechanism.LAPLACE
+        if query.mechanism == CountDistinctMechanism.LAPLACE
+        else CountMechanism.GAUSSIAN
+        if query.mechanism == CountDistinctMechanism.GAUSSIAN
+        else None
+    )
+    if mechanism is None:
+        raise AssertionError(
+            f"Unknown mechanism {query.mechanism}. This is probably a bug; "
+            "please let us know about it so we can fix it!"
+        )
+
+    if not groupby_columns:
+        # No groupby is performed; this is equivalent to a MaxRowsPerID(1)
+        # constraint on the table.
+        return GroupByCount(
+            EnforceConstraint(query.child, MaxRowsPerID(1)),
+            groupby_keys=query.groupby_keys,
+            output_column=query.output_column,
+            mechanism=mechanism,
+        )
+    elif len(groupby_columns) == 1:
+        # A groupby on exactly one column is performed; if that column has a
+        # MaxGroupsPerID constraint, then this is equivalent to a
+        # MaxRowsPerGroupsPerID(grouping_column, 1) constraint.
+        grouping_column = groupby_columns[0]
+        constraint = next(
+            (
+                c
+                for c in constraints
+                if isinstance(c, MaxGroupsPerID)
+                and c.grouping_column == grouping_column
+            ),
+            None,
+        )
+        if constraint is not None:
+            return GroupByCount(
+                EnforceConstraint(
+                    query.child, MaxRowsPerGroupPerID(constraint.grouping_column, 1)
+                ),
+                groupby_keys=query.groupby_keys,
+                output_column=query.output_column,
+                mechanism=mechanism,
+            )
+
+    # If none of the above cases are true, no optimization is possible.
+    return None
 
 
 class MeasurementVisitor(QueryExprVisitor):
@@ -556,11 +641,27 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_count_distinct(self, query: GroupByCountDistinct) -> Measurement:
         """Create a measurement from a GroupByCountDistinct query expression."""
+        mechanism = self._pick_noise_for_count(query)
+        (
+            child_transformation,
+            child_ref,
+            child_constraints,
+        ) = self._visit_child_transformation(query.child, mechanism)
+        constrained_query = _generate_constrained_count_distinct(
+            query,
+            query.child.accept(OutputSchemaVisitor(self.catalog)),
+            child_constraints,
+        )
+        if constrained_query is not None:
+            return constrained_query.accept(self)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(query)
-        mechanism = self._pick_noise_for_count(query)
+
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=query.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -579,7 +680,7 @@ class MeasurementVisitor(QueryExprVisitor):
             transformation |= SelectTransformation(
                 transformation.output_domain,
                 transformation.output_metric,
-                query.columns_to_count + groupby_columns,
+                list(set(query.columns_to_count + groupby_columns)),
             )
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
         assert isinstance(
