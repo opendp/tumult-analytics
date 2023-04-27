@@ -340,6 +340,7 @@ We can then display the results as a graph:
    :alt: A bar chart plotting the number of unique library members who have checked out each book. The most popular book (The Alchemist) has been checked out by about 750 people; each book after that has been checked out by fewer people, with the last book (Comfort Me With...) having been checked out by just under 500 people.
    :align: center
 
+.. _flow-chart-truncation:
 
 Summary
 -------

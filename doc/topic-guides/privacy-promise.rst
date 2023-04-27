@@ -30,7 +30,7 @@ A :class:`~tmlt.analytics.session.Session` is initialized with:
 * zero or more public tables (containing data that does not require privacy
   protection, but may be used as auxiliary input to your computation);
 * a privacy definition along with its associated privacy parameters (e.g.
-  tutorials use `PureDBBudget`, corresponding to pure differential privacy, and
+  tutorials use `PureDPBudget`, corresponding to pure differential privacy, and
   Tumult Analytics also supports zero-concentrated differential privacy).
 
 After initialization, the Session guarantees that the answers returned by
