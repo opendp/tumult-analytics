@@ -16,5 +16,6 @@ to the Tumult Analytics library.
     privacy-promise
     working-with-sessions
     privacy-budgets
+    understanding-sensitivity
     spark
     nulls-nans-infinities
