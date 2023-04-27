@@ -60,7 +60,7 @@ Notice that both of the dataframes we’ve loaded share a common
 identifier: the ID associated with each library member. Our goal is to
 construct a :class:`Session<tmlt.analytics.session.Session>` that
 protects the addition or removal of arbitrarily many rows that share the
-same ID, *in both tables*. To do so, we have to use the 
+same ID, *in both tables*. To do so, we have to use the
 :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change
 again, but we also have to indicate that both tables share the same *ID space*.
 This is done as follows.
@@ -125,7 +125,7 @@ private tables. We will perform this computation in three stages.
 - Second, we will join the expanded checkouts data with the library
   members data, using the members ID as a join key.
 
-- Finally, we will group the joined table by age group and genres, and obtain 
+- Finally, we will group the joined table by age group and genres, and obtain
   counts by genres.
 
 Flat maps

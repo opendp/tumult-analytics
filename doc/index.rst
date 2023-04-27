@@ -96,7 +96,7 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
        :text:
        :classes: stretched-link
 
-.. 
+..
    This Additional Resources section forces "Contact Us", etc to be subsubsections.
    Without it, "Contact Us" (and subsequent headers) become subsections,
    which have huge text.
@@ -104,7 +104,7 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
 Additional resources
 --------------------
 
-Contact us 
+Contact us
 ^^^^^^^^^^
 The best place to ask questions, file feature requests, or give feedback about Tumult Analytics
 is our `Slack server <https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#>`__.
@@ -149,7 +149,7 @@ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 The Tumult Analytics source code is licensed under the Apache License, version 2.0 (`Apache-2.0 <https://gitlab.com/tumult-labs/core/-/blob/dev/LICENSE>`_).
 
-Privacy Policy
+Privacy policy
 ^^^^^^^^^^^^^^
 
 See our :ref:`privacy policy <privacy-policy>` for how your
