@@ -3,8 +3,8 @@
 Changelog
 =========
 
-Unreleased
-----------
+0.7.0 - 2023-04-27
+------------------
 
 This release adds support for *privacy identifiers*:
 Tumult Analytics can now protect input tables in which the differential privacy guarantee needs to hide the presence of arbitrarily many rows sharing the same value in a particular column.
