@@ -6,32 +6,55 @@ Changelog
 Unreleased
 ----------
 
+This release adds support for *privacy identifiers*:
+Tumult Analytics can now protect input tables in which the differential privacy guarantee needs to hide the presence of arbitrarily many rows sharing the same value in a particular column.
+For example, this may be used to protect each user of a service when every row in a table is associated with a user ID.
+
+Privacy identifiers are set up using the new :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+A number of features have been added to the API to support this, including alternative behaviors for various query transformations when working with IDs and the new concept of :mod:`~tmlt.analytics.constraints`.
+To get started with these features, take a look at the new :ref:`Working with privacy IDs <Working with privacy IDs>` and :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorials.
+
 Added
 ~~~~~
-- Added MaxRowsPerGroupPerID contraint, which limits the number of rows each unique (ID, grouping column value) pair may appear in.
-- Added MaxGroupsPerID constraint, which limits the number of unique grouping column values associated with each unique ID.
-- Added a new :class:`tmlt.analytics.protected_change.AddRowsWithID` class, which protects the addition or removal of all rows with the same value in a specified column.
-  When creating a session with AddRowsWithID for multiple tables, you must use the new :meth:`Session.Builder.with_id_space <tmlt.analytics.session.Session.Builder.with_id_space>` method to specify the identifier space(s) of the tables.
-  See the documentation for :class:`tmlt.analytics.protected_change.AddRowsWithID` for more information.
-- Added a new method, :meth:`tmlt.analytics.session.Session.describe`, which describes a session, query, or table.
+- A new :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change has been added, which protects the addition or removal of all rows with the same value in a specified column.
+  See the documentation for :class:`~tmlt.analytics.protected_change.AddRowsWithID` and the :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorial for more information.
 
+  - When creating a Session with :class:`~tmlt.analytics.protected_change.AddRowsWithID` using a :class:`Session.Builder<tmlt.analytics.session.Session.Builder>`, you must use the new :meth:`~tmlt.analytics.session.Session.Builder.with_id_space` method to specify the identifier space(s) of tables using this protected change.
+  - When creating a Session with :meth:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>`, specifying an ID space is not necessary.
+
+- :class:`~tmlt.analytics.query_builder.QueryBuilder` has a new method, :meth:`~tmlt.analytics.query_builder.QueryBuilder.enforce`, for enforcing constraints on a table.
+  Types for representing these constraints are located in the new :mod:`tmlt.analytics.constraints` module.
+- A new method, :meth:`Session.describe()<tmlt.analytics.session.Session.describe>`, has been added to provide a summary of the tables in a :class:`~tmlt.analytics.session.Session`, or of a single table or the output of a query.
 
 Changed
 ~~~~~~~
-- Argument ``max_num_rows`` of ``QueryBuilder.flat_map`` is now optional for tables with a :class:`tmlt.analytics.protected_change.AddRowsWithID` protected change.
-- *Backwards-incompatible*: Argument ``max_num_rows`` is now the last parameter specified for ``QueryBuilder.flat_map``.
-- *Backwards-incompatible*: Analytics no longer allows users to set lower bounds equal to upper bounds for quantile, sum, average, variance, and standard deviation queries. Now, the lower bound must be strictly less than the upper bound.
-- *Backwards-incompatible*: Renamed ``QueryBuilder.filter`` argument from "predicate" to "condition".
-- *Backwards-incompatible*: Renamed ``query_expr.Filter`` property from "predicate" to "condition".
-- *Backwards-incompatible*: Renamed ``KeySet.filter`` argument from "expr" to "condition".
-- ``QueryBuilder.join_private`` now accepts a string as a ``right_operand``. ``QueryBuilder("table").join_private("foo")`` is equivalent to ``QueryBuilder("table").join_private(QueryBuilder("foo"))``.
-- *Backwards-incompatible*: Removed the ``attr_name`` argument from ``Session.partition_and_create``.
+- :meth:`QueryBuilder.join_private()<tmlt.analytics.query_builder.QueryBuilder.join_private>` now accepts the name of a private table as ``right_operand``.
+  For example, ``QueryBuilder("table").join_private("foo")`` is equivalent to ``QueryBuilder("table").join_private(QueryBuilder("foo"))``.
+- The ``max_num_rows`` parameter to :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` is now optional when applied to tables with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+- *Backwards-incompatible*: The parameters to :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` have been reordered, moving ``max_num_rows`` to be the last parameter.
+- *Backwards-incompatible*: The lower and upper bounds for quantile, sum, average, variance, and standard deviation queries can no longer be equal to one another.
+  The lower bound must now be strictly less than the upper bound.
+- *Backwards-incompatible*: Renamed :meth:`QueryBuilder.filter()<tmlt.analytics.query_builder.QueryBuilder.filter>` ``predicate`` argument to ``condition``.
+- *Backwards-incompatible*: Renamed :class:`~tmlt.analytics.query_expr.Filter` query expression ``predicate`` property to ``condition``.
+- *Backwards-incompatible*: Renamed :meth:`KeySet.filter()<tmlt.analytics.keyset.KeySet.filter>` ``expr`` argument to ``condition``.
+
+Deprecated
+~~~~~~~~~~
+- The ``stability`` and ``grouping_column`` parameters to :class:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>` and :class:`Session.Builder.with_private_dataframe()<tmlt.analytics.session.Session.Builder.with_private_dataframe>` are deprecated, and will be removed in a future release.
+  The ``protected_change`` parameter should be used instead, and will become required.
+
+Removed
+~~~~~~~
+- The ``attr_name`` parameter to :class:`Session.partition_and_create()<tmlt.analytics.session.Session.partition_and_create>`, which was deprecated in version 0.5.0, has been removed.
 
 Fixed
 ~~~~~
-
-- ``Session.add_public_datafame`` used to allow creation of a public table with the same name as an existing private table, even though doing so is disallowed elsewhere and is not fully supported by some ``Session`` methods.
-  It now raises a ``ValueError`` when this happens, like it already did when there was a name conflict with an existing public table.
+- :meth:`Session.add_public_datafame()<tmlt.analytics.session.Session.add_public_dataframe>` used to allow creation of a public table with the same name as an existing public table, which was neither intended nor fully supported by some :class:`~tmlt.analytics.session.Session` methods.
+  It now raises a ``ValueError`` in this case.
+- Some query patterns on tables containing nulls could cause grouped aggregations to produce the wrong set of group keys in their output.
+  This no longer happens.
+- In certain unusual cases, join transformations could erroneously drop rows containing nulls in columns that were not being joined on.
+  These rows are no longer dropped.
 
 0.6.1 - 2022-12-07
 ------------------

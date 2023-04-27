@@ -31,7 +31,6 @@ version = ci_tag or ci_branch or "HEAD"
 commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
 build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 
-linkcheck_mode_url_prefix = os.getenv("BASE_URL_OVERRIDE")
 # Linkcheck will complain that these anchors don't exist,
 # even though the link works.
 linkcheck_ignore = [

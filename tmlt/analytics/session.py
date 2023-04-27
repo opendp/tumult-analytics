@@ -242,9 +242,9 @@ class Session:
                 source_id: Source id for the private source dataframe.
                 dataframe: Private source dataframe to perform queries on,
                     corresponding to the ``source_id``.
-                stability: Use ``protected_change`` instead, see
+                stability: Deprecated: use ``protected_change`` instead, see
                     :ref:`changelog<changelog#protected-change>`.
-                grouping_column: Use ``protected_change`` instead, see
+                grouping_column: Deprecated: use ``protected_change`` instead, see
                     :ref:`changelog<changelog#protected-change>`.
                 protected_change: A
                     :class:`~tmlt.analytics.protected_change.ProtectedChange`
@@ -273,9 +273,6 @@ class Session:
                 )
                 return self
 
-            # TODO(#2722): All paths through the below need deprecation
-            #     warnings, for either the use of stability/grouping_column or
-            #     the assumption of AddOneRow() if no stability is specified.
             if stability is None:
                 warn(
                     "Using a default for protected_change is deprecated. Future"
@@ -346,14 +343,16 @@ class Session:
             return self
 
         def with_id_space(self, id_space: str) -> "Session.Builder":
-            """Sets the identifier space for the session.
+            """Creates an identifier space for the session.
 
-            This defines the space of identifiers that map 1-to-1 to the identifiers
-            being protected. Any IDs table must have exactly one column containing
-            those identifiers.
+            This defines a space of identifiers that map 1-to-1 to the
+            identifiers being protected by a table with the
+            :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected
+            change. Any table with such a protected change must be a member of
+            some identifier space.
 
             Args:
-                id_space: The identifier space for the session.
+                id_space: The name of the identifier space.
             """
             _assert_is_identifier(id_space)
             if id_space in self._id_spaces:
@@ -484,9 +483,9 @@ class Session:
             source_id: The source id for the private source dataframe.
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
-            stability: Use ``protected_change`` instead, see
+            stability: Deprecated: use ``protected_change`` instead, see
                 :ref:`changelog<changelog#protected-change>`
-            grouping_column: Use ``protected_change`` instead, see
+            grouping_column: Deprecated: use ``protected_change`` instead, see
                 :ref:`changelog<changelog#protected-change>`
             protected_change: A
                 :class:`~tmlt.analytics.protected_change.ProtectedChange`
@@ -648,6 +647,118 @@ class Session:
                 "fix it!"
             )
         return self._accountant.input_metric
+
+    def describe(
+        self, obj: Optional[Union[QueryExpr, QueryBuilder, str]] = None
+    ) -> None:
+        """Describe a Session, table, or query.
+
+        If ``obj`` is not specified, ``session.describe()`` will describe the
+        Session and all of the tables it contains.
+
+        If ``obj`` is a :class:`~tmlt.analytics.query_builder.QueryBuilder` or
+        :class:`~tmlt.analytics.query_expr.QueryExpr`, ``session.describe(obj)``
+        will describe the table that would result from that query if it were
+        applied to the Session.
+
+        If ``obj`` is a string, ``session.describe(obj)`` will describe the table
+        with that name. This is a shorthand for
+        ``session.describe(QueryBuilder(obj))``.
+
+        Args:
+            obj: The table or query to be described, or None to describe the
+                whole Session.
+        """
+        if obj is None:
+            self._describe_self()
+        elif isinstance(obj, QueryExpr):
+            self._describe_query(obj)
+        elif isinstance(obj, QueryBuilder):
+            self._describe_query(obj.query_expr)
+        elif isinstance(obj, str):
+            self._describe_query(QueryBuilder(obj).query_expr)
+        else:
+            assert_never(obj)
+
+    def _describe_self(self) -> None:
+        """Describe the current state of this session."""
+        out = []
+        state = self._accountant.state
+        if state == PrivacyAccountantState.ACTIVE:
+            # Don't add anything to output if the session is active
+            pass
+        elif state == PrivacyAccountantState.RETIRED:
+            out.append("This session has been stopped, and can no longer be used.")
+        elif state == PrivacyAccountantState.WAITING_FOR_CHILDREN:
+            out.append(
+                "This session is waiting for its children (created with"
+                " `partition_and_create`) to finish."
+            )
+        elif state == PrivacyAccountantState.WAITING_FOR_SIBLING:
+            out.append(
+                "This session is waiting for its sibling(s) (created with"
+                " `partition_and_create`) to finish."
+            )
+        else:
+            raise AssertionError(
+                f"Unrecognized accountant state {out}. This is probably a bug; please"
+                " let us know about it so we can fix it!"
+            )
+        budget: PrivacyBudget = self.remaining_privacy_budget
+        out.append(f"The session has a remaining privacy budget of {budget}.")
+        if len(self._catalog.tables) == 0:
+            out.append("The session has no tables available.")
+        else:
+            public_table_descs = []
+            private_table_descs = []
+            for name, table in self._catalog.tables.items():
+                column_strs = ["\t" + e for e in _describe_schema(table.schema)]
+                columns_desc = "\n".join(column_strs)
+                if isinstance(table, PublicTable):
+                    table_desc = f"Public table '{name}':\n" + columns_desc
+                    public_table_descs.append(table_desc)
+                elif isinstance(table, PrivateTable):
+                    table_desc = f"Table '{name}':\n"
+                    table_desc += columns_desc
+
+                    constraints: Optional[
+                        List[Constraint]
+                    ] = self._table_constraints.get(NamedTable(name))
+                    if not constraints:
+                        table_desc = (
+                            f"Table '{name}' (no constraints):\n" + columns_desc
+                        )
+                    else:
+                        table_desc = (
+                            f"Table '{name}':\n" + columns_desc + "\n\tConstraints:\n"
+                        )
+                        constraints_strs = [f"\t\t- {e}" for e in constraints]
+                        table_desc += "\n".join(constraints_strs)
+
+                    private_table_descs.append(table_desc)
+                else:
+                    raise AssertionError(
+                        f"Table {name} has an unrecognized type: {type(table)}. This is"
+                        " probably a bug; please let us know about it so we can"
+                        " fix it!"
+                    )
+            if len(private_table_descs) != 0:
+                out.append(
+                    "The following private tables are available:\n"
+                    + "\n".join(private_table_descs)
+                )
+            if len(public_table_descs) != 0:
+                out.append(
+                    "The following public tables are available:\n"
+                    + "\n".join(public_table_descs)
+                )
+        print("\n".join(out))
+
+    def _describe_query(self, query: QueryExpr):
+        """Describe the output schema of a query and the constraints on it."""
+        schema = self._compiler.query_schema(query, self._catalog)
+        out = _describe_schema(schema)
+        print("\n".join(out))
 
     @typechecked
     def get_schema(self, source_id: str) -> Schema:
@@ -1179,9 +1290,11 @@ class Session:
     ) -> Dict[str, "Session"]:
         """Returns new sessions from a partition mapped to split name/``source_id``.
 
-        The type of privacy budget that you use must match the type your Session was
-        initialized with (i.e., you cannot use a RhoZCDPBudget to partition your
-        Session if the Session was created using a PureDPBudget, and vice versa).
+        The type of privacy budget that you use must match the type your Session
+        was initialized with (i.e., you cannot use a
+        :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` to partition your
+        Session if the Session was created using a
+        :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, and vice versa).
 
         The sessions returned must be used in the order that they were created.
         Using this session again or calling stop() will stop all partition sessions.
@@ -1552,117 +1665,6 @@ class Session:
     def stop(self) -> None:
         """Close out this session, allowing other sessions to become active."""
         self._accountant.retire()
-
-    def describe(self, x: Optional[Union[QueryExpr, QueryBuilder, str]] = None) -> None:
-        """Describe this session, or a query, or a table.
-
-        If ``x`` is ``None``, ``session._describe(x)`` will describe the session.
-
-        If ``x`` is a
-        :class:`~tmlt.analytics.query_expr.QueryExpr`,
-        ``session._describe(x)`` will describe
-        the schema resulting from that query expression.
-
-        If x is a
-        :class:`~tmlt.analytics.query_builder.QueryBuilder`,
-        ``session._describe(x) will describe the query constructed by the
-        query builder. This is equivalent to calling
-        ``session._describe(x.query_expr)``.
-
-        If x is a string, x is assumed to be a table name. In this case,
-        ``session._describe(x)`` is equivalent to
-        ``session._describe(QueryBuilder(x))``.
-        """
-        if x is None:
-            self._describe_self()
-        elif isinstance(x, QueryExpr):
-            self._describe_query(x)
-        elif isinstance(x, QueryBuilder):
-            self._describe_query(x.query_expr)
-        elif isinstance(x, str):
-            self._describe_query(QueryBuilder(x).query_expr)
-        else:
-            assert_never(x)
-
-    def _describe_self(self) -> None:
-        """Describe the current state of this session."""
-        out = []
-        state = self._accountant.state
-        if state == PrivacyAccountantState.ACTIVE:
-            # Don't add anything to output if the session is active
-            pass
-        elif state == PrivacyAccountantState.RETIRED:
-            out.append("This session has been stopped, and can no longer be used.")
-        elif state == PrivacyAccountantState.WAITING_FOR_CHILDREN:
-            out.append(
-                "This session is waiting for its children (created with"
-                " `partition_and_create`) to finish."
-            )
-        elif state == PrivacyAccountantState.WAITING_FOR_SIBLING:
-            out.append(
-                "This session is waiting for its sibling(s) (created with"
-                " `partition_and_create`) to finish."
-            )
-        else:
-            raise AssertionError(
-                f"Unrecognized accountant state {out}. This is probably a bug; please"
-                " let us know about it so we can fix it!"
-            )
-        budget: PrivacyBudget = self.remaining_privacy_budget
-        out.append(f"The session has a remaining privacy budget of {budget}.")
-        if len(self._catalog.tables) == 0:
-            out.append("The session has no tables available.")
-        else:
-            public_table_descs = []
-            private_table_descs = []
-            for name, table in self._catalog.tables.items():
-                column_strs = ["\t" + e for e in _describe_schema(table.schema)]
-                columns_desc = "\n".join(column_strs)
-                if isinstance(table, PublicTable):
-                    table_desc = f"Public table '{name}':\n" + columns_desc
-                    public_table_descs.append(table_desc)
-                elif isinstance(table, PrivateTable):
-                    table_desc = f"Table '{name}':\n"
-                    table_desc += columns_desc
-
-                    constraints: Optional[
-                        List[Constraint]
-                    ] = self._table_constraints.get(NamedTable(name))
-                    if not constraints:
-                        table_desc = (
-                            f"Table '{name}' (no constraints):\n" + columns_desc
-                        )
-                    else:
-                        table_desc = (
-                            f"Table '{name}':\n" + columns_desc + "\n\tConstraints:\n"
-                        )
-                        constraints_strs = [f"\t\t- {e}" for e in constraints]
-                        table_desc += "\n".join(constraints_strs)
-
-                    private_table_descs.append(table_desc)
-                else:
-                    raise AssertionError(
-                        f"Table {name} has an unrecognized type: {type(table)}. This is"
-                        " probably a bug; please let us know about it so we can"
-                        " fix it!"
-                    )
-            if len(private_table_descs) != 0:
-                out.append(
-                    "The following private tables are available:\n"
-                    + "\n".join(private_table_descs)
-                )
-            if len(public_table_descs) != 0:
-                out.append(
-                    "The following public tables are available:\n"
-                    + "\n".join(public_table_descs)
-                )
-        print("\n".join(out))
-
-    def _describe_query(self, query: QueryExpr):
-        """Describe the output schema of a query and the constraints on it."""
-        schema = self._compiler.query_schema(query, self._catalog)
-        out = _describe_schema(schema)
-        print("\n".join(out))
 
 
 def _assert_is_identifier(source_id: str):

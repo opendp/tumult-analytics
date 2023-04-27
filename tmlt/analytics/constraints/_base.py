@@ -18,7 +18,7 @@ class Constraint(ABC):
     produce differentially-private results. For example, a constraint might say
     that each ID in a table corresponds to no more than two rows in that table
     (the :class:`~tmlt.analytics.constraints.MaxRowsPerID`
-    constraint). Constraints are applied via the :meth:`QueryBuilder.enforce
+    constraint). Constraints are applied via the :meth:`QueryBuilder.enforce()
     <tmlt.analytics.query_builder.QueryBuilder.enforce>` method.
 
     This class is a base class for all constraints, and cannot be used directly.

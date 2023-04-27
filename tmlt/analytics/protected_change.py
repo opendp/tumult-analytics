@@ -119,7 +119,7 @@ class AddRowsWithID(ProtectedChange):
     id_space: str = "default_id_space"
     """The identifier space of the rows that may be added or removed. If not specified,
     a default will be assigned when using this protected change with
-    :class:`tmlt.analytics.session.Session.from_dataframe`."""
+    :class:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>`."""
 
     def __post_init__(self):
         """Validate attributes."""

@@ -285,15 +285,16 @@ class QueryBuilder:
         :func:`join_public`.
 
         For operations on tables with a
-        :class:`tmlt.analytics.protected_change.ProtectedChange` that protects adding or
-        removing rows (e.g., :class:`~tmlt.analytics.protected_change.AddMaxRows`),
-        there is a key difference: before the join is performed, each table is
-        *truncated* based on the corresponding
+        :class:`~tmlt.analytics.protected_change.ProtectedChange` that protects
+        adding or removing rows (e.g.
+        :class:`~tmlt.analytics.protected_change.AddMaxRows`), there is a key
+        difference: before the join is performed, each table is *truncated*
+        based on the corresponding
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.
 
         In contrast, operations on tables with a
-        :class:`tmlt.analytics.protected_change.AddRowsWithID`
-        :class:`tmlt.analytics.protected_change.ProtectedChange` do not require a
+        :class:`~tmlt.analytics.protected_change.AddRowsWithID`
+        :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`, as no
         truncation is necessary while performing the join.
 
@@ -998,7 +999,7 @@ class QueryBuilder:
                 (in particular, f cannot raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
                 produced by f. Using
-                :class:`tmlt.analytics.query_builder.ColumnDescriptor`
+                :class:`~tmlt.analytics.query_builder.ColumnDescriptor`
                 is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
@@ -1033,8 +1034,8 @@ class QueryBuilder:
         DECIMAL columns may contain NaN or infinite values).
 
         Operations on tables with a
-        :class:`tmlt.analytics.protected_change.AddRowsWithID`
-        :class:`tmlt.analytics.protected_change.ProtectedChange` do not require a
+        :class:`~tmlt.analytics.protected_change.AddRowsWithID`
+        :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
         ``max_num_rows`` argument, since it is not necessary to impose a limit on
         the number of new rows.
 
@@ -1108,10 +1109,10 @@ class QueryBuilder:
                 have the same keys regardless of input, and the values in those
                 dictionaries should match the column type specified in
                 ``new_column_types``. The function should not have any side effects
-                (in particular, f cannot raise exceptions).
+                (in particular, ``f`` must not raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
-                produced by f. Using
-                :class:`tmlt.analytics.query_builder.ColumnDescriptor`
+                produced by ``f``. Using
+                :class:`~tmlt.analytics.query_builder.ColumnDescriptor`
                 is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
@@ -1121,8 +1122,8 @@ class QueryBuilder:
                 query include the new column as a groupby column. Only one new column
                 is supported, and the new column must have distinct values for each
                 input row.
-            max_num_rows: The enforced limit on the number of rows from each f(row).
-                If f produces more rows than this, only the first ``max_num_rows``
+            max_num_rows: The enforced limit on the number of rows from each ``f(row)``.
+                If ``f`` produces more rows than this, only the first ``max_num_rows``
                 rows will be in the output.
         """
         grouping_column: Optional[str]
@@ -1326,6 +1327,9 @@ class QueryBuilder:
         This method can be used to enforce constraints on the current table. See
         the :mod:`~tmlt.analytics.constraints` module for information about the
         available constraints and what they are used for.
+
+        Args:
+            constraint: The constraint to enforce.
         """
         self._query_expr = EnforceConstraint(self._query_expr, constraint, options={})
         return self
@@ -1535,7 +1539,7 @@ class QueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).count(name=name, mechanism=mechanism)
@@ -1618,7 +1622,7 @@ class QueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
             cols: Deprecated; use ``columns`` instead.
         """
@@ -1637,11 +1641,10 @@ class QueryBuilder:
         """Returns a quantile query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
-
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1709,10 +1712,10 @@ class QueryBuilder:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1778,10 +1781,10 @@ class QueryBuilder:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1847,10 +1850,10 @@ class QueryBuilder:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1922,10 +1925,10 @@ class QueryBuilder:
         """Returns a sum query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -1988,7 +1991,7 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).sum(
@@ -2006,10 +2009,10 @@ class QueryBuilder:
         """Returns an average query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -2072,7 +2075,7 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).average(
@@ -2090,10 +2093,10 @@ class QueryBuilder:
         """Returns a variance query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -2156,7 +2159,7 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).variance(
@@ -2174,10 +2177,10 @@ class QueryBuilder:
         """Returns a standard deviation query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the
+            column being measured contains infinite values, a
+            :meth:`~drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -2240,7 +2243,7 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).stdev(
@@ -2324,7 +2327,7 @@ class GroupedQueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         if name is None:
@@ -2400,7 +2403,7 @@ class GroupedQueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
             cols: Deprecated; use ``columns`` instead.
         """
@@ -2443,10 +2446,10 @@ class GroupedQueryBuilder:
         """Returns a quantile query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2525,10 +2528,10 @@ class GroupedQueryBuilder:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2600,10 +2603,10 @@ class GroupedQueryBuilder:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2675,10 +2678,10 @@ class GroupedQueryBuilder:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2752,10 +2755,10 @@ class GroupedQueryBuilder:
         """Returns a sum query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a ``drop_null_and_nan`` query will be performed first. If the column being
-            measured contains infinite values, a ``drop_infinity`` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -2820,7 +2823,7 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         if name is None:
@@ -2847,10 +2850,10 @@ class GroupedQueryBuilder:
         """Returns an average query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a `drop_null_and_nan` query will be performed first. If the column being
-            measured contains infinite values, a `drop_infinity` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -2915,7 +2918,7 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         if name is None:
@@ -2942,10 +2945,10 @@ class GroupedQueryBuilder:
         """Returns a variance query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a `drop_null_and_nan` query will be performed first. If the column being
-            measured contains infinite values, a `drop_infinity` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -3010,7 +3013,7 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         if name is None:
@@ -3037,10 +3040,10 @@ class GroupedQueryBuilder:
         """Returns a standard deviation query that is ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values,
-            a `drop_null_and_nan` query will be performed first. If the column being
-            measured contains infinite values, a `drop_infinity` query will be
-            performed first.
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         .. note::
             Regarding the clamping bounds:
@@ -3105,7 +3108,7 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By DEFAULT, the framework
+            mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
         if name is None:
