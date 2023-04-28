@@ -1,5 +1,7 @@
 """Utility functions for Analytics."""
 
+from textwrap import dedent
+
 import pandas as pd
 from pyspark.sql import SparkSession
 
@@ -45,31 +47,43 @@ def check_installation():
     * perform a query on that dataframe
 
     If Analytics is correctly installed, this function should print a message
-    and finish running within a few minutes.
+    and finish running within a few seconds.
 
     If Analytics has *not* been correctly installed, this function will raise
     an error.
     """
     try:
-        print("Creating Spark session... ", end="")
-        spark = SparkSession.builder.getOrCreate()
-        print(" ok")
+        try:
+            print("Creating Spark session... ", end="")
+            spark = SparkSession.builder.getOrCreate()
+            print(" OK")
+        except RuntimeError as e:
+            if (
+                e.args
+                and isinstance(e.args[0], str)
+                and e.args[0].startswith("Java gateway process exited before sending")
+            ):
+                raise AssertionError(
+                    "Error setting up Spark session. This likely indicates that Java is"
+                    " not installed, or is not available on your PATH."
+                ) from e
+            raise
 
         print("Creating Pandas dataframe... ", end="")
         # We use Pandas to create this dataframe,
         # just to check that Pandas is installed and we can access it
         pdf = pd.DataFrame([["a1", 1], ["a2", 2]], columns=["A", "B"])
-        print(" ok")
+        print(" OK")
 
         print("Converting to Spark dataframe... ", end="")
         sdf = spark.createDataFrame(pdf)
-        print(" ok")
+        print(" OK")
 
         print("Creating Analytics session... ", end="")
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(1), source_id="private_data", dataframe=sdf
         )
-        print(" ok")
+        print(" OK")
 
         print("Creating query...", end="")
         query = (
@@ -77,11 +91,11 @@ def check_installation():
             .groupby(KeySet.from_dict({"A": ["a0", "a1", "a2"]}))
             .count(name="count")
         )
-        print(" ok")
+        print(" OK")
 
         print("Evaluating query...", end="")
         result = session.evaluate(query_expr=query, privacy_budget=PureDPBudget(1))
-        print(" ok")
+        print(" OK")
 
         print("Checking that output is as expected...", end="")
         if (
@@ -109,27 +123,23 @@ def check_installation():
                 " column A was 'a1', and one row where column A was 'a2'. Instead, got"
                 f" this result: {result.toPandas()}"
             )
-        print(" ok")
+        print(" OK")
 
         print(
             "Installation check complete. Tumult Analytics appears to be properly"
             " installed."
         )
     except Exception as e:
-        print(
-            "\n\nThere was a problem running the installation checker. You may want to"
-            " check:"
-        )
-        print("- your installed Java version (run `java -version`)")
-        print("- your installed version of Pyspark (run `pip3 show pyspark`)")
-        print("- your installed version of Pandas (run `pip3 show pandas`)")
-        print(
-            "- your installed version of Tumult Analytics "
-            "(run `pip3 show tmlt.analytics`)"
-        )
-        print(
-            "For more information, see the Tumult Analytics installation instructions\n"
-            "at https://docs.tmlt.dev/analytics/latest/installation.html"
-        )
-        print("\nRe-raising original exception...")
-        raise e
+        print(" FAILED\n")
+        raise RuntimeError(
+            dedent(
+                """
+
+            The installation test did not complete successfully. You may want to check:
+            - your Java installation (try `java -version`)
+            - your PySpark and Pandas installations (run `pip3 show pyspark pandas`)
+
+            For more information, see the Tumult Analytics installation instructions
+            at https://docs.tmlt.dev/analytics/latest/howto-guides/installation.html"""
+            )
+        ) from e

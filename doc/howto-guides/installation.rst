@@ -16,7 +16,7 @@ Only the x86_64 processor architecture is officially supported at present.
 Apple silicon is supported through binary translation with `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__.
 
 Below are instructions for installing these prerequisites on several common platforms.
-If none of these apply to you, install Python 3 and Java from your OS package manager, or use the "Manual Installation" section to obtain installers or source distributions and build instructions for your platform.
+If none of these apply to you, install Python 3 and Java from your OS package manager or manually, then proceed with the `pip` installation.
 If you encounter any issues during the installation process, please `let us know <https://gitlab.com/tumult-labs/analytics/-/issues>`__!
 
 .. tabbed:: Linux (Debian-based)
@@ -58,8 +58,6 @@ If you encounter any issues during the installation process, please `let us know
 .. tabbed:: macOS (Intel)
 
     The below instructions assume the use of `Homebrew <https://brew.sh/>`__ for managing packages.
-    If you do not wish to use Homebrew for this, use the "Manual Installation" instructions instead.
-
     If you do not already have Homebrew, it can be installed with:
 
     .. code-block:: bash
@@ -85,7 +83,6 @@ If you encounter any issues during the installation process, please `let us know
 .. tabbed:: macOS (Apple silicon)
 
     Since Python 3.7 is not supported on the Apple silicon processor architecture, you will need to first install `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__ and the x86_64 version of Homebrew.
-
     If you do not already have Rosetta 2, it can be installed with:
 
     .. code-block:: bash
