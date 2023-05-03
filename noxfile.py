@@ -447,15 +447,23 @@ def prepare_release(session):
     # releases. Between the base version and prerelease number is the only place
     # a hyphen can appear in the version number, so just checking for that
     # indicates whether a version is a prerelease.
-    if "-" not in version:
+    is_pre_release = "-" in version
+    if not is_pre_release:
         session.log("Updating CHANGELOG.rst unreleased version...")
         with Path("CHANGELOG.rst").open("r") as fp:
             changelog_content = fp.readlines()
         for i in range(len(changelog_content)):
             if re.match('^Unreleased$', changelog_content[i]):
+                # BEFORE
+                # Unreleased
+                # ----------
+
+                # AFTER
+                # 1.2.3 - 2020-01-01
+                # ------------------
                 version_header = f'{version} - {datetime.date.today()}'
                 changelog_content[i] = version_header + "\n"
-                changelog_content[i+1] = "-" * len(version_header) + "\n"
+                changelog_content[i + 1] = "-" * len(version_header) + "\n"
                 break
         else:
             session.error(
@@ -466,6 +474,46 @@ def prepare_release(session):
             fp.writelines(changelog_content)
     else:
         session.log("Prerelease, skipping CHANGELOG.rst update...")
+
+
+@nox_session(python=None)
+def post_release(session):
+    """Update files after a release."""
+    version_and_date_regex = (
+        r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(alpha|beta|rc)\.(0|[1-9]\d*))?"
+        r" - \d{4}-\d{2}-\d{2}$"
+    )
+    # Find the latest release
+    with Path("CHANGELOG.rst").open("r") as fp:
+        changelog_content = fp.readlines()
+        for i in range(len(changelog_content)):
+            if re.match(version_and_date_regex, changelog_content[i]):
+                version = changelog_content[i].split(" - ")[0]
+                is_pre_release = "-" in version
+                if not is_pre_release:
+                    # BEFORE
+                    # 1.2.3 - 2020-01-01
+                    # ------------------
+
+                    # AFTER
+                    # Unreleased
+                    # ----------
+                    #
+                    # 1.2.3 - 2020-01-01
+                    # ------------------
+                    new_lines = ["Unreleased\n", "----------\n", "\n"]
+                    for new_line in reversed(new_lines):
+                        changelog_content.insert(i, new_line)
+                    break
+                else:
+                    session.log("Prerelease, skipping CHANGELOG.rst update...")
+                    return
+        else:
+            session.error("Unable to find latest release in CHANGELOG.rst")
+        with Path("CHANGELOG.rst").open("w") as fp:
+            fp.writelines(changelog_content)
+
+
 
 @nox_session()
 def release_smoketest(session):
