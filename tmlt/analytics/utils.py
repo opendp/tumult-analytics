@@ -1,5 +1,6 @@
 """Utility functions for Analytics."""
 
+import atexit
 from textwrap import dedent
 
 import pandas as pd
@@ -58,6 +59,12 @@ def check_installation():
             spark = SparkSession.builder.getOrCreate()
             print(" OK")
         except RuntimeError as e:
+            # If Spark is broken, the Core cleanup atexit hook will fail, which
+            # produces some additional output the user doesn't need to see in
+            # this case.
+            atexit.unregister(
+                core_cleanup._cleanup_temp  # pylint: disable=protected-access
+            )
             if (
                 e.args
                 and isinstance(e.args[0], str)
