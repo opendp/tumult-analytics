@@ -9,6 +9,7 @@ from typing import Any, List
 
 import pytest
 
+from tmlt.analytics._schema import ColumnDescriptor
 from tmlt.analytics.binning_spec import BinningSpec, _default_bin_names, _edges_as_str
 from tmlt.analytics.query_builder import ColumnType
 
@@ -87,7 +88,9 @@ def test_binning() -> None:
         "(15, 20]",
         None,
     ]
-    assert spec.column_descriptor.column_type == ColumnType.VARCHAR
+    assert spec.column_descriptor == ColumnDescriptor(
+        ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
+    )
     bin_tests = {
         2: "[0, 5]",
         7: "(5, 10]",
@@ -169,6 +172,10 @@ def test_binning_allow_nan() -> None:
     assert spec.column_descriptor.allow_nan
     spec = BinningSpec(edges, names=[float("0"), float("5")])
     assert not spec.column_descriptor.allow_nan
+    spec = BinningSpec(edges, names=[float("0"), float(5)], nan_bin=float("nan"))
+    assert spec.column_descriptor.allow_nan
+    spec = BinningSpec(edges, names=[float("0"), float(5)], nan_bin=3.3)
+    assert not spec.column_descriptor.allow_nan
 
 
 def test_binning_allow_null() -> None:
@@ -181,7 +188,7 @@ def test_binning_allow_null() -> None:
     spec = BinningSpec(edges, names=["Null", "5"])
     assert spec.column_descriptor.allow_null
     spec = BinningSpec(edges, names=["0", "5"])
-    assert not spec.column_descriptor.allow_null
+    assert spec.column_descriptor.allow_null
 
 
 def test_binning_allow_inf() -> None:
@@ -192,6 +199,12 @@ def test_binning_allow_inf() -> None:
     spec = BinningSpec(edges, names=[float("0"), float("-inf")])
     assert spec.column_descriptor.allow_inf
     spec = BinningSpec(edges, names=[float("0"), float("5")])
+    assert not spec.column_descriptor.allow_inf
+    spec = BinningSpec(edges, names=[float("0"), float("nan")], nan_bin=float("inf"))
+    assert spec.column_descriptor.allow_inf
+    spec = BinningSpec(edges, names=[float("0"), float("nan")], nan_bin=float("-inf"))
+    assert spec.column_descriptor.allow_inf
+    spec = BinningSpec(edges, names=[float("0"), float(5)], nan_bin=3.3)
     assert not spec.column_descriptor.allow_inf
 
 

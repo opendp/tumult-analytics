@@ -1242,9 +1242,7 @@ class QueryBuilder:
             name = f"{column}_binned"
         binning_fn = lambda row: {name: spec(row[column])}
         return self.map(
-            binning_fn,
-            new_column_types={name: spec.column_descriptor.column_type},
-            augment=True,
+            binning_fn, new_column_types={name: spec.column_descriptor}, augment=True
         )
 
     def histogram(

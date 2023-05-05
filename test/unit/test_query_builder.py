@@ -509,7 +509,7 @@ def test_bin_column():
     assert map_expr.schema_new_columns == Schema(
         {
             "A_binned": ColumnDescriptor(
-                ColumnType.VARCHAR, allow_null=True, allow_nan=True, allow_inf=True
+                ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
             )
         }
     )
@@ -534,7 +534,7 @@ def test_bin_column_options():
     assert map_expr.schema_new_columns == Schema(
         {
             "rounded": ColumnDescriptor(
-                ColumnType.INTEGER, allow_null=True, allow_nan=True, allow_inf=True
+                ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False
             )
         }
     )
@@ -560,7 +560,7 @@ def test_histogram():
     assert map_expr.schema_new_columns == Schema(
         {
             "A_binned": ColumnDescriptor(
-                ColumnType.VARCHAR, allow_null=True, allow_nan=True, allow_inf=True
+                ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
             )
         }
     )
@@ -586,7 +586,7 @@ def test_histogram_options():
     assert map_expr.schema_new_columns == Schema(
         {
             "New": ColumnDescriptor(
-                ColumnType.VARCHAR, allow_null=True, allow_nan=True, allow_inf=True
+                ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
             )
         }
     )
