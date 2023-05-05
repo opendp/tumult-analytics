@@ -20,27 +20,30 @@ def _get_column_descriptor(
 ) -> ColumnDescriptor:
     """Return the ColumnDescriptor for the non-``None`` elements of a list.
 
-    allow_nan is True if any bin_names element either matches nan_bin, or isnan.
-    allow_inf is True if any bin_names element matches float("inf") or float("-inf").
-    allow_null is True if any bin_names element when lowercased matches "null".
+    * allow_nan is True if
+       - any bin name, including nan_bin, is NaN.
+    * allow_inf is True if
+       - any bin name, including nan_bin, matches float("inf") or float("-inf").
+    * allow_null is True if (for simplicity, we always set it to be True)
+           - A value is Null.
+           - A value is out of bounds.
+           - A value is NaN, and nan_bin is not used.
     """
-    allow_null = False
-    allow_nan = False
-    allow_inf = False
+    if nan_bin is not None:
+        all_bin_names = list(bin_names) + [nan_bin]
+    else:
+        all_bin_names = list(bin_names)
+    allow_nan = any(
+        isinstance(bin_name, float) and math.isnan(bin_name)
+        for bin_name in all_bin_names
+    )
+    allow_inf = any(
+        bin_name in [float("inf"), float("-inf")] for bin_name in all_bin_names
+    )
+    allow_null = True
 
-    for bin_name in bin_names:
-        if not allow_null and str(bin_name).lower() == "null":
-            allow_null = True
-        elif not allow_nan and (
-            bin_name == nan_bin
-            or (isinstance(bin_name, float) and math.isnan(bin_name))
-        ):
-            allow_nan = True
-        elif not allow_inf and bin_name == float("inf") or bin_name == float("-inf"):
-            allow_inf = True
-
+    # nan_bin type is checked in the __init__.
     column_type = ColumnType(get_element_type(bin_names, allow_none=False))
-
     return ColumnDescriptor(column_type, allow_null, allow_nan, allow_inf)
 
 

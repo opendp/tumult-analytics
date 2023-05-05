@@ -411,6 +411,37 @@ EVALUATE_TESTS = [
         None,
         pd.DataFrame({"X_binned": ["0,1", "2,3"], "count": [2, 2]}),
     ),
+    (  # Binning Nulls
+        QueryBuilder("private")
+        .map(
+            lambda row: {"X": row["X"] if row["X"] != 3 else None},
+            new_column_types={"X": ColumnDescriptor(ColumnType.INTEGER)},
+        )
+        .bin_column(
+            "X", BinningSpec([10, 12, 14], names=["10,12", "12,14"], right=False)
+        )
+        .groupby(KeySet.from_dict({"X_binned": ["10,12", "12,14", None]}))
+        .count(),
+        None,
+        pd.DataFrame({"X_binned": ["10,12", "12,14", None], "count": [0, 0, 4]}),
+    ),
+    (  # Binning NaN bin names
+        QueryBuilder("private")
+        .bin_column(
+            "X",
+            BinningSpec(
+                [0, 2, 4], names=[0.1, float("nan")], nan_bin=float("nan"), right=False
+            ),
+        )
+        .map(
+            f=lambda row: {"X_binned": 0 if row["X_binned"] == 0.1 else 1},
+            new_column_types={"X_binned": ColumnType.INTEGER},
+        )
+        .groupby(KeySet.from_dict({"X_binned": [0, 1]}))
+        .count(),
+        None,
+        pd.DataFrame({"X_binned": [0, 1], "count": [2, 2]}),
+    ),
     (  # GroupByCount Filter
         QueryBuilder("private").filter("A == '0'").count(),
         GroupByCount(
