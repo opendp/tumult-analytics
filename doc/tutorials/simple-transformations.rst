@@ -194,6 +194,8 @@ column would no longer be available: the only column in the transformed data wou
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
+.. _flat-map-tutorial-5:
+
 Flat maps
 ---------
 
