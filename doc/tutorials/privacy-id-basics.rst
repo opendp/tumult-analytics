@@ -135,7 +135,8 @@ query on our data, we will get an error:
 
 .. code-block::
 
-    RuntimeError: A constraint on the number of rows contributed by each ID is needed to perform this query.
+    RuntimeError: A constraint on the number of rows contributed by each ID
+    is needed to perform this query (e.g. MaxRowsPerID).
 
 This error occurs because there is no limit to how many rows a single person
 could contribute to the data: a single library member could borrow 10000 books
