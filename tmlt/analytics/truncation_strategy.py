@@ -10,7 +10,26 @@ from typeguard import check_type
 
 
 class TruncationStrategy:
-    """Strategies for performing truncation in private joins."""
+    """Strategies for performing truncation in private joins.
+
+    These are used to determine the sensitivity of a private join between two tables
+    having :class:`~tmlt.analytics.protected_change.AddMaxRows` as a protected change.
+    The formula for the sensitivity of the table resulting from a private join is:
+
+    :math:`sensitivity=(T_{left}*S_{right}*M_{left}) + (T_{right}*S_{left}*M_{right})`
+
+    where:
+
+      - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds for the
+        left and right truncation strategies, respectively. This value is 1 for
+        ``DropNonUnique``.
+      - :math:`S_{left}` and :math:`S_{right}` are the stability of the left and right
+        truncation strategies, respectively. This value is 2 for ``DropExcess`` and 1
+        for ``DropNonUnique``.
+      - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the
+        ``AddMaxRows`` protected changes of the the left and right tables, respectively.
+
+    """
 
     class Type(ABC):
         """Type of TruncationStrategy variants."""

@@ -48,9 +48,8 @@ Flat maps
 ~~~~~~~~~
 
 A :meth:`flat_map<tmlt.analytics.query_builder.QueryBuilder.flat_map>` maps each
-input row to zero or more new rows. If we take the flat map example from
-input row to zero or more new rows. Consider the flat map example from
-:ref:`tutorial five <Simple transformations>` where each input row is mapped to up
+input row to zero or more new rows. Consider the example from
+:ref:`tutorial five <flat-map-tutorial-5>`, where each input row is mapped to up
 to three new rows, using to the ``max_rows=3`` parameter. On a per-row basis, this operation might look like this:
 
 .. image:: ../images/flat_map_row_example.svg
@@ -90,35 +89,42 @@ in the output table. To hide her contribution to the joined table, we need to in
 the protected change from ``max_rows=1`` to ``max_rows=2``. More generally, if the
 protected change protects :math:`n` rows in the private table, and each join key value
 appears in at most :math:`m` rows in the public table, then the sensitivity of the join
-is :math:`n \times m`.
+is :math:`n  *  m`.
 
 .. note::
 
-    Like with flatmaps, the sensitivity increase doesn't depend on the contents of the
-    private table. It only depends on the *contents* of the public table, i.e. the
+    Like with flatmaps, the sensitivity increase doesn't depend on the *contents* of the
+    private table. It only depends on the åcontents of the public table, i.e. the
     number of rows in the public table with each value of the join key.
 
 Private joins
 ~~~~~~~~~~~~~
 
-Private joins have a different interface, but the underlying sensitivity computation is
-very similar. However, with private joins, *both* tables are private. This means that,
-unlike with a public table in a public join, we cannot use the contents of either table
-directly to determine the sensitivity: doing so would reveal information about
-individuals within the tables, thus violating the privacy guarantee.
+With private joins, *both* tables are private. This means that, unlike with a public
+table in a public join, we cannot use the contents of either table directly to determine
+the sensitivity: doing so would reveal information about individuals within the tables,
+thus violating the privacy guarantee.
 
 Suppose we have two tables, a ``Users`` table and a ``Purchases`` table, which share a
-common column, ``user_id``:
+common column, ``user_id``. Each are initialized with a protected change of ``AddMaxRows(max_rows=1)``:
 
 .. image:: ../images/private_join_tables.svg
     :alt: On the left, a private table with names, user ids and payment information. On the right, a private table with user_ids and purchase information.
     :align: center
 
-Both tables contain sensitive information. Since we cannot look at the data directly for
-our calculation, we need to truncate both tables by specifying a
+Since both tables contain sensitive information, we cannot look at
+the data directly to calculate the sensitivity. Therefore, we need to truncate both tables by specifying a
 :class:`TruncationStrategy<tmlt.analytics.truncation_strategy.TruncationStrategy>` for
-each of the tables. The sensitivity calculation will then use these bounds:
-:math:`\text{sensitivity} = \text{left_truncation_bound} \times \text{right_truncation_bound}`
+each. The sensitivity computation is more complicated than before:
+
+:math:`\text{sensitivity} = (T_{left}  *  S_{right}  *  M_{right}) + (T_{right}  *  S_{left}  *  M_{left})`
+
+where:
+
+  - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_records``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`, these values are always 1.
+  - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. This value is always 2 for :class:`DropExcess<tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess>`, and 1 for :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`.
+  - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the protected change on the left and right tables, respectively.
+
 
 In this example, if we choose a truncation strategy of ``DropExcess(max_records=2)`` for
 both tables, they will be truncated to include no more than two rows for each value of
@@ -128,10 +134,31 @@ our join key, ``user_id``. The private join might look something like:
     :alt: On the left, a private table with names, user ids and emails. On the right, a private table with user_ids and purchase information. On the bottom, the result of a private join between the two top tables: a private table with names, user ids, emails, and purchase information.
     :align: center
 
-Since our constraints each had bounds of ``max_records=2``, The sensitivity of the join
-is then :math:`2 \times 2 = 4`, even though the ``Users`` table did not *actually*
-contain more than one record per ``user_id``.
+In this case, our ``DropExcess()`` truncation strategies each had bounds of
+``max_records=2``, and our tables each had a protected change of
+``AddMaxRows(max_rows=1)``. The sensitivity of the join is then:
+:math:`\text{sensitivity} = 2 * 2 * 1 + 2 * 2 * 1 = 8`.
 
+.. Note::
+
+    Even though the ``Users`` table did not *actually* contain more than one record per
+    ``user_id``, the sensitivity is still increased via the
+    ``DropExcess(max_records=2)`` truncation strategy. Again, this is because we don't
+    look at the contents of private tables directly, and instead use the information
+    given by the ``TruncationStrategy`` for each table.
+
+.. Note::
+
+    When we know that a table always contains only one row per join key, it's preferable
+    to use ``DropNonUnique``, due to the smaller truncation stability. In this case,
+    using ``DropNonUnique`` for the Users table and ``DropExcess(max_records=2)`` for the
+    Purchases table would have led to a join sensitivity of :math:`1 * 2 * 1 + 2 * 1 * 1 = 4`.
+    Using ``DropExcess(max_records=1)`` for the users table would have led to a sensitivity of
+    :math:`1 * 2 * 1 + 2 * 2 * 1 = 6` instead.
+
+As you can see, tracking stability can be complicated. When in doubt, you can use the
+:meth:`describe<tmlt.analytics.session.Session.describe>` method to see how stability evolves
+with transformations.
 
 Queries on tables using ``AddRowsWithID``
 -----------------------------------------
@@ -164,12 +191,12 @@ added to the data. There are three cases:
 
   * With *Laplace* noise (the default under ``PureDP``), the sensitivity increases like a product of 
     the two ``max`` truncation parameters:
-    :math:`sensitivity = (MaxRowsPerGroupPerID.max) \times (MaxGroupsPerID.max)`
+    :math:`sensitivity = (MaxRowsPerGroupPerID.max)  *  (MaxGroupsPerID.max)`
 
   * With *Gaussian* noise (the default under ``rhoZCDP``), the sensitivity increases like a product of 
     the ``max`` truncation parameter for ``MaxRowsPerGroupPerID`` and the square root of
     the ``max`` for ``MaxGroupsPerID``:
-    :math:`sensitivity = (MaxRowsPerGroupPerID.max) \times \sqrt{(MaxGroupsPerID.max)}`
+    :math:`sensitivity = (MaxRowsPerGroupPerID.max)  *  \sqrt{(MaxGroupsPerID.max)}`
 
 
 For this last case, combining ``MaxGroupsPerID`` and ``MaxRowsPerGroupPerID``, we
