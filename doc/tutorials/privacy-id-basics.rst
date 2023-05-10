@@ -354,3 +354,8 @@ or using :class:`~tmlt.analytics.constraints.MaxGroupsPerID` and
 .. image:: ../images/flow_chart_truncation.svg
    :alt: A flow chart showing three paths from "data with privacy IDs" to "compute statistic". The first path is "data with privacy IDs" to "truncate using MaxRowsPerID" to "compute statistic". The second and third paths are paired together. The second path is "data with privacy IDs" to "truncate using MaxGroupsPerID" to "truncate using MaxRowsPerGroupPerID" to "compute statistic". The third path is "data with privacy IDs" to "truncate using MaxRowsPerGroupPerID" to "truncate using MaxGroupsPerID" to "compute statistic".
    :align: center
+
+To understand more the impact of choosing one kind of constraint vs. another,
+you can consult our :ref:`topic guide about sensitivity<Understanding sensitivity>`.
+To learn more about how to perform more complex queries on tables initialized with
+privacy IDs, you can proceed to the :ref:`next tutorial<Advanced IDs features>`.
