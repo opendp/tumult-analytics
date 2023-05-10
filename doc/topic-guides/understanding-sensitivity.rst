@@ -94,7 +94,7 @@ is :math:`n  *  m`.
 .. note::
 
     Like with flatmaps, the sensitivity increase doesn't depend on the *contents* of the
-    private table. It only depends on the åcontents of the public table, i.e. the
+    private table. It only depends on the contents of the public table, i.e. the
     number of rows in the public table with each value of the join key.
 
 Private joins
