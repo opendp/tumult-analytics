@@ -350,7 +350,7 @@ trigger_release:
       cat > body.json <<EOF
       {
         "source_branch": "release/$VERSION",
-        "target_branch": "dev",
+        "target_branch": "$CI_COMMIT_BRANCH",
         "title": "Merge release $VERSION",
         "assignee_id": $GITLAB_USER_ID,
         "remove_source_branch": true,
@@ -374,7 +374,7 @@ trigger_release:
       fi
   timeout: 5m
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /^stable\/.*$/)'
       when: manual
   interruptible: false
 
