@@ -110,12 +110,14 @@ containing the calculated age.
 .. testcode::
 
     from datetime import datetime as dt
-    
+
     def age_joined(row):
-        year_joined = row["date_joined"][:4]
-        age_at_joining = row["age"] - (dt.today().year - int(year_joined))
+        date_joined = row["date_joined"]
+        if isinstance(date_joined, str):
+            date_joined = dt.fromisoformat(date_joined)
+        age_at_joining = row["age"] - (dt.today().year - date_joined.year)
         return {"age_joined": age_at_joining}
-    
+
     example_row = {
         "id": 421742,
         "name": "Panfilo",
@@ -132,7 +134,7 @@ containing the calculated age.
 
 .. testoutput::
 
-    {'age_joined': 50}
+    {'age_joined': 49}
 
 Now that we have our mapping function, we can use it in a query.
 
