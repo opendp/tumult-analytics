@@ -100,7 +100,7 @@ function nightly_handler () {
       trigger_release_job_url="$(
         echo $jobs_json | jq -r '.[] | select(.name == "trigger_release") | .web_url'
       )"
-      status_text="Nightly <$CI_PIPELINE_URL|pipeline>: :white_check_mark: Passed"
+      status_text="Nightly <$CI_PIPELINE_URL|pipeline> for \`$CI_COMMIT_BRANCH\`: :white_check_mark: Passed"
       body_text="Trigger a release with <$trigger_release_job_url|this job>"
       if [[ "$(echo $failed_bridges_json | jq 'length > 0')" == 'true' ]]; then
         bridge_links="$(
@@ -116,7 +116,7 @@ function nightly_handler () {
         echo "$failed_jobs_json" \
           | jq -r '[.[] | "<" + .web_url + "|" + .name + ">"] | join(", ")'
       )"
-      status_text="Nightly <$CI_PIPELINE_URL|pipeline>: :x: Failed"
+      status_text="Nightly <$CI_PIPELINE_URL|pipeline> for \`$CI_COMMIT_BRANCH\`: :x: Failed"
       body_text="Failed jobs: $job_links\n@channel"
     fi
 
