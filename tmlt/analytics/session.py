@@ -789,7 +789,18 @@ class Session:
             try:
                 answers = self._accountant.measure(measurement, d_out=adjusted_budget)
             except InsufficientBudgetError:
+                if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                    raise ValueError(
+                        "Expected privacy_budget to be an ExactNumber, but instead"
+                        f" received {type(self._accountant.privacy_budget)}."
+                    )
                 approx_budget_needed = adjusted_budget.to_float(round_up=True)
+                if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                    raise AssertionError(
+                        "Unable to convert privacy budget of"
+                        f" {self._accountant.privacy_budget} to float. This is probably"
+                        " a bug; please let us know about it so we can fix it!"
+                    )
                 approx_budget_left = self._accountant.privacy_budget.to_float(
                     round_up=False
                 )
@@ -1159,7 +1170,18 @@ class Session:
                 "for more information."
             )
         except InsufficientBudgetError:
+            if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                raise ValueError(
+                    "Expected privacy_budget to be an ExactNumber, but instead"
+                    f" received {type(self._accountant.privacy_budget)}."
+                )
             approx_budget_needed = adjusted_budget.to_float(round_up=True)
+            if not isinstance(self._accountant.privacy_budget, ExactNumber):
+                raise AssertionError(
+                    "Unable to convert privacy budget of"
+                    f" {self._accountant.privacy_budget} to float. This is probably a"
+                    " bug; please let us know about it so we can fix it!"
+                )
             approx_budget_left = self._accountant.privacy_budget.to_float(
                 round_up=False
             )
@@ -1199,6 +1221,11 @@ class Session:
             privacy_budget: The requested budget.
         """
         remaining_budget = self._accountant.privacy_budget
+        if not isinstance(remaining_budget, ExactNumber):
+            raise AssertionError(
+                f"Cannot understand remaining budget of {remaining_budget}. This is"
+                " probably a bug; please let us know about it so we can fix it!"
+            )
         if isinstance(privacy_budget, PureDPBudget):
             return get_adjusted_budget(privacy_budget.epsilon, remaining_budget)
         elif isinstance(privacy_budget, RhoZCDPBudget):

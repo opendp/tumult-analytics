@@ -54,7 +54,7 @@ def test_check_df_schema_valid(types: StructType):
     [
         (
             StructType([StructField("A", FloatType(), False)]),
-            "Column A has type FloatType, which is not allowed in KeySets",
+            r"Column A has type FloatType(\(\))?, which is not allowed in KeySets",
         ),
         (
             StructType(
@@ -63,7 +63,7 @@ def test_check_df_schema_valid(types: StructType):
                     StructField("B", TimestampType(), False),
                 ]
             ),
-            "Column B has type TimestampType, which is not allowed in KeySets",
+            r"Column B has type TimestampType(\(\))?, which is not allowed in KeySets",
         ),
     ],
 )
@@ -286,15 +286,15 @@ def test_from_dataframe_with_null(
     [
         (
             pd.DataFrame({"A": [3.1]}),
-            "Column A has type DoubleType, which is not allowed in KeySets",
+            r"Column A has type DoubleType(\(\))?, which is not allowed in KeySets",
         ),
         (
             pd.DataFrame({"A": [3.1], "B": [datetime.datetime.now()]}),
-            "Column A has type DoubleType, which is not allowed in KeySets",
+            r"Column A has type DoubleType(\(\))?, which is not allowed in KeySets",
         ),
         (
             pd.DataFrame({"A": [3], "B": [datetime.datetime.now()]}),
-            "Column B has type TimestampType, which is not allowed in KeySets",
+            r"Column B has type TimestampType(\(\))?, which is not allowed in KeySets",
         ),
     ],
 )
@@ -426,11 +426,15 @@ def test_filter_to_empty() -> None:
     """Test when KeySet.filter should return an empty dataframe, it does"""
     keyset = KeySet.from_dict({"A": [-1, -2, -3]})
     filtered = keyset.filter("A > 0")
-    assert filtered.dataframe().toPandas().empty
+    pd_df = filtered.dataframe().toPandas()
+    assert isinstance(pd_df, pd.DataFrame)
+    assert pd_df.empty
 
     keyset2 = KeySet.from_dict({"A": ["a1", "a2", "a3"], "B": ["irrelevant"]})
     filtered2 = keyset2.filter(keyset2.dataframe().A == "string that is not there")
-    assert filtered2.dataframe().toPandas().empty
+    pd_df2 = filtered2.dataframe().toPandas()
+    assert isinstance(pd_df2, pd.DataFrame)
+    assert pd_df2.empty
 
 
 @pytest.mark.parametrize(

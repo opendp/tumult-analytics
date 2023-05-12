@@ -194,6 +194,7 @@ class TestSession:
                 _privacy_budget_to_exact_number(budget)
             )
             mock_composition_init.return_value.d_in = {"private": 23}
+            mock_composition_init.return_value.output_measure = expected_output_measure
 
             Session.from_dataframe(
                 privacy_budget=budget,
@@ -249,6 +250,7 @@ class TestSession:
                 _privacy_budget_to_exact_number(budget)
             )
             mock_composition_init.return_value.d_in = {"private": 23}
+            mock_composition_init.return_value.output_measure = expected_output_measure
 
             Session.from_dataframe(
                 privacy_budget=budget,
@@ -1208,8 +1210,8 @@ class TestInvalidSession:
             with pytest.raises(
                 TypeError,
                 match=(
-                    "'A' column is of type 'StringType'; 'StringType' "
-                    "column not compatible with splits value type 'int'"
+                    r"'A' column is of type 'StringType(\(\))?'; 'StringType(\(\))?' "
+                    r"column not compatible with splits value type 'int'"
                 ),
             ):
                 session.partition_and_create(
