@@ -117,7 +117,7 @@ test_nightly:
   timeout: 23h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
     - when: manual
       allow_failure: true
@@ -159,7 +159,7 @@ docs:
     paths:
       - public/
     expose_as: "Documentation"
-  timeout: 15m
+  timeout: 25m
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
@@ -186,6 +186,8 @@ test_release_linux:
   timeout: 1h
   rules:
     - if: '$CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+      when: never
     - when: manual
       allow_failure: true
   tags: [aws-large]
