@@ -3,8 +3,18 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+Changed
+~~~~~~~
+
+-  Updated to support PySpark 3.3.0.
+
 0.5.1 - 2022-11-16
 ------------------
+
+.. _changed-1:
 
 Changed
 ~~~~~~~
@@ -23,7 +33,7 @@ Added
 -  Analytics now does an additional Spark configuration check for users running Java 11+ at the time of Analytics Session initialization. If the user is running Java 11 or higher with an incorrect Spark configuration, Analytics raises an informative exception.
 -  Added a method to check that basic Analytics functionality works (``tmlt.analytics.utils.check_installation``).
 
-.. _changed-1:
+.. _changed-2:
 
 Changed
 ~~~~~~~
@@ -62,7 +72,7 @@ Added
 -  Added ``QueryBuilder.histogram`` function, which provides a shorthand for generating binned data counts.
 -  Analytics now checks to see if the user is running Java 11 or higher. If they are, Analytics either sets the appropriate Spark options (if Spark is not yet running) or raises an informative exception (if Spark is running and configured incorrectly).
 
-.. _changed-2:
+.. _changed-3:
 
 Changed
 ~~~~~~~
@@ -112,7 +122,7 @@ Added
 -  Added a ``cleanup`` module with two functions: a ``cleanup`` function to remove the current temporary table (which should be called before ``spark.stop()``), and a ``remove_all_temp_tables`` function that removes all temporary tables ever created by Analytics.
 -  Added a topic guide in the documentation for Tumult Analytics’ treatment of null, NaN, and infinite values.
 
-.. _changed-3:
+.. _changed-4:
 
 Changed
 ~~~~~~~
@@ -155,7 +165,7 @@ Added
    ``ColumnType`` has two new variants, ``DATE`` and ``TIMESTAMP``, to support these.
 -  Future documentation will now include any exceptions defined in Analytics.
 
-.. _changed-4:
+.. _changed-5:
 
 Changed
 ~~~~~~~
@@ -176,7 +186,7 @@ Removed
 -  Columns that are neither floats nor doubles will no longer be checked for NaN values.
 -  The ``BIT`` variant of the ``ColumnType`` enum was removed, as it was not supported elsewhere in Analytics.
 
-.. _changed-5:
+.. _changed-6:
 
 Changed
 ~~~~~~~
@@ -208,7 +218,7 @@ Added
 -  Added a ``KeySet`` class, which will eventually be used for all GroupBy queries.
 -  Added ``QueryBuilder.groupby()``, a new group-by based on ``KeySet``\ s.
 
-.. _changed-6:
+.. _changed-7:
 
 Changed
 ~~~~~~~
