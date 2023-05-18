@@ -10,7 +10,6 @@
 
 from typing import Any, Dict, List, Sequence, Tuple, Union
 
-import sympy as sp
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._catalog import Catalog
@@ -25,12 +24,13 @@ from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import Constraint
+from tmlt.analytics.privacy_budget import PrivacyBudget
 from tmlt.analytics.query_expr import QueryExpr
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.composition import Composition
-from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric
 from tmlt.core.transformations.base import Transformation
 
@@ -76,7 +76,7 @@ class QueryExprCompiler:
     * :class:`~tmlt.analytics.query_expr.GroupByQuantile`
     """
 
-    def __init__(self, output_measure: Union[PureDP, RhoZCDP] = PureDP()):
+    def __init__(self, output_measure: Union[PureDP, ApproxDP, RhoZCDP] = PureDP()):
         """Constructor.
 
         Args:
@@ -85,7 +85,7 @@ class QueryExprCompiler:
         # TODO(#1547): Can be removed when issue is resolved.
         self._mechanism = (
             CoreNoiseMechanism.LAPLACE
-            if isinstance(output_measure, PureDP)
+            if isinstance(output_measure, (PureDP, ApproxDP))
             else CoreNoiseMechanism.DISCRETE_GAUSSIAN
         )
         self._output_measure = output_measure
@@ -101,7 +101,7 @@ class QueryExprCompiler:
         self._mechanism = value
 
     @property
-    def output_measure(self) -> Union[PureDP, RhoZCDP]:
+    def output_measure(self) -> Union[PureDP, ApproxDP, RhoZCDP]:
         """Return the distance measure for the measurement's output."""
         return self._output_measure
 
@@ -120,7 +120,7 @@ class QueryExprCompiler:
     def __call__(
         self,
         queries: Sequence[QueryExpr],
-        privacy_budget: sp.Expr,
+        privacy_budget: PrivacyBudget,
         stability: Any,
         input_domain: DictDomain,
         input_metric: DictMetric,
@@ -143,10 +143,10 @@ class QueryExprCompiler:
         if len(queries) == 0:
             raise ValueError("At least one query needs to be provided")
 
-        measurements: List[Measurement] = []
-        per_query_privacy_budget = privacy_budget / len(queries)
+        if len(queries) != 1:
+            raise NotImplementedError("Only one query is supported at this time.")
         visitor = MeasurementVisitor(
-            per_query_privacy_budget=per_query_privacy_budget,
+            privacy_budget=privacy_budget,
             stability=stability,
             input_domain=input_domain,
             input_metric=input_metric,
@@ -156,6 +156,7 @@ class QueryExprCompiler:
             catalog=catalog,
             table_constraints=table_constraints,
         )
+        measurements: List[Measurement] = []
         for query in queries:
             query_measurement = query.accept(visitor)
             if not isinstance(query_measurement, Measurement):
@@ -163,19 +164,16 @@ class QueryExprCompiler:
                     "This query did not create a measurement. "
                     "This is probably a bug; please let us know so we can fix it!"
                 )
-            if (
-                query_measurement.privacy_function(stability)
-                != per_query_privacy_budget
-            ):
+            if query_measurement.privacy_function(stability) != privacy_budget.value:
                 raise AssertionError(
                     "Query measurement privacy function does not match "
-                    "per-query privacy budget. This is probably a bug; "
+                    "privacy budget value. This is probably a bug; "
                     "please let us know so we can fix it!"
                 )
             measurements.append(query_measurement)
 
         measurement = Composition(measurements)
-        if measurement.privacy_function(stability) != privacy_budget:
+        if measurement.privacy_function(stability) != privacy_budget.value:
             raise AssertionError(
                 "Measurement privacy function does not match "
                 "privacy budget. This is probably a bug; "

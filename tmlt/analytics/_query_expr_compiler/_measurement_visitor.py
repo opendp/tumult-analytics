@@ -32,6 +32,7 @@ from tmlt.analytics.constraints import (
     MaxRowsPerID,
 )
 from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.privacy_budget import PrivacyBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
@@ -70,7 +71,7 @@ from tmlt.core.measurements.aggregations import (
     create_variance_measurement,
 )
 from tmlt.core.measurements.base import Measurement
-from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
     HammingDistance,
@@ -131,7 +132,7 @@ def _get_truncatable_constraints(
 
 def _constraint_stability(
     constraints: Tuple[Constraint, ...],
-    output_measure: Union[PureDP, RhoZCDP],
+    output_measure: Union[PureDP, ApproxDP, RhoZCDP],
     grouping_columns: List[str],
 ) -> float:
     """Compute the transformation stability of applying the given constraints.
@@ -149,6 +150,7 @@ def _constraint_stability(
     ):
         if (
             output_measure == PureDP()
+            or output_measure == ApproxDP()
             or constraints[0].grouping_column not in grouping_columns
         ):
             return constraints[0].max * constraints[1].max
@@ -256,18 +258,18 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def __init__(
         self,
-        per_query_privacy_budget: sp.Expr,
+        privacy_budget: PrivacyBudget,
         stability: Any,
         input_domain: DictDomain,
         input_metric: DictMetric,
-        output_measure: Union[PureDP, RhoZCDP],
+        output_measure: Union[PureDP, ApproxDP, RhoZCDP],
         default_mechanism: NoiseMechanism,
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
         table_constraints: Dict[Identifier, List[Constraint]],
     ):
         """Constructor for MeasurementVisitor."""
-        self.budget = per_query_privacy_budget
+        self.budget = privacy_budget
         self.stability = stability
         self.input_domain = input_domain
         self.input_metric = input_metric
@@ -355,7 +357,7 @@ class MeasurementVisitor(QueryExprVisitor):
         """Pick the noise mechanism to use for a count or count-distinct query."""
         requested_mechanism: NoiseMechanism
         if query.mechanism in (CountMechanism.DEFAULT, CountDistinctMechanism.DEFAULT):
-            if isinstance(self.output_measure, PureDP):
+            if isinstance(self.output_measure, (PureDP, ApproxDP)):
                 requested_mechanism = NoiseMechanism.LAPLACE
             else:  # output measure is RhoZCDP
                 requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
@@ -410,7 +412,7 @@ class MeasurementVisitor(QueryExprVisitor):
         ):
             requested_mechanism = (
                 NoiseMechanism.LAPLACE
-                if isinstance(self.output_measure, PureDP)
+                if isinstance(self.output_measure, (PureDP, ApproxDP))
                 else NoiseMechanism.DISCRETE_GAUSSIAN
             )
         elif query.mechanism in (
@@ -593,7 +595,7 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""
-        if measurement.privacy_function(mid_stability) != self.budget:
+        if measurement.privacy_function(mid_stability) != self.budget.value:
             raise AssertionError(
                 "Privacy function does not match per-query privacy budget. "
                 "This is probably a bug; please let us know so we can "
@@ -631,7 +633,7 @@ class MeasurementVisitor(QueryExprVisitor):
             input_metric=transformation.output_metric,
             noise_mechanism=mechanism,
             d_in=mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             count_column=query.output_column,
@@ -701,7 +703,7 @@ class MeasurementVisitor(QueryExprVisitor):
             input_metric=transformation.output_metric,
             noise_mechanism=mechanism,
             d_in=mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             count_column=query.output_column,
@@ -777,7 +779,7 @@ class MeasurementVisitor(QueryExprVisitor):
             lower=query.low,
             upper=query.high,
             d_in=mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             quantile_column=query.output_column,
@@ -807,7 +809,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             sum_column=query.output_column,
@@ -838,7 +840,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             average_column=query.output_column,
@@ -869,7 +871,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             variance_column=query.output_column,
@@ -898,7 +900,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget,
+            d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             standard_deviation_column=query.output_column,

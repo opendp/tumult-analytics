@@ -71,7 +71,7 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
     SequentialQueryable,
 )
-from tmlt.core.measures import Measure, PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, Measure, PureDP, RhoZCDP
 from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import (
     DictMetric,
@@ -96,10 +96,8 @@ def _privacy_budget_to_exact_number(
     budget: Union[PureDPBudget, RhoZCDPBudget]
 ) -> ExactNumber:
     """Turn a privacy budget into an Exact Number."""
-    if isinstance(budget, PureDPBudget):
-        return ExactNumber(budget.epsilon)
-    if isinstance(budget, RhoZCDPBudget):
-        return ExactNumber(budget.rho)
+    if isinstance(budget, (PureDPBudget, RhoZCDPBudget)):
+        return budget.value
     raise AssertionError("This should be unreachable")
 
 
@@ -693,13 +691,14 @@ class TestSession:
                 query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(10)
             )
             self._assert_test_evaluate_correctness(
-                session, mock_accountant, mock_compiler, 10
+                session, mock_accountant, mock_compiler, PureDPBudget(10)
             )
             check_type("answer", answer, DataFrame)
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_puredp_session_approxdp_query(self, spark, d_in):
-        """Tests that :func:`evaluate` calls the right things given a puredp session."""
+        """Confirm that using an approxdp query on a puredp accountant raises an
+        error."""
         with patch.object(
             QueryExprCompiler, "__call__", autospec=True
         ) as mock_compiler, patch(
@@ -710,14 +709,17 @@ class TestSession:
             )
             mock_accountant.privacy_budget = ExactNumber(10)
             session = Session(accountant=mock_accountant, public_sources=dict())
-            answer = session.evaluate(
-                query_expr=PrivateSource("private"),
-                privacy_budget=ApproxDPBudget(10, 0.5),
-            )
-            self._assert_test_evaluate_correctness(
-                session, mock_accountant, mock_compiler, 10
-            )
-            check_type("answer", answer, DataFrame)
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Your requested privacy budget type must match the type of the"
+                    " privacy budget your Session was created with."
+                ),
+            ):
+                session.evaluate(
+                    query_expr=PrivateSource("private"),
+                    privacy_budget=ApproxDPBudget(10, 0.5),
+                )
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_with_zero_budget(self, spark, d_in):
@@ -823,7 +825,7 @@ class TestSession:
                 query_expr=PrivateSource("private"), privacy_budget=RhoZCDPBudget(5)
             )
             self._assert_test_evaluate_correctness(
-                session, mock_accountant, mock_compiler, 5
+                session, mock_accountant, mock_compiler, RhoZCDPBudget(5)
             )
             check_type("answer", answer, DataFrame)
 
@@ -905,7 +907,7 @@ class TestSession:
         mock_compiler.return_value = Mock(spec_set=Measurement)
 
     def _assert_test_evaluate_correctness(
-        self, session, mock_accountant, mock_compiler, budget
+        self, session, mock_accountant, mock_compiler, privacy_budget
     ):
         """Confirm that :func:`evaluate` worked correctly."""
         assert "private" in session.private_sources
@@ -917,14 +919,14 @@ class TestSession:
             stability=mock_accountant.d_in,
             input_domain=mock_accountant.input_domain,
             input_metric=mock_accountant.input_metric,
-            privacy_budget=sp.Integer(budget),
+            privacy_budget=privacy_budget,
             public_sources={},
             catalog=ANY,
             table_constraints={t: [] for t in mock_accountant.d_in.keys()},
         )
 
         mock_accountant.measure.assert_called_with(
-            mock_compiler.return_value, d_out=ExactNumber(budget)
+            mock_compiler.return_value, d_out=privacy_budget.value
         )
 
     def test_partition_and_create(self):
@@ -1616,6 +1618,7 @@ class TestInvalidSession:
             mock_accountant.input_domain = DictDomain(
                 {NamedTable("private"): self.sdf_input_domain}
             )
+            mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
@@ -1663,6 +1666,7 @@ class TestInvalidSession:
             mock_accountant.input_domain = DictDomain(
                 {NamedTable("private"): self.sdf_input_domain}
             )
+            mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
@@ -1688,6 +1692,7 @@ class TestInvalidSession:
             mock_accountant.input_domain = DictDomain(
                 {NamedTable("private"): self.sdf_input_domain}
             )
+            mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
@@ -1740,6 +1745,7 @@ class TestInvalidSession:
             mock_accountant.input_domain = DictDomain(
                 {NamedTable("private"): self.sdf_input_domain}
             )
+            mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
@@ -1785,6 +1791,7 @@ class TestInvalidSession:
             mock_accountant.input_domain = DictDomain(
                 {NamedTable("private"): self.sdf_input_domain}
             )
+            mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
             mock_compiler.output_measure = PureDP()
 
@@ -2054,8 +2061,8 @@ class TestSessionBuilder:
             ),
             (
                 Session.Builder().with_privacy_budget(ApproxDPBudget(10, 0.5)),
-                sp.Integer(10),
-                PureDP(),
+                (sp.Integer(10), 0),
+                ApproxDP(),
                 [("df1", 1)],
                 [],
             ),
@@ -2114,11 +2121,7 @@ class TestSessionBuilder:
         # pylint: disable=protected-access
         accountant = session._accountant
         assert isinstance(accountant, PrivacyAccountant)
-        assert (
-            accountant.privacy_budget
-            == expected_sympy_budget
-            == accountant.privacy_budget
-        )
+        assert accountant.privacy_budget == expected_sympy_budget
         assert accountant.output_measure == expected_output_measure
 
         for table_id in expected_private_sources:

@@ -35,6 +35,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountMechanism,
@@ -191,21 +192,23 @@ QUERY_EXPR_COMPILER_TESTS = [
         ],
         [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})],
     ),
-    (  # Marginal over A, Marginal over B
+    (  # Marginal over A
         [
             GroupByCount(
                 child=PrivateSource("private"),
                 groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-            ),
+            )
+        ],
+        [pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})],
+    ),
+    (  # Marginal over B
+        [
             GroupByCount(
                 child=PrivateSource("private"),
                 groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-            ),
+            )
         ],
-        [
-            pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
-            pd.DataFrame({"B": [0, 1], "count": [3, 1]}),
-        ],
+        [pd.DataFrame({"B": [0, 1], "count": [3, 1]})],
     ),
     (  # FlatMap
         [
@@ -700,7 +703,7 @@ class TestQueryExprCompiler:
         )
         measurement = self.compiler(
             [query_expr],
-            privacy_budget=sp.oo,
+            privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
@@ -726,7 +729,7 @@ class TestQueryExprCompiler:
         """
         measurement = self.compiler(
             query_exprs,
-            privacy_budget=sp.oo,
+            privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
@@ -958,9 +961,14 @@ class TestQueryExprCompiler:
     ):
         """Tests aggregation with various privacy definition and mechanism."""
         compiler = QueryExprCompiler(output_measure=output_measure)
+        privacy_budget = (
+            PureDPBudget(float("inf"))
+            if isinstance(output_measure, PureDP)
+            else RhoZCDPBudget(float("inf"))
+        )
         measurement = compiler(
             [query],
-            privacy_budget=sp.oo,
+            privacy_budget=privacy_budget,
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
@@ -1073,7 +1081,7 @@ class TestQueryExprCompiler:
         ):
             compiler(
                 query_exprs,
-                privacy_budget=sp.oo,
+                privacy_budget=RhoZCDPBudget(float("inf")),
                 stability=self.stability,
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
@@ -1319,7 +1327,7 @@ class TestQueryExprCompiler:
         ]
         measurement = QueryExprCompiler()(
             query_exprs,
-            privacy_budget=sp.oo,
+            privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
@@ -1370,7 +1378,7 @@ class TestQueryExprCompiler:
         with pytest.raises(NotImplementedError):
             self.compiler(
                 query_exprs,
-                privacy_budget=sp.oo,
+                privacy_budget=PureDPBudget(float("inf")),
                 stability=self.stability,
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
@@ -1379,24 +1387,38 @@ class TestQueryExprCompiler:
                 table_constraints={t: [] for t in self.stability.keys()},
             )
 
-    def test_different_source_id(self):
+    @pytest.mark.parametrize(
+        "query_exprs",
+        [
+            (
+                [
+                    GroupByCount(
+                        child=PrivateSource("private"),
+                        groupby_keys=KeySet.from_dict({}),
+                    )
+                ]
+            ),
+            (
+                [
+                    GroupByCount(
+                        child=PrivateSource("doubled"),
+                        groupby_keys=KeySet.from_dict({}),
+                    )
+                ]
+            ),
+        ],
+    )
+    def test_different_source_id(self, query_exprs: List[QueryExpr]):
         """Tests that different source ids are allowed."""
-        self.catalog.add_private_table(
-            source_id="doubled",
-            col_types={
-                "A": ColumnType.VARCHAR,
-                "B": ColumnType.INTEGER,
-                "X": ColumnType.DECIMAL,
-            },
-        )
-        query_exprs = [
-            GroupByCount(
-                child=PrivateSource("private"), groupby_keys=KeySet.from_dict({})
-            ),
-            GroupByCount(
-                child=PrivateSource("doubled"), groupby_keys=KeySet.from_dict({})
-            ),
-        ]
+        if not self.catalog.tables.get("doubled"):
+            self.catalog.add_private_table(
+                source_id="doubled",
+                col_types={
+                    "A": ColumnType.VARCHAR,
+                    "B": ColumnType.INTEGER,
+                    "X": ColumnType.DECIMAL,
+                },
+            )
         stability = {
             NamedTable("doubled"): self.stability[NamedTable("private")] * 2,
             **self.stability,
@@ -1416,7 +1438,7 @@ class TestQueryExprCompiler:
 
         measurement = self.compiler(
             query_exprs,
-            privacy_budget=sp.Integer(10),
+            privacy_budget=PureDPBudget(10),
             stability=stability,
             input_domain=input_domain,
             input_metric=input_metric,
@@ -1433,7 +1455,7 @@ class TestQueryExprCompiler:
         ):
             self.compiler(
                 queries=[],
-                privacy_budget=sp.Integer(10),
+                privacy_budget=PureDPBudget(10),
                 stability=self.stability,
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
@@ -1492,6 +1514,11 @@ class TestCompileGroupByQuantile:
         )
         input_metric = DictMetric({NamedTable("private"): SymmetricDifference()})
         compiler = QueryExprCompiler(output_measure=output_measure)
+        privacy_budget = (
+            PureDPBudget(1000)
+            if isinstance(output_measure, PureDP)
+            else RhoZCDPBudget(1000)
+        )
 
         query_expr = GroupByQuantile(
             child=PrivateSource("private"),
@@ -1504,7 +1531,7 @@ class TestCompileGroupByQuantile:
         )
         measurement = compiler(
             [query_expr],
-            privacy_budget=sp.Integer(1000),
+            privacy_budget=privacy_budget,
             stability=stability,
             input_domain=input_domain,
             input_metric=input_metric,
@@ -1515,7 +1542,7 @@ class TestCompileGroupByQuantile:
         assert measurement.input_domain == input_domain
         assert measurement.input_metric == input_metric
         assert measurement.output_measure == output_measure
-        assert measurement.privacy_function(stability) == sp.Integer(1000)
+        assert measurement.privacy_function(stability) == privacy_budget.value
 
         [actual] = measurement({NamedTable("private"): sdf})
 
@@ -1527,7 +1554,7 @@ class TestCompileGroupByQuantile:
 def setup_components(request):
     """Set up test."""
     request.cls._stability = {NamedTable("test"): sp.Integer(3)}
-    request.cls._privacy_budget = sp.Integer(5)
+    request.cls._privacy_budget = PureDPBudget(5)
     request.cls._input_domain = DictDomain(
         {
             NamedTable("test"): SparkDataFrameDomain(

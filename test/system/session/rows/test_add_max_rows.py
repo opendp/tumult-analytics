@@ -431,7 +431,7 @@ class TestSession:
         "starting_budget,partition_budget",
         [
             (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
             (RhoZCDPBudget(20), RhoZCDPBudget(10)),
         ],
     )
@@ -470,7 +470,7 @@ class TestSession:
         "starting_budget,partition_budget",
         [
             (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
             (RhoZCDPBudget(20), RhoZCDPBudget(10)),
         ],
     )
@@ -519,6 +519,22 @@ class TestSession:
         session2.evaluate(query, partition_budget)
 
     @pytest.mark.parametrize(
+        "starting_budget,partition_budget",
+        [(ApproxDPBudget(20, 0.5), PureDPBudget(10))],
+    )
+    def test_partition_and_create_approxDP_session_pureDP_partition(
+        self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
+    ):
+        """Tests using :func:`partition_and_create` to create a new ApproxDP session
+        that supports PureDP partitions."""
+
+        is_approxDP_starting_budget = isinstance(starting_budget, ApproxDPBudget)
+        if is_approxDP_starting_budget and isinstance(partition_budget, PureDPBudget):
+            partition_budget = ApproxDPBudget(partition_budget.epsilon, 0)
+
+        self.test_partition_and_create_query(starting_budget, partition_budget)
+
+    @pytest.mark.parametrize(
         "inf_budget,mechanism",
         [
             (PureDPBudget(float("inf")), CountMechanism.LAPLACE),
@@ -565,7 +581,7 @@ class TestSession:
             answer_session3.toPandas(), pd.DataFrame({"count": [1]})
         )
 
-    @pytest.mark.parametrize("output_measure", [(PureDP()), (RhoZCDP())])
+    @pytest.mark.parametrize("output_measure", [(PureDP()), (ApproxDP()), (RhoZCDP())])
     def test_partitions_composed(
         self, output_measure: Union[PureDP, ApproxDP, RhoZCDP]
     ):
@@ -579,6 +595,11 @@ class TestSession:
             partition_budget = PureDPBudget(10)
             second_partition_budget = PureDPBudget(5)
             final_evaluate_budget = PureDPBudget(2)
+        elif output_measure == ApproxDP():
+            starting_budget = ApproxDPBudget(20, 0)
+            partition_budget = ApproxDPBudget(10, 0)
+            second_partition_budget = ApproxDPBudget(5, 0)
+            final_evaluate_budget = ApproxDPBudget(2, 0)
         elif output_measure == RhoZCDP():
             starting_budget = RhoZCDPBudget(20)
             partition_budget = RhoZCDPBudget(10)
@@ -669,7 +690,7 @@ class TestSession:
         "starting_budget,partition_budget",
         [
             (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), PureDPBudget(10)),
+            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
             (RhoZCDPBudget(20), RhoZCDPBudget(10)),
         ],
     )
