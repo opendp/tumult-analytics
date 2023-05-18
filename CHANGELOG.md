@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.2 - 2023-05-18
 
 ### Changed
 - Updated to support PySpark 3.3.0.
