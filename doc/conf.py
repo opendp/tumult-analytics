@@ -143,6 +143,9 @@ nitpick_ignore = [
     ("py:class", "Generic[BinT, BinNameT]"),
     ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),
     ("py:class", "sympy.core.expr.Expr"),
+    ("py:class", "Epsilon"),
+    ("py:class", "Delta"),
+    ("py:class", "Rho"),
 ]
 
 # Remove this after intersphinx can use core

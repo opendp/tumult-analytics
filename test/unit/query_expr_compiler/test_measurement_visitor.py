@@ -23,6 +23,7 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._table_reference import lookup_domain, lookup_metric
 from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
@@ -280,13 +281,13 @@ def prepare_visitor(spark, request):
     )
     request.cls.catalog = catalog
 
-    budget = ExactNumber(10).expr
+    budget = PureDPBudget(10)
     stability = {
         NamedTable("private"): ExactNumber(3).expr,
         NamedTable("private_2"): ExactNumber(3).expr,
     }
     request.cls.visitor = MeasurementVisitor(
-        per_query_privacy_budget=budget,
+        privacy_budget=budget,
         stability=stability,
         input_domain=input_domain,
         input_metric=input_metric,
@@ -298,7 +299,7 @@ def prepare_visitor(spark, request):
     )
     # for the methods which alter the output measure of a visitor.
     request.cls.pick_noise_visitor = MeasurementVisitor(
-        per_query_privacy_budget=budget,
+        privacy_budget=budget,
         stability=stability,
         input_domain=input_domain,
         input_metric=input_metric,
@@ -1058,7 +1059,7 @@ class TestMeasurementVisitor:
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
             autospec=True,
         ) as mock_measurement:
-            mock_measurement.privacy_function.return_value = self.visitor.budget
+            mock_measurement.privacy_function.return_value = self.visitor.budget.value
             mid_stability = ExactNumber(2).expr
             # This should finish without raising an error
             # pylint: disable=protected-access
@@ -1134,7 +1135,7 @@ class TestMeasurementVisitor:
         mock_measurement.input_metric = lookup_metric(
             transformation.output_metric, reference
         )
-        mock_measurement.privacy_function.return_value = self.visitor.budget
+        mock_measurement.privacy_function.return_value = self.visitor.budget.value
 
     @pytest.mark.parametrize(
         "query,output_measure,expected_mechanism",
@@ -1231,7 +1232,7 @@ class TestMeasurementVisitor:
                 input_metric=measurement.transformation.output_metric,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 count_column=query.output_column,
@@ -1369,7 +1370,7 @@ class TestMeasurementVisitor:
                 input_metric=measurement.transformation.output_metric,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 count_column=query.output_column,
@@ -1528,7 +1529,7 @@ class TestMeasurementVisitor:
                 lower=query.low,
                 upper=query.high,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 quantile_column=query.output_column,
@@ -1639,7 +1640,7 @@ class TestMeasurementVisitor:
                 upper=upper,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 sum_column=query.output_column,
@@ -1750,7 +1751,7 @@ class TestMeasurementVisitor:
                 upper=upper,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 average_column=query.output_column,
@@ -1861,7 +1862,7 @@ class TestMeasurementVisitor:
                 upper=upper,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 variance_column=query.output_column,
@@ -1973,7 +1974,7 @@ class TestMeasurementVisitor:
                 upper=upper,
                 noise_mechanism=expected_mechanism,
                 d_in=mid_stability,
-                d_out=self.visitor.budget,
+                d_out=self.visitor.budget.value,
                 output_measure=self.visitor.output_measure,
                 groupby_transformation=mock_groupby.return_value,
                 standard_deviation_column=query.output_column,

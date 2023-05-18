@@ -74,7 +74,9 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
         data: Any
 
     def __init__(
-        self, tables: Dict[str, DataFrame], output_measure: Union[PureDP, RhoZCDP]
+        self,
+        tables: Dict[str, DataFrame],
+        output_measure: Union[PureDP, ApproxDP, RhoZCDP],
     ):
         """Constructor."""
         self.tables = tables

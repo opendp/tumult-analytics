@@ -569,7 +569,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_replace_null_and_nan(
         self,
         replace_with: Mapping[
-            str, Union[int, float, str, datetime.date, datetime.datetime, float]
+            str, Union[int, float, str, datetime.date, datetime.datetime]
         ],
         expected_df: DataFrame,
     ):
