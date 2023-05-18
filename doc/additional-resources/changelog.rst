@@ -3,13 +3,15 @@
 Changelog
 =========
 
-Unreleased
-----------
+0.5.2 - 2023-05-18
+------------------
 
 Changed
 ~~~~~~~
 
 -  Updated to support PySpark 3.3.0.
+
+.. _section-1:
 
 0.5.1 - 2022-11-16
 ------------------
@@ -21,7 +23,7 @@ Changed
 
 -  Updated to Tumult Core 0.6.0.
 
-.. _section-1:
+.. _section-2:
 
 0.5.0 - 2022-10-17
 ------------------
@@ -49,7 +51,7 @@ Deprecated
 
 -  The contents of the ``cleanup`` module have been moved to the ``utils`` module. The ``cleanup`` module will be removed in a future version.
 
-.. _section-2:
+.. _section-3:
 
 0.4.2 - 2022-09-06
 ------------------
@@ -59,7 +61,7 @@ Fixed
 
 -  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
 
-.. _section-3:
+.. _section-4:
 
 0.4.1 - 2022-08-25
 ------------------
@@ -86,7 +88,7 @@ Fixed
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
-.. _section-4:
+.. _section-5:
 
 0.4.0 - 2022-07-22
 ------------------
@@ -100,7 +102,7 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-5:
+.. _section-6:
 
 0.3.0 - 2022-06-23
 ------------------
