@@ -6,14 +6,14 @@ For a full introduction to privacy budgets, see the
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
+
 import math
 from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
 import sympy as sp
-from typeguard import typechecked
-
 from tmlt.core.utils.exact_number import ExactNumber
+from typeguard import typechecked
 
 
 def _is_exact_number_from_integer(value: ExactNumber) -> bool:
@@ -63,7 +63,6 @@ class PrivacyBudget(ABC):
     @abstractmethod
     def value(self) -> Union[ExactNumber, Tuple[ExactNumber, ExactNumber]]:
         """Return the value of the privacy budget."""
-        ...
 
 
 class PureDPBudget(PrivacyBudget):

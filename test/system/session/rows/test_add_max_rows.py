@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, no-self-use
+# pylint: disable=no-self-use
 
 import math
 from typing import Any, Dict, List, Optional, Union
@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
+from tmlt.core.measurements.interactive_measurements import PrivacyAccountantState
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.parameters import calculate_noise_scale
 
 from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._schema import ColumnType, Schema
@@ -42,14 +46,8 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.measurements.interactive_measurements import PrivacyAccountantState
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.parameters import calculate_noise_scale
 
-from ....conftest import (  # pylint: disable=no-name-in-module
-    assert_frame_equal_with_sort,
-)
+from ....conftest import assert_frame_equal_with_sort
 from .conftest import EVALUATE_TESTS
 
 
@@ -1014,7 +1012,7 @@ class TestSession:
             QueryBuilder("private")
             .filter("B == 2")
             .groupby(keyset)
-            .median("X", 0, 10 ** 6, "dp_median")
+            .median("X", 0, 10**6, "dp_median")
         )
         median_result = session.evaluate(median_query, budget_per_query)
         median_a_b = median_result.select("A", "B")
@@ -1024,7 +1022,7 @@ class TestSession:
             QueryBuilder("private")
             .filter("B == 2")
             .groupby(keyset)
-            .average("X", 0, 10 ** 6, "dp_average")
+            .average("X", 0, 10**6, "dp_average")
         )
         average_result = session.evaluate(average_query, budget_per_query)
         average_a_b = average_result.select("A", "B")

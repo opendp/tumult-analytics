@@ -19,15 +19,6 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-
-from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler._transformation_visitor import (
-    TransformationVisitor,
-)
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType
-from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
-from tmlt.analytics._table_reference import TableReference
-from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
     SparkColumnDescriptor,
@@ -42,6 +33,15 @@ from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.metrics import AddRemoveKeys, DictMetric, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
+
+from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._query_expr_compiler._transformation_visitor import (
+    TransformationVisitor,
+)
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType
+from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
+from tmlt.analytics._table_reference import TableReference
+from tmlt.analytics._transformation_utils import get_table_from_ref
 
 from ....conftest import assert_frame_equal_with_sort
 

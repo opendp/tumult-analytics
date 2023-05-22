@@ -2,7 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable=pointless-string-statement
 
 import pytest
 

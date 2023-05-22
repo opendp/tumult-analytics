@@ -11,14 +11,6 @@ column.
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
 
-from typeguard import check_type
-
-from tmlt.analytics._table_identifier import TemporaryTable
-from tmlt.analytics._table_reference import TableReference, lookup_metric
-from tmlt.analytics._transformation_utils import (
-    generate_nested_transformation,
-    get_table_from_ref,
-)
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.metrics import (
     AddRemoveKeys,
@@ -41,6 +33,14 @@ from tmlt.core.transformations.spark_transformations.truncation import (
     LimitKeysPerGroup,
     LimitRowsPerGroup,
     LimitRowsPerKeyPerGroup,
+)
+from typeguard import check_type
+
+from tmlt.analytics._table_identifier import TemporaryTable
+from tmlt.analytics._table_reference import TableReference, lookup_metric
+from tmlt.analytics._transformation_utils import (
+    generate_nested_transformation,
+    get_table_from_ref,
 )
 
 from ._base import Constraint
@@ -251,11 +251,11 @@ class MaxGroupsPerID(Constraint):
 
 @dataclass(frozen=True)
 class MaxRowsPerGroupPerID(Constraint):
-    """A constraint limiting the number of rows associated with each unique (ID, grouping column) pair in a table.
+    """A constraint limiting rows per unique (ID, grouping column) pair in a table.
 
     For example, ``MaxRowsPerGroupPerID("group_col", 5)`` guarantees that each
-    ID appears in at most five rows for each distinct value of group_col".
-    """  # pylint: disable=line-too-long
+    ID appears in at most five rows for each distinct value in ``group_col``.
+    """
 
     grouping_column: str
     """Name of column defining the groups to truncate."""

@@ -49,7 +49,7 @@ class AddOneRow(AddMaxRows):
 
     def __init__(self):
         """@nodoc."""
-        super(AddOneRow, self).__init__(max_rows=1)
+        super().__init__(max_rows=1)
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,6 @@ from functools import singledispatch
 from typing import Any, Dict, List, Set, Tuple, Union
 
 from pyspark.sql import DataFrame
-
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.noise_mechanisms import (
     AddDiscreteGaussianNoise,
@@ -26,7 +25,6 @@ class _NoiseMechanism(Enum):
 
     def to_cls(self):
         """Returns the appropriate measurement class for this enum value."""
-        # pylint: disable=comparison-with-callable
         if self.value == _NoiseMechanism.LAPLACE.value:
             return AddLaplaceNoise
         if self.value == _NoiseMechanism.GEOMETRIC.value:
@@ -39,7 +37,7 @@ class _NoiseMechanism(Enum):
 
 
 @singledispatch
-def _get_info(a: Any) -> Any:  # pylint: disable=unused-argument
+def _get_info(a: Any) -> Any:
     """Get information from a measurement or transformation.
 
     Output will look a lot like input's __dict__, except that:

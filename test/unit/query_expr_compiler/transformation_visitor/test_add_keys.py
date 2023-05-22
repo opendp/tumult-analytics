@@ -9,6 +9,14 @@ from typing import Dict, List, Mapping, Tuple, Union
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
+from tmlt.core.domains.spark_domains import (
+    SparkDataFrameDomain,
+    SparkFloatColumnDescriptor,
+)
+from tmlt.core.metrics import IfGroupedBy, SymmetricDifference
+from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.chaining import ChainTT
+from tmlt.core.transformations.identity import Identity as IdentityTransformation
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
@@ -37,14 +45,6 @@ from tmlt.analytics.query_expr import (
     Select,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.domains.spark_domains import (
-    SparkDataFrameDomain,
-    SparkFloatColumnDescriptor,
-)
-from tmlt.core.metrics import IfGroupedBy, SymmetricDifference
-from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.chaining import ChainTT
-from tmlt.core.transformations.identity import Identity as IdentityTransformation
 
 from .conftest import (
     DATE1,

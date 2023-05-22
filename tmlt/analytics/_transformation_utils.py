@@ -7,8 +7,6 @@
 
 from typing import Callable, Dict, Optional, Tuple, Type, cast
 
-from tmlt.analytics._table_identifier import Identifier, TemporaryTable
-from tmlt.analytics._table_reference import TableReference, lookup_domain, lookup_metric
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -36,6 +34,9 @@ from tmlt.core.transformations.spark_transformations.persist import (
 from tmlt.core.transformations.spark_transformations.persist import (
     Unpersist as UnpersistTransformation,
 )
+
+from tmlt.analytics._table_identifier import Identifier, TemporaryTable
+from tmlt.analytics._table_reference import TableReference, lookup_domain, lookup_metric
 
 
 def generate_nested_transformation(

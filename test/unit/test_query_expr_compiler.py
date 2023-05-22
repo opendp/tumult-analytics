@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, protected-access, no-self-use
+# pylint: disable=protected-access, no-self-use
 
 import datetime
 from typing import Dict, List, Union
@@ -23,6 +23,16 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.domains.spark_domains import (
+    SparkDataFrameDomain,
+    SparkFloatColumnDescriptor,
+    SparkIntegerColumnDescriptor,
+    SparkStringColumnDescriptor,
+)
+from tmlt.core.measurements.aggregations import NoiseMechanism
+from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.metrics import DictMetric, SymmetricDifference
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
@@ -61,16 +71,6 @@ from tmlt.analytics.query_expr import (
     VarianceMechanism,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import (
-    SparkDataFrameDomain,
-    SparkFloatColumnDescriptor,
-    SparkIntegerColumnDescriptor,
-    SparkStringColumnDescriptor,
-)
-from tmlt.core.measurements.aggregations import NoiseMechanism
-from tmlt.core.measures import PureDP, RhoZCDP
-from tmlt.core.metrics import DictMetric, SymmetricDifference
 
 from ..conftest import assert_frame_equal_with_sort, create_mock_measurement
 
@@ -126,7 +126,6 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=PrivateSource("private"),
-                # pylint: disable=protected-access
                 groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO),
             )
         ],
@@ -136,7 +135,6 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=PrivateSource("private"),
-                # pylint: disable=protected-access
                 groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
             )
         ],
@@ -671,7 +669,6 @@ class TestQueryExprCompiler:
             (
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
-                    # pylint: disable=protected-access
                     groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
@@ -679,7 +676,6 @@ class TestQueryExprCompiler:
             (
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
-                    # pylint: disable=protected-access
                     groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
                     columns_to_count=["B"],
                 ),
@@ -1127,7 +1123,7 @@ class TestQueryExprCompiler:
 
     def test_join_private(self, spark):
         """Tests that join private works."""
-        sdf_2 = spark.createDataFrame(  # pylint: disable=no-member
+        sdf_2 = spark.createDataFrame(
             pd.DataFrame(
                 [["0", 0], ["0", 2], ["1", 2], ["0", 0], ["1", 4]], columns=["A", "C"]
             )

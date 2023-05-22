@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-self-use, protected-access, no-member
-
 import datetime
 from typing import Dict, List, Type
 
@@ -121,8 +119,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         JoinPublic(
             child=PrivateSource("private"), public_table="public", join_columns=["A"]
         ),
-        "Join columns must have identical types on both tables, "
-        "but column 'A' does not",
+        (
+            "Join columns must have identical types on both tables, "
+            "but column 'A' does not"
+        ),
     ),
     (  # JoinPrivate on column with mismatched types
         JoinPrivate(
@@ -132,8 +132,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             TruncationStrategy.DropExcess(1),
             join_columns=["A"],
         ),
-        "Join columns must have identical types on both tables, "
-        "but column 'A' does not",
+        (
+            "Join columns must have identical types on both tables, "
+            "but column 'A' does not"
+        ),
     ),
     (  # Filter on invalid column
         Filter(child=PrivateSource("private"), condition="NONEXISTENT>1"),
@@ -165,8 +167,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             augment=True,
             max_num_rows=2,
         ),
-        "Multiple grouping transformations are used in this query. "
-        "Only one grouping transformation is allowed.",
+        (
+            "Multiple grouping transformations are used in this query. "
+            "Only one grouping transformation is allowed."
+        ),
     ),
     (  # FlatMap with inner grouping FlatMap but outer augment=False
         FlatMap(
@@ -245,8 +249,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             high=20,
             output_column="out",
         ),
-        "Quantile query's measure column 'A' has invalid type "
-        "'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'.",
+        (
+            "Quantile query's measure column 'A' has invalid type "
+            "'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'."
+        ),
     ),
     (  # Type mismatch for the measure column of GroupByBoundedAverage
         GroupByBoundedAverage(
@@ -256,8 +262,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             low=0.0,
             high=1.0,
         ),
-        "measure column 'A' has invalid type 'VARCHAR'. "
-        "Expected types: 'INTEGER' or 'DECIMAL'",
+        (
+            "measure column 'A' has invalid type 'VARCHAR'. "
+            "Expected types: 'INTEGER' or 'DECIMAL'"
+        ),
     ),
     (  # Grouping column is set in a FlatMap but not used in a later GroupBy
         GroupByCount(
@@ -281,7 +289,6 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
                 augment=True,
                 max_num_rows=2,
             ),
-            # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_COLUMN_A),
         ),
         "Column 'i' produced by grouping transformation is not in groupby columns",
@@ -353,14 +360,18 @@ class TestValidation:
             (
                 KeySet.from_dict({"A": [0, 1]}),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
             (
                 KeySet.from_dict({"X": [0, 1]}),
                 ValueError,
-                "Groupby column 'X' has type 'INTEGER', but the column with the"
-                " same name in the input data has type 'DECIMAL' instead.",
+                (
+                    "Groupby column 'X' has type 'INTEGER', but the column with the"
+                    " same name in the input data has type 'DECIMAL' instead."
+                ),
             ),
             (
                 KeySet.from_dict({"Y": ["0"]}),
@@ -375,8 +386,10 @@ class TestValidation:
             (
                 KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
         ],
     )
@@ -401,8 +414,10 @@ class TestValidation:
             (
                 KeySet.from_dict({"A": [0, 1]}),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
             (
                 KeySet.from_dict({"Y": ["0"]}),
@@ -422,8 +437,10 @@ class TestValidation:
             (
                 KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
         ],
     )
@@ -517,8 +534,10 @@ class TestValidationWithNulls:
             (
                 KeySet.from_dict({"A": [0, 1]}),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
             (
                 KeySet.from_dict({"Y": ["0"]}),
@@ -533,8 +552,10 @@ class TestValidationWithNulls:
             (
                 KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
         ],
     )
@@ -559,8 +580,10 @@ class TestValidationWithNulls:
             (
                 KeySet.from_dict({"A": [0, 1]}),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
             (
                 KeySet.from_dict({"Y": ["0"]}),
@@ -580,8 +603,10 @@ class TestValidationWithNulls:
             (
                 KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
-                "Groupby column 'A' has type 'INTEGER', but the column "
-                "with the same name in the input data has type 'VARCHAR' instead.",
+                (
+                    "Groupby column 'A' has type 'INTEGER', but the column "
+                    "with the same name in the input data has type 'VARCHAR' instead."
+                ),
             ),
         ],
     )

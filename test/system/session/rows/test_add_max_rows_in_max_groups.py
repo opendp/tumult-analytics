@@ -9,14 +9,16 @@ test/system/session/rows/test_add_max_rows.py."""
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, no-self-use
-
+# pylint: disable=no-self-use
 
 from typing import Any, Dict, List
 
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
+from tmlt.core.measures import RhoZCDP
+from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.parameters import calculate_noise_scale
 
 from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics.keyset import KeySet
@@ -32,9 +34,6 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
 )
 from tmlt.analytics.session import Session
-from tmlt.core.measures import RhoZCDP
-from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.parameters import calculate_noise_scale
 
 
 @pytest.mark.usefixtures("session_data")

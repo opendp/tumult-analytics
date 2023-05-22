@@ -1,5 +1,10 @@
-"""Tests for Neighboring Relations"""
-# pylint: disable=no-self-use, no-member
+"""Tests for neighboring relations."""
+
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2023
+
+# pylint: disable=no-self-use
+
 from cmath import inf, pi
 from typing import Dict
 
@@ -7,15 +12,6 @@ import pandas as pd
 import pytest
 import sympy as sp
 from pyspark.sql import DataFrame
-
-from tmlt.analytics._neighboring_relation import (
-    AddRemoveKeys,
-    AddRemoveRows,
-    AddRemoveRowsAcrossGroups,
-    Conjunction,
-)
-from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
-from tmlt.analytics._table_identifier import NamedTable, TableCollection
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import PureDP, RhoZCDP
@@ -28,6 +24,15 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.utils.exact_number import ExactNumber
+
+from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
+    AddRemoveRows,
+    AddRemoveRowsAcrossGroups,
+    Conjunction,
+)
+from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
+from tmlt.analytics._table_identifier import NamedTable, TableCollection
 
 
 @pytest.fixture(name="test_data", scope="class")

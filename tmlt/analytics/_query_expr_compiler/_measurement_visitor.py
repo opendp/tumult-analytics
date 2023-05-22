@@ -9,6 +9,37 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.domains.spark_domains import (
+    SparkColumnDescriptor,
+    SparkDataFrameDomain,
+    SparkFloatColumnDescriptor,
+    SparkIntegerColumnDescriptor,
+)
+from tmlt.core.measurements.aggregations import (
+    NoiseMechanism,
+    create_average_measurement,
+    create_count_distinct_measurement,
+    create_count_measurement,
+    create_quantile_measurement,
+    create_standard_deviation_measurement,
+    create_sum_measurement,
+    create_variance_measurement,
+)
+from tmlt.core.measurements.base import Measurement
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import (
+    DictMetric,
+    HammingDistance,
+    IfGroupedBy,
+    SymmetricDifference,
+)
+from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.spark_transformations.groupby import GroupBy
+from tmlt.core.transformations.spark_transformations.select import (
+    Select as SelectTransformation,
+)
+from tmlt.core.utils.exact_number import ExactNumber
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
@@ -53,37 +84,6 @@ from tmlt.analytics.query_expr import (
     SumMechanism,
     VarianceMechanism,
 )
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import (
-    SparkColumnDescriptor,
-    SparkDataFrameDomain,
-    SparkFloatColumnDescriptor,
-    SparkIntegerColumnDescriptor,
-)
-from tmlt.core.measurements.aggregations import (
-    NoiseMechanism,
-    create_average_measurement,
-    create_count_distinct_measurement,
-    create_count_measurement,
-    create_quantile_measurement,
-    create_standard_deviation_measurement,
-    create_sum_measurement,
-    create_variance_measurement,
-)
-from tmlt.core.measurements.base import Measurement
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import (
-    DictMetric,
-    HammingDistance,
-    IfGroupedBy,
-    SymmetricDifference,
-)
-from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.select import (
-    Select as SelectTransformation,
-)
-from tmlt.core.utils.exact_number import ExactNumber
 
 
 def _get_query_bounds(
@@ -531,10 +531,10 @@ class MeasurementVisitor(QueryExprVisitor):
         # so check for those
         try:
             measure_desc = expected_schema[query.measure_column]
-        except KeyError:
+        except KeyError as e:
             raise KeyError(
                 f"Measure column {query.measure_column} is not in the input schema."
-            )
+            ) from e
 
         new_child: Optional[QueryExpr] = None
         # If null or NaN values are allowed ...
@@ -602,14 +602,14 @@ class MeasurementVisitor(QueryExprVisitor):
                 "fix it!"
             )
 
-    def visit_groupby_count(self, query: GroupByCount) -> Measurement:
+    def visit_groupby_count(self, expr: GroupByCount) -> Measurement:
         """Create a measurement from a GroupByCount query expression."""
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_count(query)
-        mechanism = self._pick_noise_for_count(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_count(expr)
+        mechanism = self._pick_noise_for_count(expr)
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, mechanism),
-            grouping_columns=query.groupby_keys.dataframe().columns,
+            *self._visit_child_transformation(expr.child, mechanism),
+            grouping_columns=expr.groupby_keys.dataframe().columns,
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -624,7 +624,7 @@ class MeasurementVisitor(QueryExprVisitor):
         groupby = self._build_groupby(
             transformation.output_domain,
             transformation.output_metric,
-            query.groupby_keys,
+            expr.groupby_keys,
             mechanism,
         )
 
@@ -636,35 +636,35 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
-            count_column=query.output_column,
+            count_column=expr.output_column,
         )
         self._validate_measurement(agg, mid_stability)
         return transformation | agg
 
-    def visit_groupby_count_distinct(self, query: GroupByCountDistinct) -> Measurement:
+    def visit_groupby_count_distinct(self, expr: GroupByCountDistinct) -> Measurement:
         """Create a measurement from a GroupByCountDistinct query expression."""
-        mechanism = self._pick_noise_for_count(query)
+        mechanism = self._pick_noise_for_count(expr)
         (
             child_transformation,
             child_ref,
             child_constraints,
-        ) = self._visit_child_transformation(query.child, mechanism)
+        ) = self._visit_child_transformation(expr.child, mechanism)
         constrained_query = _generate_constrained_count_distinct(
-            query,
-            query.child.accept(OutputSchemaVisitor(self.catalog)),
+            expr,
+            expr.child.accept(OutputSchemaVisitor(self.catalog)),
             child_constraints,
         )
         if constrained_query is not None:
             return constrained_query.accept(self)
 
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_count_distinct(expr)
 
         child_transformation, child_ref = self._truncate_table(
             child_transformation,
             child_ref,
             child_constraints,
-            grouping_columns=query.groupby_keys.dataframe().columns,
+            grouping_columns=expr.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
 
@@ -677,12 +677,12 @@ class MeasurementVisitor(QueryExprVisitor):
         )
         # If not counting all columns, drop the ones that are neither counted
         # nor grouped on.
-        if query.columns_to_count:
-            groupby_columns = list(query.groupby_keys.schema().keys())
+        if expr.columns_to_count:
+            groupby_columns = list(expr.groupby_keys.schema().keys())
             transformation |= SelectTransformation(
                 transformation.output_domain,
                 transformation.output_metric,
-                list(set(query.columns_to_count + groupby_columns)),
+                list(set(expr.columns_to_count + groupby_columns)),
             )
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)
         assert isinstance(
@@ -694,7 +694,7 @@ class MeasurementVisitor(QueryExprVisitor):
         groupby = self._build_groupby(
             transformation.output_domain,
             transformation.output_metric,
-            query.groupby_keys,
+            expr.groupby_keys,
             mechanism,
         )
 
@@ -706,12 +706,12 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
-            count_column=query.output_column,
+            count_column=expr.output_column,
         )
         self._validate_measurement(agg, mid_stability)
         return transformation | agg
 
-    def visit_groupby_quantile(self, query: GroupByQuantile) -> Measurement:
+    def visit_groupby_quantile(self, expr: GroupByQuantile) -> Measurement:
         """Create a measurement from a GroupByQuantile query expression.
 
         This method also checks to see if the schema allows invalid values
@@ -719,14 +719,14 @@ class MeasurementVisitor(QueryExprVisitor):
         the query has DropNullAndNan and/or DropInfinity queries
         inserted immediately before it is executed.
         """
-        child_schema: Schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+        child_schema: Schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
         # Check the measure column for nulls/NaNs/infs (which aren't allowed)
         try:
-            measure_desc = child_schema[query.measure_column]
-        except KeyError:
+            measure_desc = child_schema[expr.measure_column]
+        except KeyError as e:
             raise KeyError(
-                f"Measure column '{query.measure_column}' is not in the input schema."
-            )
+                f"Measure column '{expr.measure_column}' is not in the input schema."
+            ) from e
         # If null or NaN values are allowed ...
         if measure_desc.allow_null or (
             measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_nan
@@ -734,26 +734,26 @@ class MeasurementVisitor(QueryExprVisitor):
             # Those values aren't allowed! Drop them
             # (without mutating the original QueryExpr)
             drop_null_and_nan_query = DropNullAndNan(
-                child=query.child, columns=[query.measure_column]
+                child=expr.child, columns=[expr.measure_column]
             )
-            query = dataclasses.replace(query, child=drop_null_and_nan_query)
+            expr = dataclasses.replace(expr, child=drop_null_and_nan_query)
 
         # If infinite values are allowed ...
         if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
             # Clamp those values
             # (without mutating the original QueryExpr)
             replace_infinity_query = ReplaceInfinity(
-                child=query.child,
-                replace_with={query.measure_column: (query.low, query.high)},
+                child=expr.child,
+                replace_with={expr.measure_column: (expr.low, expr.high)},
             )
-            query = dataclasses.replace(query, child=replace_infinity_query)
+            expr = dataclasses.replace(expr, child=replace_infinity_query)
 
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_quantile(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_quantile(expr)
 
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(query.child, self.default_mechanism),
-            grouping_columns=query.groupby_keys.dataframe().columns,
+            *self._visit_child_transformation(expr.child, self.default_mechanism),
+            grouping_columns=expr.groupby_keys.dataframe().columns,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         # _visit_child_transformation already raises an error if these aren't true
@@ -767,32 +767,32 @@ class MeasurementVisitor(QueryExprVisitor):
         groupby = self._build_groupby(
             transformation.output_domain,
             transformation.output_metric,
-            query.groupby_keys,
+            expr.groupby_keys,
             self.default_mechanism,
         )
 
         agg = create_quantile_measurement(
             input_domain=transformation.output_domain,
             input_metric=transformation.output_metric,
-            measure_column=query.measure_column,
-            quantile=query.quantile,
-            lower=query.low,
-            upper=query.high,
+            measure_column=expr.measure_column,
+            quantile=expr.quantile,
+            lower=expr.low,
+            upper=expr.high,
             d_in=mid_stability,
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
-            quantile_column=query.output_column,
+            quantile_column=expr.output_column,
         )
         self._validate_measurement(agg, mid_stability)
         return transformation | agg
 
-    def visit_groupby_bounded_sum(self, query: GroupByBoundedSum) -> Measurement:
+    def visit_groupby_bounded_sum(self, expr: GroupByBoundedSum) -> Measurement:
         """Create a measurement from a GroupByBoundedSum query expression."""
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(expr)
 
-        info = self._build_common(query)
+        info = self._build_common(expr)
         # _build_common already checks these;
         # these asserts are just for mypy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -804,7 +804,7 @@ class MeasurementVisitor(QueryExprVisitor):
         agg = create_sum_measurement(
             input_domain=info.transformation.output_domain,
             input_metric=info.transformation.output_metric,
-            measure_column=query.measure_column,
+            measure_column=expr.measure_column,
             lower=info.lower_bound,
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
@@ -812,18 +812,16 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
-            sum_column=query.output_column,
+            sum_column=expr.output_column,
         )
         self._validate_measurement(agg, info.mid_stability)
         return info.transformation | agg
 
-    def visit_groupby_bounded_average(
-        self, query: GroupByBoundedAverage
-    ) -> Measurement:
+    def visit_groupby_bounded_average(self, expr: GroupByBoundedAverage) -> Measurement:
         """Create a measurement from a GroupByBoundedAverage query expression."""
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_average(query)
-        info = self._build_common(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_average(expr)
+        info = self._build_common(expr)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -835,7 +833,7 @@ class MeasurementVisitor(QueryExprVisitor):
         agg = create_average_measurement(
             input_domain=info.transformation.output_domain,
             input_metric=info.transformation.output_metric,
-            measure_column=query.measure_column,
+            measure_column=expr.measure_column,
             lower=info.lower_bound,
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
@@ -843,18 +841,18 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
-            average_column=query.output_column,
+            average_column=expr.output_column,
         )
         self._validate_measurement(agg, info.mid_stability)
         return info.transformation | agg
 
     def visit_groupby_bounded_variance(
-        self, query: GroupByBoundedVariance
+        self, expr: GroupByBoundedVariance
     ) -> Measurement:
         """Create a measurement from a GroupByBoundedVariance query expression."""
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_variance(query)
-        info = self._build_common(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_variance(expr)
+        info = self._build_common(expr)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -866,7 +864,7 @@ class MeasurementVisitor(QueryExprVisitor):
         agg = create_variance_measurement(
             input_domain=info.transformation.output_domain,
             input_metric=info.transformation.output_metric,
-            measure_column=query.measure_column,
+            measure_column=expr.measure_column,
             lower=info.lower_bound,
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
@@ -874,16 +872,16 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
-            variance_column=query.output_column,
+            variance_column=expr.output_column,
         )
         self._validate_measurement(agg, info.mid_stability)
         return info.transformation | agg
 
-    def visit_groupby_bounded_stdev(self, query: GroupByBoundedSTDEV) -> Measurement:
+    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Measurement:
         """Create a measurement from a GroupByBoundedStdev query expression."""
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_stdev(query)
-        info = self._build_common(query)
+        OutputSchemaVisitor(self.catalog).visit_groupby_bounded_stdev(expr)
+        info = self._build_common(expr)
         # _visit_child_transformation already raises an error if these aren't true
         # these are just here for MyPy's benefit
         assert isinstance(info.transformation.output_domain, SparkDataFrameDomain)
@@ -895,7 +893,7 @@ class MeasurementVisitor(QueryExprVisitor):
         agg = create_standard_deviation_measurement(
             input_domain=info.transformation.output_domain,
             input_metric=info.transformation.output_metric,
-            measure_column=query.measure_column,
+            measure_column=expr.measure_column,
             lower=info.lower_bound,
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
@@ -903,7 +901,7 @@ class MeasurementVisitor(QueryExprVisitor):
             d_out=self.budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
-            standard_deviation_column=query.output_column,
+            standard_deviation_column=expr.output_column,
         )
 
         self._validate_measurement(agg, info.mid_stability)

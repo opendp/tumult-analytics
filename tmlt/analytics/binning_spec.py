@@ -8,8 +8,9 @@ import datetime
 import math
 from typing import Any, Generic, List, Optional, Sequence, TypeVar, cast
 
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
 from tmlt.core.utils.type_utils import get_element_type
+
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
 
 BinT = TypeVar("BinT", str, int, float, datetime.date, datetime.datetime)
 BinNameT = TypeVar("BinNameT", str, int, float, datetime.date, datetime.datetime)

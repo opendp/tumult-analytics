@@ -2,8 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable=no-self-use
-
 
 import datetime
 from typing import Dict, List, Mapping, Optional, Union
@@ -26,7 +24,7 @@ from pyspark.sql.types import (
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
 
-from ..conftest import assert_frame_equal_with_sort  # pylint: disable=no-name-in-module
+from ..conftest import assert_frame_equal_with_sort
 
 
 @pytest.mark.parametrize(

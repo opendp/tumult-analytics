@@ -5,6 +5,7 @@
 # pylint: disable=pointless-string-statement
 
 
+from tmlt.core.utils.exact_number import ExactNumber
 from typeguard import typechecked
 
 from tmlt.analytics._privacy_budget_rounding_helper import (
@@ -13,7 +14,6 @@ from tmlt.analytics._privacy_budget_rounding_helper import (
     requested_budget_is_slightly_higher_than_remaining,
 )
 from tmlt.analytics.privacy_budget import PureDPBudget
-from tmlt.core.utils.exact_number import ExactNumber
 
 """Tests for converting a numeric budget into symbolic representation."""
 FUDGE_FACTOR = 1 / 1e9

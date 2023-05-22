@@ -17,13 +17,13 @@ from typing import Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Typ
 
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import types as spark_types
-
-from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
-from tmlt.analytics._schema import Schema, spark_schema_to_analytics_columns
 from tmlt.core.transformations.spark_transformations.groupby import (
     compute_full_domain_df,
 )
 from tmlt.core.utils.type_utils import get_element_type
+
+from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
+from tmlt.analytics._schema import Schema, spark_schema_to_analytics_columns
 
 
 def _check_df_schema(types: spark_types.StructType):

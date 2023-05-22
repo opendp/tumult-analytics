@@ -123,8 +123,10 @@ def test_invalid_select(columns: List[str], expected_error_msg: str):
             lambda row: {"C": 2 * str(row["B"])},
             {"C": "VARCHAR"},
             True,
-            "type of schema_new_columns must be "
-            "tmlt.analytics._schema.Schema; got dict instead",
+            (
+                "type of schema_new_columns must be "
+                "tmlt.analytics._schema.Schema; got dict instead"
+            ),
         ),
         (  # Grouping column in schema
             lambda row: {"C": 2 * str(row["B"])},
@@ -173,8 +175,10 @@ def test_invalid_map(
             2,
             Schema({"i": "INTEGER", "j": "INTEGER"}, grouping_column="i"),
             False,
-            "schema_new_columns contains 2 columns, "
-            "grouping flat map can only result in 1 new column",
+            (
+                "schema_new_columns contains 2 columns, "
+                "grouping flat map can only result in 1 new column"
+            ),
         ),
     ],
 )
