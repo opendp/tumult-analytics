@@ -3,13 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, no-self-use
-
 from typing import Dict, Type, Union
 from unittest.mock import Mock
 
 import pytest
 from pyspark.sql import DataFrame
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import DictMetric, SymmetricDifference
+from tmlt.core.utils.exact_number import ExactNumber
 
 from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import NamedTable
@@ -26,11 +29,6 @@ from tmlt.analytics.query_expr import (
     ReplaceNullAndNan,
 )
 from tmlt.analytics.session import Session
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import DictMetric, SymmetricDifference
-from tmlt.core.utils.exact_number import ExactNumber
 
 
 @pytest.mark.usefixtures("session_data")
@@ -72,7 +70,7 @@ class TestInvalidSession:
         mock_accountant.d_in = {NamedTable("private"): ExactNumber(1)}
         mock_accountant.privacy_budget = ExactNumber(float("inf"))
 
-        session = Session(accountant=mock_accountant, public_sources=dict())
+        session = Session(accountant=mock_accountant, public_sources={})
         session.create_view(PrivateSource("private"), "view", cache=False)
         with pytest.raises(error_type, match=expected_error_msg):
             session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))

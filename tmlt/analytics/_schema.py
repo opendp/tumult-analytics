@@ -27,7 +27,6 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.spark_domains import (
     SparkColumnDescriptor,

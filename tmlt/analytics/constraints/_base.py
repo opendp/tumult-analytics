@@ -7,8 +7,9 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from tmlt.analytics._table_reference import TableReference
 from tmlt.core.transformations.base import Transformation
+
+from tmlt.analytics._table_reference import TableReference
 
 
 class Constraint(ABC):

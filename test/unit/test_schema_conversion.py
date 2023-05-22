@@ -7,6 +7,15 @@ import datetime
 
 import pytest
 from pyspark.sql import types as spark_types
+from tmlt.core.domains.spark_domains import (
+    SparkColumnsDescriptor,
+    SparkDataFrameDomain,
+    SparkDateColumnDescriptor,
+    SparkFloatColumnDescriptor,
+    SparkIntegerColumnDescriptor,
+    SparkStringColumnDescriptor,
+    SparkTimestampColumnDescriptor,
+)
 
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -17,15 +26,6 @@ from tmlt.analytics._schema import (
     analytics_to_spark_schema,
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
-)
-from tmlt.core.domains.spark_domains import (
-    SparkColumnsDescriptor,
-    SparkDataFrameDomain,
-    SparkDateColumnDescriptor,
-    SparkFloatColumnDescriptor,
-    SparkIntegerColumnDescriptor,
-    SparkStringColumnDescriptor,
-    SparkTimestampColumnDescriptor,
 )
 
 

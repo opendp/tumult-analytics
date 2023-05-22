@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2023
 
 import sympy as sp
+from tmlt.core.utils.exact_number import ExactNumber
 from typeguard import typechecked
 
 from tmlt.analytics.privacy_budget import (
@@ -12,7 +13,6 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.core.utils.exact_number import ExactNumber
 
 BUDGET_RELATIVE_TOLERANCE: sp.Expr = sp.Pow(10, 9)
 

@@ -1,5 +1,4 @@
-"""Defines :class:`QueryExprCompiler` for compiling query expressions into a measurement.
-"""  # pylint: disable=line-too-long
+"""Defines :class:`QueryExprCompiler` for building transformations from query exprs."""
 # TODO(#746): Check for UnaryExpr.
 # TODO(#1044): Put the PureDPToZCDP converter directly on Vector measurements.
 # TODO(#1547): Associate metric with output measure instead of algorithm for
@@ -11,6 +10,13 @@
 from typing import Any, Dict, List, Sequence, Tuple, Union
 
 from pyspark.sql import DataFrame
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
+from tmlt.core.measurements.base import Measurement
+from tmlt.core.measurements.composition import Composition
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import DictMetric
+from tmlt.core.transformations.base import Transformation
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
@@ -26,13 +32,6 @@ from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.privacy_budget import PrivacyBudget
 from tmlt.analytics.query_expr import QueryExpr
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
-from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.composition import Composition
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import DictMetric
-from tmlt.core.transformations.base import Transformation
 
 DEFAULT_MECHANISM = "DEFAULT"
 """Constant used for DEFAULT noise mechanism"""

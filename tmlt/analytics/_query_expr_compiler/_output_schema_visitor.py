@@ -154,10 +154,10 @@ def _validate_groupby(
     for column_name, column_desc in schema.items():
         try:
             input_column_desc = input_schema[column_name]
-        except KeyError:
+        except KeyError as e:
             raise KeyError(
                 f"Groupby column '{column_name}' is not in the input schema."
-            )
+            ) from e
         if column_desc.column_type != input_column_desc.column_type:
             raise ValueError(
                 f"Groupby column '{column_name}' has type"
@@ -350,7 +350,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         try:
             test_df.filter(expr.condition)
         except Exception as e:
-            raise ValueError(f"Invalid filter condition '{expr.condition}': {e}")
+            raise ValueError(f"Invalid filter condition '{expr.condition}': {e}") from e
         return input_schema
 
     def visit_select(self, expr: Select) -> Schema:
@@ -463,7 +463,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return new_columns
 
     def visit_flat_map(self, expr: FlatMap) -> Schema:
-        # pylint: disable=line-too-long
         """Returns the resulting schema from evaluating a FlatMap.
 
         ..

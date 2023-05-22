@@ -9,61 +9,6 @@ import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 from pyspark.sql import DataFrame
-
-from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler._constraint_propagation import (
-    propagate_flat_map,
-    propagate_join_private,
-    propagate_join_public,
-    propagate_map,
-    propagate_rename,
-    propagate_replace,
-    propagate_select,
-    propagate_unmodified,
-)
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    analytics_to_spark_columns_descriptor,
-    spark_dataframe_domain_to_analytics_columns,
-    spark_schema_to_analytics_columns,
-)
-from tmlt.analytics._table_identifier import Identifier, TemporaryTable
-from tmlt.analytics._table_reference import (
-    TableReference,
-    find_named_tables,
-    find_reference,
-    lookup_domain,
-    lookup_metric,
-)
-from tmlt.analytics._transformation_utils import generate_nested_transformation
-from tmlt.analytics.constraints import Constraint, simplify_constraints
-from tmlt.analytics.query_expr import AnalyticsDefault
-from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
-from tmlt.analytics.query_expr import Filter as FilterExpr
-from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
-from tmlt.analytics.query_expr import (
-    GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
-    GroupByBoundedSum,
-    GroupByBoundedVariance,
-    GroupByCount,
-    GroupByCountDistinct,
-    GroupByQuantile,
-)
-from tmlt.analytics.query_expr import JoinPrivate as JoinPrivateExpr
-from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
-from tmlt.analytics.query_expr import Map as MapExpr
-from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
-from tmlt.analytics.query_expr import Rename as RenameExpr
-from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
-from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 from tmlt.core.domains.collections import DictDomain, ListDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain, SparkRowDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -170,6 +115,61 @@ from tmlt.core.transformations.spark_transformations.rename import (
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
+
+from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._query_expr_compiler._constraint_propagation import (
+    propagate_flat_map,
+    propagate_join_private,
+    propagate_join_public,
+    propagate_map,
+    propagate_rename,
+    propagate_replace,
+    propagate_select,
+    propagate_unmodified,
+)
+from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
+    OutputSchemaVisitor,
+)
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    analytics_to_spark_columns_descriptor,
+    spark_dataframe_domain_to_analytics_columns,
+    spark_schema_to_analytics_columns,
+)
+from tmlt.analytics._table_identifier import Identifier, TemporaryTable
+from tmlt.analytics._table_reference import (
+    TableReference,
+    find_named_tables,
+    find_reference,
+    lookup_domain,
+    lookup_metric,
+)
+from tmlt.analytics._transformation_utils import generate_nested_transformation
+from tmlt.analytics.constraints import Constraint, simplify_constraints
+from tmlt.analytics.query_expr import AnalyticsDefault
+from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
+from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
+from tmlt.analytics.query_expr import Filter as FilterExpr
+from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
+from tmlt.analytics.query_expr import (
+    GroupByBoundedAverage,
+    GroupByBoundedSTDEV,
+    GroupByBoundedSum,
+    GroupByBoundedVariance,
+    GroupByCount,
+    GroupByCountDistinct,
+    GroupByQuantile,
+)
+from tmlt.analytics.query_expr import JoinPrivate as JoinPrivateExpr
+from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
+from tmlt.analytics.query_expr import Map as MapExpr
+from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
+from tmlt.analytics.query_expr import Rename as RenameExpr
+from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
+from tmlt.analytics.query_expr import Select as SelectExpr
+from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 
 class TransformationVisitor(QueryExprVisitor):
@@ -351,11 +351,11 @@ class TransformationVisitor(QueryExprVisitor):
         transformation = IdentityTransformation(self.input_metric, self.input_domain)
         try:
             constraints = self.table_constraints[ref.identifier]
-        except KeyError:
+        except KeyError as e:
             raise AssertionError(
                 f"Table {ref.identifier} not present in constraints dictionary. "
                 "This is probably a bug; please let us know about it so we can fix it!"
-            )
+            ) from e
         return self.Output(transformation, ref, constraints)
 
     def visit_rename(self, expr: RenameExpr) -> Output:
@@ -511,7 +511,10 @@ class TransformationVisitor(QueryExprVisitor):
         transformer_input_domain = SparkRowDomain(input_domain.schema)
         # Any new column created by Map could contain a null value
         spark_columns_descriptor = {
-            k: dataclasses.replace(v, allow_null=True)
+            # all of the Spark<Type>ColumnDescriptor classes are dataclasses,
+            # but the SparkColumnDescriptor base class isn't;
+            # hence the "type: ignore" here
+            k: dataclasses.replace(v, allow_null=True)  # type: ignore
             for k, v in analytics_to_spark_columns_descriptor(
                 expr.schema_new_columns
             ).items()
@@ -595,7 +598,10 @@ class TransformationVisitor(QueryExprVisitor):
         transformer_input_domain = SparkRowDomain(input_domain.schema)
         # Any new column created by FlatMap could contain a null value
         spark_columns_descriptor = {
-            k: dataclasses.replace(v, allow_null=True)
+            # all of the Spark<Type>ColumnDescriptor classes are dataclasses,
+            # but the SparkColumnDescriptor base class isn't;
+            # hence the "type: ignore" here
+            k: dataclasses.replace(v, allow_null=True)  # type: ignore
             for k, v in analytics_to_spark_columns_descriptor(
                 expr.schema_new_columns
             ).items()
@@ -831,17 +837,17 @@ class TransformationVisitor(QueryExprVisitor):
         if isinstance(expr.public_table, str):
             try:
                 public_df = self.public_sources[expr.public_table]
-            except KeyError:
+            except KeyError as e:
                 raise ValueError(
                     f"There is no public source with the identifier {expr.public_table}"
-                )
+                ) from e
         else:
             public_df = expr.public_table
 
         public_df_schema = Schema(spark_schema_to_analytics_columns(public_df.schema))
 
         join_null_cols = any(
-            public_df_schema[col].allow_null for col in public_df_schema.keys()
+            col_desc.allow_null for col_desc in public_df_schema.values()
         )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):

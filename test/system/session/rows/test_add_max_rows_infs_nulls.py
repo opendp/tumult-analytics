@@ -3,14 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, no-self-use
-
 import datetime
 from typing import Any, Dict, List, Mapping, Tuple, Union
 
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
+from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
@@ -20,11 +19,8 @@ from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 
-from ....conftest import (  # pylint: disable=no-name-in-module
-    assert_frame_equal_with_sort,
-)
+from ....conftest import assert_frame_equal_with_sort
 
 
 @pytest.mark.usefixtures("null_session_data")

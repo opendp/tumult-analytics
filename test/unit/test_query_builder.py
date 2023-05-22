@@ -39,7 +39,7 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ..conftest import assert_frame_equal_with_sort  # pylint: disable=no-name-in-module
+from ..conftest import assert_frame_equal_with_sort
 
 PRIVATE_ID = "private"
 
@@ -51,6 +51,11 @@ def root_builder():
     """Set up QueryBuilder."""
     root_built = QueryBuilder(PRIVATE_ID)
     return root_built
+
+
+# pylint throws a lot of spurious no-member errors in this file,
+# because QueryBuilders return a QueryExpr, which doesn't have a .child and so on
+# pylint: disable=no-member
 
 
 @pytest.mark.parametrize("join_columns", [(None), (["B"])])
@@ -261,11 +266,7 @@ def test_map_augment_is_false():
     """QueryBuilder map works as expected with augment=False."""
 
     def double_row(_: Row) -> Row:
-        """Return row with doubled value
-
-        Args:
-            _: Row to apply function to.
-        """
+        """Return row with doubled value."""
         return {"C": 2 * "B"}
 
     query = (
@@ -293,11 +294,7 @@ def test_map_augment_is_true():
     """QueryBuilder map works as expected with augment=True."""
 
     def double_row(_: Row) -> Row:
-        """Return row with doubled value
-
-        Args:
-            _: Row to apply function to.
-        """
+        """Return row with doubled value."""
         return {"C": 2 * "B"}
 
     query = (
@@ -378,11 +375,7 @@ def test_flat_map_augment_is_false():
     """QueryBuilder flat_map works as expected with augment=False."""
 
     def duplicate_rows(_: Row) -> List[Row]:
-        """Duplicate each row, with one copy having C=0, and the other C=1.
-
-        Args:
-            _: Row to apply function to.
-        """
+        """Duplicate each row, with one copy having C=0, and the other C=1."""
         return [{"C": "0"}, {"C": "1"}]
 
     query = (
@@ -422,11 +415,7 @@ def test_flat_map_augment_is_true():
     """QueryBuilder flat_map works as expected with augment=True."""
 
     def duplicate_rows(_: Row) -> List[Row]:
-        """Duplicate each row, with one copy having C=0, and the other C=1.
-
-        Args:
-            _: Row to apply function to.
-        """
+        """Duplicate each row, with one copy having C=0, and the other C=1."""
         return [{"C": "0"}, {"C": "1"}]
 
     query = (

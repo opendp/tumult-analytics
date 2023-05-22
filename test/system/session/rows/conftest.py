@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=no-member, no-self-use
-
 import datetime
 from typing import Any, List
 
@@ -12,6 +10,7 @@ import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -38,7 +37,6 @@ from tmlt.analytics.query_expr import (
     Select,
     SumMechanism,
 )
-from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 
 # Shorthands for some values used in tests
 _DATE1 = datetime.date.fromisoformat("2022-01-01")
@@ -144,7 +142,6 @@ EVALUATE_TESTS = [
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
@@ -155,7 +152,6 @@ EVALUATE_TESTS = [
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame(
@@ -168,7 +164,6 @@ EVALUATE_TESTS = [
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            # pylint: disable=protected-access
             groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE_COLUMN),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),

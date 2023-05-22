@@ -3,17 +3,17 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
+
 # TODO(#2206): Import these fixtures from core once it is rewritten
-# pylint: disable=unused-import
+
 import logging
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 from unittest.mock import Mock, create_autospec
 
 import numpy as np
 import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
-
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
 from tmlt.core.measurements.base import Measurement
@@ -61,7 +61,7 @@ def pyspark():
 def assert_frame_equal_with_sort(
     first_df: pd.DataFrame,
     second_df: pd.DataFrame,
-    sort_columns: Sequence[str] = None,
+    sort_columns: Optional[Sequence[str]] = None,
     **kwargs: Any,
 ):
     """Asserts that the two data frames are equal.

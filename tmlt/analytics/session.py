@@ -29,6 +29,32 @@ import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
 from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.base import Measurement
+from tmlt.core.measurements.interactive_measurements import (
+    InactiveAccountantError,
+    InsufficientBudgetError,
+    PrivacyAccountant,
+    PrivacyAccountantState,
+    SequentialComposition,
+)
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.metrics import AddRemoveKeys as AddRemoveKeysMetric
+from tmlt.core.metrics import (
+    DictMetric,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
+from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.dictionary import CreateDictFromValue
+from tmlt.core.transformations.identity import Identity
+from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
+from tmlt.core.utils.configuration import SparkConfigError, check_java11
+from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.type_utils import assert_never
 from typeguard import check_type, typechecked
 
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
@@ -85,32 +111,6 @@ from tmlt.analytics.protected_change import (
 )
 from tmlt.analytics.query_builder import ColumnType, QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.interactive_measurements import (
-    InactiveAccountantError,
-    InsufficientBudgetError,
-    PrivacyAccountant,
-    PrivacyAccountantState,
-    SequentialComposition,
-)
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import AddRemoveKeys as AddRemoveKeysMetric
-from tmlt.core.metrics import (
-    DictMetric,
-    IfGroupedBy,
-    RootSumOfSquared,
-    SumOf,
-    SymmetricDifference,
-)
-from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.dictionary import CreateDictFromValue
-from tmlt.core.transformations.identity import Identity
-from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
-from tmlt.core.utils.configuration import SparkConfigError, check_java11
-from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.type_utils import assert_never
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
@@ -277,16 +277,20 @@ class Session:
 
             if stability is None:
                 warn(
-                    "Using a default for protected_change is deprecated. Future"
-                    " code should explicitly specify protected_change=AddOneRow()",
+                    (
+                        "Using a default for protected_change is deprecated. Future"
+                        " code should explicitly specify protected_change=AddOneRow()"
+                    ),
                     DeprecationWarning,
                 )
                 if grouping_column is None:
                     protected_change = AddOneRow()
                 else:
                     warn(
-                        "Providing a grouping_column parameter instead of a"
-                        " protected_change parameter is deprecated",
+                        (
+                            "Providing a grouping_column parameter instead of a"
+                            " protected_change parameter is deprecated"
+                        ),
                         DeprecationWarning,
                     )
                     protected_change = AddMaxRowsInMaxGroups(grouping_column, 1, 1)
@@ -308,8 +312,10 @@ class Session:
                     protected_change = AddMaxRows(stability)
                 else:
                     warn(
-                        "Providing a grouping_column parameter instead of a"
-                        " protected_change parameter is deprecated",
+                        (
+                            "Providing a grouping_column parameter instead of a"
+                            " protected_change parameter is deprecated"
+                        ),
                         DeprecationWarning,
                     )
                     if not isinstance(stability, (int, float)):
@@ -531,9 +537,11 @@ class Session:
             output_measure = ApproxDP()
             if privacy_budget.is_infinite:
                 warn(
-                    "The use of ApproxDP is not yet fully supported. Because you"
-                    " selected an infinite ApproxDP budget, your session will be"
-                    " initialized with PureDP using an infinite epsilon budget.",
+                    (
+                        "The use of ApproxDP is not yet fully supported. Because you"
+                        " selected an infinite ApproxDP budget, your session will be"
+                        " initialized with PureDP using an infinite epsilon budget."
+                    ),
                     UserWarning,
                 )
                 sympy_budget = (
@@ -1118,7 +1126,7 @@ class Session:
                     measurement, d_out=adjusted_budget.value
                 )
             # TODO #2476: Parse InsufficientBudgetError based on budget type
-            except InsufficientBudgetError:
+            except InsufficientBudgetError as e:
                 # pylint: disable=protected-access
                 if isinstance(adjusted_budget, (PureDPBudget)):
                     approximate_budget_needed = adjusted_budget._epsilon
@@ -1133,7 +1141,7 @@ class Session:
                         f" {adjusted_budget} to float or floats. This"
                         " is probably a bug; please let us know about it so we can"
                         " fix it!"
-                    )
+                    ) from e
 
                 # mypy doesn't know we just checked for Tuple[ExactNumber, ExactNumber]
                 if is_exact_number_tuple(self._accountant.privacy_budget):
@@ -1147,7 +1155,7 @@ class Session:
                         f" {self._accountant.privacy_budget} to float or floats. This"
                         " is probably a bug; please let us know about it so we can"
                         " fix it!"
-                    )
+                    ) from e
 
                 approximate_diff = abs(
                     approximate_budget_left - approximate_budget_needed
@@ -1165,7 +1173,7 @@ class Session:
                     " remaining budget is approximately"
                     f" {readable_approximate_budget_left:.3f} (difference:"
                     f" {approximate_diff:.3e})"
-                )
+                ) from e
             if len(answers) != 1:
                 raise AssertionError(
                     "Expected exactly one answer, but got "
@@ -1174,13 +1182,13 @@ class Session:
                     "we can fix it!"
                 )
             return answers[0]
-        except InactiveAccountantError:
+        except InactiveAccountantError as e:
             raise RuntimeError(
                 "This session is no longer active. Either it was manually stopped "
                 "with session.stop(), or it was stopped indirectly by the "
                 "activity of other sessions. See partition_and_create "
                 "for more information."
-            )
+            ) from e
 
     # pylint: disable=line-too-long
     @typechecked
@@ -1494,12 +1502,12 @@ class Session:
 
         try:
             attr_type = transformation_domain.schema[column]
-        except KeyError:
+        except KeyError as e:
             raise KeyError(
                 f"'{column}' not present in transformed dataframe's columns; "
                 "schema of transformed dataframe is "
                 f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
-            )
+            ) from e
 
         new_sources = []
         # Actual type is Union[List[Tuple[str, ...]], List[Tuple[int, ...]]]
@@ -1562,15 +1570,15 @@ class Session:
             new_accountants = self._accountant.split(
                 chained_partition, privacy_budget=adjusted_budget.value
             )
-        except InactiveAccountantError:
+        except InactiveAccountantError as e:
             raise RuntimeError(
                 "This session is no longer active. Either it was manually stopped"
                 "with session.stop(), or it was stopped indirectly by the "
                 "activity of other sessions. See partition_and_create "
                 "for more information."
-            )
+            ) from e
         # TODO #2476: Parse InsufficientBudgetError based on budget type
-        except InsufficientBudgetError:
+        except InsufficientBudgetError as e:
             # pylint: disable=protected-access
             if isinstance(adjusted_budget, (PureDPBudget)):
                 approximate_budget_needed = adjusted_budget._epsilon
@@ -1585,10 +1593,11 @@ class Session:
                     f" {adjusted_budget} to float or floats. This"
                     " is probably a bug; please let us know about it so we can"
                     " fix it!"
-                )
+                ) from e
             # mypy doesn't know we just checked for Tuple[ExactNumber, ExactNumber]
             if is_exact_number_tuple(self._accountant.privacy_budget):
-                approximate_budget_left = self._accountant.privacy_budget[0]  # type: ignore # pylint: disable=line-too-long
+                # pylint: disable-next=line-too-long
+                approximate_budget_left = self._accountant.privacy_budget[0]  # type: ignore
             elif isinstance(self._accountant.privacy_budget, ExactNumber):
                 approximate_budget_left = self._accountant.privacy_budget
             else:
@@ -1597,7 +1606,7 @@ class Session:
                     f" {self._accountant.privacy_budget} to float or floats. This"
                     " is probably a bug; please let us know about it so we can"
                     " fix it!"
-                )
+                ) from e
 
             approximate_diff = abs(
                 approximate_budget_left - approximate_budget_needed
@@ -1615,7 +1624,7 @@ class Session:
                 " the remaining budget is approximately"
                 f" {readable_approximate_budget_left:.3f} (difference:"
                 f" {approximate_diff:.3e})"
-            )
+            ) from e
 
         for i, source in enumerate(new_sources):
             if table_has_ids:
@@ -1641,7 +1650,7 @@ class Session:
                 transformation=dict_transformation_wrapper
             )
 
-        new_sessions = dict()
+        new_sessions = {}
         for new_accountant, source in zip(new_accountants, new_sources):
             new_sessions[source] = Session(
                 new_accountant, self._public_sources, self._compiler

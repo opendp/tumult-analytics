@@ -6,7 +6,6 @@
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
-from tmlt.analytics._table_identifier import Identifier, NamedTable
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.metrics import (
@@ -16,6 +15,8 @@ from tmlt.core.metrics import (
     Metric,
     SymmetricDifference,
 )
+
+from tmlt.analytics._table_identifier import Identifier, NamedTable
 
 
 @dataclass(frozen=True)

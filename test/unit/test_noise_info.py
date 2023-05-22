@@ -7,12 +7,6 @@ from typing import Dict
 
 import pytest
 import sympy as sp
-
-from tmlt.analytics._noise_info import (
-    _inverse_cdf,
-    _noise_from_measurement,
-    _NoiseMechanism,
-)
 from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
 from tmlt.core.domains.pandas_domains import PandasSeriesDomain
 from tmlt.core.measurements.base import Measurement
@@ -23,6 +17,12 @@ from tmlt.core.measurements.noise_mechanisms import (
 )
 from tmlt.core.measurements.pandas_measurements.series import NoisyQuantile
 from tmlt.core.measures import PureDP
+
+from tmlt.analytics._noise_info import (
+    _inverse_cdf,
+    _noise_from_measurement,
+    _NoiseMechanism,
+)
 
 
 @pytest.mark.parametrize(

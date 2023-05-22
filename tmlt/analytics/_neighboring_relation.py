@@ -1,5 +1,5 @@
 """Module containing supported variants of neighboring relations."""
-# pylint: disable=useless-super-delegation, protected-access, no-self-use
+# pylint: disable=protected-access, no-self-use
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

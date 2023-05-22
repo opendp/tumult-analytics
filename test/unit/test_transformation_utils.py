@@ -3,14 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics._table_reference import TableReference
-from tmlt.analytics._transformation_utils import (
-    delete_table,
-    persist_table,
-    rename_table,
-    unpersist_table,
-)
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
@@ -20,6 +12,15 @@ from tmlt.core.domains.spark_domains import (
 )
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.transformations.identity import Identity as IdentityTransformation
+
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._table_reference import TableReference
+from tmlt.analytics._transformation_utils import (
+    delete_table,
+    persist_table,
+    rename_table,
+    unpersist_table,
+)
 
 
 def test_rename_table():

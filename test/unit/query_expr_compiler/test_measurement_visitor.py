@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-# pylint: disable=protected-access, no-member, no-self-use
+# pylint: disable=no-self-use
 
 from typing import List, Optional, Union
 from unittest.mock import patch
@@ -13,6 +13,35 @@ import pytest
 import sympy as sp
 from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.domains.spark_domains import (
+    SparkColumnDescriptor,
+    SparkDataFrameDomain,
+    SparkFloatColumnDescriptor,
+    SparkGroupedDataFrameDomain,
+    SparkIntegerColumnDescriptor,
+    SparkStringColumnDescriptor,
+)
+from tmlt.core.measurements.aggregations import NoiseMechanism
+from tmlt.core.measurements.base import Measurement
+from tmlt.core.measurements.chaining import ChainTM
+from tmlt.core.measures import PureDP, RhoZCDP
+from tmlt.core.metrics import (
+    DictMetric,
+    HammingDistance,
+    IfGroupedBy,
+    RootSumOfSquared,
+    SumOf,
+    SymmetricDifference,
+)
+from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.chaining import ChainTT
+from tmlt.core.transformations.spark_transformations.groupby import GroupBy
+from tmlt.core.transformations.spark_transformations.select import (
+    Select as SelectTransformation,
+)
+from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.type_utils import assert_never
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._measurement_visitor import (
@@ -53,39 +82,8 @@ from tmlt.analytics.query_expr import ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import (
-    SparkColumnDescriptor,
-    SparkDataFrameDomain,
-    SparkFloatColumnDescriptor,
-    SparkGroupedDataFrameDomain,
-    SparkIntegerColumnDescriptor,
-    SparkStringColumnDescriptor,
-)
-from tmlt.core.measurements.aggregations import NoiseMechanism
-from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.chaining import ChainTM
-from tmlt.core.measures import PureDP, RhoZCDP
-from tmlt.core.metrics import (
-    DictMetric,
-    HammingDistance,
-    IfGroupedBy,
-    RootSumOfSquared,
-    SumOf,
-    SymmetricDifference,
-)
-from tmlt.core.transformations.base import Transformation
-from tmlt.core.transformations.chaining import ChainTT
-from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.select import (
-    Select as SelectTransformation,
-)
-from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.type_utils import assert_never
 
-from ...conftest import (  # pylint: disable=no-name-in-module
-    assert_frame_equal_with_sort,
-)
+from ...conftest import assert_frame_equal_with_sort
 
 
 def chain_to_list(t: ChainTT) -> List[Transformation]:

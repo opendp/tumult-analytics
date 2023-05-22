@@ -7,15 +7,6 @@ from typing import Any, Dict, NamedTuple, Union
 
 import sympy as sp
 from pyspark.sql import DataFrame
-
-from tmlt.analytics._neighboring_relation import (
-    AddRemoveKeys,
-    AddRemoveRows,
-    AddRemoveRowsAcrossGroups,
-    Conjunction,
-    NeighboringRelationVisitor,
-)
-from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -30,6 +21,15 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.utils.exact_number import ExactNumber
+
+from tmlt.analytics._neighboring_relation import (
+    AddRemoveKeys,
+    AddRemoveRows,
+    AddRemoveRowsAcrossGroups,
+    Conjunction,
+    NeighboringRelationVisitor,
+)
+from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 
 
 class _RelationIDVisitor(NeighboringRelationVisitor):
