@@ -3,8 +3,8 @@
 Changelog
 =========
 
-Unreleased
-----------
+0.7.1 - 2023-05-23
+------------------
 
 This is a maintenance release that mainly contains documentation updates.
 It also fixes a bug where installing Tumult Analytics using pip 23 and above could fail due to a dependency mismatch.
