@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `test_requirements.txt` now lists pytest instead of nose.
+
 ## 0.5.2 - 2023-05-18
 
 ### Changed
