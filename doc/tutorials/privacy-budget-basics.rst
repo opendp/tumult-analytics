@@ -230,8 +230,10 @@ Now, what happens if we try to consume *more* budget than what we have left?
    :options: +NORMALIZE_WHITESPACE
 
    Traceback (most recent call last):
-   RuntimeError: Cannot answer query without exceeding privacy budget: it needs
-   approximately 1.000, but the remaining budget is approximately 0.500 (difference: 5.000e-01)
+   RuntimeError: Cannot answer query without exceeding the Session privacy budget.
+   Requested: ε=1.000
+   Remaining: ε=0.500
+   Difference: ε=0.500
 
 The ``evaluate`` call returns an error. This is how the Session enforces its
 privacy promise: it makes sure that the queries cannot consume more than the

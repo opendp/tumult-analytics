@@ -163,6 +163,99 @@ def _generate_neighboring_relation(
     return Conjunction(relations)
 
 
+# TODO(2476): Uncomment this once we allow consuming delta, and remove the part
+# that only reports epsilon (immediately after the commented section).
+def _format_insufficient_budget_msg(
+    requested_budget: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
+    remaining_budget: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
+    privacy_budget: PrivacyBudget,
+) -> str:
+    """Format message for InsufficientBudgetError."""
+    output = ""
+
+    if isinstance(privacy_budget, ApproxDPBudget):
+        if is_exact_number_tuple(requested_budget) and is_exact_number_tuple(
+            remaining_budget
+        ):
+            assert isinstance(requested_budget, tuple)
+            assert isinstance(remaining_budget, tuple)
+            remaining_epsilon = remaining_budget[0].to_float(round_up=True)
+            requested_epsilon = requested_budget[0].to_float(round_up=True)
+            #   requested_delta = requested_budget[1].to_float(round_up=True)
+            #   remaining_delta = remaining_budget[1].to_float(round_up=True)
+            #   output += f"\nRequested: ε={requested_epsilon:.3f},"
+            #   output += f" δ={requested_delta:.3f}"
+            #   output += f"\nRemaining: ε={remaining_epsilon:.3f},"
+            #   output += f" δ={remaining_delta:.3f}"
+            #   output += "\nDifference: "
+            #   lacks_epsilon = remaining_epsilon < requested_epsilon
+            #   lacks_delta = remaining_delta < requested_delta
+            #   if lacks_epsilon and lacks_delta:
+            #       eps_diff = abs(remaining_epsilon - requested_epsilon)
+            #       delta_diff = abs(remaining_delta - requested_delta)
+            #       if eps_diff >= 0.1 and delta_diff >= 0.1:
+            #           output += f"ε={eps_diff:.3f}, δ={delta_diff:.3f}"
+            #       elif eps_diff < 0.1:
+            #           output += f"ε={eps_diff:.3e}, δ={delta_diff:.3f}"
+            #       elif delta_diff < 0.1:
+            #           output += f"ε={eps_diff:.3f}, δ={delta_diff:.3e}"
+            #   elif lacks_epsilon:
+            #       eps_diff = abs(remaining_epsilon - requested_epsilon)
+            #       if eps_diff >= 0.1:
+            #           output += f"ε={eps_diff:.3f}"
+            #       else:
+            #           output += f"ε={eps_diff:.3e}"
+            #   elif lacks_delta:
+            #       delta_diff = abs(remaining_delta - requested_delta)
+            #       if delta_diff >= 0.1:
+            #           output += f"δ={delta_diff:.3f}"
+            #       else:
+            #           output += f"δ={delta_diff:.3e}"
+            approx_diff = abs(remaining_epsilon - requested_epsilon)
+            output += f"\nRequested: ε={requested_epsilon:.3f}"
+            output += f"\nRemaining: ε={remaining_epsilon:.3f}"
+            if approx_diff >= 0.1:
+                output += f"\nDifference: ε={approx_diff:.3f}"
+            else:
+                output += f"\nDifference: ε={approx_diff:.3e}"
+        else:
+            raise AssertionError(
+                "Unable to convert privacy budget of type"
+                f" {type(privacy_budget)} to float or floats. This is"
+                " probably a bug; please let us know about it so we can fix it!"
+            )
+    elif isinstance(privacy_budget, (PureDPBudget, RhoZCDPBudget)):
+        assert isinstance(requested_budget, ExactNumber)
+        assert isinstance(remaining_budget, ExactNumber)
+        if isinstance(privacy_budget, PureDPBudget):
+            remaining_epsilon = remaining_budget.to_float(round_up=True)
+            requested_epsilon = requested_budget.to_float(round_up=True)
+            approx_diff = abs(remaining_epsilon - requested_epsilon)
+            output += f"\nRequested: ε={requested_epsilon:.3f}"
+            output += f"\nRemaining: ε={remaining_epsilon:.3f}"
+            if approx_diff >= 0.1:
+                output += f"\nDifference: ε={approx_diff:.3f}"
+            else:
+                output += f"\nDifference: ε={approx_diff:.3e}"
+        elif isinstance(privacy_budget, RhoZCDPBudget):
+            remaining_rho = remaining_budget.to_float(round_up=True)
+            requested_rho = requested_budget.to_float(round_up=True)
+            approx_diff = abs(remaining_rho - requested_rho)
+            output += f"\nRequested: 𝝆={requested_rho:.3f}"
+            output += f"\nRemaining: 𝝆={remaining_rho:.3f}"
+            if approx_diff >= 0.1:
+                output += f"\nDifference: 𝝆={approx_diff:.3f}"
+            else:
+                output += f"\nDifference: 𝝆={approx_diff:.3e}"
+    else:
+        raise AssertionError(
+            f"Unsupported budget types: {type(requested_budget)},"
+            f" {type(remaining_budget)}. This is probably a bug, please let us know"
+            " about it so we can fix it!"
+        )
+    return output
+
+
 class Session:
     """Allows differentially private query evaluation on sensitive data.
 
@@ -1125,55 +1218,15 @@ class Session:
                 answers = self._accountant.measure(
                     measurement, d_out=adjusted_budget.value
                 )
-            # TODO #2476: Parse InsufficientBudgetError based on budget type
-            except InsufficientBudgetError as e:
-                # pylint: disable=protected-access
-                if isinstance(adjusted_budget, (PureDPBudget)):
-                    approximate_budget_needed = adjusted_budget._epsilon
-                elif isinstance(adjusted_budget, (ApproxDPBudget)):
-                    approximate_budget_needed = adjusted_budget._epsilon
-                elif isinstance(adjusted_budget, RhoZCDPBudget):
-                    approximate_budget_needed = adjusted_budget._rho
-                # pylint: enable=protected-access
-                else:
-                    raise AssertionError(
-                        "Unable to convert privacy budget of"
-                        f" {adjusted_budget} to float or floats. This"
-                        " is probably a bug; please let us know about it so we can"
-                        " fix it!"
-                    ) from e
-
-                # mypy doesn't know we just checked for Tuple[ExactNumber, ExactNumber]
-                if is_exact_number_tuple(self._accountant.privacy_budget):
-                    # pylint: disable=line-too-long
-                    approximate_budget_left = self._accountant.privacy_budget[0]  # type: ignore
-                elif isinstance(self._accountant.privacy_budget, ExactNumber):
-                    approximate_budget_left = self._accountant.privacy_budget
-                else:
-                    raise AssertionError(
-                        "Unable to convert privacy budget of"
-                        f" {self._accountant.privacy_budget} to float or floats. This"
-                        " is probably a bug; please let us know about it so we can"
-                        " fix it!"
-                    ) from e
-
-                approximate_diff = abs(
-                    approximate_budget_left - approximate_budget_needed
-                ).to_float(round_up=False)
-                readable_approximate_budget_needed = approximate_budget_needed.to_float(
-                    round_up=False
+            except InsufficientBudgetError as err:
+                msg = _format_insufficient_budget_msg(
+                    err.requested_budget, err.remaining_budget, privacy_budget
                 )
-                readable_approximate_budget_left = approximate_budget_left.to_float(
-                    round_up=False
-                )
-
                 raise RuntimeError(
-                    "Cannot answer query without exceeding privacy budget: it needs"
-                    f" approximately {readable_approximate_budget_needed:.3f}, but the"
-                    " remaining budget is approximately"
-                    f" {readable_approximate_budget_left:.3f} (difference:"
-                    f" {approximate_diff:.3e})"
-                ) from e
+                    "Cannot answer query without exceeding the Session privacy budget."
+                    + msg
+                ) from err
+
             if len(answers) != 1:
                 raise AssertionError(
                     "Expected exactly one answer, but got "
@@ -1577,54 +1630,14 @@ class Session:
                 "activity of other sessions. See partition_and_create "
                 "for more information."
             ) from e
-        # TODO #2476: Parse InsufficientBudgetError based on budget type
-        except InsufficientBudgetError as e:
-            # pylint: disable=protected-access
-            if isinstance(adjusted_budget, (PureDPBudget)):
-                approximate_budget_needed = adjusted_budget._epsilon
-            elif isinstance(adjusted_budget, (ApproxDPBudget)):
-                approximate_budget_needed = adjusted_budget._epsilon
-            elif isinstance(adjusted_budget, RhoZCDPBudget):
-                approximate_budget_needed = adjusted_budget._rho
-            # pylint: enable=protected-access
-            else:
-                raise AssertionError(
-                    "Unable to convert privacy budget of"
-                    f" {adjusted_budget} to float or floats. This"
-                    " is probably a bug; please let us know about it so we can"
-                    " fix it!"
-                ) from e
-            # mypy doesn't know we just checked for Tuple[ExactNumber, ExactNumber]
-            if is_exact_number_tuple(self._accountant.privacy_budget):
-                # pylint: disable-next=line-too-long
-                approximate_budget_left = self._accountant.privacy_budget[0]  # type: ignore
-            elif isinstance(self._accountant.privacy_budget, ExactNumber):
-                approximate_budget_left = self._accountant.privacy_budget
-            else:
-                raise AssertionError(
-                    "Unable to convert privacy budget of"
-                    f" {self._accountant.privacy_budget} to float or floats. This"
-                    " is probably a bug; please let us know about it so we can"
-                    " fix it!"
-                ) from e
-
-            approximate_diff = abs(
-                approximate_budget_left - approximate_budget_needed
-            ).to_float(round_up=False)
-            readable_approximate_budget_needed = approximate_budget_needed.to_float(
-                round_up=False
+        except InsufficientBudgetError as err:
+            msg = _format_insufficient_budget_msg(
+                err.requested_budget, err.remaining_budget, privacy_budget
             )
-            readable_approximate_budget_left = approximate_budget_left.to_float(
-                round_up=False
-            )
-
             raise RuntimeError(
-                "Cannot perform this partition without exceeding privacy budget: it"
-                f" needs approximately {readable_approximate_budget_needed:.3f}, but"
-                " the remaining budget is approximately"
-                f" {readable_approximate_budget_left:.3f} (difference:"
-                f" {approximate_diff:.3e})"
-            ) from e
+                "Cannot perform this partition without exceeding "
+                "the Session privacy budget." + msg
+            ) from err
 
         for i, source in enumerate(new_sources):
             if table_has_ids:

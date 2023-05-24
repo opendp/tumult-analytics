@@ -302,7 +302,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         nonexistent_columns = set(expr.column_mapper) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
-                f"Nonexistent columns {nonexistent_columns} in rename query"
+                f"Nonexistent columns in rename query: {nonexistent_columns}"
             )
         for old, new in expr.column_mapper.items():
             if new in input_schema and new != old:
@@ -388,7 +388,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         nonexistent_columns = set(expr.columns) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
-                f"Nonexistent columns {nonexistent_columns} in select query."
+                f"Nonexistent columns in select query: {nonexistent_columns}"
             )
 
         return Schema(
