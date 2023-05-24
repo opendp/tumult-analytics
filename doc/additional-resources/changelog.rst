@@ -3,6 +3,16 @@
 Changelog
 =========
 
+0.5.3 - 2023-05-24
+------------------
+
+Fixed
+~~~~~
+
+-  ``test_requirements.txt`` now lists pytest instead of nose.
+
+.. _section-1:
+
 0.5.2 - 2023-05-18
 ------------------
 
@@ -11,7 +21,7 @@ Changed
 
 -  Updated to support PySpark 3.3.0.
 
-.. _section-1:
+.. _section-2:
 
 0.5.1 - 2022-11-16
 ------------------
@@ -23,7 +33,7 @@ Changed
 
 -  Updated to Tumult Core 0.6.0.
 
-.. _section-2:
+.. _section-3:
 
 0.5.0 - 2022-10-17
 ------------------
@@ -51,17 +61,19 @@ Deprecated
 
 -  The contents of the ``cleanup`` module have been moved to the ``utils`` module. The ``cleanup`` module will be removed in a future version.
 
-.. _section-3:
+.. _section-4:
 
 0.4.2 - 2022-09-06
 ------------------
+
+.. _fixed-1:
 
 Fixed
 ~~~~~
 
 -  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
 
-.. _section-4:
+.. _section-5:
 
 0.4.1 - 2022-08-25
 ------------------
@@ -81,14 +93,14 @@ Changed
 
 -  Improved documentation for ``QueryBuilder.map`` and ``QueryBuilder.flat_map``.
 
-.. _fixed-1:
+.. _fixed-2:
 
 Fixed
 ~~~~~
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
-.. _section-5:
+.. _section-6:
 
 0.4.0 - 2022-07-22
 ------------------
@@ -102,7 +114,7 @@ Added
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
 
-.. _section-6:
+.. _section-7:
 
 0.3.0 - 2022-06-23
 ------------------
@@ -143,7 +155,7 @@ Removed
 -  *Backwards-incompatible*: Removed ``validate`` option from ``Session.from_dataframe``, ``Session.add_public_dataframe``, ``Session.Builder.with_private_dataframe``, ``Session.Builder.with_public_dataframe``.
 -  *Backwards-incompatible*: Removed ``KeySet.contains_nan_or_null``.
 
-.. _fixed-2:
+.. _fixed-3:
 
 Fixed
 ~~~~~
@@ -200,7 +212,7 @@ Changed
 -  Sessions created by ``partition_and_create`` must be used in the order they were created, and using the parent session will forcibly close all child sessions.
    Sessions can be manually closed with ``session.stop()``.
 
-.. _fixed-3:
+.. _fixed-4:
 
 Fixed
 ~~~~~
