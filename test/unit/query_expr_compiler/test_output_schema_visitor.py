@@ -143,7 +143,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # Rename on non-existent column
         Rename(child=PrivateSource("private"), column_mapper={"NONEXISTENT": "Z"}),
-        "Nonexistent columns {'NONEXISTENT'} in rename query",
+        "Nonexistent columns in rename query: {'NONEXISTENT'}",
     ),
     (  # Rename when column exists
         Rename(child=PrivateSource("private"), column_mapper={"A": "B"}),
@@ -151,7 +151,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # Select non-existent column
         Select(child=PrivateSource("private"), columns=["NONEXISTENT"]),
-        "Nonexistent columns {'NONEXISTENT'} in select query",
+        "Nonexistent columns in select query: {'NONEXISTENT'}",
     ),
     (  # Nested grouping FlatMap
         FlatMap(

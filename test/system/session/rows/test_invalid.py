@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
-from typing import Dict, Type, Union
+# pylint: disable= no-self-use
+
+from typing import Dict, Tuple, Type, Union
 from unittest.mock import Mock
 
 import pytest
@@ -17,7 +19,12 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import ApproxDPBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 from tmlt.analytics.protected_change import AddOneRow
 from tmlt.analytics.query_expr import (
     FlatMap,
@@ -28,7 +35,7 @@ from tmlt.analytics.query_expr import (
     Rename,
     ReplaceNullAndNan,
 )
-from tmlt.analytics.session import Session
+from tmlt.analytics.session import Session, _format_insufficient_budget_msg
 
 
 @pytest.mark.usefixtures("session_data")
@@ -75,6 +82,83 @@ class TestInvalidSession:
         with pytest.raises(error_type, match=expected_error_msg):
             session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
 
+    @pytest.mark.parametrize(
+        "requested,remaining,budget_type,expected_msg",
+        [
+            # TOD0(2476): Uncomment once we support Delta consumption
+            # Also remove the first uncommented test. That msg will be incorrect
+            # (
+            #     (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
+            #     (ExactNumber(2), ExactNumber.from_float(0.4, round_up=True)),
+            #     ApproxDPBudget(2, 0.4),
+            #   "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+            #     " ε=2.000, δ=0.400\nDifference: ε=1.000, δ=0.1000",
+            # ),
+            # (
+            #     (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
+            #     (ExactNumber(2), ExactNumber.from_float(0.5, round_up=True)),
+            #     ApproxDPBudget(2, 0.5),
+            #   "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+            #     " ε=2.000, δ=0.500\nDifference: ε=1.000",
+            # ),
+            # (
+            #     (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
+            #     (ExactNumber(3), ExactNumber.from_float(0.4, round_up=True)),
+            #     ApproxDPBudget(3, 0.4),
+            #   "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+            #     " ε=3.000, δ=0.400\nDifference: δ=0.100",
+            # ),
+            # (
+            #     (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
+            #     (ExactNumber(3), ExactNumber.from_float(0.41, round_up=True)),
+            #     ApproxDPBudget(3, 0.41),
+            #   "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+            #     " ε=3.000, δ=0.400\nDifference: δ=9.000e-02",
+            # ),
+            (
+                (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
+                (ExactNumber(2), ExactNumber.from_float(0.4, round_up=True)),
+                ApproxDPBudget(2, 0.4),
+                "\nRequested: ε=3.000\nRemaining: ε=2.000\nDifference: ε=1.000",
+            ),
+            (
+                ExactNumber(3),
+                ExactNumber(2),
+                PureDPBudget(2),
+                "\nRequested: ε=3.000\nRemaining: ε=2.000\nDifference: ε=1.000",
+            ),
+            (
+                ExactNumber(3),
+                ExactNumber.from_float(2.91, round_up=True),
+                PureDPBudget(2.91),
+                "\nRequested: ε=3.000\nRemaining: ε=2.910\nDifference: ε=9.000e-02",
+            ),
+            (
+                ExactNumber(3),
+                ExactNumber(2),
+                RhoZCDPBudget(2),
+                "\nRequested: 𝝆=3.000\nRemaining: 𝝆=2.000\nDifference: 𝝆=1.000",
+            ),
+            (
+                ExactNumber(3),
+                ExactNumber.from_float(2.91, round_up=True),
+                RhoZCDPBudget(2.91),
+                "\nRequested: 𝝆=3.000\nRemaining: 𝝆=2.910\nDifference: 𝝆=9.000e-02",
+            ),
+        ],
+    )
+    def test_format_insufficient_budget_msg(
+        self,
+        requested: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
+        remaining: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
+        budget_type: PrivacyBudget,
+        expected_msg: str,
+    ):
+        """Tests that InsufficientBudgetError is formatted correctly."""
+        assert repr(
+            _format_insufficient_budget_msg(requested, remaining, budget_type)
+        ) == repr(expected_msg)
+
     @pytest.mark.parametrize("output_measure", [(PureDP()), (ApproxDP()), (RhoZCDP())])
     def test_invalid_privacy_budget_evaluate_and_create(
         self, output_measure: Union[PureDP, RhoZCDP]
@@ -108,16 +192,14 @@ class TestInvalidSession:
         )
         with pytest.raises(
             RuntimeError,
-            match="Cannot answer query without exceeding privacy budget: "
-            "it needs approximately 2.000, but the remaining budget is "
-            r"approximately 1.000 \(difference: 1.000e\+00\)",
+            match="Cannot answer query without exceeding the Session privacy budget",
         ):
             session.evaluate(query_expr, privacy_budget=two_budget)
+
         with pytest.raises(
             RuntimeError,
-            match="Cannot perform this partition without exceeding privacy budget: "
-            "it needs approximately 2.000, but the remaining budget is approximately "
-            r"1.000 \(difference: 1.000e\+00\)",
+            match="Cannot perform this partition without "
+            "exceeding the Session privacy budget",
         ):
             session.partition_and_create(
                 "private",

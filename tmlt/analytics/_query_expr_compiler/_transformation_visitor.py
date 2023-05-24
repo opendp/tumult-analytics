@@ -375,6 +375,11 @@ class TransformationVisitor(QueryExprVisitor):
                     "Unrecognized input metric. This is probably a bug; "
                     "please let us know about it so we can fix it!"
                 )
+            nonexistent_columns = set(expr.column_mapper) - set(input_domain.schema)
+            if nonexistent_columns:
+                raise ValueError(
+                    f"Nonexistent columns in rename query: {nonexistent_columns}"
+                )
             return create_copy_and_transform_value(
                 parent_domain,
                 parent_metric,
@@ -471,6 +476,11 @@ class TransformationVisitor(QueryExprVisitor):
                 raise AssertionError(
                     "Unrecognized input metric. This is probably a bug; "
                     "please let us know about it so we can fix it!"
+                )
+            nonexistent_columns = set(expr.columns) - set(input_domain.schema)
+            if nonexistent_columns:
+                raise ValueError(
+                    f"Nonexistent columns in select query: {nonexistent_columns}"
                 )
             return create_copy_and_transform_value(
                 parent_domain,

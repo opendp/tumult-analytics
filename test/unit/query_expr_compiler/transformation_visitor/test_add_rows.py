@@ -156,10 +156,10 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_invalid_rename(self) -> None:
         """Test visit_rename with an invalid query."""
         query = Rename(
-            column_mapper={"column_that_does_not_exit": "asdf"},
+            column_mapper={"column_that_does_not_exist": "asdf"},
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Nonexistent columns in rename query"):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
@@ -216,7 +216,7 @@ class TestAddRows(TestTransformationVisitor):
             columns=["column_that_does_not_exist"],
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Nonexistent columns in select query"):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
