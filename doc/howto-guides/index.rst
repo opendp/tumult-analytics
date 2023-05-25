@@ -13,5 +13,6 @@ troubleshoot the library locally or on a cloud platform.
    :maxdepth: 1
 
    installation
+   databricks
    bigquery/index
    troubleshooting

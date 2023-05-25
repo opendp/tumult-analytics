@@ -5,12 +5,12 @@ Passing parameters to a stored procedure
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
-In this additional section of the topic guide, we will explain how 
-to pass parameters from BigQuery to the stored procedure containing 
-our Tumult Analytics program. This makes it possible to customize the 
-call, by specifying e.g. different inputs or outputs table, or privacy 
+In this additional section of the topic guide, we will explain how
+to pass parameters from BigQuery to the stored procedure containing
+our Tumult Analytics program. This makes it possible to customize the
+call, by specifying e.g. different inputs or outputs table, or privacy
 parameters, without modifying the underlying program.
 
 Recall that our remote procedure from :ref:`earlier<running the program>` had no parameters.
@@ -57,7 +57,7 @@ Now, we can call the procedure with the parameters as follows.
         "tumult-labs.analytics_tutorial.member_counts"
     )
 
-.. note:: Replace the bucket, input, and output with the values 
+.. note:: Replace the bucket, input, and output with the values
     specific to your project.
 
 Now, recall our Tufts Analytics program defined :ref:`earlier<bigquery inputs and outputs>`.
@@ -113,9 +113,9 @@ Now, recall our Tufts Analytics program defined :ref:`earlier<bigquery inputs an
 
 We need to modify this so that we can receive the parameters ``bucket``, ``input``, and ``output``.
 To read in our new parameters, we need to read the environment variables.
-Each parameter is stored in the environment variable in JSON format, and its 
-name has the following format: ``BIGQUERY_PROC_PARAM.[PARAMETER NAME]``. For example, 
-if we have a parameter named ``epsilon``, we can access it with 
+Each parameter is stored in the environment variable in JSON format, and its
+name has the following format: ``BIGQUERY_PROC_PARAM.[PARAMETER NAME]``. For example,
+if we have a parameter named ``epsilon``, we can access it with
 ``os.environ["BIGQUERY_PROC_PARAM.epsilon"]``.
 
 .. code-block:: diff
@@ -184,6 +184,6 @@ In the end, your program should look structually similar to this final program.
      .save()
    )
 
-In the :ref:`final part of this topic guide<gcp docker image>`, 
-we will see how to create a customized GCP-compatible Docker image 
+In the :ref:`final part of this topic guide<gcp docker image>`,
+we will see how to create a customized GCP-compatible Docker image
 to run Tumult Analytics.

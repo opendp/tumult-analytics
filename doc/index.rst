@@ -111,8 +111,7 @@ Additional resources
 
 Contact us
 ^^^^^^^^^^
-The best place to ask questions, file feature requests, or give feedback about Tumult Analytics
-is our `Slack server <https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#>`__.
+The best place to ask questions, file feature requests, or give feedback about Tumult Analytics is our `Slack server <https://tmlt.dev/slack>`__.
 We also use it for announcements of new releases and feature additions.
 
 Cite us

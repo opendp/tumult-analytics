@@ -5,15 +5,15 @@ BigQuery inputs and outputs
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
-In this section, we will show how to adapt a Tumult Analytics 
-program to use BigQuery inputs and outputs, and provide a minimal 
+In this section, we will show how to adapt a Tumult Analytics
+program to use BigQuery inputs and outputs, and provide a minimal
 example of a BigQuery-compatible program.
 
-We will use the simple program from :ref:`the first tutorial<first steps>` 
-which constructs a differentially private count of the number of 
-members in a fake dataset containing members of a public library 
+We will use the simple program from :ref:`the first tutorial<first steps>`
+which constructs a differentially private count of the number of
+members in a fake dataset containing members of a public library
 ``library-members``.
 
 .. testcode::
@@ -56,22 +56,22 @@ members in a fake dataset containing members of a public library
     |...|
     +-----+
 
-We will explain what needs to change to adapt this program to work on 
+We will explain what needs to change to adapt this program to work on
 BigQuery.
 
 Setup
 -----
 
-To be able to write to BigQuery, we need to create a Google Cloud 
+To be able to write to BigQuery, we need to create a Google Cloud
 Storage bucket to store the intermediate results and our programs.
 
 1. Go to the `Cloud Storage interface`_
 2. Create a new bucket by clicking on ``+ CREATE``
 
-In this topic guide, we will create two buckets. One to house our 
-programs, and the other for intermediate materialization. For this 
-topic guide, we will be calling ours ``tumult-shared-procedures`` 
-and ``tumult-warehouse`` respectively. Since buckets use a global 
+In this topic guide, we will create two buckets. One to house our
+programs, and the other for intermediate materialization. For this
+topic guide, we will be calling ours ``tumult-shared-procedures``
+and ``tumult-warehouse`` respectively. Since buckets use a global
 namespace, you will need to choose a unique name for your bucket.
 
 .. _BigQuery interface: https://console.cloud.google.com/bigquery
@@ -80,20 +80,20 @@ namespace, you will need to choose a unique name for your bucket.
 Creating the Spark Session
 --------------------------
 
-Our Spark session will use a `Google Cloud Storage`_ bucket to store 
-intermediate results that are generated and used by Tumult Analytics 
-to compute the differentially private results. This is done by setting 
+Our Spark session will use a `Google Cloud Storage`_ bucket to store
+intermediate results that are generated and used by Tumult Analytics
+to compute the differentially private results. This is done by setting
 the ``spark.sql.warehouse.dir`` configuration option.
 
 .. _Google Cloud Storage: https://cloud.google.com/storage
 
-Additionally, writing to BigQuery tables requires an intermediate 
-buffer to write to, which is also stored in a Google Cloud Storage 
+Additionally, writing to BigQuery tables requires an intermediate
+buffer to write to, which is also stored in a Google Cloud Storage
 bucket. In this case, we can use the same bucket for both purposes.
 You will need to replace ``BUCKET`` with your own bucket name.
 
-.. note:: Whenever working with sensitive data, make sure that these 
-    buckets are securely configured and that unauthorized users 
+.. note:: Whenever working with sensitive data, make sure that these
+    buckets are securely configured and that unauthorized users
     cannot access them.
 
 .. code-block:: diff
@@ -111,13 +111,13 @@ You will need to replace ``BUCKET`` with your own bucket name.
 Specifying BigQuery inputs and outputs
 --------------------------------------
 
-Then, using BigQuery for inputs/outputs is straightforward. Instead of 
-reading from a CSV file, we specify that the format we're reading from is 
-``BigQuery``, with additional ``option`` properties that we set to indicate 
+Then, using BigQuery for inputs/outputs is straightforward. Instead of
+reading from a CSV file, we specify that the format we're reading from is
+``BigQuery``, with additional ``option`` properties that we set to indicate
 each table path.
 
 Here is a code snippet for reading a BigQuery input.
-You will need to replace ``PROJECT``, ``DATASET``, and ``TABLE`` with 
+You will need to replace ``PROJECT``, ``DATASET``, and ``TABLE`` with
 your own values.
 
 .. code-block:: diff
@@ -137,7 +137,7 @@ your own values.
     +  .load()
     +)
 
-And here is a snippet to write to a BigQuery table. Here we write our 
+And here is a snippet to write to a BigQuery table. Here we write our
 counts to ``tumult-labs.analytics_tutorial.library_counts``.
 
 .. code-block:: python
