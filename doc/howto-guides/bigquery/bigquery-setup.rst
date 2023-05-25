@@ -5,7 +5,7 @@ Introduction to BigQuery
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2022
+    Copyright Tumult Labs 2023
 
 BigQuery is a serverless, highly scalable, cost-effective, and fully managed
 cloud data warehouse for analytics.
@@ -27,10 +27,10 @@ as a CSV file.
 .. _BigQuery interface: https://console.cloud.google.com/bigquery
 
 With our data in place, we can explore the data in BigQuery.
-We can expand the dataset we previously created, open up the table 
+We can expand the dataset we previously created, open up the table
 to see the schema, and query the data in the query editor
 using SQL.
 
-Now that we've set up our environment in BigQuery, let's move on to the :ref:`next part<bigquery inputs and outputs>` 
-of the topic guide and see how we would modify a simple Tumult Analtyics program to be able 
+Now that we've set up our environment in BigQuery, let's move on to the :ref:`next part<bigquery inputs and outputs>`
+of the topic guide and see how we would modify a simple Tumult Analtyics program to be able
 to run in BigQuery.
