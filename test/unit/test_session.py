@@ -2040,7 +2040,7 @@ class TestSessionBuilder:
             ),
             (
                 Session.Builder().with_privacy_budget(ApproxDPBudget(10, 0.5)),
-                (sp.Integer(10), 0),
+                (sp.Integer(10), sp.Rational("0.5")),
                 ApproxDP(),
                 [("df1", 1)],
                 [],

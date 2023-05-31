@@ -5,6 +5,7 @@
 
 import dataclasses
 import math
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sympy as sp
@@ -63,7 +64,7 @@ from tmlt.analytics.constraints import (
     MaxRowsPerID,
 )
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PrivacyBudget
+from tmlt.analytics.privacy_budget import ApproxDPBudget, PrivacyBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
@@ -270,6 +271,7 @@ class MeasurementVisitor(QueryExprVisitor):
     ):
         """Constructor for MeasurementVisitor."""
         self.budget = privacy_budget
+        self.adjusted_budget = privacy_budget
         self.stability = stability
         self.input_domain = input_domain
         self.input_metric = input_metric
@@ -387,6 +389,70 @@ class MeasurementVisitor(QueryExprVisitor):
                 f"Did not recognize the requested mechanism {requested_mechanism}."
                 " This is probably a bug; please let us know about it so we can fix it!"
             )
+
+    def _validate_approxDP_and_adjust_budget(
+        self,
+        expr: Union[
+            GroupByBoundedAverage,
+            GroupByBoundedSTDEV,
+            GroupByBoundedSum,
+            GroupByBoundedVariance,
+            GroupByCount,
+            GroupByCountDistinct,
+        ],
+    ) -> None:
+        """Validate and set adjusted_budget for ApproxDP queries.
+
+        First, validate that the user is not using a Gaussian noise mechanism with
+        ApproxDP. Then, for queries that use noise addition mechanisms replace non-zero
+        deltas with zero in self.adjusted_budget. If the user chose this mechanism
+        (i.e. didn't use the DEFAULT mechanism) we warn them of this replacement.
+        """
+        if not isinstance(self.budget, ApproxDPBudget):
+            return
+
+        if expr.mechanism in (
+            AverageMechanism.GAUSSIAN,
+            CountDistinctMechanism.GAUSSIAN,
+            CountMechanism.GAUSSIAN,
+            StdevMechanism.GAUSSIAN,
+            SumMechanism.GAUSSIAN,
+            VarianceMechanism.GAUSSIAN,
+        ):
+            raise NotImplementedError(
+                "Gaussian noise is only supported with RhoZCDP. Please use "
+                "CountMechanism.LAPLACE instead."
+            )
+
+        epsilon, delta = self.budget.value
+        if delta != 0:
+            if expr.mechanism in (
+                AverageMechanism.LAPLACE,
+                CountDistinctMechanism.LAPLACE,
+                CountMechanism.LAPLACE,
+                StdevMechanism.LAPLACE,
+                SumMechanism.LAPLACE,
+                VarianceMechanism.LAPLACE,
+            ):
+                warnings.warn(
+                    "When using LAPLACE with an ApproxDPBudget, the delta value of "
+                    "the budget will be replaced with zero."
+                )
+                self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+            elif expr.mechanism in (
+                AverageMechanism.DEFAULT,
+                CountDistinctMechanism.DEFAULT,
+                CountMechanism.DEFAULT,
+                StdevMechanism.DEFAULT,
+                SumMechanism.DEFAULT,
+                VarianceMechanism.DEFAULT,
+            ):
+                self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+            else:
+                raise AssertionError(
+                    f"Unknown mechanism {expr.mechanism}. This is probably a bug; "
+                    "please let us know so we can fix it!"
+                )
 
     def _pick_noise_for_non_count(
         self,
@@ -595,7 +661,7 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""
-        if measurement.privacy_function(mid_stability) != self.budget.value:
+        if measurement.privacy_function(mid_stability) != self.adjusted_budget.value:
             raise AssertionError(
                 "Privacy function does not match per-query privacy budget. "
                 "This is probably a bug; please let us know so we can "
@@ -604,6 +670,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_count(self, expr: GroupByCount) -> Measurement:
         """Create a measurement from a GroupByCount query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_count(expr)
         mechanism = self._pick_noise_for_count(expr)
@@ -633,7 +701,7 @@ class MeasurementVisitor(QueryExprVisitor):
             input_metric=transformation.output_metric,
             noise_mechanism=mechanism,
             d_in=mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             count_column=expr.output_column,
@@ -643,6 +711,7 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_count_distinct(self, expr: GroupByCountDistinct) -> Measurement:
         """Create a measurement from a GroupByCountDistinct query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
         mechanism = self._pick_noise_for_count(expr)
         (
             child_transformation,
@@ -703,7 +772,7 @@ class MeasurementVisitor(QueryExprVisitor):
             input_metric=transformation.output_metric,
             noise_mechanism=mechanism,
             d_in=mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             count_column=expr.output_column,
@@ -771,6 +840,13 @@ class MeasurementVisitor(QueryExprVisitor):
             self.default_mechanism,
         )
 
+        # For ApproxDP keep epsilon value, but always pass 0 for delta
+        self.adjusted_budget = (
+            ApproxDPBudget(self.budget.value[0], 0)
+            if isinstance(self.budget, ApproxDPBudget)
+            else self.budget
+        )
+
         agg = create_quantile_measurement(
             input_domain=transformation.output_domain,
             input_metric=transformation.output_metric,
@@ -779,7 +855,7 @@ class MeasurementVisitor(QueryExprVisitor):
             lower=expr.low,
             upper=expr.high,
             d_in=mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=groupby,
             quantile_column=expr.output_column,
@@ -789,6 +865,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_bounded_sum(self, expr: GroupByBoundedSum) -> Measurement:
         """Create a measurement from a GroupByBoundedSum query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_sum(expr)
 
@@ -809,7 +887,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             sum_column=expr.output_column,
@@ -819,6 +897,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_bounded_average(self, expr: GroupByBoundedAverage) -> Measurement:
         """Create a measurement from a GroupByBoundedAverage query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_average(expr)
         info = self._build_common(expr)
@@ -838,7 +918,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             average_column=expr.output_column,
@@ -850,6 +930,8 @@ class MeasurementVisitor(QueryExprVisitor):
         self, expr: GroupByBoundedVariance
     ) -> Measurement:
         """Create a measurement from a GroupByBoundedVariance query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_variance(expr)
         info = self._build_common(expr)
@@ -869,7 +951,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             variance_column=expr.output_column,
@@ -879,6 +961,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Measurement:
         """Create a measurement from a GroupByBoundedStdev query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         OutputSchemaVisitor(self.catalog).visit_groupby_bounded_stdev(expr)
         info = self._build_common(expr)
@@ -898,7 +982,7 @@ class MeasurementVisitor(QueryExprVisitor):
             upper=info.upper_bound,
             noise_mechanism=info.mechanism,
             d_in=info.mid_stability,
-            d_out=self.budget.value,
+            d_out=self.adjusted_budget.value,
             output_measure=self.output_measure,
             groupby_transformation=info.groupby,
             standard_deviation_column=expr.output_column,

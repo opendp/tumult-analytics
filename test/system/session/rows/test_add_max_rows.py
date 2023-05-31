@@ -429,7 +429,7 @@ class TestSession:
         "starting_budget,partition_budget",
         [
             (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
+            (ApproxDPBudget(20, 1 / 2), ApproxDPBudget(10, 1 / 4)),
             (RhoZCDPBudget(20), RhoZCDPBudget(10)),
         ],
     )
@@ -465,15 +465,22 @@ class TestSession:
         )
 
     @pytest.mark.parametrize(
-        "starting_budget,partition_budget",
+        "starting_budget,partition_budget,remaining_budget",
         [
-            (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
-            (RhoZCDPBudget(20), RhoZCDPBudget(10)),
+            (PureDPBudget(20), PureDPBudget(12), PureDPBudget(8)),
+            (
+                ApproxDPBudget(20, 1 / 4),
+                ApproxDPBudget(12, 3 / 16),
+                ApproxDPBudget(8, 1 / 16),
+            ),
+            (RhoZCDPBudget(20), RhoZCDPBudget(12), RhoZCDPBudget(8)),
         ],
     )
     def test_partition_and_create_query(
-        self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
+        self,
+        starting_budget: PrivacyBudget,
+        partition_budget: PrivacyBudget,
+        remaining_budget: PrivacyBudget,
     ):
         """Querying on a partitioned session with stability>1 works."""
         session1 = Session.from_dataframe(
@@ -500,7 +507,7 @@ class TestSession:
         )
         session2 = sessions["private0"]
         session3 = sessions["private1"]
-        assert session1.remaining_privacy_budget == partition_budget
+        assert session1.remaining_privacy_budget == remaining_budget
         assert session2.remaining_privacy_budget == partition_budget
         assert session2.private_sources == ["private0"]
         assert session2.get_schema("private0") == Schema(
@@ -517,20 +524,25 @@ class TestSession:
         session2.evaluate(query, partition_budget)
 
     @pytest.mark.parametrize(
-        "starting_budget,partition_budget",
-        [(ApproxDPBudget(20, 0.5), PureDPBudget(10))],
+        "starting_budget,partition_budget,remaining_budget",
+        [(ApproxDPBudget(20, 0.5), PureDPBudget(10), ApproxDPBudget(10, 0.5))],
     )
     def test_partition_and_create_approxDP_session_pureDP_partition(
-        self, starting_budget: PrivacyBudget, partition_budget: PrivacyBudget
+        self,
+        starting_budget: PrivacyBudget,
+        partition_budget: PrivacyBudget,
+        remaining_budget: PrivacyBudget,
     ):
         """Tests using :func:`partition_and_create` to create a new ApproxDP session
         that supports PureDP partitions."""
 
         is_approxDP_starting_budget = isinstance(starting_budget, ApproxDPBudget)
         if is_approxDP_starting_budget and isinstance(partition_budget, PureDPBudget):
-            partition_budget = ApproxDPBudget(partition_budget.epsilon, 0)
+            partition_budget = ApproxDPBudget(partition_budget.value, 0)
 
-        self.test_partition_and_create_query(starting_budget, partition_budget)
+        self.test_partition_and_create_query(
+            starting_budget, partition_budget, remaining_budget
+        )
 
     @pytest.mark.parametrize(
         "inf_budget,mechanism",
@@ -584,32 +596,37 @@ class TestSession:
         self, output_measure: Union[PureDP, ApproxDP, RhoZCDP]
     ):
         """Smoke test for composing :func:`partition_and_create`."""
-        starting_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
-        partition_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
-        second_partition_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
-        final_evaluate_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
+        root_session_budget: PrivacyBudget
+        root_session_remaining_budget: PrivacyBudget
+        column_A_partition_budget: PrivacyBudget
+        column_A_remaining_budget: PrivacyBudget
+        column_B_partition_budget: PrivacyBudget
+
         if output_measure == PureDP():
-            starting_budget = PureDPBudget(20)
-            partition_budget = PureDPBudget(10)
-            second_partition_budget = PureDPBudget(5)
-            final_evaluate_budget = PureDPBudget(2)
+            root_session_budget = PureDPBudget(20)
+            root_session_remaining_budget = PureDPBudget(8)
+            column_A_partition_budget = PureDPBudget(12)
+            column_A_remaining_budget = PureDPBudget(7)
+            column_B_partition_budget = PureDPBudget(5)
         elif output_measure == ApproxDP():
-            starting_budget = ApproxDPBudget(20, 0)
-            partition_budget = ApproxDPBudget(10, 0)
-            second_partition_budget = ApproxDPBudget(5, 0)
-            final_evaluate_budget = ApproxDPBudget(2, 0)
+            root_session_budget = ApproxDPBudget(20, 1 / 4)
+            root_session_remaining_budget = ApproxDPBudget(8, 3 / 16)
+            column_A_partition_budget = ApproxDPBudget(12, 1 / 16)
+            column_A_remaining_budget = ApproxDPBudget(7, 3 / 64)
+            column_B_partition_budget = ApproxDPBudget(5, 1 / 64)
         elif output_measure == RhoZCDP():
-            starting_budget = RhoZCDPBudget(20)
-            partition_budget = RhoZCDPBudget(10)
-            second_partition_budget = RhoZCDPBudget(5)
-            final_evaluate_budget = RhoZCDPBudget(2)
+            root_session_budget = RhoZCDPBudget(20)
+            root_session_remaining_budget = RhoZCDPBudget(8)
+            column_A_partition_budget = RhoZCDPBudget(12)
+            column_A_remaining_budget = RhoZCDPBudget(7)
+            column_B_partition_budget = RhoZCDPBudget(5)
         else:
             pytest.fail(
                 f"must use PureDP, ApproxDP, or RhoZCDP, found {output_measure}"
             )
 
-        session1 = Session.from_dataframe(
-            privacy_budget=starting_budget,
+        root_session = Session.from_dataframe(
+            privacy_budget=root_session_budget,
             source_id="private",
             dataframe=self.sdf,
             protected_change=AddOneRow(),
@@ -625,25 +642,25 @@ class TestSession:
                 max_num_rows=2,
             ),
         )
-        session1.create_view(transformation_query1, "transform1", cache=False)
+        root_session.create_view(transformation_query1, "transform1", cache=False)
 
-        sessions = session1.partition_and_create(
+        first_partition_sessions = root_session.partition_and_create(
             "transform1",
-            partition_budget,
+            column_A_partition_budget,
             "A",
             splits={"private0": "0", "private1": "1"},
         )
-        session2 = sessions["private0"]
-        session3 = sessions["private1"]
-        assert session1.remaining_privacy_budget == partition_budget
-        assert session2.remaining_privacy_budget == partition_budget
-        assert session2.private_sources == ["private0"]
-        assert session2.get_schema("private0") == Schema(
+        sessionA0 = first_partition_sessions["private0"]
+        sessionA1 = first_partition_sessions["private1"]
+        assert root_session.remaining_privacy_budget == root_session_remaining_budget
+        assert sessionA0.remaining_privacy_budget == column_A_partition_budget
+        assert sessionA0.private_sources == ["private0"]
+        assert sessionA0.get_schema("private0") == Schema(
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        assert session3.remaining_privacy_budget == partition_budget
-        assert session3.private_sources == ["private1"]
-        assert session3.get_schema("private1") == Schema(
+        assert sessionA1.remaining_privacy_budget == column_A_partition_budget
+        assert sessionA1.private_sources == ["private1"]
+        assert sessionA1.get_schema("private1") == Schema(
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
@@ -657,38 +674,33 @@ class TestSession:
                 max_num_rows=2,
             ),
         )
-        session2.create_view(transformation_query2, "transform2", cache=False)
+        sessionA0.create_view(transformation_query2, "transform2", cache=False)
 
-        sessions = session2.partition_and_create(
+        second_parition_sessions = sessionA0.partition_and_create(
             "transform2",
-            second_partition_budget,
-            "A",
-            splits={"private0": "0", "private1": "1"},
+            column_B_partition_budget,
+            "B",
+            splits={"private0": 0, "private1": 1},
         )
-        session4 = sessions["private0"]
-        session5 = sessions["private1"]
-        assert session2.remaining_privacy_budget == second_partition_budget
-        assert session4.remaining_privacy_budget == second_partition_budget
-        assert session4.private_sources == ["private0"]
-        assert session4.get_schema("private0") == Schema(
+        sessionA0B0 = second_parition_sessions["private0"]
+        sessionA0B1 = second_parition_sessions["private1"]
+        assert sessionA0.remaining_privacy_budget == column_A_remaining_budget
+        assert sessionA0B0.remaining_privacy_budget == column_B_partition_budget
+        assert sessionA0B0.private_sources == ["private0"]
+        assert sessionA0B0.get_schema("private0") == Schema(
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        assert session5.remaining_privacy_budget == second_partition_budget
-        assert session5.private_sources == ["private1"]
-        assert session5.get_schema("private1") == Schema(
+        assert sessionA0B1.remaining_privacy_budget == column_B_partition_budget
+        assert sessionA0B1.private_sources == ["private1"]
+        assert sessionA0B1.get_schema("private1") == Schema(
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-
-        query = GroupByCount(
-            child=PrivateSource("private0"), groupby_keys=KeySet.from_dict({})
-        )
-        session4.evaluate(query_expr=query, privacy_budget=final_evaluate_budget)
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
         [
             (PureDPBudget(20), PureDPBudget(10)),
-            (ApproxDPBudget(20, 0.5), ApproxDPBudget(10, 0)),
+            (ApproxDPBudget(20, 1 / 2), ApproxDPBudget(10, 1 / 4)),
             (RhoZCDPBudget(20), RhoZCDPBudget(10)),
         ],
     )

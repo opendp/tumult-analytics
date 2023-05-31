@@ -647,7 +647,10 @@ class Session:
                     " will be initialized with PureDP using the epsilon provided.",
                     UserWarning,
                 )
-                sympy_budget = (privacy_budget._epsilon.expr, 0)
+                sympy_budget = (
+                    privacy_budget._epsilon.expr,
+                    privacy_budget._delta.expr,
+                )
         elif isinstance(privacy_budget, RhoZCDPBudget):
             output_measure = RhoZCDP()
             sympy_budget = privacy_budget._rho.expr
@@ -1072,7 +1075,7 @@ class Session:
 
         # If pureDP session, and approxDP budget, let Core handle the error.
         if is_approxDP_session and isinstance(privacy_budget, PureDPBudget):
-            privacy_budget = ApproxDPBudget(privacy_budget.epsilon, 0)
+            privacy_budget = ApproxDPBudget(privacy_budget.value, 0)
 
         self._validate_budget_type_matches_session(privacy_budget)
         if privacy_budget in [PureDPBudget(0), ApproxDPBudget(0, 0), RhoZCDPBudget(0)]:
@@ -1495,7 +1498,7 @@ class Session:
 
         is_approxDP_session = isinstance(self._accountant.output_measure, ApproxDP)
         if is_approxDP_session and isinstance(privacy_budget, PureDPBudget):
-            privacy_budget = ApproxDPBudget(privacy_budget.epsilon, 0)
+            privacy_budget = ApproxDPBudget(privacy_budget.value, 0)
 
         self._validate_budget_type_matches_session(privacy_budget)
         self._activate_accountant()
@@ -1690,16 +1693,9 @@ class Session:
                 PureDPBudget(remaining_budget_value.to_float(round_up=False)),
             )
         elif isinstance(privacy_budget, ApproxDPBudget):
-            # TODO #2476: Reverse this when we support consuming delta
             if privacy_budget.is_infinite:
                 return ApproxDPBudget(float("inf"), 0)
             else:
-                warn(
-                    "The use of ApproxDP is not yet fully supported. your budget"
-                    " request will be processed as PureDP using the epsilon"
-                    " provided.",
-                    UserWarning,
-                )
                 if not is_exact_number_tuple(remaining_budget_value):
                     raise AssertionError(
                         "Remaining budget type for ApproxDP must be Tuple[ExactNumber,"
@@ -1710,7 +1706,7 @@ class Session:
                 # mypy doesn't understand that we've already checked that this is a tuple
                 remaining_epsilon, remaining_delta = remaining_budget_value  # type: ignore
                 return get_adjusted_budget(
-                    ApproxDPBudget(privacy_budget.epsilon, 0),
+                    ApproxDPBudget(*privacy_budget.value),
                     ApproxDPBudget(
                         remaining_epsilon.to_float(round_up=False),
                         remaining_delta.to_float(round_up=False),
