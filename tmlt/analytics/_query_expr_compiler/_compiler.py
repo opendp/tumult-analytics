@@ -155,7 +155,10 @@ class QueryExprCompiler:
             catalog=catalog,
             table_constraints=table_constraints,
         )
+
         measurements: List[Measurement] = []
+        # Note: Each query is re-using the adjusted_budget from the same visitor, which
+        # could become a problem if we go back to supporting multiple queries.
         for query in queries:
             query_measurement = query.accept(visitor)
             if not isinstance(query_measurement, Measurement):
@@ -163,7 +166,10 @@ class QueryExprCompiler:
                     "This query did not create a measurement. "
                     "This is probably a bug; please let us know so we can fix it!"
                 )
-            if query_measurement.privacy_function(stability) != privacy_budget.value:
+            if (
+                query_measurement.privacy_function(stability)
+                != visitor.adjusted_budget.value
+            ):
                 raise AssertionError(
                     "Query measurement privacy function does not match "
                     "privacy budget value. This is probably a bug; "
@@ -172,7 +178,7 @@ class QueryExprCompiler:
             measurements.append(query_measurement)
 
         measurement = Composition(measurements)
-        if measurement.privacy_function(stability) != privacy_budget.value:
+        if measurement.privacy_function(stability) != visitor.adjusted_budget.value:
             raise AssertionError(
                 "Measurement privacy function does not match "
                 "privacy budget. This is probably a bug; "

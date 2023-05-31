@@ -114,12 +114,13 @@ class PureDPBudget(PrivacyBudget):
         return f"PureDPBudget(epsilon={self.epsilon})"
 
     def __eq__(self, other) -> bool:
-        """Returns whether or not a PureDPBudget are equivalent to another PrivacyBudget.
+        """Returns whether or not a PureDPBudget is equivalent to another PrivacyBudget.
 
-        PureDPBudgets are considered equal to ApproxDPBudgets that have delta of 0, and the same epsilon.
+        PureDPBudgets are considered equal to ApproxDPBudgets that have delta of 0 and
+        the same epsilon.
         """
         if isinstance(other, PureDPBudget):
-            return self.value == other.value
+            return self._epsilon == other._epsilon
         if isinstance(other, ApproxDPBudget):
             if self._epsilon == other._epsilon and other._delta == 0:
                 return True
@@ -195,7 +196,7 @@ class ApproxDPBudget(PrivacyBudget):
     @property
     def is_infinite(self) -> bool:
         """Returns true if epsilon is float('inf') or delta is 1."""
-        return self.epsilon == float("inf") or self.delta == 1
+        return self._epsilon == float("inf") or self._delta == 1
 
     def __repr__(self) -> str:
         """Returns the string representation of this ApproxDPBudget."""
@@ -259,6 +260,11 @@ class RhoZCDPBudget(PrivacyBudget):
         a computation, you should use self.value instead.
         """
         return _to_int_or_float(self._rho)
+
+    @property
+    def is_infinite(self) -> bool:
+        """Returns true if rho is float('inf')."""
+        return self._rho == float("inf")
 
     def __repr__(self) -> str:
         """Returns string representation of this RhoZCDPBudget."""
