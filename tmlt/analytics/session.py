@@ -21,6 +21,7 @@ found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 
 # Copyright Tumult Labs 2023
 # SPDX-License-Identifier: Apache-2.0
+
 from operator import xor
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 from warnings import warn
@@ -1507,7 +1508,16 @@ class Session:
             domain=self._input_domain, metric=self._input_metric
         )
         table_ref = find_reference(source_id, self._input_domain)
-        assert isinstance(table_ref, TableReference)
+        if table_ref is None:
+            if source_id in self.public_sources:
+                raise ValueError(
+                    f"Table '{source_id}' is a public table, which cannot have an "
+                    "ID space."
+                )
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available private tables are: {', '.join(self.private_sources)}"
+            )
 
         # Either DictMetric or AddRemoveKeys
         parent_metric = lookup_metric(self._input_metric, table_ref.parent)

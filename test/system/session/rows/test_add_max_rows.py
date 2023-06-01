@@ -464,6 +464,20 @@ class TestSession:
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
+    def test_partition_nonexistent_table(self):
+        """Partitioning on a nonexistent table works correctly."""
+        sess = Session.from_dataframe(
+            PureDPBudget(1), "private", self.sdf, protected_change=AddOneRow()
+        )
+        sess.add_public_dataframe("public", self.sdf)
+
+        with pytest.raises(KeyError, match="Private table '.*' does not exist"):
+            sess.partition_and_create(
+                "nonexistent", PureDPBudget(1), "A", {"private0": "0"}
+            )
+        with pytest.raises(ValueError, match="Table '.*' is a public table"):
+            sess.partition_and_create("public", PureDPBudget(1), "A", {"private0": "0"})
+
     @pytest.mark.parametrize(
         "starting_budget,partition_budget,remaining_budget",
         [
