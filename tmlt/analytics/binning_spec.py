@@ -6,13 +6,13 @@
 import bisect
 import datetime
 import math
-from typing import Any, Generic, List, Optional, Sequence, TypeVar, cast
+from typing import Any, Generic, List, Optional, Sequence, TypeVar, Union, cast
 
 from tmlt.core.utils.type_utils import get_element_type
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
 
-BinT = TypeVar("BinT", str, int, float, datetime.date, datetime.datetime)
+BinT = TypeVar("BinT", str, Union[int, float], datetime.date, datetime.datetime)
 BinNameT = TypeVar("BinNameT", str, int, float, datetime.date, datetime.datetime)
 
 
@@ -78,6 +78,9 @@ def _edges_as_str(bin_edges: List[BinT]) -> List[str]:
         return [
             e.isoformat(sep=" ", timespec=timespec) for e in bin_edges  # type: ignore
         ]
+    elif isinstance(bin_edges[0], str):
+        # Use repr for strings so that they get quoted.
+        return [repr(e) for e in bin_edges]
     else:
         return [str(e) for e in bin_edges]
 
@@ -115,15 +118,13 @@ class BinningSpec(Generic[BinT, BinNameT]):
     """A spec object defining an operation where values are assigned to bins.
 
     A BinningSpec divides values into bins based on a list of bin edges, for use
-    with the :meth:`~tmlt.analytics.query_builder.QueryBuilder.bin_column`
-    method. All :data:`supported data types
-    <tmlt.analytics.session.SUPPORTED_SPARK_TYPES>` can be binned using a
-    BinningSpec.
+    with the :meth:`~tmlt.analytics.query_builder.QueryBuilder.bin_column` method.
+    All :data:`supported data types <tmlt.analytics.session.SUPPORTED_SPARK_TYPES>`
+    can be binned using a BinningSpec.
 
-    Values outside the range of the provided bins, ``None`` types,
-    and NaN values are all mapped to ``None`` (``null`` in Spark).
-    Bin names are generated based on the bin edges, but custom names can be provided.
-
+    Values outside the range of the provided bins and ``None`` types are all
+    mapped to ``None`` (``null`` in Spark), as are NaN values by default. Bin
+    names are generated based on the bin edges, but custom names can be provided.
 
     Examples:
         >>> spec = BinningSpec([0,5,10])
@@ -237,7 +238,7 @@ class BinningSpec(Generic[BinT, BinNameT]):
         included as well; by default, it is not included.
         """
         names = cast(List[Optional[BinNameT]], list(self._bin_names))
-        if self._input_type == ColumnType.DECIMAL and self._nan_bin is not None:
+        if self._nan_bin is not None:
             names.append(self._nan_bin)
         if include_null:
             names.append(None)

@@ -2,7 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
-# pylint: disable=pointless-string-statement
 
 import datetime
 from typing import Any, List
@@ -13,14 +12,12 @@ from tmlt.analytics._schema import ColumnDescriptor
 from tmlt.analytics.binning_spec import BinningSpec, _default_bin_names, _edges_as_str
 from tmlt.analytics.query_builder import ColumnType
 
-"""Tests for helper functions releated to default bin names."""
-
 
 @pytest.mark.parametrize(
     "bin_edges,expected_strs",
     [
         ([0, 1, 2], ["0", "1", "2"]),
-        (["0", "1", "2"], ["0", "1", "2"]),
+        (["0", "1", "2"], ["'0'", "'1'", "'2'"]),
         (
             [datetime.date(2022, 1, 1), datetime.date(2022, 2, 1)],
             ["2022-01-01", "2022-02-01"],
@@ -74,57 +71,6 @@ def test_default_bin_names(args: List[Any], expected_strs: List[str]):
     assert _default_bin_names(*args) == expected_strs
 
 
-"""Tests for :cls:`tmlt.analytics.binning_spec.BinningSpec`."""
-
-
-def test_binning() -> None:
-    """Basic BinningSpec works as expected."""
-    spec = BinningSpec([0, 5, 10, 15, 20])
-    assert spec.bins() == ["[0, 5]", "(5, 10]", "(10, 15]", "(15, 20]"]
-    assert spec.bins(include_null=True) == [
-        "[0, 5]",
-        "(5, 10]",
-        "(10, 15]",
-        "(15, 20]",
-        None,
-    ]
-    assert spec.column_descriptor == ColumnDescriptor(
-        ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
-    )
-    bin_tests = {
-        2: "[0, 5]",
-        7: "(5, 10]",
-        12: "(10, 15]",
-        17: "(15, 20]",
-        -1: None,
-        0: "[0, 5]",
-        20: "(15, 20]",
-        21: None,
-        None: None,
-    }
-    for val, expected_bin in bin_tests.items():
-        assert spec(val) == expected_bin
-
-
-def test_binning_left() -> None:
-    """BinningSpec with right=False works as expected."""
-    spec = BinningSpec([0, 5, 10, 15, 20], right=False)
-    assert spec.bins() == ["[0, 5)", "[5, 10)", "[10, 15)", "[15, 20]"]
-    bin_tests = {
-        2: "[0, 5)",
-        7: "[5, 10)",
-        12: "[10, 15)",
-        17: "[15, 20]",
-        -1: None,
-        0: "[0, 5)",
-        20: "[15, 20]",
-        21: None,
-        None: None,
-    }
-    for val, expected_bin in bin_tests.items():
-        assert spec(val) == expected_bin
-
-
 @pytest.mark.parametrize(
     "edges,ty",
     [
@@ -163,7 +109,7 @@ def test_column_type(names: List[Any], ty: ColumnType):
     assert spec.column_descriptor.column_type == ty
 
 
-def test_binning_allow_nan() -> None:
+def test_descriptor_allow_nan() -> None:
     """BinningSpec sets allow_nan as expected."""
     edges = [0, 5, 10]
     spec = BinningSpec(edges, names=[float("NaN"), float("0")])
@@ -178,7 +124,7 @@ def test_binning_allow_nan() -> None:
     assert not spec.column_descriptor.allow_nan
 
 
-def test_binning_allow_null() -> None:
+def test_descriptor_allow_null() -> None:
     """BinningSpec sets allow_null as expected."""
     edges = [0, 5, 10]
     spec = BinningSpec(edges, names=["null", "5"])
@@ -191,21 +137,98 @@ def test_binning_allow_null() -> None:
     assert spec.column_descriptor.allow_null
 
 
-def test_binning_allow_inf() -> None:
+def test_descriptor_allow_inf() -> None:
     """BinningSpec sets allow_inf as expected."""
     edges = [float("0"), float("5"), float("10")]
-    spec = BinningSpec(edges, names=[float("0"), float("inf")])
+    spec = BinningSpec(edges, names=[float(0), float("inf")])
     assert spec.column_descriptor.allow_inf
-    spec = BinningSpec(edges, names=[float("0"), float("-inf")])
+    spec = BinningSpec(edges, names=[float(0), float("-inf")])
     assert spec.column_descriptor.allow_inf
-    spec = BinningSpec(edges, names=[float("0"), float("5")])
+    spec = BinningSpec(edges, names=[float(0), float(5)])
     assert not spec.column_descriptor.allow_inf
-    spec = BinningSpec(edges, names=[float("0"), float("nan")], nan_bin=float("inf"))
+    spec = BinningSpec(edges, names=[float(0), float("nan")], nan_bin=float("inf"))
     assert spec.column_descriptor.allow_inf
-    spec = BinningSpec(edges, names=[float("0"), float("nan")], nan_bin=float("-inf"))
+    spec = BinningSpec(edges, names=[float(0), float("nan")], nan_bin=float("-inf"))
     assert spec.column_descriptor.allow_inf
-    spec = BinningSpec(edges, names=[float("0"), float(5)], nan_bin=3.3)
+    spec = BinningSpec(edges, names=[float(0), float(5)], nan_bin=3.3)
     assert not spec.column_descriptor.allow_inf
+
+
+@pytest.mark.parametrize(
+    "spec,bins",
+    [
+        (BinningSpec([0, 1, 2]), ["[0, 1]", "(1, 2]"]),
+        (BinningSpec([0.0, 1.0, 2.0]), ["[0.00, 1.00]", "(1.00, 2.00]"]),
+        (BinningSpec(["0", "1", "2"]), ["['0', '1']", "('1', '2']"]),
+        (BinningSpec([0, 1, 2], nan_bin="NaN"), ["[0, 1]", "(1, 2]", "NaN"]),
+        (
+            BinningSpec([0.0, 1.0, 2.0], nan_bin="NaN"),
+            ["[0.00, 1.00]", "(1.00, 2.00]", "NaN"],
+        ),
+        (
+            BinningSpec(["0", "1", "2"], nan_bin="NaN"),
+            ["['0', '1']", "('1', '2']", "NaN"],
+        ),
+        (
+            BinningSpec(["0", "1", "2"], nan_bin="['0', '1']"),
+            ["['0', '1']", "('1', '2']"],
+        ),
+    ],
+)
+def test_bins(spec: BinningSpec, bins: List) -> None:
+    """BinningSpec.bins() returns the expected value."""
+    assert spec.bins() == bins
+    assert spec.bins(include_null=True) == bins + [None]
+
+
+def test_binning() -> None:
+    """Basic BinningSpec works as expected."""
+    spec = BinningSpec([0, 5, 10, 15, 20])
+    assert spec.bins() == ["[0, 5]", "(5, 10]", "(10, 15]", "(15, 20]"]
+    assert spec.bins(include_null=True) == [
+        "[0, 5]",
+        "(5, 10]",
+        "(10, 15]",
+        "(15, 20]",
+        None,
+    ]
+    assert spec.column_descriptor == ColumnDescriptor(
+        ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False
+    )
+    bin_tests = {
+        2: "[0, 5]",
+        7: "(5, 10]",
+        12: "(10, 15]",
+        17: "(15, 20]",
+        -1: None,
+        0: "[0, 5]",
+        20: "(15, 20]",
+        21: None,
+        3.0: "[0, 5]",
+        20.1: None,
+        None: None,
+    }
+    for val, expected_bin in bin_tests.items():
+        assert spec(val) == expected_bin
+
+
+def test_binning_left() -> None:
+    """BinningSpec with right=False works as expected."""
+    spec = BinningSpec([0, 5, 10, 15, 20], right=False)
+    assert spec.bins() == ["[0, 5)", "[5, 10)", "[10, 15)", "[15, 20]"]
+    bin_tests = {
+        2: "[0, 5)",
+        7: "[5, 10)",
+        12: "[10, 15)",
+        17: "[15, 20]",
+        -1: None,
+        0: "[0, 5)",
+        20: "[15, 20]",
+        21: None,
+        None: None,
+    }
+    for val, expected_bin in bin_tests.items():
+        assert spec(val) == expected_bin
 
 
 def test_binning_noninclusive() -> None:
@@ -220,7 +243,7 @@ def test_binning_noninclusive() -> None:
     assert spec(20) is None
 
 
-def test_binning_names() -> None:
+def test_binning_custom_names() -> None:
     """BinningSpec with custom bin names works as expected."""
     spec = BinningSpec([0, 64, 69, 79, 89, 100], names=["F", "D", "C", "B", "A"])
     assert spec.bins() == ["F", "D", "C", "B", "A"]
