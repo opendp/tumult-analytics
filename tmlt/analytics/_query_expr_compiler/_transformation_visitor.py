@@ -1198,23 +1198,12 @@ class TransformationVisitor(QueryExprVisitor):
             spark_dataframe_domain_to_analytics_columns(input_domain)
         )
 
-        grouping_column: Optional[str] = None
-        if isinstance(input_metric, IfGroupedBy):
-            grouping_column = input_metric.column
-            if grouping_column in expr.columns:
-                raise ValueError(
-                    "Cannot drop infinite values in column"
-                    f" {input_metric.column}, because it is being used as a"
-                    " grouping column"
-                )
-
         columns = expr.columns.copy()
         if len(columns) == 0:
             columns = [
                 col
                 for col, cd in analytics_schema.column_descs.items()
                 if (cd.column_type == ColumnType.DECIMAL and cd.allow_inf)
-                and not (col == grouping_column)
             ]
         else:
             for col in columns:
@@ -1274,11 +1263,11 @@ class TransformationVisitor(QueryExprVisitor):
         )
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         input_metric = lookup_metric(child_transformation.output_metric, child_ref)
-
         analytics_schema = Schema(
             spark_dataframe_domain_to_analytics_columns(input_domain)
         )
 
+        # TODO(2702): This should be supported for IDs tables
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
             grouping_column = input_metric.column
