@@ -729,8 +729,8 @@ class TestAddRows(TestTransformationVisitor):
         with pytest.raises(
             ValueError,
             match=(
-                "Cannot drop infinite values in column group, because it is being used"
-                " as a grouping column"
+                "Cannot drop infinite values from column group, because that column's "
+                "type is not DECIMAL"
             ),
         ):
             invalid_drop_query = DropInfExpr(child=flatmap_query, columns=["group"])

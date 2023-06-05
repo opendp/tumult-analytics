@@ -614,9 +614,6 @@ def test_replace_null_and_nan(
 ) -> None:
     """QueryBuilder.replace_null_and_nan works as expected."""
     query = root_builder().replace_null_and_nan(replace_with).count()
-    # You want to use both of these assert statements:
-    # - `self.assertIsInstance` will print a helpful error message if it isn't true
-    # - `assert isinstance` helps mypy
     assert isinstance(query, GroupByCount)
     replace_expr = query.child
     assert isinstance(replace_expr, ReplaceNullAndNan)

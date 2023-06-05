@@ -8,6 +8,8 @@ Unreleased
 
 Changed
 ~~~~~~~
+- The :meth:`QueryBuilder.replace_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.replace_null_and_nan>` and :meth:`QueryBuilder.drop_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.drop_null_and_nan>` methods now accept empty column specifications on tables with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+  Replacing/dropping nulls on ID columns is not allowed, but this will now raise a ``RuntimeWarning`` instead of a ``ValueError``.
 - :meth:`BinningSpec.bins()<tmlt.analytics.binning_spec.BinningSpec.bins>` used to only include the NaN bin if the provided bin edges were floats.
   However, float-valued columns can be binned with integer bin edges, which resulted in a confusing situation where a :class:`~tmlt.analytics.binning_spec.BinningSpec` could indicate that it would not use a NaN bin but still place values in the NaN bin.
   To avoid this, :meth:`BinningSpec.bins()<tmlt.analytics.binning_spec.BinningSpec.bins>` now always includes the NaN bin if one was specified, regardless of whether the bin edge type can represent NaN values.

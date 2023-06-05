@@ -688,19 +688,23 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a ReplaceNullAndNan."""
         input_schema = expr.child.accept(self)
-
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in expr.replace_with
         ):
             raise ValueError(
                 "Cannot replace null values in column "
-                f"'{input_schema.grouping_column}', as it is a grouping column"
+                f"'{input_schema.grouping_column}', as it is a grouping column."
             )
         if input_schema.id_column and input_schema.id_column in expr.replace_with:
             raise ValueError(
                 f"Cannot replace null values in column '{input_schema.id_column}', "
-                "as it is an ID column"
+                "as it is an ID column."
+            )
+        if input_schema.id_column and (len(expr.replace_with) == 0):
+            raise RuntimeWarning(
+                f"Replacing null values in the ID column '{input_schema.id_column}' "
+                "is not allowed, so the ID column may still contain null values."
             )
 
         if len(expr.replace_with) != 0:
@@ -727,9 +731,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 col
                 for col in input_schema.column_descs.keys()
                 if (input_schema[col].allow_null or input_schema[col].allow_nan)
-                and not (col == input_schema.grouping_column)
+                and not (col in [input_schema.grouping_column, input_schema.id_column])
             ]
-
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -803,7 +806,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Schema:
         """Returns the resulting schema from evaluating a DropNullAndNan."""
         input_schema = expr.child.accept(self)
-
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in expr.columns
@@ -815,16 +817,20 @@ class OutputSchemaVisitor(QueryExprVisitor):
         if input_schema.id_column and input_schema.id_column in expr.columns:
             raise ValueError(
                 f"Cannot drop null values in column '{input_schema.id_column}', "
-                "as it is an ID column"
+                "as it is an ID column."
             )
-
+        if input_schema.id_column and len(expr.columns) == 0:
+            raise RuntimeWarning(
+                f"Replacing null values in the ID column '{input_schema.id_column}' "
+                "is not allowed, so the ID column may still contain null values."
+            )
         columns = expr.columns.copy()
         if len(columns) == 0:
             columns = [
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan)
-                and not name == input_schema.grouping_column
+                and not name in [input_schema.grouping_column, input_schema.id_column]
             ]
         else:
             for name in columns:
@@ -833,7 +839,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
                         f"Column '{name}' does not exist in this table, "
                         f"available columns are {list(input_schema.keys())}"
                     )
-
         return Schema(
             {
                 name: ColumnDescriptor(
