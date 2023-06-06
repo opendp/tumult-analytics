@@ -261,16 +261,20 @@ class TransformationVisitor(QueryExprVisitor):
         """Get the inner metric used by this TransformationVisitor."""
         if self.mechanism in (NoiseMechanism.LAPLACE, NoiseMechanism.GEOMETRIC):
             return SumOf(SymmetricDifference())
-        else:
-            if self.mechanism != NoiseMechanism.DISCRETE_GAUSSIAN:
-                raise RuntimeError(
-                    f"Unsupported mechanism {self.mechanism}. "
-                    "Supported mechanisms are "
-                    f"{NoiseMechanism.DISCRETE_GAUSSIAN}, "
-                    f"{NoiseMechanism.LAPLACE}, and"
-                    f"{NoiseMechanism.GEOMETRIC}."
-                )
+        elif self.mechanism in (
+            NoiseMechanism.DISCRETE_GAUSSIAN,
+            NoiseMechanism.GAUSSIAN,
+        ):
             return RootSumOfSquared(SymmetricDifference())
+        else:
+            raise RuntimeError(
+                f"Unsupported mechanism {self.mechanism}. "
+                "Supported mechanisms are "
+                f"{NoiseMechanism.GAUSSIAN},"
+                f"{NoiseMechanism.DISCRETE_GAUSSIAN}, "
+                f"{NoiseMechanism.LAPLACE}, and"
+                f"{NoiseMechanism.GEOMETRIC}."
+            )
 
     def _visit_child(self, child: QueryExpr) -> Output:
         """Visit a child query and raise assertion errors if needed."""

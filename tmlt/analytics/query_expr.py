@@ -84,8 +84,8 @@ class SumMechanism(Enum):
     column type.
     """
     GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used for integer sums. Not compatible
-    with floating-point sums or pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
+    Not compatible with pure DP.
     """
 
 
@@ -106,8 +106,8 @@ class AverageMechanism(Enum):
     column type.
     """
     GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used for integer averages. Not
-    compatible with floating-point averages or pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
+    Not compatible with pure DP.
     """
 
 
@@ -128,8 +128,8 @@ class VarianceMechanism(Enum):
     column type.
     """
     GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used for integer variance. Not
-    compatible with floating-point averages or pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
+    Not compatible with pure DP.
     """
 
 
@@ -150,8 +150,8 @@ class StdevMechanism(Enum):
     column type.
     """
     GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used for integer stdev. Not compatible
-    with floating-point averages or pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
+    Not compatible with pure DP.
     """
 
 

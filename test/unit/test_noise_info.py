@@ -7,11 +7,12 @@ from typing import Dict
 
 import pytest
 import sympy as sp
-from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
+from tmlt.core.domains.numpy_domains import NumpyFloatDomain, NumpyIntegerDomain
 from tmlt.core.domains.pandas_domains import PandasSeriesDomain
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.noise_mechanisms import (
     AddDiscreteGaussianNoise,
+    AddGaussianNoise,
     AddGeometricNoise,
     AddLaplaceNoise,
 )
@@ -46,6 +47,12 @@ from tmlt.analytics._noise_info import (
             ],
         ),
         (
+            AddGaussianNoise(
+                input_domain=NumpyFloatDomain(), sigma_squared=sp.Rational(5.5)
+            ),
+            [{"noise_mechanism": _NoiseMechanism.GAUSSIAN, "noise_parameter": 5.5}],
+        ),
+        (
             NoisyQuantile(
                 PandasSeriesDomain(element_domain=NumpyIntegerDomain()),
                 PureDP(),
@@ -64,6 +71,7 @@ def test_noise_from_measurement(measurement: Measurement, expected: Dict):
     assert noise_info == expected
 
 
+# TODO(#2730): Add test for continuous gaussian once it's added to core
 @pytest.mark.parametrize(
     "noise_info,p,expected",
     [

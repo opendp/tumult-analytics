@@ -464,7 +464,7 @@ class MeasurementVisitor(QueryExprVisitor):
         ],
         measure_column_type: SparkColumnDescriptor,
     ) -> NoiseMechanism:
-        """Pick the noise mechnaism for non-count queries.
+        """Pick the noise mechanism for non-count queries.
 
         GroupByQuantile only supports one noise mechanism, so it is not
         included here.
@@ -479,7 +479,7 @@ class MeasurementVisitor(QueryExprVisitor):
             requested_mechanism = (
                 NoiseMechanism.LAPLACE
                 if isinstance(self.output_measure, (PureDP, ApproxDP))
-                else NoiseMechanism.DISCRETE_GAUSSIAN
+                else NoiseMechanism.GAUSSIAN
             )
         elif query.mechanism in (
             SumMechanism.LAPLACE,
@@ -494,7 +494,7 @@ class MeasurementVisitor(QueryExprVisitor):
             VarianceMechanism.GAUSSIAN,
             StdevMechanism.GAUSSIAN,
         ):
-            requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
+            requested_mechanism = NoiseMechanism.GAUSSIAN
         else:
             raise ValueError(
                 f"Did not recognize requested mechanism {query.mechanism}."
@@ -515,17 +515,25 @@ class MeasurementVisitor(QueryExprVisitor):
                 )
 
         # If the query requested a Gaussian measure...
-        elif requested_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN:
-            if isinstance(measure_column_type, SparkIntegerColumnDescriptor):
+        elif requested_mechanism == NoiseMechanism.GAUSSIAN:
+            if isinstance(self.output_measure, PureDP):
+                raise ValueError(
+                    "Gaussian noise is not supported under PureDP. "
+                    "Please use RhoZCDP or another measure."
+                )
+            if isinstance(measure_column_type, SparkFloatColumnDescriptor):
+                return NoiseMechanism.GAUSSIAN
+            elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
                 return NoiseMechanism.DISCRETE_GAUSSIAN
             else:
-                raise NotImplementedError(
-                    f"{NoiseMechanism.DISCRETE_GAUSSIAN} noise is not yet"
-                    " compatible with floating-point values."
+                raise AssertionError(
+                    "Query's measure column should be numeric. This should"
+                    " not happen and is probably a bug;  please let us know"
+                    " so we can fix it!"
                 )
 
         # The requested_mechanism should be either LAPLACE or
-        # DISCRETE_GAUSSIAN, so something has gone awry
+        # GAUSSIAN, so something has gone awry
         else:
             raise AssertionError(
                 f"Did not recognize requested mechanism {requested_mechanism}."
@@ -545,7 +553,10 @@ class MeasurementVisitor(QueryExprVisitor):
         """
         # TODO(#1044 and #1547): Update condition to when issue is resolved.
         # isinstance(self._output_measure, RhoZCDP)
-        use_l2 = mechanism == NoiseMechanism.DISCRETE_GAUSSIAN
+        use_l2 = mechanism in (
+            NoiseMechanism.DISCRETE_GAUSSIAN,
+            NoiseMechanism.GAUSSIAN,
+        )
 
         groupby_df: DataFrame = groupby_keys.dataframe()
 

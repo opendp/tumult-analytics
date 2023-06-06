@@ -9,6 +9,7 @@ from pyspark.sql import DataFrame
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.noise_mechanisms import (
     AddDiscreteGaussianNoise,
+    AddGaussianNoise,
     AddGeometricNoise,
     AddLaplaceNoise,
 )
@@ -22,6 +23,7 @@ class _NoiseMechanism(Enum):
     GEOMETRIC = 2
     DISCRETE_GAUSSIAN = 3
     EXPONENTIAL = 4
+    GAUSSIAN = 5
 
     def to_cls(self):
         """Returns the appropriate measurement class for this enum value."""
@@ -33,6 +35,8 @@ class _NoiseMechanism(Enum):
             return AddDiscreteGaussianNoise
         if self.value == _NoiseMechanism.EXPONENTIAL.value:
             return NoisyQuantile
+        if self.value == _NoiseMechanism.GAUSSIAN.value:
+            return AddGaussianNoise
         raise KeyError("Unknown measurement type.")
 
 
@@ -142,6 +146,13 @@ def _(info: Dict[Any, Any]) -> List[Dict[str, Any]]:
         return [
             {
                 "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                "noise_parameter": info["_sigma_squared"],
+            }
+        ]
+    if name == "AddGaussianNoise":
+        return [
+            {
+                "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                 "noise_parameter": info["_sigma_squared"],
             }
         ]

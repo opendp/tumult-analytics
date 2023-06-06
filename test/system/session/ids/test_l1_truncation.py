@@ -325,6 +325,14 @@ def test_noise_scale_puredp(query: QueryExpr, expected_noise: List[float], sessi
             QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).average("n", 0, 20),
             [2500, 25],
         ),
+        (
+            QueryBuilder("id_a1").enforce(MaxRowsPerID(1)).average("float_n", 0, 20),
+            [100, 1],
+        ),
+        (
+            QueryBuilder("id_a1").enforce(MaxRowsPerID(5)).average("float_n", 0, 20),
+            [2500, 25],
+        ),
     ],
 )
 def test_noise_scale_zcdp(query: QueryExpr, expected_noise: List[float], session):

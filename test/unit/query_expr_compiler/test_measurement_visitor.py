@@ -409,7 +409,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (AverageMechanism.DEFAULT, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                AverageMechanism.DEFAULT,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
             (
                 AverageMechanism.LAPLACE,
                 PureDP(),
@@ -434,12 +439,7 @@ class TestMeasurementVisitor:
                 SparkFloatColumnDescriptor(),
                 NoiseMechanism.LAPLACE,
             ),
-            (
-                AverageMechanism.GAUSSIAN,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
+            (AverageMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
             (AverageMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
             (
                 AverageMechanism.GAUSSIAN,
@@ -447,7 +447,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (AverageMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                AverageMechanism.GAUSSIAN,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
         ],
     )
     def test_pick_noise_for_average(
@@ -475,7 +480,13 @@ class TestMeasurementVisitor:
             )
             assert got_mechanism == expected_mechanism
         else:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Gaussian noise is not supported under PureDP. "
+                    "Please use RhoZCDP or another measure."
+                ),
+            ):
                 self.pick_noise_visitor._pick_noise_for_non_count(
                     query, measure_column_type
                 )
@@ -502,7 +513,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (SumMechanism.DEFAULT, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                SumMechanism.DEFAULT,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
             (
                 SumMechanism.LAPLACE,
                 PureDP(),
@@ -527,12 +543,7 @@ class TestMeasurementVisitor:
                 SparkFloatColumnDescriptor(),
                 NoiseMechanism.LAPLACE,
             ),
-            (
-                SumMechanism.GAUSSIAN,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
+            (SumMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
             (SumMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
             (
                 SumMechanism.GAUSSIAN,
@@ -540,7 +551,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (SumMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                SumMechanism.GAUSSIAN,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
         ],
     )
     def test_pick_noise_for_sum(
@@ -568,7 +584,13 @@ class TestMeasurementVisitor:
             )
             assert got_mechanism == expected_mechanism
         else:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Gaussian noise is not supported under PureDP. "
+                    "Please use RhoZCDP or another measure."
+                ),
+            ):
                 self.pick_noise_visitor._pick_noise_for_non_count(
                     query, measure_column_type
                 )
@@ -595,7 +617,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (VarianceMechanism.DEFAULT, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                VarianceMechanism.DEFAULT,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
             (
                 VarianceMechanism.LAPLACE,
                 PureDP(),
@@ -624,7 +651,7 @@ class TestMeasurementVisitor:
                 VarianceMechanism.GAUSSIAN,
                 PureDP(),
                 SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                None,
             ),
             (VarianceMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
             (
@@ -633,7 +660,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (VarianceMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                VarianceMechanism.GAUSSIAN,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
         ],
     )
     def test_pick_noise_for_variance(
@@ -661,7 +693,13 @@ class TestMeasurementVisitor:
             )
             assert got_mechanism == expected_mechanism
         else:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Gaussian noise is not supported under PureDP. "
+                    "Please use RhoZCDP or another measure."
+                ),
+            ):
                 self.pick_noise_visitor._pick_noise_for_non_count(
                     query, measure_column_type
                 )
@@ -688,7 +726,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (StdevMechanism.DEFAULT, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                StdevMechanism.DEFAULT,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
             (
                 StdevMechanism.LAPLACE,
                 PureDP(),
@@ -713,12 +756,7 @@ class TestMeasurementVisitor:
                 SparkFloatColumnDescriptor(),
                 NoiseMechanism.LAPLACE,
             ),
-            (
-                StdevMechanism.GAUSSIAN,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
+            (StdevMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
             (StdevMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
             (
                 StdevMechanism.GAUSSIAN,
@@ -726,7 +764,12 @@ class TestMeasurementVisitor:
                 SparkIntegerColumnDescriptor(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
             ),
-            (StdevMechanism.GAUSSIAN, RhoZCDP(), SparkFloatColumnDescriptor(), None),
+            (
+                StdevMechanism.GAUSSIAN,
+                RhoZCDP(),
+                SparkFloatColumnDescriptor(),
+                NoiseMechanism.GAUSSIAN,
+            ),
         ],
     )
     def test_pick_noise_for_stdev(
@@ -754,7 +797,13 @@ class TestMeasurementVisitor:
             )
             assert got_mechanism == expected_mechanism
         else:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Gaussian noise is not supported under PureDP. "
+                    "Please use RhoZCDP or another measure."
+                ),
+            ):
                 self.pick_noise_visitor._pick_noise_for_non_count(
                     query, measure_column_type
                 )
@@ -841,6 +890,11 @@ class TestMeasurementVisitor:
                 RootSumOfSquared(SymmetricDifference()),
             ),
             (
+                HammingDistance(),
+                NoiseMechanism.GAUSSIAN,
+                RootSumOfSquared(SymmetricDifference()),
+            ),
+            (
                 SymmetricDifference(),
                 NoiseMechanism.LAPLACE,
                 SumOf(SymmetricDifference()),
@@ -853,6 +907,11 @@ class TestMeasurementVisitor:
             (
                 SymmetricDifference(),
                 NoiseMechanism.DISCRETE_GAUSSIAN,
+                RootSumOfSquared(SymmetricDifference()),
+            ),
+            (
+                SymmetricDifference(),
+                NoiseMechanism.GAUSSIAN,
                 RootSumOfSquared(SymmetricDifference()),
             ),
             (
@@ -970,10 +1029,10 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=-100,
                     high=100,
-                    mechanism=VarianceMechanism.GAUSSIAN,
+                    mechanism=VarianceMechanism.DEFAULT,
                 ),
                 ExactNumber(3).expr,
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseMechanism.GEOMETRIC,
             ),
             (
                 GroupByBoundedVariance(
