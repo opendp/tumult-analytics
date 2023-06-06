@@ -947,39 +947,6 @@ class TestQueryExprCompiler:
                 PureDP(),
                 [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
             ),
-        ],
-    )
-    def test_noise_param_combinations(
-        self,
-        query: QueryExpr,
-        output_measure: Union[PureDP, RhoZCDP],
-        expected: List[pd.DataFrame],
-    ):
-        """Tests aggregation with various privacy definition and mechanism."""
-        compiler = QueryExprCompiler(output_measure=output_measure)
-        privacy_budget = (
-            PureDPBudget(float("inf"))
-            if isinstance(output_measure, PureDP)
-            else RhoZCDPBudget(float("inf"))
-        )
-        measurement = compiler(
-            [query],
-            privacy_budget=privacy_budget,
-            stability=self.stability,
-            input_domain=self.input_domain,
-            input_metric=self.input_metric,
-            public_sources={"public": self.join_df},
-            catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
-        )
-        actual = measurement({NamedTable("private"): self.sdf})
-        assert len(actual) == len(expected)
-        for actual_sdf, expected_df in zip(actual, expected):
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
-
-    @pytest.mark.parametrize(
-        "query_exprs",
-        [
             (  # BoundedAverage with floating-point valued measure column with GAUSSIAN
                 [
                     GroupByBoundedAverage(
@@ -989,7 +956,9 @@ class TestQueryExprCompiler:
                         low=0.0,
                         high=1.0,
                         mechanism=AverageMechanism.GAUSSIAN,
-                    )
+                    ),
+                    RhoZCDP(),
+                    [pd.DataFrame({"A": ["0", "1"], "average": [2 / 3, 1.0]})],
                 ]
             ),
             (  # BoundedSTDEV on floating-point valued measure column with GAUSSIAN
@@ -1001,7 +970,9 @@ class TestQueryExprCompiler:
                         low=0.0,
                         high=1.0,
                         mechanism=StdevMechanism.GAUSSIAN,
-                    )
+                    ),
+                    RhoZCDP(),
+                    [pd.DataFrame({"A": ["0", "1"], "stdev": [0.471404, 0.5]})],
                 ]
             ),
             (  # BoundedVariance on floating-point valued measure column with GAUSSIAN
@@ -1014,7 +985,9 @@ class TestQueryExprCompiler:
                         high=1.0,
                         output_column="var",
                         mechanism=VarianceMechanism.GAUSSIAN,
-                    )
+                    ),
+                    RhoZCDP(),
+                    [pd.DataFrame({"A": ["0", "1"], "var": [0.22222, 0.25]})],
                 ]
             ),
             (  # BoundedSum on floating-point valued measure column with GAUSSIAN
@@ -1027,7 +1000,9 @@ class TestQueryExprCompiler:
                         high=1.0,
                         output_column="sum",
                         mechanism=SumMechanism.GAUSSIAN,
-                    )
+                    ),
+                    RhoZCDP(),
+                    [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})],
                 ]
             ),
             (  # Grouping flat map with GAUSSIAN
@@ -1060,31 +1035,40 @@ class TestQueryExprCompiler:
                         low=0.0,
                         high=3.0,
                         mechanism=SumMechanism.GAUSSIAN,
-                    )
+                    ),
+                    RhoZCDP(),
+                    [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
                 ]
             ),
         ],
     )
-    def test_gaussian_noise_param_on_float_errors(self, query_exprs: List[QueryExpr]):
-        """Tests that Gaussian noise with floating-point values errors."""
-        compiler = QueryExprCompiler(output_measure=RhoZCDP())
-        with pytest.raises(
-            NotImplementedError,
-            match=(
-                "(GAUSSIAN)|(Discrete gaussian) noise is not yet compatible with"
-                " floating-point values."
-            ),
-        ):
-            compiler(
-                query_exprs,
-                privacy_budget=RhoZCDPBudget(float("inf")),
-                stability=self.stability,
-                input_domain=self.input_domain,
-                input_metric=self.input_metric,
-                public_sources={"public": self.join_df},
-                catalog=self.catalog,
-                table_constraints={t: [] for t in self.stability.keys()},
-            )
+    def test_noise_param_combinations(
+        self,
+        query: QueryExpr,
+        output_measure: Union[PureDP, RhoZCDP],
+        expected: List[pd.DataFrame],
+    ):
+        """Tests aggregation with various privacy definition and mechanism."""
+        compiler = QueryExprCompiler(output_measure=output_measure)
+        privacy_budget = (
+            PureDPBudget(float("inf"))
+            if isinstance(output_measure, PureDP)
+            else RhoZCDPBudget(float("inf"))
+        )
+        measurement = compiler(
+            [query],
+            privacy_budget=privacy_budget,
+            stability=self.stability,
+            input_domain=self.input_domain,
+            input_metric=self.input_metric,
+            public_sources={"public": self.join_df},
+            catalog=self.catalog,
+            table_constraints={t: [] for t in self.stability.keys()},
+        )
+        actual = measurement({NamedTable("private"): self.sdf})
+        assert len(actual) == len(expected)
+        for actual_sdf, expected_df in zip(actual, expected):
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     def test_join_public_dataframe(self, spark):
         """Public join works with public tables given as Spark dataframes."""

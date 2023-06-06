@@ -467,6 +467,21 @@ def test_noise_scale_puredp(query: QueryExpr, expected_noise: List[float], sessi
             .average("n", 0, 10),
             [450, 18],
         ),
+        (
+            QueryBuilder("id_a1")
+            .enforce(MaxGroupsPerID("group", 2))
+            .enforce(MaxRowsPerGroupPerID("group", 3))
+            .average("float_n", 0, 10),
+            [900, 36],
+        ),
+        (
+            QueryBuilder("id_a1")
+            .enforce(MaxGroupsPerID("group", 2))
+            .enforce(MaxRowsPerGroupPerID("group", 3))
+            .groupby(_KEYSET)
+            .average("float_n", 0, 10),
+            [450, 18],
+        ),
     ],
 )
 def test_noise_scale_zcdp(query: QueryExpr, expected_noise: List[float], session):
