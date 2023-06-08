@@ -229,7 +229,7 @@ importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 
@@ -341,7 +341,7 @@ python-versions = ">=3.6"
 name = "exceptiongroup"
 version = "1.1.1"
 description = "Backport of PEP 654 (exception groups)"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -429,7 +429,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 name = "importlib-metadata"
 version = "4.13.0"
 description = "Read metadata from Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -461,7 +461,7 @@ testing = ["flake8 (<5)", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-chec
 name = "iniconfig"
 version = "2.0.0"
 description = "brain-dead simple config-ini parsing"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -1021,7 +1021,7 @@ setuptools = "*"
 name = "packaging"
 version = "23.1"
 description = "Core utilities for Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -1038,6 +1038,7 @@ numpy = [
     {version = ">=1.17.3", markers = "platform_machine != \"aarch64\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.19.2", markers = "platform_machine == \"aarch64\" and python_version < \"3.10\""},
     {version = ">=1.20.0", markers = "platform_machine == \"arm64\" and python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.7.3"
 pytz = ">=2017.3"
@@ -1128,7 +1129,7 @@ test = ["appdirs (==1.4.4)", "covdefaults (>=2.2.2)", "pytest (>=7.2)", "pytest-
 name = "pluggy"
 version = "1.0.0"
 description = "plugin and hook calling mechanisms for python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -1353,7 +1354,7 @@ sql = ["pandas (>=1.0.5)", "pyarrow (>=1.0.0)"]
 name = "pytest"
 version = "7.3.1"
 description = "pytest: simple powerful testing with Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -1810,17 +1811,18 @@ test = ["flake8", "isort", "pytest"]
 
 [[package]]
 name = "tmlt-core"
-version = "0.10.0"
+version = "0.10.1"
 description = "Tumult's differential privacy primitives"
 category = "main"
 optional = false
-python-versions = ">=3.7.1,<3.10"
+python-versions = ">=3.7.1,<3.11"
 
 [package.dependencies]
 numpy = ">=1.21.0,<=1.21.6"
 pandas = ">=1.2.0,<2.0.0"
 pyarrow = "6.0.1"
 pyspark = {version = ">=3.0.0,<=3.3.1", extras = ["sql"]}
+pytest = ">=7.3.1,<8.0.0"
 randomgen = ">=1.19.0,<2.0.0"
 scipy = ">=1.4.1,<=1.7.3"
 sympy = ">=1.8,<1.10"
@@ -1831,7 +1833,7 @@ typing_extensions = ">=3.10.0,<4.0.0"
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -1901,7 +1903,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "urllib3"
-version = "2.0.2"
+version = "2.0.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "dev"
 optional = false
@@ -1972,7 +1974,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 name = "zipp"
 version = "3.15.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -1982,8 +1984,8 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.7.1, <3.10.0"
-content-hash = "681dd1bcc8ea9c5d7b7a6feb58a9a3654414eb689ba07d66f6e24d9145c75a06"
+python-versions = "^3.7.1, <3.11.0"
+content-hash = "acc81c01fd85cea168d5282874aa674a493ee9588862231f95a4a97b8ab82ef6"
 
 [metadata.files]
 alabaster = [
@@ -3408,13 +3410,15 @@ tinycss2 = [
     {file = "tinycss2-1.2.1.tar.gz", hash = "sha256:8cff3a8f066c2ec677c06dbc7b45619804a6938478d9d73c284b29d14ecb0627"},
 ]
 tmlt-core = [
-    {file = "tmlt_core-0.10.0-cp37-cp37m-macosx_11_0_x86_64.whl", hash = "sha256:a1eda63038aaf60798c8b9633253c737873be2d00286fd88df8580aeac7534c6"},
-    {file = "tmlt_core-0.10.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9efe99962ada4d89a2ef21bc3a9fd16cf19d415bed9a62eb9a6493512b6f5dda"},
-    {file = "tmlt_core-0.10.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:e657904540e326acd15c1a242382fd002f5884662f0c41dcd2506729da1ba8fe"},
-    {file = "tmlt_core-0.10.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9102c9e13463f0b8f3955ce883f63ef2092eec7575c3f4729b475ce862714614"},
-    {file = "tmlt_core-0.10.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:3dff55b30f83807c9935bfdadd108ace13d8b545089ebd08dd051befcafa4818"},
-    {file = "tmlt_core-0.10.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6e360432386798d5e3444c9a7542b3d65ab49652421763e333e343f22ccb2e90"},
-    {file = "tmlt_core-0.10.0.tar.gz", hash = "sha256:a65d3de2833502353157bf381daafa9b2661ddfaea6776f20f978e86b7809a4b"},
+    {file = "tmlt_core-0.10.1-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:141f5bb2616bb757eb83e18c4c6398dbf8b19f0a741867881b877ab71a8395a2"},
+    {file = "tmlt_core-0.10.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:691b9d0e14f66615b3eaeec8dd9c4206fd10bdde324a9c4e971debfc9e9a64a8"},
+    {file = "tmlt_core-0.10.1-cp37-cp37m-macosx_13_0_x86_64.whl", hash = "sha256:1de207db5a753f8569884edccb1d58bd24e17d64192e5cc279fe0090be4e2994"},
+    {file = "tmlt_core-0.10.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f97d1425a7678339e4fb674ee16ac6611e323831e5084da2e7f8272960a765ee"},
+    {file = "tmlt_core-0.10.1-cp38-cp38-macosx_13_0_x86_64.whl", hash = "sha256:c2e6d0cb9da524bfa13a7312ed072a66f25c73aebc4b9ec26df3e68dec6d4c80"},
+    {file = "tmlt_core-0.10.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:56bc449c464f631cd3066db7affcf530f48f5a984a46a161ac574285b5ef066b"},
+    {file = "tmlt_core-0.10.1-cp39-cp39-macosx_13_0_x86_64.whl", hash = "sha256:ef1bce47eb0df067c3b0b0a4bedf441f3f562a44b3ed5fdef61d806c733f71e0"},
+    {file = "tmlt_core-0.10.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:88bee42a2f3bb2e9d8a70b32e0c6b0f787c5d79299add934ca7ce5726c0dd212"},
+    {file = "tmlt_core-0.10.1.tar.gz", hash = "sha256:84bad8d15d395d010760b7ab88de8e50fd4def5bc4b06247ecf71b095aef9dee"},
 ]
 tomli = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
@@ -3481,8 +3485,8 @@ unidecode = [
     {file = "Unidecode-1.3.6.tar.gz", hash = "sha256:fed09cf0be8cf415b391642c2a5addfc72194407caee4f98719e40ec2a72b830"},
 ]
 urllib3 = [
-    {file = "urllib3-2.0.2-py3-none-any.whl", hash = "sha256:d055c2f9d38dc53c808f6fdc8eab7360b6fdbbde02340ed25cfbcd817c62469e"},
-    {file = "urllib3-2.0.2.tar.gz", hash = "sha256:61717a1095d7e155cdb737ac7bb2f4324a858a1e2e6466f6d03ff630ca68d3cc"},
+    {file = "urllib3-2.0.3-py3-none-any.whl", hash = "sha256:48e7fafa40319d358848e1bc6809b208340fafe2096f1725d05d67443d0483d1"},
+    {file = "urllib3-2.0.3.tar.gz", hash = "sha256:bee28b5e56addb8226c96f7f13ac28cb4c301dd5ea8a6ca179c0b9835e032825"},
 ]
 virtualenv = [
     {file = "virtualenv-20.21.1-py3-none-any.whl", hash = "sha256:09ddbe1af0c8ed2bb4d6ed226b9e6415718ad18aef9fa0ba023d96b7a8356049"},
