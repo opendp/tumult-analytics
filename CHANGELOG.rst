@@ -6,6 +6,10 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Support for Python 3.10.
+
 Changed
 ~~~~~~~
 - The :meth:`QueryBuilder.replace_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.replace_null_and_nan>` and :meth:`QueryBuilder.drop_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.drop_null_and_nan>` methods now accept empty column specifications on tables with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
