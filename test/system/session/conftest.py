@@ -78,9 +78,27 @@ def _session_data(spark):
         ],
         schema=StructType(
             [
-                StructField("id_nulls", IntegerType(), nullable=True),
+                StructField("id", IntegerType(), nullable=True),
                 StructField("group", StringType(), nullable=False),
                 StructField("x", LongType(), nullable=True),
+            ]
+        ),
+    )
+    # df with non-nullable id column
+    df_id4 = spark.createDataFrame(
+        [
+            [1, "A", 12],
+            [1, "B", 15],
+            [1, "A", 18],
+            [2, "B", 21],
+            [3, "A", 24],
+            [3, "B", 27],
+        ],
+        schema=StructType(
+            [
+                StructField("id", IntegerType(), nullable=False),
+                StructField("group", StringType(), nullable=False),
+                StructField("x", LongType(), nullable=False),
             ]
         ),
     )
@@ -94,7 +112,13 @@ def _session_data(spark):
             ]
         ),
     )
-    return {"id1": df_id1, "id2": df_id2, "id3": df_id3, "rows1": df_rows1}
+    return {
+        "id1": df_id1,
+        "id2": df_id2,
+        "id3": df_id3,
+        "id4": df_id4,
+        "rows1": df_rows1,
+    }
 
 
 @pytest.fixture
@@ -129,9 +153,10 @@ def session(_session_data, request):
             "id_a2", _session_data["id2"], protected_change=AddRowsWithID("id", "a")
         )
         .with_private_dataframe(
-            "id_a3",
-            _session_data["id3"],
-            protected_change=AddRowsWithID("id_nulls", "a"),
+            "id_a3", _session_data["id3"], protected_change=AddRowsWithID("id", "a")
+        )
+        .with_private_dataframe(
+            "id_a4", _session_data["id4"], protected_change=AddRowsWithID("id", "a")
         )
         .with_private_dataframe(
             "id_b1", _session_data["id1"], protected_change=AddRowsWithID("id", "b")
