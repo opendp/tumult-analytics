@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 
+import dataclasses
 from typing import Any, Dict, NamedTuple, Union
 
 import sympy as sp
@@ -30,6 +31,30 @@ from tmlt.analytics._neighboring_relation import (
     NeighboringRelationVisitor,
 )
 from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
+
+
+def _ensure_valid_schema_ark(
+    metric_dict: Dict[Identifier, str], domain_dict: Dict[Identifier, Any]
+) -> Dict[Identifier, Any]:
+    """Ensure valid schema for an ``AddRemoveKeys`` neighboring relation.
+
+    Ensures that the schema for the table(s) in the ``AddRemoveKeys`` neighboring
+    relation have consistent nullability in the key column(s), which is required for
+    the metric to support the domain.
+    """
+    nullable_id_col = any(
+        domain_dict[table_id].schema[key_column].allow_null
+        for table_id, key_column in metric_dict.items()
+    )
+    if nullable_id_col:
+        for table_id, key_column in metric_dict.items():
+            table_schema = domain_dict[table_id].schema
+            table_schema[key_column] = dataclasses.replace(
+                table_schema[key_column], allow_null=True
+            )
+            domain_dict[table_id] = SparkDataFrameDomain(table_schema)
+
+    return domain_dict
 
 
 class _RelationIDVisitor(NeighboringRelationVisitor):
@@ -134,7 +159,7 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
             domain_dict[table_id] = SparkDataFrameDomain.from_spark_schema(data.schema)
             metric_dict[table_id] = key_column
             data_dict[table_id] = data
-
+        domain_dict = _ensure_valid_schema_ark(metric_dict, domain_dict)
         return self.Output(
             DictDomain(domain_dict), CoreAddRemoveKeys(metric_dict), distance, data_dict
         )

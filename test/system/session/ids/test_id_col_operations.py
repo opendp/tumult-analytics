@@ -3,9 +3,14 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pytest
+from tmlt.core.domains.collections import DictDomain
+from tmlt.core.metrics import AddRemoveKeys
 
+from tmlt.analytics._table_identifier import TableCollection
 from tmlt.analytics.constraints import MaxRowsPerID
+from tmlt.analytics.protected_change import AddRowsWithID
 from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+from tmlt.analytics.session import Session
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
@@ -69,7 +74,7 @@ def test_map_on_id_col(query: QueryBuilder, mapping: Any, expected_sum: int, ses
 )
 @pytest.mark.parametrize(
     "query,replace_with",
-    [(QueryBuilder("id_a3"), {"id_nulls": 100}), (QueryBuilder("id_a2"), {"id": 100})],
+    [(QueryBuilder("id_a3"), {"id": 100}), (QueryBuilder("id_a2"), {"id": 100})],
 )
 def test_replace_null_and_nan_raises_error(
     query: QueryBuilder, replace_with: Union[Dict[str, int], None], session
@@ -103,17 +108,15 @@ def test_replace_null_and_nan_raises_warning(session, query: QueryBuilder):
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "query,columns", [(QueryBuilder("id_a1"), None), (QueryBuilder("id_a3"), None)]
+    "query", [QueryBuilder("id_a1"), QueryBuilder("id_a3"), QueryBuilder("id_a4")]
 )
-def test_drop_null_and_nan_raises_warning(
-    session, query: QueryBuilder, columns: Union[List[str], None]
-):
-    """Tests that replace nulls/nans raises warning on IDs table with empty mapping."""
+def test_drop_null_and_nan_raises_warning(session, query: QueryBuilder):
+    """Tests that replace nulls/nans raises warning on IDs table with empty list."""
     with pytest.raises(
         RuntimeWarning, match="the ID column may still contain null values."
     ):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).drop_null_and_nan(columns).count(),
+            query.enforce(MaxRowsPerID(100)).drop_null_and_nan(None).count(),
             session.remaining_privacy_budget,
         )
 
@@ -126,8 +129,8 @@ def test_drop_null_and_nan_raises_warning(
     [
         (QueryBuilder("id_a1"), ["id"]),
         (QueryBuilder("id_a2"), ["id", "x"]),
-        (QueryBuilder("id_a3"), ["id_nulls"]),
-        (QueryBuilder("id_a3"), ["id_nulls", "x"]),
+        (QueryBuilder("id_a3"), ["id"]),
+        (QueryBuilder("id_a3"), ["id", "x"]),
     ],
 )
 def test_drop_null_and_nan_raises_error(
@@ -148,8 +151,8 @@ def test_drop_null_and_nan_raises_error(
     "query,replace_with",
     [
         (QueryBuilder("id_a1"), {"id": (0, 0)}),
-        (QueryBuilder("id_a3"), {"id_nulls": (0, 0)}),
-        (QueryBuilder("id_a3"), {"id_nulls": (0, 0), "x": (0, 0)}),
+        (QueryBuilder("id_a3"), {"id": (0, 0)}),
+        (QueryBuilder("id_a3"), {"id": (0, 0), "x": (0, 0)}),
     ],
 )
 def test_replace_infs_raises_error(
@@ -170,8 +173,8 @@ def test_replace_infs_raises_error(
     "query,columns",
     [
         (QueryBuilder("id_a1"), ["id"]),
-        (QueryBuilder("id_a3"), ["id_nulls"]),
-        (QueryBuilder("id_a3"), ["id_nulls", "x"]),
+        (QueryBuilder("id_a3"), ["id"]),
+        (QueryBuilder("id_a3"), ["id", "x"]),
     ],
 )
 def test_drop_infs_raises_error(session, query: QueryBuilder, columns: List[str]):
@@ -181,3 +184,72 @@ def test_drop_infs_raises_error(session, query: QueryBuilder, columns: List[str]
             query.enforce(MaxRowsPerID(100)).drop_infinity(columns).count(),
             session.remaining_privacy_budget,
         )
+
+
+@pytest.mark.parametrize("budget_type", [INF_BUDGET, INF_BUDGET_ZCDP])
+@pytest.mark.parametrize(
+    "df1,df2,df3,df4,nullable_id_in_a,nullable_id_in_b",
+    [
+        ("id1", "id2", "id3", "id4", True, True),
+        ("id1", "id2", "id4", "id4", True, False),
+        ("id4", "id4", "id3", "id4", False, True),
+        ("id4", "id4", "id4", "id4", False, False),
+        ("id1", "id4", "id3", "id4", True, True),
+    ],
+)
+def test_various_session_builds(
+    _session_data,
+    budget_type,
+    df1: str,
+    df2: str,
+    df3: str,
+    df4: str,
+    nullable_id_in_a: bool,
+    nullable_id_in_b: bool,
+):
+    """Tests that various session builds work as expected."""
+    sess = (
+        Session.Builder()
+        .with_privacy_budget(budget_type)
+        .with_id_space("a")
+        .with_id_space("b")
+        .with_private_dataframe(
+            "id_a1", _session_data[df1], protected_change=AddRowsWithID("id", "a")
+        )
+        .with_private_dataframe(
+            "id_a2", _session_data[df2], protected_change=AddRowsWithID("id", "a")
+        )
+        .with_private_dataframe(
+            "id_b1", _session_data[df3], protected_change=AddRowsWithID("id", "b")
+        )
+        .with_private_dataframe(
+            "id_b2", _session_data[df4], protected_change=AddRowsWithID("id", "b")
+        )
+    ).build()
+    # pylint: disable=protected-access
+    for table_collection, ark_metric in sess._input_metric.key_to_metric.items():
+        dict_domain = sess._input_domain.key_to_domain[table_collection]
+        assert isinstance(ark_metric, AddRemoveKeys)
+        assert isinstance(dict_domain, DictDomain)
+        sparkdf_domain_dict: Dict[Any, Any]
+        sparkdf_domain_dict = dict_domain.key_to_domain
+        nullable_id_in_domain = (
+            nullable_id_in_a
+            if table_collection == TableCollection("a")
+            else nullable_id_in_b
+        )
+        if nullable_id_in_domain:
+            assert all(
+                sparkdf_domain_dict[table_id]  # type: ignore
+                .schema[key_column]
+                .allow_null
+                for table_id, key_column in ark_metric.df_to_key_column.items()
+            )
+        else:
+            assert not any(
+                sparkdf_domain_dict[table_id]  # type: ignore
+                .schema[key_column]
+                .allow_null
+                for table_id, key_column in ark_metric.df_to_key_column.items()
+            )
+    # pylint: enable=protected-access
