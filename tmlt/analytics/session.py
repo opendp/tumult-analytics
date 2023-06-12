@@ -763,6 +763,46 @@ class Session:
         with that name. This is a shorthand for
         ``session.describe(QueryBuilder(obj))``.
 
+        ..
+            >>> # Set up data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> spark_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> # construct session
+            >>> sess = Session.from_dataframe(
+            ...     PureDPBudget(1),
+            ...     "my_private_data",
+            ...     spark_data,
+            ...     protected_change=AddOneRow(),
+            ... )
+
+        Examples:
+            >>> # describe a session, "sess"
+            >>> sess.describe() # doctest: +NORMALIZE_WHITESPACE
+            The session has a remaining privacy budget of PureDPBudget(epsilon=1).
+            The following private tables are available:
+            Table 'my_private_data' (no constraints):
+                Columns:
+                    - 'A'  VARCHAR
+                    - 'B'  INTEGER
+                    - 'X'  INTEGER
+            >>> # describe a query object
+            >>> query = QueryBuilder("my_private_data").drop_null_and_nan(["B", "X"])
+            >>> sess.describe(query) # doctest: +NORMALIZE_WHITESPACE
+            Columns:
+                - 'A'  VARCHAR
+                - 'B'  INTEGER, not null
+                - 'X'  INTEGER, not null
+            >>> # describe a table by name
+            >>> sess.describe("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            Columns:
+                - 'A'  VARCHAR
+                - 'B'  INTEGER
+                - 'X'  INTEGER
+
         Args:
             obj: The table or query to be described, or None to describe the
                 whole Session.

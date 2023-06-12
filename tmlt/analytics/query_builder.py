@@ -1340,6 +1340,52 @@ class QueryBuilder:
         the :mod:`~tmlt.analytics.constraints` module for information about the
         available constraints and what they are used for.
 
+        ..
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.session import Session
+            >>> from tmlt.analytics.protected_change import AddRowsWithID
+            >>> from tmlt.analytics.constraints import MaxRowsPerID
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> my_private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]],
+            ...         columns=["id", "B", "X"]
+            ...     )
+            ... )
+
+        Example:
+            >>> my_private_data.toPandas()
+              id  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
+            >>> sess = (
+            ...     Session.Builder()
+            ...     .with_privacy_budget(PureDPBudget(float("inf")))
+            ...     .with_id_space("a")
+            ...     .with_private_dataframe(
+            ...         "my_private_data",
+            ...         my_private_data,
+            ...         protected_change=AddRowsWithID("id", "a"),
+            ...     )
+            ...     .build()
+            ... )
+            >>> # No ID contributes more than 2 rows, so no rows are dropped when
+            >>> # enforcing the constraint
+            >>> query = QueryBuilder("my_private_data").enforce(MaxRowsPerID(2)).count()
+            >>> sess.evaluate(query, sess.remaining_privacy_budget).toPandas()
+               count
+            0      3
+            >>> # ID 1 contributes more than one row, so one of the rows with ID 1 will
+            >>> # be dropped when enforcing the constraint
+            >>> query = QueryBuilder("my_private_data").enforce(MaxRowsPerID(1)).count()
+            >>> sess.evaluate(query, sess.remaining_privacy_budget).toPandas()
+               count
+            0      2
+
         Args:
             constraint: The constraint to enforce.
         """
