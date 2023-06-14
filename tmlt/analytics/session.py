@@ -892,11 +892,26 @@ class Session:
                 )
         print("\n".join(out))
 
-    def _describe_query(self, query: QueryExpr):
+    def _describe_query(self, query_expr: QueryExpr):
         """Describe the output schema of a query and the constraints on it."""
-        schema = self._compiler.query_schema(query, self._catalog)
-        out = _describe_schema(schema)
-        print("\n".join(out))
+        schema = self._compiler.query_schema(query_expr, self._catalog)
+        schema_desc = _describe_schema(schema)
+        constraints = self._compiler.build_transformation(
+            query=query_expr,
+            input_domain=self._input_domain,
+            input_metric=self._input_metric,
+            public_sources=self._public_sources,
+            catalog=self._catalog,
+            table_constraints=self._table_constraints,
+        )[2]
+        description = "\n".join(schema_desc)
+        if not constraints:
+            print(description)
+        else:
+            description += "\n\tConstraints:\n"
+            constraints_strs = [f"\t\t- {e}" for e in constraints]
+            description += "\n".join(constraints_strs)
+            print(description)
 
     @typechecked
     def get_schema(self, source_id: str) -> Schema:

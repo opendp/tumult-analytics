@@ -69,7 +69,12 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable, TableCollection
 from tmlt.analytics._table_reference import TableReference
-from tmlt.analytics.constraints import MaxRowsPerID
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+)
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -1191,6 +1196,84 @@ Public table 'public2':
 
             session.describe(query)
             mock_print.assert_called_with(expected_output)
+
+    @pytest.mark.parametrize(
+        "constraints,expected_output",
+        [
+            ([MaxRowsPerID(5)], "\t\t- MaxRowsPerID(max=5)"),
+            (
+                [MaxRowsPerGroupPerID("B", 1), MaxGroupsPerID("X", 5)],
+                "\t\t- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
+                "- MaxGroupsPerID(grouping_column='X', max=5)",
+            ),
+        ],
+    )
+    def test_describe_table_with_constraints(
+        self, constraints: List[Constraint], expected_output: str
+    ):
+        """Test :func:`_describe` with a table with constraints."""
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant_with_id(
+                mock_accountant, privacy_budget=ExactNumber(10)
+            )
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+            session = Session(accountant=mock_accountant, public_sources={})
+            # pylint: disable=protected-access
+            session._table_constraints[NamedTable("private")] = constraints
+            # pylint: enable=protected-access
+            expected = (
+                """Columns:
+\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
+\t- 'B'  INTEGER
+\t- 'X'  INTEGER
+\tConstraints:\n"""
+                + expected_output
+            )
+            session.describe("private")
+            # pylint: enable=line-too-long
+            mock_print.assert_called_with(expected)
+
+    @pytest.mark.parametrize(
+        "query,expected_output",
+        [
+            (
+                QueryBuilder("private").enforce(MaxRowsPerID(5)),
+                "\t\t- MaxRowsPerID(max=5)",
+            ),
+            (
+                QueryBuilder("private")
+                .enforce(MaxGroupsPerID("X", 5))
+                .enforce(MaxRowsPerGroupPerID("B", 1)),
+                "\t\t- MaxGroupsPerID(grouping_column='X', max=5)\n\t\t"
+                "- MaxRowsPerGroupPerID(grouping_column='B', max=1)",
+            ),
+        ],
+    )
+    def test_describe_query_with_constraints(
+        self, query: QueryBuilder, expected_output: str
+    ):
+        """Test :func:`_describe` with a query with constraints."""
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant_with_id(
+                mock_accountant, privacy_budget=ExactNumber(10)
+            )
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+            session = Session(accountant=mock_accountant, public_sources={})
+            expected = (
+                """Columns:
+\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
+\t- 'B'  INTEGER
+\t- 'X'  INTEGER
+\tConstraints:\n"""
+                + expected_output
+            )
+            session.describe(query)
+            # pylint: enable=line-too-long
+            mock_print.assert_called_with(expected)
 
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
