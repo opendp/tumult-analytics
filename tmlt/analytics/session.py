@@ -896,14 +896,21 @@ class Session:
         """Describe the output schema of a query and the constraints on it."""
         schema = self._compiler.query_schema(query_expr, self._catalog)
         schema_desc = _describe_schema(schema)
-        constraints = self._compiler.build_transformation(
-            query=query_expr,
-            input_domain=self._input_domain,
-            input_metric=self._input_metric,
-            public_sources=self._public_sources,
-            catalog=self._catalog,
-            table_constraints=self._table_constraints,
-        )[2]
+        constraints: Optional[List[Constraint]] = None
+        try:
+            constraints = self._compiler.build_transformation(
+                query=query_expr,
+                input_domain=self._input_domain,
+                input_metric=self._input_metric,
+                public_sources=self._public_sources,
+                catalog=self._catalog,
+                table_constraints=self._table_constraints,
+            )[2]
+        except NotImplementedError:
+            # If the query results in a measurement, this will happen.
+            # There are no constraints on measurements, so we can just
+            # pass the schema description through.
+            pass
         description = "\n".join(schema_desc)
         if not constraints:
             print(description)
