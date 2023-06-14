@@ -1173,6 +1173,11 @@ Public table 'public2':
 \t- 'X'  INTEGER, not null""",
                 id="query_builder_drop_null",
             ),
+            pytest.param(
+                QueryBuilder("private").count(),
+                """Columns:
+\t- 'count'  INTEGER, not null""",
+            ),
         ],
     )
     def test_describe_query(
