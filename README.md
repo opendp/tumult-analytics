@@ -58,6 +58,6 @@ If you use Tumult Analytics for a scientific publication, we would appreciate ci
 
 Copyright Tumult Labs 2023
 
-The Tumult Platform source code is licensed under the Apache License, version 2.0 (Apache-2.0).
-The Tumult Platform documentation is licensed under
+Tumult Analytics' source code is licensed under the Apache License, version 2.0 (Apache-2.0).
+Tumult Analytics' documentation is licensed under
 Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA-4.0).
