@@ -46,7 +46,13 @@ We import Python packages...
     from tmlt.analytics.session import Session
 
 ... and download two datasets: one containing books checked out from
-the library, and one that contains a list of the books that the library has.
+the library, and one that contains a list of the books that the library has. The checkout logs might look like:
+
+.. image:: ../images/mock_checkout_logs.svg
+   :alt: An 8x6 table demonstrating the checkout logs data structure. The columns of the table are checkout_date, member_id, title, author, isbn, publication_date, publisher, and genres. The rows of the table are the individual checkouts. The checkout_date column contains dates, the member_id column contains integers, the title, author, isbn, publication_date, publisher, and genres columns contain strings.
+   :align: center
+
+Notice that the *same member* may have checked out *many books*, as illustrated by the highlighted rows. This is a defining characteristic of data fit for use with privacy IDs, as we will see in a moment.
 
 .. testcode::
 
@@ -356,7 +362,16 @@ or using :class:`~tmlt.analytics.constraints.MaxGroupsPerID` and
    :alt: A flow chart showing three paths from "data with privacy IDs" to "compute statistic". The first path is "data with privacy IDs" to "truncate using MaxRowsPerID" to "compute statistic". The second and third paths are paired together. The second path is "data with privacy IDs" to "truncate using MaxGroupsPerID" to "truncate using MaxRowsPerGroupPerID" to "compute statistic". The third path is "data with privacy IDs" to "truncate using MaxRowsPerGroupPerID" to "truncate using MaxGroupsPerID" to "compute statistic".
    :align: center
 
-To understand more the impact of choosing one kind of constraint vs. another,
+As a reminder:
+
+* :class:`~tmlt.analytics.constraints.MaxRowsPerID` limits the number of rows
+  associated with each privacy ID in a table.
+* :class:`~tmlt.analytics.constraints.MaxGroupsPerID` limits the number of distinct
+  values of the grouping column that may appear for each privacy ID in a table.
+* :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID` limits the number of rows
+  associated with each (privacy ID, grouping column value) pair in a table.
+
+To understand the impact of the various constraints in more detail,
 you can consult our :ref:`topic guide about sensitivity<Understanding sensitivity>`.
 To learn more about how to perform more complex queries on tables initialized with
 privacy IDs, you can proceed to the :ref:`next tutorial<Advanced IDs features>`.

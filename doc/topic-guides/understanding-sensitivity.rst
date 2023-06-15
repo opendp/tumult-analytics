@@ -122,7 +122,7 @@ each. The sensitivity computation is more complicated than before:
 where:
 
   - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_records``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`, these values are always 1.
-  - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. This value is always 2 for :class:`DropExcess<tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess>`, and 1 for :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`.
+  - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. These values are always 2 for :class:`DropExcess<tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess>` and 1 for :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`.
   - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the protected change on the left and right tables, respectively.
 
 
@@ -156,9 +156,13 @@ In this case, our ``DropExcess()`` truncation strategies each had bounds of
     Using ``DropExcess(max_records=1)`` for the users table would have led to a sensitivity of
     :math:`1 * 2 * 1 + 2 * 2 * 1 = 6` instead.
 
-As you can see, tracking stability can be complicated. When in doubt, you can use the
-:meth:`describe<tmlt.analytics.session.Session.describe>` method to see how stability evolves
-with transformations.
+As you can see, tracking stability can be complicated!
+
+..
+    TODO(#2696): Add this back in when describe() actually shows stability info.
+    When in doubt, you can use the
+    :meth:`describe<tmlt.analytics.session.Session.describe>` method to see how stability evolves
+    with transformations.
 
 Queries on tables using ``AddRowsWithID``
 -----------------------------------------
