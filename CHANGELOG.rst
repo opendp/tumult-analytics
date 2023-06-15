@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+0.7.2 - 2023-06-15
+------------------
+
 This release adds support for running Tumult Analytics on Python 3.10.
 It also enables adding continuous Gaussian noise to query results, and addresses a number of bugs and API inconsistencies.
 
