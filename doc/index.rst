@@ -30,8 +30,6 @@ Tumult Analytics is…
 For new users, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
 To explore further or work on larger datasets, a good starting point is the :ref:`installation instructions <installation instructions>`.
 
-A good starting point is the :ref:`installation instructions <installation instructions>`.
-
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
 Users who wish to learn more about the fundamentals of differential privacy can consult
 `this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
