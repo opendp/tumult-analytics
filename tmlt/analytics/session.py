@@ -110,7 +110,7 @@ from tmlt.analytics.protected_change import (
     AddRowsWithID,
     ProtectedChange,
 )
-from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+from tmlt.analytics.query_builder import ColumnType, GroupedQueryBuilder, QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
@@ -747,7 +747,8 @@ class Session:
         return self._accountant.input_metric
 
     def describe(
-        self, obj: Optional[Union[QueryExpr, QueryBuilder, str]] = None
+        self,
+        obj: Optional[Union[QueryExpr, QueryBuilder, GroupedQueryBuilder, str]] = None,
     ) -> None:
         """Describe a Session, table, or query.
 
@@ -808,17 +809,17 @@ class Session:
                 whole Session.
         """
         if obj is None:
-            self._describe_self()
-        elif isinstance(obj, QueryExpr):
-            self._describe_query(obj)
+            print(self._describe_self())
+        elif isinstance(obj, (QueryExpr, GroupedQueryBuilder)):
+            print(self._describe_query_obj(obj))
         elif isinstance(obj, QueryBuilder):
-            self._describe_query(obj.query_expr)
+            print(self._describe_query_obj(obj.query_expr))
         elif isinstance(obj, str):
-            self._describe_query(QueryBuilder(obj).query_expr)
+            print(self._describe_query_obj(QueryBuilder(obj).query_expr))
         else:
             assert_never(obj)
 
-    def _describe_self(self) -> None:
+    def _describe_self(self) -> str:
         """Describe the current state of this session."""
         out = []
         state = self._accountant.state
@@ -890,16 +891,22 @@ class Session:
                     "The following public tables are available:\n"
                     + "\n".join(public_table_descs)
                 )
-        print("\n".join(out))
+        return "\n".join(out)
 
-    def _describe_query(self, query_expr: QueryExpr):
-        """Describe the output schema of a query and the constraints on it."""
-        schema = self._compiler.query_schema(query_expr, self._catalog)
+    def _describe_query_obj(
+        self, query_obj: Union[QueryExpr, GroupedQueryBuilder]
+    ) -> str:
+        """Build a description of a query object."""
+        if isinstance(query_obj, GroupedQueryBuilder):
+            expr = query_obj._query_expr  # pylint: disable=protected-access
+        else:
+            expr = query_obj
+        schema = self._compiler.query_schema(expr, self._catalog)
         schema_desc = _describe_schema(schema)
         constraints: Optional[List[Constraint]] = None
         try:
             constraints = self._compiler.build_transformation(
-                query=query_expr,
+                query=expr,
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
                 public_sources=self._public_sources,
@@ -912,13 +919,20 @@ class Session:
             # pass the schema description through.
             pass
         description = "\n".join(schema_desc)
-        if not constraints:
-            print(description)
-        else:
+        if constraints:
             description += "\n\tConstraints:\n"
             constraints_strs = [f"\t\t- {e}" for e in constraints]
             description += "\n".join(constraints_strs)
-            print(description)
+        if isinstance(query_obj, GroupedQueryBuilder):
+            ks_df = (
+                query_obj._groupby_keys.dataframe()  # pylint: disable=protected-access
+            )
+            if len(ks_df.columns) > 0:
+                description += "\nGrouped on columns "
+                col_strs = [f"'{col}'" for col in ks_df.columns]
+                description += ", ".join(col_strs)
+                description += f" ({ks_df.count()} groups)"
+        return description
 
     @typechecked
     def get_schema(self, source_id: str) -> Schema:

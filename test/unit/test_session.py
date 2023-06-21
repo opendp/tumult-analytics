@@ -75,6 +75,7 @@ from tmlt.analytics.constraints import (
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
 )
+from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -87,7 +88,7 @@ from tmlt.analytics.protected_change import (
     AddOneRow,
     AddRowsWithID,
 )
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics.query_builder import GroupedQueryBuilder, QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
 
@@ -1241,11 +1242,12 @@ Public table 'public2':
             mock_print.assert_called_with(expected)
 
     @pytest.mark.parametrize(
-        "query,expected_output",
+        "query,constraint_output,group_output",
         [
             (
                 QueryBuilder("private").enforce(MaxRowsPerID(5)),
                 "\t\t- MaxRowsPerID(max=5)",
+                "",
             ),
             (
                 QueryBuilder("private")
@@ -1253,11 +1255,29 @@ Public table 'public2':
                 .enforce(MaxRowsPerGroupPerID("B", 1)),
                 "\t\t- MaxGroupsPerID(grouping_column='X', max=5)\n\t\t"
                 "- MaxRowsPerGroupPerID(grouping_column='B', max=1)",
+                "",
+            ),
+            (
+                QueryBuilder("private")
+                .enforce(MaxRowsPerID(5))
+                .groupby(KeySet.from_dict({})),
+                "\t\t- MaxRowsPerID(max=5)",
+                "",
+            ),
+            (
+                QueryBuilder("private")
+                .enforce(MaxRowsPerID(5))
+                .groupby(KeySet.from_dict({"A": ["0", "1"]})),
+                "\t\t- MaxRowsPerID(max=5)",
+                "\nGrouped on columns 'A' (2 groups)",
             ),
         ],
     )
     def test_describe_query_with_constraints(
-        self, query: QueryBuilder, expected_output: str
+        self,
+        query: Union[QueryBuilder, GroupedQueryBuilder],
+        constraint_output: str,
+        group_output: str,
     ):
         """Test :func:`_describe` with a query with constraints."""
         with patch("builtins.print") as mock_print, patch(
@@ -1274,11 +1294,60 @@ Public table 'public2':
 \t- 'B'  INTEGER
 \t- 'X'  INTEGER
 \tConstraints:\n"""
-                + expected_output
+                + constraint_output
+                + group_output
             )
             session.describe(query)
             # pylint: enable=line-too-long
             mock_print.assert_called_with(expected)
+
+    @pytest.mark.parametrize(
+        "query,expected_output",
+        [
+            pytest.param(
+                QueryBuilder("private").groupby(KeySet.from_dict({})),
+                """Columns:
+\t- 'A'  VARCHAR
+\t- 'B'  INTEGER
+\t- 'X'  INTEGER""",
+                id="query_builder_groupby_empty",
+            ),
+            pytest.param(
+                QueryBuilder("private").groupby(KeySet.from_dict({"A": ["0", "1"]})),
+                """Columns:
+\t- 'A'  VARCHAR
+\t- 'B'  INTEGER
+\t- 'X'  INTEGER
+Grouped on columns 'A' (2 groups)""",
+                id="query_builder_groupby_1_col",
+            ),
+            pytest.param(
+                QueryBuilder("private").groupby(
+                    KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]})
+                ),
+                """Columns:
+\t- 'A'  VARCHAR
+\t- 'B'  INTEGER
+\t- 'X'  INTEGER
+Grouped on columns 'A', 'B' (4 groups)""",
+                id="query_builder_groupby_multi_col",
+            ),
+        ],
+    )
+    def test_describe_grouped_query(
+        self, query: GroupedQueryBuilder, expected_output: str
+    ):
+        """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
+        with patch("builtins.print") as mock_print, patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
+            mock_accountant.state = PrivacyAccountantState.ACTIVE
+
+            session = Session(accountant=mock_accountant, public_sources={})
+
+            session.describe(query)
+            mock_print.assert_called_with(expected_output)
 
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
