@@ -126,6 +126,10 @@ class BinningSpec(Generic[BinT, BinNameT]):
     mapped to ``None`` (``null`` in Spark), as are NaN values by default. Bin
     names are generated based on the bin edges, but custom names can be provided.
 
+    By default, the right edge of each bin is included in that bin: using edges
+    `[0, 5, 10]` will lead to bins `[0, 5]` and `(5, 10]`. To include the
+    left edge instead, set the ``right`` parameter to False.
+
     Examples:
         >>> spec = BinningSpec([0,5,10])
         >>> spec.bins()
