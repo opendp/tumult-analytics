@@ -60,7 +60,7 @@ Now, we can call the procedure with the parameters as follows.
 .. note:: Replace the bucket, input, and output with the values
     specific to your project.
 
-Now, recall our Tufts Analytics program defined :ref:`earlier<bigquery inputs and outputs>`.
+Now, recall our Tumult Analytics program defined :ref:`earlier<bigquery inputs and outputs>`.
 
 .. code-block:: python
 
