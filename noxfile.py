@@ -123,9 +123,9 @@ def install_package(f):
     """Install the main package a dev wheel into the test virtual environment.
 
     Installs the package from this repository and all its dependencies, if the
-    current environment supports installing packages. Assumes that wheels for
-    the current dev version (from `poetry version`) are already present in
-    `dist/`.
+    current environment supports installing packages. If wheels for
+    the current dev version (from `poetry version`) are not already present in
+    `dist/`, this will build them.
 
     Similar to the @install() decorator, this decorator automatically skips
     installation in non-sandboxed environments.
@@ -133,6 +133,24 @@ def install_package(f):
     @wraps(f)
     def inner(session, *args, **kwargs):
         if session.virtualenv.is_sandboxed:
+            temp_dir = session.create_tmp()
+            out = session.run(
+                "pip",
+                "download",
+                f"{PACKAGE_NAME}=={PACKAGE_VERSION}",
+                "--find-links",
+                f"{CWD}/dist/",
+                "--only-binary",
+                PACKAGE_NAME,
+                "-d",
+                temp_dir,
+                "--no-deps",
+                silent=True,
+                success_codes=[0, 1],
+            )
+            if "No matching distribution" in out:
+                build(session)
+
             session.install(
                 f"{PACKAGE_NAME}=={PACKAGE_VERSION}",
                 "--find-links", f"{CWD}/dist/", "--only-binary", PACKAGE_NAME

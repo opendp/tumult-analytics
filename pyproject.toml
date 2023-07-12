@@ -95,6 +95,9 @@ enable = true
 style = "semver"
 pattern = "^(?P<base>\\d+\\.\\d+\\.\\d+)(-(?P<stage>[a-zA-Z]+)\\.(?P<revision>\\d+))?"
 
+[tool.black]
+force-exclude = "noxfile.py"
+
 [tool.isort]
 profile = "black"
 multi_line_output = 3
