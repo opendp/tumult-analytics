@@ -101,8 +101,14 @@ def _output_schema_for_join(
                 f"{right_schema[column]} are incompatible"
             )
 
+    join_column_schemas = {column: left_schema[column] for column in join_columns}
+    for column in join_column_schemas:
+        join_column_schemas[column].allow_null = (
+            left_schema[column].allow_null and right_schema[column].allow_null
+        )
+
     output_schema = {
-        **{column: left_schema[column] for column in join_columns},
+        **join_column_schemas,
         **{
             column + ("_left" if column in common_columns else ""): left_schema[column]
             for column in left_schema

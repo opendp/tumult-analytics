@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Mapping, Tuple, Union
 
 import pandas as pd
 import pytest
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import StringType, StructField, StructType
 from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
@@ -20,7 +22,7 @@ from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ....conftest import assert_frame_equal_with_sort
+from ....conftest import assert_frame_equal_with_sort, params
 
 
 @pytest.mark.usefixtures("null_session_data")
@@ -291,6 +293,121 @@ class TestSessionWithNulls:
             PureDPBudget(float("inf")),
         )
         assert_frame_equal_with_sort(result.toPandas(), expected)
+
+    # pylint: disable=no-self-use
+    @params(
+        {
+            "both_allow_nulls": {
+                "public_schema": StructType([StructField("foo", StringType(), True)]),
+                "private_schema": StructType([StructField("foo", StringType(), True)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+            },
+            "none_allow_nulls": {
+                "public_schema": StructType([StructField("foo", StringType(), False)]),
+                "private_schema": StructType([StructField("foo", StringType(), False)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "public_only_nulls": {
+                "public_schema": StructType([StructField("foo", StringType(), True)]),
+                "private_schema": StructType([StructField("foo", StringType(), False)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "private_only_nulls": {
+                "public_schema": StructType([StructField("foo", StringType(), False)]),
+                "private_schema": StructType([StructField("foo", StringType(), True)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+        }
+    )
+    def test_public_join_schema_null_propagation(
+        self,
+        public_schema: StructType,
+        private_schema: StructType,
+        expected_schema: StructType,
+        spark: SparkSession,
+    ):
+        """Tests that join_public correctly handles schemas that allow null values."""
+        public_df = spark.createDataFrame([], public_schema)
+        private_df = spark.createDataFrame([], private_schema)
+        sess = (
+            Session.Builder()
+            .with_privacy_budget(PureDPBudget(float("inf")))
+            .with_private_dataframe("private", private_df, protected_change=AddOneRow())
+            .with_public_dataframe("public", public_df)
+            .build()
+        )
+        sess.create_view(
+            QueryBuilder("private").join_public("public"), source_id="join", cache=False
+        )
+        assert sess.get_schema("join") == expected_schema
+
+    @params(
+        {
+            "both_allow_nulls": {
+                "left_schema": StructType([StructField("foo", StringType(), True)]),
+                "right_schema": StructType([StructField("foo", StringType(), True)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+            },
+            "none_allow_nulls": {
+                "left_schema": StructType([StructField("foo", StringType(), False)]),
+                "right_schema": StructType([StructField("foo", StringType(), False)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "public_only_nulls": {
+                "left_schema": StructType([StructField("foo", StringType(), True)]),
+                "right_schema": StructType([StructField("foo", StringType(), False)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "private_only_nulls": {
+                "left_schema": StructType([StructField("foo", StringType(), False)]),
+                "right_schema": StructType([StructField("foo", StringType(), True)]),
+                "expected_schema": Schema(
+                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+        }
+    )
+    def test_private_join_schema_null_propagation(
+        self,
+        left_schema: StructType,
+        right_schema: StructType,
+        expected_schema: StructType,
+        spark: SparkSession,
+    ):
+        """Tests that join_private correctly handles schemas that allow null values."""
+        left_df = spark.createDataFrame([], left_schema)
+        right_df = spark.createDataFrame([], right_schema)
+        sess = (
+            Session.Builder()
+            .with_privacy_budget(PureDPBudget(float("inf")))
+            .with_private_dataframe("left", left_df, protected_change=AddOneRow())
+            .with_private_dataframe("right", right_df, protected_change=AddOneRow())
+            .build()
+        )
+        sess.create_view(
+            QueryBuilder("left").join_private(
+                "right",
+                truncation_strategy_left=TruncationStrategy.DropExcess(1),
+                truncation_strategy_right=TruncationStrategy.DropExcess(1),
+            ),
+            source_id="join",
+            cache=False,
+        )
+        assert sess.get_schema("join") == expected_schema
 
 
 @pytest.mark.usefixtures("infs_test_data")
