@@ -151,6 +151,8 @@ class QueryBuilder:
     ) -> "QueryBuilder":
         """Updates the current query to join with a dataframe or public source.
 
+        This operation is an inner join.
+
         This operation performs a natural join between two tables. This means
         that the resulting table will contain all columns unique to each input
         table, along with one copy of each common column. In most cases, the
@@ -280,6 +282,8 @@ class QueryBuilder:
 
         The current query can also join with a named private table (represented
         as a string).
+
+        This operation is an inner join.
 
         This operation is a natural join, with the same behavior and requirements as
         :func:`join_public`.

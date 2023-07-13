@@ -166,3 +166,25 @@ def create_mock_transformation(
     if not stability_function_implemented:
         transformation.stability_function.side_effect = NotImplementedError("TEST")
     return transformation
+
+
+def params(d):
+    """Allows parameterizing tests with dictionaries.
+
+    Examples:
+    @params(
+        {
+            "test_case_1": {
+                "arg1": value1,
+                "arg2": value2,
+            },
+        }
+    )
+    test_func(...)
+    """
+    argnames = sorted({k for v in d.values() for k in v.keys()})
+    return pytest.mark.parametrize(
+        argnames=argnames,
+        argvalues=[[v.get(k) for k in argnames] for v in d.values()],
+        ids=d.keys(),
+    )

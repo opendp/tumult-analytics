@@ -45,6 +45,8 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
+from ...conftest import params
+
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
     [],
@@ -1016,6 +1018,130 @@ class TestValidationWithNulls:
         """Test visit_join_public."""
         schema = self.visitor.visit_join_public(query)
         assert schema == expected_schema
+
+    # pylint: disable=no-self-use
+    @params(
+        {
+            "all_allow_null": {
+                "left_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "right_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+            },
+            "no_nulls_null": {
+                "left_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "right_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "public_only_null": {
+                "left_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "right_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "private_only_null": {
+                "left_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "right_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+        }
+    )
+    def test_visit_join_private_nulls(self, left_schema, right_schema, expected_schema):
+        """Test that OutputSchemaVisitor correctly propagates nulls through a join."""
+        catalog = Catalog()
+        catalog.add_private_table("left", left_schema)
+        catalog.add_private_table("right", right_schema)
+        visitor = OutputSchemaVisitor(catalog)
+        query = JoinPrivate(
+            child=PrivateSource("left"),
+            right_operand_expr=PrivateSource("right"),
+            truncation_strategy_left=TruncationStrategy.DropExcess(1),
+            truncation_strategy_right=TruncationStrategy.DropExcess(1),
+        )
+        result_schema = visitor.visit_join_private(query)
+        assert result_schema == expected_schema
+
+    @params(
+        {
+            "all_allow_null": {
+                "private_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "public_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+            },
+            "no_nulls_null": {
+                "private_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "public_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "public_only_null": {
+                "private_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "public_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+            "private_only_null": {
+                "private_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+                ),
+                "public_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+                "expected_schema": Schema(
+                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+                ),
+            },
+        }
+    )
+    def test_visit_join_public_nulls(
+        self, private_schema, public_schema, expected_schema
+    ):
+        """Test that OutputSchemaVisitor correctly propagates nulls through a join."""
+        catalog = Catalog()
+        catalog.add_private_table("private", private_schema)
+        catalog.add_public_table("public", public_schema)
+        visitor = OutputSchemaVisitor(catalog)
+        query = JoinPublic(child=PrivateSource("private"), public_table="public")
+        result_schema = visitor.visit_join_public(query)
+        assert result_schema == expected_schema
 
     @pytest.mark.parametrize(
         "query,expected_schema",

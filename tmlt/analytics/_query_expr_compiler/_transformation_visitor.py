@@ -860,10 +860,6 @@ class TransformationVisitor(QueryExprVisitor):
 
         public_df_schema = Schema(spark_schema_to_analytics_columns(public_df.schema))
 
-        join_null_cols = any(
-            col_desc.allow_null for col_desc in public_df_schema.values()
-        )
-
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
@@ -891,7 +887,7 @@ class TransformationVisitor(QueryExprVisitor):
                     ),
                     join_cols=expr.join_columns if expr.join_columns else None,
                     metric=input_metric,
-                    join_on_nulls=join_null_cols,
+                    join_on_nulls=True,
                 ),
                 lambda *args: None,
             )
@@ -907,7 +903,7 @@ class TransformationVisitor(QueryExprVisitor):
                     analytics_to_spark_columns_descriptor(public_df_schema)
                 ),
                 expr.join_columns,
-                join_on_nulls=join_null_cols,
+                join_on_nulls=True,
             )
 
         child_domain = lookup_domain(child_transformation.output_domain, child_ref)
