@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+0.7.3 - 2023-07-13
+------------------
+
 Fixed
 ~~~~~
 - Fixed a crash in public and private joins.
