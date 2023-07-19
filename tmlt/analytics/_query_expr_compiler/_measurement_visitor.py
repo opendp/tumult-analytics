@@ -22,12 +22,14 @@ from tmlt.core.measurements.aggregations import (
     create_average_measurement,
     create_count_distinct_measurement,
     create_count_measurement,
+    create_partition_selection_measurement,
     create_quantile_measurement,
     create_standard_deviation_measurement,
     create_sum_measurement,
     create_variance_measurement,
 )
 from tmlt.core.measurements.base import Measurement
+from tmlt.core.measurements.postprocess import PostProcess
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
@@ -36,11 +38,13 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.converters import UnwrapIfGroupedBy
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.misc import get_nonconflicting_string
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
@@ -71,6 +75,7 @@ from tmlt.analytics.query_expr import (
     CountMechanism,
     DropNullAndNan,
     EnforceConstraint,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -672,12 +677,97 @@ class MeasurementVisitor(QueryExprVisitor):
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""
-        if measurement.privacy_function(mid_stability) != self.adjusted_budget.value:
+        if isinstance(self.adjusted_budget.value, tuple):
+            # TODO(#2754): add a log message.
+            privacy_function_budget_mismatch = any(
+                x > y
+                for x, y in zip(
+                    measurement.privacy_function(mid_stability),
+                    self.adjusted_budget.value,
+                )
+            )
+        else:
+            assert isinstance(self.adjusted_budget.value, ExactNumber)
+            privacy_function_budget_mismatch = (
+                measurement.privacy_function(mid_stability)
+                != self.adjusted_budget.value
+            )
+
+        if privacy_function_budget_mismatch:
             raise AssertionError(
                 "Privacy function does not match per-query privacy budget. "
                 "This is probably a bug; please let us know so we can "
                 "fix it!"
             )
+
+    def visit_get_groups(self, expr: GetGroups) -> Measurement:
+        """Create a measurement from a GetGroups query expression."""
+        if not isinstance(self.budget, ApproxDPBudget):
+            raise ValueError("GetGroups is only supported with ApproxDPBudgets.")
+
+        # Peek at the schema, to see if there are errors there
+        expr.accept(OutputSchemaVisitor(self.catalog))
+
+        schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
+        # Check if ID column is one of the columns in get_groups
+        # Note: if get_groups columns is None or empty, all of the columns in the table
+        # is used for partition selection, hence that needs to be checked as well
+        if schema.id_column and (
+            not expr.columns or (schema.id_column in expr.columns)
+        ):
+            raise RuntimeError(
+                "GetGroups is not supported on ID column provided in AddRowsWithID "
+                "protected change."
+            )
+
+        child_transformation, child_ref = self._truncate_table(
+            *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
+            grouping_columns=[],
+        )
+
+        transformation = get_table_from_ref(child_transformation, child_ref)
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+
+        # squares the sensitivity in zCDP, which is a worst-case analysis
+        # that we may be able to improve.
+        if isinstance(transformation.output_metric, IfGroupedBy):
+            transformation |= UnwrapIfGroupedBy(
+                transformation.output_domain, transformation.output_metric
+            )
+
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            transformation.output_metric,
+            (IfGroupedBy, HammingDistance, SymmetricDifference),
+        )
+        if expr.columns:
+            transformation |= SelectTransformation(
+                transformation.output_domain, transformation.output_metric, expr.columns
+            )
+
+        mid_stability = transformation.stability_function(self.stability)
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        count_column = "count"
+        if count_column in set(transformation.output_domain.schema):
+            count_column = get_nonconflicting_string(
+                list(transformation.output_domain.schema)
+            )
+
+        epsilon, delta = self.budget.value
+        agg = create_partition_selection_measurement(
+            input_domain=transformation.output_domain,
+            epsilon=epsilon,
+            delta=delta,
+            d_in=mid_stability,
+            count_column=count_column,
+        )
+
+        self._validate_measurement(agg, mid_stability)
+
+        measurement = PostProcess(
+            transformation | agg, lambda result: result.drop(count_column)
+        )
+        return measurement
 
     def visit_groupby_count(self, expr: GroupByCount) -> Measurement:
         """Create a measurement from a GroupByCount query expression."""

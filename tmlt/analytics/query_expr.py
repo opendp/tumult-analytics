@@ -198,6 +198,30 @@ class PrivateSource(QueryExpr):
 
 
 @dataclass
+class GetGroups(QueryExpr):
+    """Returns groups based on the geometric partition selection for these columns."""
+
+    child: QueryExpr
+    """The QueryExpr to get groups for."""
+
+    columns: Optional[List[str]] = None
+    """The columns used for geometric partition selection.
+
+    If empty or none are provided, will use all of the columns in the table
+    for partition selection.
+    """
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("columns", self.columns, Optional[List[str]])
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_get_groups(self)
+
+
+@dataclass
 class Rename(QueryExpr):
     """Returns the dataframe with columns renamed."""
 
@@ -1089,6 +1113,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_enforce_constraint(self, expr: EnforceConstraint) -> Any:
         """Visit a :class:`EnforceConstraint`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_get_groups(self, expr: GetGroups) -> Any:
+        """Visit a :class:`GetGroups`."""
         raise NotImplementedError
 
     @abstractmethod

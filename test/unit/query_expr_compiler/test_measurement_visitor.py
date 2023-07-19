@@ -1123,7 +1123,7 @@ class TestMeasurementVisitor:
             self.visitor._validate_measurement(mock_measurement, mid_stability)
 
             # Change it so that the privacy function returns something else
-            mock_measurement.privacy_function.return_value = ExactNumber(-10).expr
+            mock_measurement.privacy_function.return_value = ExactNumber(3).expr
             with pytest.raises(
                 AssertionError,
                 match="Privacy function does not match per-query privacy budget.",
