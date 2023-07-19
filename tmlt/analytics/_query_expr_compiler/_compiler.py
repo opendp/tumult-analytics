@@ -166,10 +166,23 @@ class QueryExprCompiler:
                     "This query did not create a measurement. "
                     "This is probably a bug; please let us know so we can fix it!"
                 )
-            if (
-                query_measurement.privacy_function(stability)
-                != visitor.adjusted_budget.value
-            ):
+
+            if isinstance(visitor.adjusted_budget.value, tuple):
+                # TODO(#2754): add a log message.
+                privacy_function_budget_mismatch = any(
+                    x > y
+                    for x, y in zip(
+                        query_measurement.privacy_function(stability),
+                        visitor.adjusted_budget.value,
+                    )
+                )
+            else:
+                privacy_function_budget_mismatch = (
+                    query_measurement.privacy_function(stability)
+                    != visitor.adjusted_budget.value
+                )
+
+            if privacy_function_budget_mismatch:
                 raise AssertionError(
                     "Query measurement privacy function does not match "
                     "privacy budget value. This is probably a bug; "
@@ -178,7 +191,22 @@ class QueryExprCompiler:
             measurements.append(query_measurement)
 
         measurement = Composition(measurements)
-        if measurement.privacy_function(stability) != visitor.adjusted_budget.value:
+
+        if isinstance(visitor.adjusted_budget.value, tuple):
+            # TODO(#2754): add a log message.
+            privacy_function_budget_mismatch = any(
+                x > y
+                for x, y in zip(
+                    measurement.privacy_function(stability),
+                    visitor.adjusted_budget.value,
+                )
+            )
+        else:
+            privacy_function_budget_mismatch = (
+                measurement.privacy_function(stability) != visitor.adjusted_budget.value
+            )
+
+        if privacy_function_budget_mismatch:
             raise AssertionError(
                 "Measurement privacy function does not match "
                 "privacy budget. This is probably a bug; "

@@ -47,6 +47,7 @@ from tmlt.analytics.query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -1395,6 +1396,56 @@ class QueryBuilder:
         """
         self._query_expr = EnforceConstraint(self._query_expr, constraint, options={})
         return self
+
+    def get_groups(self, columns: Optional[List[str]] = None) -> "QueryExpr":
+        """Returns a query that gets combinations of values in the listed columns.
+
+        .. note::
+            Because this uses differential privacy, it won't include all of the values
+            in the input dataset columns, and may even return no results at all on
+            datasets that have few values for each set of group keys.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import ApproxDPBudget
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+
+        Example:
+            >>> my_private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0] for _ in range(10000)]
+            ...         + [["1", 2, 1] for _ in range(10000)],
+            ...         columns=["A", "B", "X"],
+            ...     )
+            ... )
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=ApproxDPBudget(1, 1e-5),
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ... )
+            >>> # Building a get_groups query
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .get_groups()
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     sess.remaining_privacy_budget
+            ... )
+            >>> answer.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  2  1
+
+        Args:
+            columns: Name of the column used to assign bins. If empty or none
+                are provided, will use all of the columns in the table.
+        """
+        query_expr = GetGroups(child=self._query_expr, columns=columns)
+        return query_expr
 
     def groupby(self, keys: KeySet) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.

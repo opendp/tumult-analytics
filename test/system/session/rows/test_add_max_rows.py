@@ -50,6 +50,8 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 from ....conftest import assert_frame_equal_with_sort
 from .conftest import EVALUATE_TESTS
 
+Row = Dict[str, Any]
+
 
 @pytest.mark.usefixtures("session_data")
 class TestSession:
@@ -344,6 +346,72 @@ class TestSession:
         assert session.remaining_privacy_budget == RhoZCDPBudget(5)
         session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
         assert session.remaining_privacy_budget == RhoZCDPBudget(0)
+
+    @pytest.mark.parametrize("columns", [(["A", "count"])])
+    def test_get_groups_invalid_column(self, columns: List[str]):
+        """Test that the GetGroups query errors on non-existent column."""
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
+        )
+        query = QueryBuilder("private").get_groups(columns)
+        with pytest.raises(ValueError, match="Nonexistent columns in get_groups query"):
+            session.evaluate(query, session.remaining_privacy_budget)
+
+    def test_get_groups_errors(self):
+        """Test that the GetGroups query errors with PureDP."""
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(1),
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
+        )
+        query = QueryBuilder("private").get_groups([])
+        with pytest.raises(
+            ValueError, match="GetGroups is only supported with ApproxDPBudgets."
+        ):
+            session.evaluate(query, session.remaining_privacy_budget)
+
+    def test_get_groups_with_flat_map(self, spark):
+        """Test that the GetGroups works with flat map."""
+
+        def duplicate_rows(_: Row) -> List[Row]:
+            """Duplicate each row, with one copy having C=0, and the other C=1."""
+            return [{"C": "0"}, {"C": "1"}]
+
+        sdf = spark.createDataFrame(
+            pd.DataFrame(
+                [[0, 0] for _ in range(10000)]
+                + [[0, 1] for _ in range(10000)]
+                + [[1, 3]],
+                columns=["A", "B"],
+            )
+        )
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
+        )
+
+        query = (
+            QueryBuilder("private")
+            .flat_map(
+                duplicate_rows,
+                new_column_types={"C": "VARCHAR"},
+                augment=True,
+                max_num_rows=2,
+            )
+            .get_groups(["A", "B", "C"])
+        )
+
+        expected_df = pd.DataFrame(
+            {"A": [0, 0, 0, 0], "B": [0, 0, 1, 1], "C": ["0", "1", "0", "1"]}
+        )
+        actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     @pytest.mark.parametrize(
         "budget",

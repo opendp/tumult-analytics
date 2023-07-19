@@ -24,6 +24,7 @@ from tmlt.analytics.query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -944,6 +945,22 @@ class OutputSchemaVisitor(QueryExprVisitor):
         # No current constraints modify the schema. If that changes in the
         # future, the logic for it may have to be pushed into the Constraint
         # type (like how constraint._enforce() works), but for now this works.
+        return input_schema
+
+    def visit_get_groups(self, expr: GetGroups) -> Schema:
+        """Returns the resulting schema from GetGroups."""
+        input_schema = expr.child.accept(self)
+
+        if expr.columns:
+            nonexistent_columns = set(expr.columns) - set(input_schema)
+            if nonexistent_columns:
+                raise ValueError(
+                    f"Nonexistent columns in get_groups query: {nonexistent_columns}"
+                )
+            input_schema = Schema(
+                {column: input_schema[column] for column in expr.columns}
+            )
+
         return input_schema
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:

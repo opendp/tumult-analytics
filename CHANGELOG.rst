@@ -6,6 +6,11 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+
+-  Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
+
 0.7.3 - 2023-07-13
 ------------------
 

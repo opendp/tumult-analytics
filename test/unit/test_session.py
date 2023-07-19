@@ -996,6 +996,82 @@ class TestSession:
             assert isinstance(new_session_name, str)
             assert isinstance(new_session, Session)
 
+    @pytest.mark.parametrize(
+        "protected_change",
+        [
+            (AddMaxRowsInMaxGroups("B", max_groups=1, max_rows_per_group=1)),
+            (AddOneRow()),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "columns,expected_df",
+        [
+            (["count"], pd.DataFrame({"count": [0]})),
+            (["B"], pd.DataFrame({"B": [0, 1]})),
+            (["count", "B"], pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
+            ([], pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
+            (None, pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
+        ],
+    )
+    def test_get_groups_with_various_protected_change(
+        self, spark, protected_change, columns: List[str], expected_df: pd.DataFrame
+    ):
+        """GetGroups works with AddMaxRowsInMaxGroups and AddOneRow protected change."""
+        sdf = spark.createDataFrame(
+            pd.DataFrame(
+                [[0, 0] for _ in range(10000)]
+                + [[0, 1] for _ in range(10000)]
+                + [[1, 3]],
+                columns=["count", "B"],
+            )
+        )
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=protected_change,
+        )
+        query = QueryBuilder("private").get_groups(columns)
+        actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+
+    def test_get_groups_with_add_rows_with_id(self, spark):
+        """GetGroups with AddRowsWithID protected change works on non-ID column."""
+        sdf = spark.createDataFrame(
+            pd.DataFrame([[0, i] for i in range(10000)], columns=["count", "B"])
+        )
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddRowsWithID("B"),
+        )
+        query = QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups(["count"])
+        expected_df = pd.DataFrame({"count": [0]})
+        actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
+        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+
+    @pytest.mark.parametrize("columns", [(["B"]), (["count", "B"]), ([]), (None)])
+    def test_get_groups_on_id_column(self, spark, columns: List[str]):
+        """Test that the GetGroups on ID column errors."""
+        sdf = spark.createDataFrame(
+            pd.DataFrame([[0, i] for i in range(10000)], columns=["count", "B"])
+        )
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddRowsWithID("B"),
+        )
+        with pytest.raises(
+            RuntimeError,
+            match="^GetGroups is not supported on ID column provided in AddRowsWithID",
+        ):
+            session.evaluate(
+                QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups(columns),
+                session.remaining_privacy_budget,
+            )
+
     def test_describe(self, spark):
         """Test that :func:`_describe` works correctly."""
         with patch("builtins.print") as mock_print, patch(
