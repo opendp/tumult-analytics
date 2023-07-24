@@ -145,9 +145,9 @@ def test_invalid_map(
 
 
 @pytest.mark.parametrize(
-    "child,func,max_num_rows,schema_new_columns,augment,expected_error_msg",
+    "child,func,max_rows,schema_new_columns,augment,expected_error_msg",
     [
-        (  # Invalid max_num_rows
+        (  # Invalid max_rows
             PrivateSource("private"),
             lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             -1,
@@ -161,7 +161,7 @@ def test_invalid_map(
                 f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                 schema_new_columns=Schema({"Repeat": "INTEGER"}),
                 augment=True,
-                max_num_rows=1,
+                max_rows=1,
             ),
             lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             2,
@@ -185,14 +185,14 @@ def test_invalid_map(
 def test_invalid_flatmap(
     child: QueryExpr,
     func: Callable,
-    max_num_rows: int,
+    max_rows: int,
     schema_new_columns: Schema,
     augment: bool,
     expected_error_msg: str,
 ):
     """Tests that invalid FlatMap errors on post-init."""
     with pytest.raises((TypeError, ValueError), match=expected_error_msg):
-        FlatMap(child, func, schema_new_columns, augment, max_num_rows)
+        FlatMap(child, func, schema_new_columns, augment, max_rows)
 
 
 @pytest.mark.parametrize(

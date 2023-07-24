@@ -79,7 +79,7 @@ yielding noisier results and higher budgets yielding more accurate
 
 To better understand how epsilon impacts this tradeoff, let's look at a simple
 example. We'll use the example dataset from :ref:`tutorial one <First steps>`,
-and we'll perform a simple query to count the number of records in the dataset.
+and we'll perform a simple query to count the number of rows in the dataset.
 The figure below plots the results of running this count query using a
 :code:`PureDPBudget` with 3 different epsilon values, 50 times each:
 
@@ -107,8 +107,8 @@ Session gets worse.
 To understand why this is the case, let's describe the attacker model more explicitly.
 Suppose you use a Session to generate answers to queries on a database,
 while enforcing a given privacy budget on a set of queries. An attacker is trying
-to determine whether a specific record (their target) is present in the input database.
-This attacker is powerful: we assume that they know all the records in the database,
+to determine whether a specific row (their target) is present in the input database.
+This attacker is powerful: we assume that they know all the rows in the database,
 except their target.
 
 Suppose the attacker starts with a uniform prior suspicion about whether their target is
@@ -145,7 +145,7 @@ budget is the size of each group on which aggregations are computed. In our firs
 above, even with the smallest budget of 0.2, all the noisy results were within
 about +/- 25 of the true count, which is a relative spread of about 0.05%.
 But what happens if we aggregate the data in smaller groups?
-Consider again our database of library members. Instead of counting all records
+Consider again our database of library members. Instead of counting all rows 
 in the database, we'll first group members by age and education level, and then
 count how many members fall in each group. The below graph plots the percentage error
 between the true and noisy counts for each group. The noisy counts were computed

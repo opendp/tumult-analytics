@@ -640,9 +640,9 @@ class TransformationVisitor(QueryExprVisitor):
         )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
-            if expr.max_num_rows is None:
+            if expr.max_rows is None:
                 raise ValueError(
-                    "Flat maps on tables without IDs must have a defined max_num_rows"
+                    "Flat maps on tables without IDs must have a defined max_rows"
                     " parameter."
                 )
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
@@ -656,13 +656,13 @@ class TransformationVisitor(QueryExprVisitor):
                 transformation = GroupingFlatMap(
                     output_metric=self.inner_metric(),
                     row_transformer=row_transformer,
-                    max_num_rows=expr.max_num_rows,
+                    max_num_rows=expr.max_rows,
                 )
             else:
                 transformation = FlatMapTransformation(
                     metric=input_metric,
                     row_transformer=row_transformer,
-                    max_num_rows=expr.max_num_rows,
+                    max_num_rows=expr.max_rows,
                 )
 
             return create_copy_and_transform_value(
@@ -685,10 +685,10 @@ class TransformationVisitor(QueryExprVisitor):
                     "Flat maps on tables with the AddRowsWithID protected "
                     "change cannot be grouping"
                 )
-            if expr.max_num_rows is not None:
+            if expr.max_rows is not None:
                 warnings.warn(
                     "When performing a flat map on a table with the AddRowsWithID "
-                    "ProtectedChange(), the max_num_rows parameter "
+                    "ProtectedChange(), the max_rows parameter "
                     "is not required and will be ignored."
                 )
             return FlatMapValueTransformation(
@@ -697,7 +697,7 @@ class TransformationVisitor(QueryExprVisitor):
                 child_ref.identifier,
                 target,
                 row_transformer=row_transformer,
-                max_num_rows=expr.max_num_rows,
+                max_num_rows=expr.max_rows,
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
@@ -753,7 +753,7 @@ class TransformationVisitor(QueryExprVisitor):
             strategy: TruncationStrategy.Type,
         ) -> Tuple[CoreTruncationStrategy, int]:
             if isinstance(strategy, TruncationStrategy.DropExcess):
-                return CoreTruncationStrategy.TRUNCATE, strategy.max_records
+                return CoreTruncationStrategy.TRUNCATE, strategy.max_rows
             elif isinstance(strategy, TruncationStrategy.DropNonUnique):
                 return CoreTruncationStrategy.DROP, 1
             else:

@@ -110,7 +110,7 @@ our library have? To answer this question with a query, we will use the
 
 The first part, ``QueryBuilder("members")``, specifies which private data we
 want to run the query on; this corresponds to the ``source_id`` parameter from
-earlier. Then, the ``count()`` statement requests the total number of records in
+earlier. Then, the ``count()`` statement requests the total number of rows in
 the dataset.
 
 After creating our query, we need to actually run it on the data, using the

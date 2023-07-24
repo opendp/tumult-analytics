@@ -168,11 +168,11 @@ for this column. The following histogram gives us an idea of the data
 distribution.
 
 .. image:: ../images/histogram_books_borrowed.png
-    :alt: A histogram showing the most common values for this column. The x-axis has a log scale, and it shows that most records have a value of 200, but that there are outliers for which the value is more than a thousand.
+    :alt: A histogram showing the most common values for this column. The x-axis has a log scale, and it shows that most rows have a value of 200, but that there are outliers for which the value is more than a thousand.
     :align: center
 
 This kind of distribution is common in real-world data: here, we can see that
-most records have a value lower than 200, but there are outliers for which the
+most rows have a value lower than 200, but there are outliers for which the
 value can be much greater. In those cases, it is often a good idea to choose
 clamping bounds that aren't *absolute* limits over the data range, but are such
 that *most* values would fall within these bounds. Here, we could use 200, or

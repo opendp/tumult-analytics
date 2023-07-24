@@ -363,19 +363,19 @@ class FlatMap(QueryExpr):
     If True, schema = old schema + schema_new_columns, otherwise only keeps the new
     columns (schema = schema_new_columns)."""
 
-    max_num_rows: Optional[int] = None
+    max_rows: Optional[int] = None
     """The enforced limit on number of rows from each f(row)."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
         check_type("f", self.f, Callable[[Row], List[Row]])
-        check_type("max_num_rows", self.max_num_rows, Optional[int])
+        check_type("max_rows", self.max_rows, Optional[int])
         check_type("schema_new_columns", self.schema_new_columns, Schema)
         check_type("augment", self.augment, bool)
-        if self.max_num_rows and self.max_num_rows < 0:
+        if self.max_rows and self.max_rows < 0:
             raise ValueError(
-                f"Limit on number of rows '{self.max_num_rows}' must be nonnegative."
+                f"Limit on number of rows '{self.max_rows}' must be nonnegative."
             )
         if (
             self.schema_new_columns.grouping_column
@@ -402,7 +402,7 @@ class FlatMap(QueryExpr):
         if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:
             return False
         return (
-            self.max_num_rows == other.max_num_rows
+            self.max_rows == other.max_rows
             and self.schema_new_columns == other.schema_new_columns
             and self.augment == other.augment
             and self.child == other.child
@@ -724,7 +724,7 @@ class GroupByCount(QueryExpr):
 
 @dataclass
 class GroupByCountDistinct(QueryExpr):
-    """Returns the count of distinct records in each groupby domain value."""
+    """Returns the count of distinct rows in each groupby domain value."""
 
     child: QueryExpr
     """The QueryExpr to measure."""
