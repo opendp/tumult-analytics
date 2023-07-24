@@ -2058,7 +2058,7 @@ class TestMeasurementVisitor:
                     f=lambda row: [{"i": n for n in range(row["B"] + 1)}],
                     schema_new_columns=Schema({"i": "DECIMAL"}),
                     augment=False,
-                    max_num_rows=11,
+                    max_rows=11,
                 )
             ),
             (

@@ -121,12 +121,12 @@ each. The sensitivity computation is more complicated than before:
 
 where:
 
-  - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_records``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`, these values are always 1.
+  - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_rows``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`, these values are always 1.
   - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. These values are always 2 for :class:`DropExcess<tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess>` and 1 for :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`.
   - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the protected change on the left and right tables, respectively.
 
 
-In this example, if we choose a truncation strategy of ``DropExcess(max_records=2)`` for
+In this example, if we choose a truncation strategy of ``DropExcess(max_rows=2)`` for
 both tables, they will be truncated to include no more than two rows for each value of
 our join key, ``user_id``. The private join might look something like:
 
@@ -135,15 +135,15 @@ our join key, ``user_id``. The private join might look something like:
     :align: center
 
 In this case, our ``DropExcess()`` truncation strategies each had bounds of
-``max_records=2``, and our tables each had a protected change of
+``max_rows=2``, and our tables each had a protected change of
 ``AddMaxRows(max_rows=1)``. The sensitivity of the join is then:
 :math:`\text{sensitivity} = 2 * 2 * 1 + 2 * 2 * 1 = 8`.
 
 .. Note::
 
-    Even though the ``Users`` table did not *actually* contain more than one record per
+    Even though the ``Users`` table did not *actually* contain more than one row per
     ``user_id``, the sensitivity is still increased via the
-    ``DropExcess(max_records=2)`` truncation strategy. Again, this is because we don't
+    ``DropExcess(max_rows=2)`` truncation strategy. Again, this is because we don't
     look at the contents of private tables directly, and instead use the information
     given by the ``TruncationStrategy`` for each table.
 
@@ -151,9 +151,9 @@ In this case, our ``DropExcess()`` truncation strategies each had bounds of
 
     When we know that a table always contains only one row per join key, it's preferable
     to use ``DropNonUnique``, due to the smaller truncation stability. In this case,
-    using ``DropNonUnique`` for the Users table and ``DropExcess(max_records=2)`` for the
+    using ``DropNonUnique`` for the Users table and ``DropExcess(max_rows=2)`` for the
     Purchases table would have led to a join sensitivity of :math:`1 * 2 * 1 + 2 * 1 * 1 = 4`.
-    Using ``DropExcess(max_records=1)`` for the users table would have led to a sensitivity of
+    Using ``DropExcess(max_rows=1)`` for the users table would have led to a sensitivity of
     :math:`1 * 2 * 1 + 2 * 2 * 1 = 6` instead.
 
 As you can see, tracking stability can be complicated!

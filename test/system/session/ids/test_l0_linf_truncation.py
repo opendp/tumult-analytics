@@ -167,7 +167,7 @@ def test_quantile(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
     value = res["n_quantile(0.5)"][0]
     closest = closest_value(value, {statistics.median(n) for n in ns})
     # Our quantile algorithm can be significantly off from the true median on
-    # low numbers of records, even with infinite budget, so use a huge absolute
+    # low numbers of rows, even with infinite budget, so use a huge absolute
     # tolerance.
     assert value == pytest.approx(closest, abs=2)
 
@@ -188,7 +188,7 @@ def test_quantile_grouped(base_query: QueryBuilder, session):
         for group in ["A", "B"]
     )
     # Because of the inaccuracy in the quantile on the now even-smaller number
-    # of records per group, checking its output is even harder. Just ensure that
+    # of rows per group, checking its output is even harder. Just ensure that
     # the results it gives aren't completely absurd.
     assert all(0 <= q <= 10 for q in quantiles)
 

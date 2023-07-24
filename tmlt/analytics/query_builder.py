@@ -342,7 +342,7 @@ class QueryBuilder:
             ...     source_id="my_private_view",
             ...     cache=False
             ... )
-            >>> # A query where only one record with each join key is kept on the left
+            >>> # A query where only one row with each join key is kept on the left
             >>> # table, but two are kept on the right table.
             >>> query_drop_excess = (
             ...     QueryBuilder("my_private_data")
@@ -361,7 +361,7 @@ class QueryBuilder:
             >>> answer.toPandas()
                count
             0      3
-            >>> # A query where all records that share a join key with another record in
+            >>> # A query where all rows that share a join key with another row in
             >>> # their table are dropped, in both the left and right tables.
             >>> query_drop_non_unique = (
             ...     QueryBuilder("my_private_data")
@@ -1044,6 +1044,7 @@ class QueryBuilder:
         new_column_types: Mapping[str, Union[str, ColumnDescriptor, ColumnType]],
         augment: bool = False,
         grouping: bool = False,
+        max_rows: Optional[int] = None,
         max_num_rows: Optional[int] = None,
     ) -> "QueryBuilder":
         """Updates the current query to apply a flat map.
@@ -1055,7 +1056,7 @@ class QueryBuilder:
         Operations on tables with a
         :class:`~tmlt.analytics.protected_change.AddRowsWithID`
         :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
-        ``max_num_rows`` argument, since it is not necessary to impose a limit on
+        ``max_rows`` argument, since it is not necessary to impose a limit on
         the number of new rows.
 
         ..
@@ -1102,7 +1103,7 @@ class QueryBuilder:
             ...         )},
             ...         augment=True,
             ...         grouping=False,
-            ...         max_num_rows=3,
+            ...         max_rows=3,
             ...     )
             ...     .groupby(KeySet.from_dict({"B": [0, 1, 2, 3]}))
             ...     .count()
@@ -1141,9 +1142,10 @@ class QueryBuilder:
                 query include the new column as a groupby column. Only one new column
                 is supported, and the new column must have distinct values for each
                 input row.
-            max_num_rows: The enforced limit on the number of rows from each ``f(row)``.
-                If ``f`` produces more rows than this, only the first ``max_num_rows``
+            max_rows: The enforced limit on the number of rows from each ``f(row)``.
+                If ``f`` produces more rows than this, only the first ``max_rows``
                 rows will be in the output.
+            max_num_rows: Deprecated synonym for max_rows.
         """
         grouping_column: Optional[str]
         if grouping:
@@ -1156,6 +1158,16 @@ class QueryBuilder:
             (grouping_column,) = new_column_types
         else:
             grouping_column = None
+        if max_num_rows is not None:
+            if max_rows is not None:
+                raise ValueError(
+                    "You must use either max_rows or max_num_rows, not both"
+                )
+            warnings.warn(
+                "max_num_rows is deprecated and will be removed in a future release",
+                DeprecationWarning,
+            )
+            max_rows = max_num_rows
         self._query_expr = FlatMap(
             child=self._query_expr,
             f=f,
@@ -1167,7 +1179,7 @@ class QueryBuilder:
                 default_allow_inf=True,
             ),
             augment=augment,
-            max_num_rows=max_num_rows,
+            max_rows=max_rows,
         )
         return self
 

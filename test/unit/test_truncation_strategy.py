@@ -12,13 +12,13 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 def test_dropexcess(threshold: int):
     """Tests that DropExcess works for valid thresholds."""
     ts = TruncationStrategy.DropExcess(threshold)
-    assert ts.max_records == threshold
+    assert ts.max_rows == threshold
 
 
 @pytest.mark.parametrize("threshold", [(-1), (0)])
 def test_invalid_dropexcess(threshold: int):
     """Tests that invalid private source errors on post-init."""
     with pytest.raises(
-        ValueError, match="At least one record must be kept for each join key."
+        ValueError, match="At least one row must be kept for each join key."
     ):
         TruncationStrategy.DropExcess(threshold)

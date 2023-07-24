@@ -234,7 +234,7 @@ class TestAddKeys(TestTransformationVisitor):
                     f=lambda row: [{"S_is_zero": 1 if row["S"] == "0" else 2}],
                     schema_new_columns=Schema({"S_is_zero": "INTEGER"}),
                     augment=True,
-                    max_num_rows=1,
+                    max_rows=1,
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, 1]],
@@ -247,7 +247,7 @@ class TestAddKeys(TestTransformationVisitor):
                     f=lambda row: [{"X": n} for n in range(row["I"] + 10)],
                     schema_new_columns=Schema({"X": "INTEGER"}),
                     augment=True,
-                    max_num_rows=3,
+                    max_rows=3,
                 ),
                 pd.DataFrame(
                     [
@@ -274,7 +274,7 @@ class TestAddKeys(TestTransformationVisitor):
             lambda row: [{}],
             Schema({}),
             augment=False,
-            max_num_rows=1,
+            max_rows=1,
         )
         with pytest.raises(ValueError, match="Flat maps on tables.*must be augmenting"):
             query.accept(self.visitor)
@@ -284,7 +284,7 @@ class TestAddKeys(TestTransformationVisitor):
             lambda row: [{"X": row["I"]}],
             Schema({"X": "INTEGER"}, "X"),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
         with pytest.raises(ValueError, match="Flat maps on tables.*cannot be grouping"):
             query.accept(self.visitor)
@@ -294,11 +294,9 @@ class TestAddKeys(TestTransformationVisitor):
             lambda row: [{"X": row["I"]}],
             Schema({}),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
-        with pytest.warns(
-            UserWarning, match="the max_num_rows parameter is not required."
-        ):
+        with pytest.warns(UserWarning, match="the max_rows parameter is not required."):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(

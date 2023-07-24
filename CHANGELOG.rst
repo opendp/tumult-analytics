@@ -11,6 +11,13 @@ Added
 
 -  Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
 
+Changed
+~~~~~~~
+- **Backwards-incompatible**: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
+- **Backwards-incompatible**: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics.query_expr.FlatMap.max_rows`.
+- Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
+
+
 0.7.3 - 2023-07-13
 ------------------
 

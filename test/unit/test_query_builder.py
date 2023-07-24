@@ -334,7 +334,7 @@ def test_invalid_flat_map() -> None:
             new_column_types={"": "VARCHAR"},
             augment=False,
             grouping=False,
-            max_num_rows=2,
+            max_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -345,7 +345,7 @@ def test_invalid_flat_map() -> None:
             new_column_types={"": "VARCHAR"},
             augment=False,
             grouping=True,
-            max_num_rows=2,
+            max_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -356,7 +356,7 @@ def test_invalid_flat_map() -> None:
             new_column_types={"": "VARCHAR"},
             augment=True,
             grouping=False,
-            max_num_rows=2,
+            max_rows=2,
         )
     with pytest.raises(
         ValueError,
@@ -367,7 +367,7 @@ def test_invalid_flat_map() -> None:
             new_column_types={"": "VARCHAR"},
             augment=True,
             grouping=True,
-            max_num_rows=2,
+            max_rows=2,
         )
 
 
@@ -381,10 +381,7 @@ def test_flat_map_augment_is_false():
     query = (
         root_builder()
         .flat_map(
-            duplicate_rows,
-            new_column_types={"C": "VARCHAR"},
-            augment=False,
-            max_num_rows=2,
+            duplicate_rows, new_column_types={"C": "VARCHAR"}, augment=False, max_rows=2
         )
         .groupby(KeySet.from_dict({"C": ["0", "1"]}))
         .count()
@@ -396,7 +393,7 @@ def test_flat_map_augment_is_false():
     flat_map_expr = query.child
     assert isinstance(flat_map_expr, FlatMap)
     assert getattr(flat_map_expr, "f") is duplicate_rows
-    assert flat_map_expr.max_num_rows == 2
+    assert flat_map_expr.max_rows == 2
     assert flat_map_expr.schema_new_columns == Schema(
         {
             "C": ColumnDescriptor(
@@ -421,10 +418,7 @@ def test_flat_map_augment_is_true():
     query = (
         root_builder()
         .flat_map(
-            duplicate_rows,
-            new_column_types={"C": "VARCHAR"},
-            augment=True,
-            max_num_rows=2,
+            duplicate_rows, new_column_types={"C": "VARCHAR"}, augment=True, max_rows=2
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()
@@ -436,7 +430,7 @@ def test_flat_map_augment_is_true():
     flat_map_expr = query.child
     assert isinstance(flat_map_expr, FlatMap)
     assert getattr(flat_map_expr, "f") is duplicate_rows
-    assert flat_map_expr.max_num_rows == 2
+    assert flat_map_expr.max_rows == 2
     assert flat_map_expr.schema_new_columns == Schema(
         {
             "C": ColumnDescriptor(
@@ -467,7 +461,7 @@ def test_flat_map_grouping_is_true():
                 )
             },
             grouping=True,
-            max_num_rows=2,
+            max_rows=2,
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()

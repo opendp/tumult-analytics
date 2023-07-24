@@ -79,7 +79,7 @@ Because the privacy of individuals depends on how often they appear in a table,
 you should be careful of what kind of pre-processing is done to the private data
 before loading it into a Session.
 For example, if you start from a table where each individual appears in a single
-record, but this property stops being true before the data is loaded into a Session,
+row, but this property stops being true before the data is loaded into a Session,
 then using ``AddOneRow`` as a protected change might not reflect the privacy guarantee that you want to achieve.
 
 Subtlety 1: covered inputs & outputs
@@ -114,7 +114,7 @@ defend against actively malicious users. In particular:
    functions (UDFs). When using map or flatmap, a Session's privacy guarantee
    only holds if the UDFs do not have side-effects with externally-observable
    behaviors. For example, a UDF could be designed to throw an exception if a
-   specific record is found in the data. This would reveal information about the
+   specific row is found in the data. This would reveal information about the
    private data and break the privacy promise.
 
 #. **Do not release side-channel information.** The privacy guarantee only

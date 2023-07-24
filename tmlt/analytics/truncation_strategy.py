@@ -36,10 +36,10 @@ class TruncationStrategy:
 
     @dataclass(frozen=True)
     class DropExcess(Type):
-        """Drop records with matching join keys above a threshold.
+        """Drop rows with matching join keys above a threshold.
 
-        This truncation strategy drops records such that no more than ``max_records``
-        records have the same join key. Which records are kept is deterministic and does
+        This truncation strategy drops rows such that no more than ``max_rows``
+        rows have the same join key. Which rows are kept is deterministic and does
         not depend on the order in which they appear in the private data. For example,
         using the ``DropExcess(1)`` strategy while joining on columns A and B in the
         below table:
@@ -76,22 +76,22 @@ class TruncationStrategy:
         because it results in fewer dropped rows.
         """
 
-        max_records: int
-        """Maximum number of records to keep."""
+        max_rows: int
+        """Maximum number of rows to keep."""
 
         def __post_init__(self):
             """Check arguments to constructor."""
-            check_type("max_records", self.max_records, int)
-            if self.max_records < 1:
-                raise ValueError("At least one record must be kept for each join key.")
+            check_type("max_rows", self.max_rows, int)
+            if self.max_rows < 1:
+                raise ValueError("At least one row must be kept for each join key.")
 
     @dataclass(frozen=True)
     class DropNonUnique(Type):
-        """Drop all records with non-unique join keys.
+        """Drop all rows with non-unique join keys.
 
-        This truncation strategy drops all records which share join keys with another
-        record in the dataset. It is similar to the ``DropExcess(1)`` strategy, but
-        doesn't keep *any* of the records with duplicate join keys. For example, using
+        This truncation strategy drops all rows which share join keys with another
+        row in the dataset. It is similar to the ``DropExcess(1)`` strategy, but
+        doesn't keep *any* of the rows with duplicate join keys. For example, using
         the ``DropNonUnique`` strategy while joining on columns A and B in the below
         table:
 
@@ -114,6 +114,6 @@ class TruncationStrategy:
         === === =====
 
         This truncation strategy results in less noise than ``DropExcess(1)``. However,
-        it also drops more rows in datasets where many records have non-unique join
+        it also drops more rows in datasets where many rows have non-unique join
         keys. In most cases, DropExcess is the preferred strategy.
         """

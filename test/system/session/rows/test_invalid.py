@@ -222,7 +222,7 @@ class TestInvalidSession:
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
         session.create_view(
             Rename(child=grouping_flatmap, column_mapper={"Repeat": "repeated"}),
@@ -264,7 +264,7 @@ class TestInvalidSession:
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
         session.create_view(grouping_flatmap, "grouping_flatmap", cache=False)
 
@@ -273,7 +273,7 @@ class TestInvalidSession:
             f=lambda row: [{"i": row["X"]} for _ in range(row["Repeat"])],
             schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
             augment=True,
-            max_num_rows=2,
+            max_rows=2,
         )
 
         with pytest.raises(

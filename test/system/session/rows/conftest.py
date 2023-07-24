@@ -232,9 +232,7 @@ EVALUATE_TESTS = [
     ),
     (  # FlatMap
         QueryBuilder("private")
-        .flat_map(
-            f=lambda _: [{}, {}], max_num_rows=2, new_column_types={}, augment=True
-        )
+        .flat_map(f=lambda _: [{}, {}], max_rows=2, new_column_types={}, augment=True)
         .replace_null_and_nan()
         .sum(column="X", low=0, high=3),
         GroupByBoundedSum(
@@ -243,7 +241,7 @@ EVALUATE_TESTS = [
                 child=FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{}, {}],
-                    max_num_rows=2,
+                    max_rows=2,
                     schema_new_columns=Schema({}),
                     augment=True,
                 ),
@@ -261,13 +259,13 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
+            max_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
+            max_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=False,
         )
@@ -280,12 +278,12 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
+                        max_rows=1,
                         schema_new_columns=Schema({"Repeat": "INTEGER"}),
                         augment=True,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
+                    max_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
                 ),
@@ -304,14 +302,14 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
+            max_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
             grouping=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
+            max_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
@@ -325,14 +323,14 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
+                        max_rows=1,
                         schema_new_columns=Schema(
                             {"Repeat": "INTEGER"}, grouping_column="Repeat"
                         ),
                         augment=True,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
+                    max_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
                 ),
@@ -349,14 +347,14 @@ EVALUATE_TESTS = [
         QueryBuilder("private")
         .flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            max_num_rows=1,
+            max_rows=1,
             new_column_types={"Repeat": ColumnDescriptor(ColumnType.INTEGER)},
             grouping=True,
             augment=True,
         )
         .flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            max_num_rows=2,
+            max_rows=2,
             new_column_types={"i": ColumnDescriptor(ColumnType.INTEGER)},
             augment=True,
         )
@@ -370,14 +368,14 @@ EVALUATE_TESTS = [
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                        max_num_rows=1,
+                        max_rows=1,
                         schema_new_columns=Schema(
                             {"Repeat": "INTEGER"}, grouping_column="Repeat"
                         ),
                         augment=True,
                     ),
                     f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                    max_num_rows=2,
+                    max_rows=2,
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=True,
                 ),

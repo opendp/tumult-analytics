@@ -86,7 +86,7 @@ You might recall that we already used a transformation in
    +-----+
 
 In this query, we first we filtered the data to only include rows where
-the age was less than 18, and then counted the total number of records. More complicated
+the age was less than 18, and then counted the total number of rows. More complicated
 filters are also supported: Tumult Analytics filters support the same syntax as `Spark
 SQL <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`_.
 
@@ -237,13 +237,13 @@ each of their favorite genres (up to three times as many rows).
 Like ``map``, ``flat_map`` has the ``new_column_types`` and ``augment`` options.
 In this example, we leave ``augment`` with its default value of ``False``.
 
-Unlike ``map``, ``flat_map`` has an argument ``max_num_rows``. It clamps the maximum number
+Unlike ``map``, ``flat_map`` has an argument ``max_rows``. It clamps the maximum number
 of new rows that can be created for each input row. This serves a similar function as
 the clamping bounds on aggregations we used in :ref:`tutorial 3 <Clamping bounds>`, and
-also has the analogous trade-offs: higher values for ``max_num_rows`` will result in more
+also has the analogous trade-offs: higher values for ``max_rows`` will result in more
 noise in the final results, while lower values may cause more rows to be silently
 dropped. In this case, the choice is easy: no members have more than three favorites and
-there are many members with three, so we set ``max_num_rows=3``.
+there are many members with three, so we set ``max_rows=3``.
 
 .. testcode::
 
@@ -276,7 +276,7 @@ there are many members with three, so we set ``max_num_rows=3``.
         .flat_map(
             expand_genre,
             new_column_types={"genre": ColumnType.VARCHAR},
-            max_num_rows=3,
+            max_rows=3,
         )
         .groupby(genre_keys)
         .count()

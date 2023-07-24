@@ -292,7 +292,7 @@ class TestSession:
                 f=lambda row: [{"C": 1 if row["A"] == "0" else 2}],
                 schema_new_columns=Schema({"C": "INTEGER"}),
                 augment=True,
-                max_num_rows=1,
+                max_rows=1,
             ),
             source_id="private_2",
             cache=False,
@@ -477,7 +477,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             schema_new_columns=Schema({}),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
         session.create_view(transformation_query, "flatmap_transformation", cache=False)
 
@@ -579,7 +579,7 @@ class TestSession:
                 f=lambda _: [{}, {}],
                 schema_new_columns=Schema({}),
                 augment=True,
-                max_num_rows=2,
+                max_rows=2,
             ),
         )
         session1.create_view(transformation_query, "flatmap", True)
@@ -721,7 +721,7 @@ class TestSession:
                 f=lambda row: [{}, {}],
                 schema_new_columns=Schema({}),
                 augment=True,
-                max_num_rows=2,
+                max_rows=2,
             ),
         )
         root_session.create_view(transformation_query1, "transform1", cache=False)
@@ -753,7 +753,7 @@ class TestSession:
                 f=lambda row: [{}, {}, {}],
                 schema_new_columns=Schema({}),
                 augment=True,
-                max_num_rows=2,
+                max_rows=2,
             ),
         )
         sessionA0.create_view(transformation_query2, "transform2", cache=False)
@@ -866,7 +866,7 @@ class TestSession:
             new_column_types={"new": ColumnType.INTEGER},
             augment=True,
             grouping=True,
-            max_num_rows=2,
+            max_rows=2,
         )
         session.create_view(grouping_flat_map, "duplicated", cache=False)
         new_sessions = session.partition_and_create(
@@ -894,7 +894,7 @@ class TestSession:
             new_column_types={"new": ColumnType.INTEGER},
             augment=True,
             grouping=True,
-            max_num_rows=2,
+            max_rows=2,
         )
         session.create_view(grouping_flat_map, "duplicated", cache=False)
         new_sessions = session.partition_and_create(
@@ -926,7 +926,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             schema_new_columns=Schema({}),
             augment=True,
-            max_num_rows=2,
+            max_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
         # pylint: disable=protected-access
@@ -938,7 +938,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             schema_new_columns=Schema({}),
             augment=True,
-            max_num_rows=3,
+            max_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
         # pylint: disable=protected-access
@@ -961,7 +961,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             schema_new_columns=Schema({}),
             augment=True,
-            max_num_rows=2,
+            max_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
 
@@ -970,7 +970,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             schema_new_columns=Schema({}),
             augment=True,
-            max_num_rows=3,
+            max_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
@@ -1010,7 +1010,7 @@ class TestSession:
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
             schema_new_columns=Schema({"Repeat": "INTEGER"}),
             augment=True,
-            max_num_rows=1,
+            max_rows=1,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
         transformation_query2 = FlatMap(
@@ -1018,7 +1018,7 @@ class TestSession:
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
             schema_new_columns=Schema({"i": "INTEGER"}),
             augment=False,
-            max_num_rows=2,
+            max_rows=2,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
