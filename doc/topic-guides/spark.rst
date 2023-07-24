@@ -68,6 +68,7 @@ As long as this session is active, Analytics will use it.
 
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
+.. _hive-tips:
 
 If you want to connect Spark to an existing `Hive <https://hive.apache.org/>`_
 database, you should use the following options when creating a Spark session:

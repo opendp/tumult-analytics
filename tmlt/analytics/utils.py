@@ -105,17 +105,28 @@ def check_installation():
         print(" OK")
 
         print("Checking that output is as expected...", end="")
+        if result.count() == 0:
+            raise RuntimeError(
+                """
+                It looks like the analytics session has not been configured properly.
+                In most cases, this is because the Spark warehouse location has not been
+                set correctly.
+
+                For information on setting spark configuration, see our troubleshooting
+                guide at
+                https://docs.tmlt.dev/analytics/latest/howto-guides/troubleshooting.html"""
+            )
         if (
             len(result.columns) != 2
             or not "A" in result.columns
             or not "count" in result.columns
         ):
-            raise AssertionError(
+            raise RuntimeError(
                 "Expected output to have columns 'A' and 'count', but instead it had"
                 f" these columns: {result.columns}"
             )
         if result.count() != 3:
-            raise AssertionError(
+            raise RuntimeError(
                 f"Expected output to have 3 rows, but instead it had {result.count()}"
             )
         if (
@@ -136,17 +147,20 @@ def check_installation():
             "Installation check complete. Tumult Analytics appears to be properly"
             " installed."
         )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(" FAILED\n")
-        raise RuntimeError(
-            dedent(
-                """
+        if not str(e).startswith("It looks like the analytics session"):
+            raise RuntimeError(
+                dedent(
+                    """
 
-            The installation test did not complete successfully. You may want to check:
-            - your Java installation (try `java -version`)
-            - your PySpark and Pandas installations (run `pip3 show pyspark pandas`)
+                The installation test did not complete successfully. You may want to
+                check:
+                - your Java installation (try `java -version`)
+                - your PySpark and Pandas installations (run `pip3 show pyspark pandas`)
 
-            For more information, see the Tumult Analytics installation instructions
-            at https://docs.tmlt.dev/analytics/latest/howto-guides/installation.html"""
-            )
-        ) from e
+                For more information, see the Tumult Analytics installation instructions
+                at
+                https://docs.tmlt.dev/analytics/latest/howto-guides/installation.html"""
+                )
+            ) from e
