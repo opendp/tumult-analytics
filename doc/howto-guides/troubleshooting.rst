@@ -21,6 +21,35 @@ It's often possible to successfully run Analytics
 locally anyway, by configuring Spark with enough RAM. See our
 :ref:`Spark guide <spark>` for more information.
 
+Receiving empty dataframes as outputs
+-------------------------------------
+
+If you're running Analytics queries and getting empty dataframes as outputs,
+this likely indicates that your Spark configuration is incorrect. If you run the installation checker, it should identify this problem.
+
+Receiving empty dataframes is a sign that Spark is writing to an incorrect warehouse directory location.
+This is most likely to occur in a setting where multiple machines need to use a shared location as a datastore,
+but no external warehouse directory is specified.
+
+The issue can be resolved by providing your desired warehouse directory location when building your Spark session.
+For example, to configure the session to use to the S3 location ``s3://my-bucket/spark-warehouse``, you would use the following code:
+
+.. code-block::
+
+        from pyspark.sql import SparkSession
+
+        warehouse_location = "s3://my-bucket/spark-warehouse"
+
+        spark = SparkSession.builder.config(
+            "spark.sql.warehouse.dir", warehouse_location
+        ).getOrCreate()
+
+This assumes that you have configured Spark with the permissions to interact with the given bucket.
+
+If you are using Hive tables to read and write data, you may instead want to consult
+the :ref:`Hive section <hive-tips>` of the :ref:`Spark topic guide <spark>`. For more tips
+related to Spark, see the entirety of that guide.
+
 
 ``PicklingError`` on map queries
 --------------------------------

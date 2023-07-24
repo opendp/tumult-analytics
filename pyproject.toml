@@ -58,7 +58,7 @@ nox_poetry = "1.0.1"
 # Linters, formatters
 black = "^23.3"
 isort = { version = "^5.11", extras = ["pyproject"] }
-mypy = "^1.2"
+mypy = "^1.2, !=1.4.0" # 1.4.0 incompatible with typing extensions 3.10.0 https://github.com/python/mypy/issues/15487
 pydocstyle = { version = "^6.3", extras = ["toml"] }
 pylint = "^2.13"
 
