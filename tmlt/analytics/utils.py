@@ -15,7 +15,7 @@ from tmlt.analytics.session import Session
 
 
 def cleanup():
-    """Cleanup the temporary table currently in use.
+    """Clean up the temporary table currently in use.
 
     If you call ``spark.stop()``, you should call this function first.
     """
