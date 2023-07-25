@@ -69,7 +69,7 @@ package:
     - nox -s build
   artifacts:
     paths: ["dist/"]
-  timeout: 5m
+  timeout: 10m
   interruptible: true
   tags: [aws-small]
 
