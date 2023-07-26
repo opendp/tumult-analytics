@@ -1,4 +1,4 @@
-"""Utility functions for Analytics."""
+"""Utility functions."""
 
 import atexit
 from textwrap import dedent
@@ -23,11 +23,11 @@ def cleanup():
 
 
 def remove_all_temp_tables():
-    """Remove all temporary tables created by Analytics.
+    """Remove all temporary tables created by Tumult Analytics.
 
-    This will remove all Analytics-created temporary tables in the current
-    Spark data warehouse, whether those tables were created by the current
-    Analytics session or previous Analytics sessions.
+    This will remove all temporary tables created by Tumult Analytics in
+    the current Spark data warehouse, whether those tables were created
+    by the current Tumult Analytics session or previous sessions.
     """
     core_cleanup.remove_all_temp_tables()
 
@@ -38,7 +38,7 @@ def get_java_11_config():
 
 
 def check_installation():
-    """Check to see if you have installed Analytics correctly.
+    """Check to see if you have installed Tumult Analytics correctly.
 
     This function will:
 
@@ -47,11 +47,11 @@ def check_installation():
     * create a :class:`~tmlt.analytics.session.Session` from that dataframe
     * perform a query on that dataframe
 
-    If Analytics is correctly installed, this function should print a message
-    and finish running within a few seconds.
+    If Tumult Analytics is correctly installed, this function should print
+    a message and finish running within a few seconds.
 
-    If Analytics has *not* been correctly installed, this function will raise
-    an error.
+    If Tumult Analytics has *not* been correctly installed, this function
+    will raise an error.
     """
     try:
         try:
@@ -86,7 +86,7 @@ def check_installation():
         sdf = spark.createDataFrame(pdf)
         print(" OK")
 
-        print("Creating Analytics session... ", end="")
+        print("Creating Tumult Analytics session... ", end="")
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(1), source_id="private_data", dataframe=sdf
         )
@@ -108,7 +108,7 @@ def check_installation():
         if result.count() == 0:
             raise RuntimeError(
                 """
-                It looks like the analytics session has not been configured properly.
+                It looks like Tumult Analytics has not been configured properly.
                 In most cases, this is because the Spark warehouse location has not been
                 set correctly.
 
