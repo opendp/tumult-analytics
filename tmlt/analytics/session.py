@@ -492,8 +492,8 @@ class Session:
                 """It looks like the configuration of your Spark session is
              incompatible with Tumult Analytics. When running Spark on Java 11 or
              higher, you need to set up your Spark session with specific configuration
-             options *before* you start Spark. Analytics automatically sets these
-             options if you import Analytics before you build your session. For
+             options *before* you start Spark. Tumult Analytics automatically sets
+             these options if you import it before you build your Spark session. For
              troubleshooting information, see our Spark topic guide:
              https://docs.tmlt.dev/analytics/latest/topic-guides/spark.html """
             ) from exc
