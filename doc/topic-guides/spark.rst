@@ -9,24 +9,24 @@ Spark
 
 Tumult Analytics uses Spark as its underlying data processing
 framework. This topic guide covers relevant information about Spark
-for users of the Analytics library.
+for Tumult Analytics users.
 
 Configuring Spark sessions
 --------------------------
 
-Analytics uses :class:`Spark sessions <pyspark.sql.SparkSession>` to do all data processing operations.
+Tumult Analytics uses :class:`Spark sessions <pyspark.sql.SparkSession>` to do all data processing operations.
 As long as Spark has an active session, any calls that "create" new Spark
 sessions use that active session.
 
-If you want Analytics to use Spark sessions with any *specific* properties,
-then before running Analytics code, you should create that Spark session:
+If you want Tumult Analytics to use Spark sessions with any *specific* properties,
+then before running Tumult Analytics code, you should create that Spark session:
 
 .. code-block::
 
     from pyspark.sql import SparkSession
     spark = SparkSession.builder.<your options here>.getOrCreate()
 
-As long as this session is active, Analytics will use it.
+As long as this session is active, Tumult Analytics will use it.
 
 .. dropdown:: Trouble Using Java 11 or higher?
     :container: + shadow
@@ -40,7 +40,7 @@ As long as this session is active, Analytics will use it.
     will result in Spark raising ``java.lang.UnsupportedOperationException: sun.misc.Unsafe`` or ``java.nio.DirectByteBuffer.(long, int) not available`` 
     when evaluating queries. 
     
-    Analytics attempts to set these options automatically, but if you are encountering issues, you may want to try:
+    Tumult Analytics attempts to set these options automatically, but if you are encountering issues, you may want to try:
 
     .. code-block::
 
@@ -97,7 +97,7 @@ Materialization and data cleanup
 --------------------------------
 
 Tumult Analytics is built on top of Tumult Core, which
-implements all of the differential privacy primitives that Analytics uses.
+implements all of the differential privacy primitives that Tumult Analytics uses.
 Tumult Core uses a Spark database (named "``tumult_temp_<time>_<uuid>``") to
 materialize dataframes after noise has been added. This ensures that repeated
 queries on a dataframe of results do not re-evaluate the query with fresh
@@ -107,7 +107,7 @@ This has a few consequences for users:
 
 * Queries are eagerly-evaluated, instead of lazily-evaluated.
 * Operations create a temporary database in Spark.
-* Analytics *does not* support multi-threaded operations, because the
+* Tumult Analytics *does not* support multi-threaded operations, because the
   materialization step changes the active Spark database. (The active database is
   changed back to the original database at the end of the materialization step.)
 
@@ -135,7 +135,7 @@ because it was terminated with Ctrl-C),
 or if the cleanup function is called without an active Spark session,
 this temporary database (and its associated folder) may not be deleted.
 
-Analytics has a function to delete any of these folders in the current
+Tumult Analytics has a function to delete any of these folders in the current
 Spark warehouse: :func:`~tmlt.analytics.utils.remove_all_temp_tables`.
 As long as your program is single-threaded, it is safe to call this function
 at any time.
@@ -153,7 +153,7 @@ These folders are safe to manually delete any time that your program is not runn
 Performance and profiling
 -------------------------
 
-All queries made with Analytics are executed by Spark. If you are having
+All queries made with Tumult Analytics are executed by Spark. If you are having
 performance problems, you will probably want to look at
 `Spark performance-tuning options <https://spark.apache.org/docs/latest/sql-performance-tuning.html>`_.
 
@@ -162,7 +162,7 @@ RAM usage
 
 By default, Spark allocates itself 1GB of RAM 
 (see `Spark's configuration documentation <https://spark.apache.org/docs/latest/configuration.html#application-properties>`_).
-Analytics programs often need more RAM than this.
+Tumult Analytics programs often need more RAM than this.
 Usually, a program needs more RAM because:
 
 * the input data is large (10M rows or more)
