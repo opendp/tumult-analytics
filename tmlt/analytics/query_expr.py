@@ -1,8 +1,8 @@
-"""Building blocks of the Analytics query language. Not for direct use.
+"""Building blocks of the Tumult Analytics query language. Not for direct use.
 
 Defines the :class:`QueryExpr` class, which represents expressions in the
-Analytics query language. QueryExpr and its subclasses should not be directly
-constructed or deconstructed by most users; interfaces such as
+Tumult Analytics query language. QueryExpr and its subclasses should not be
+directly constructed or deconstructed by most users; interfaces such as
 :class:`tmlt.analytics.query_builder.QueryBuilder` to create them and
 :class:`tmlt.analytics.session.Session` to consume them provide more
 user-friendly features.
@@ -532,7 +532,7 @@ class JoinPublic(QueryExpr):
 
 
 class AnalyticsDefault:
-    """Default values for each type of column in Analytics."""
+    """Default values for each type of column in Tumult Analytics."""
 
     INTEGER = 0
     """The default value used for integers (0)."""
@@ -558,7 +558,7 @@ class ReplaceNullAndNan(QueryExpr):
 
     .. warning::
         after a ``ReplaceNullAndNan`` query has been performed for a column,
-        Analytics will raise an error if you use a
+        Tumult Analytics will raise an error if you use a
         :class:`~.tmlt.analytics.keyset.KeySet` for that column
         that contains null values.
     """
@@ -627,7 +627,7 @@ class DropNullAndNan(QueryExpr):
 
     .. warning::
         After a ``DropNullAndNan`` query has been performed for a column,
-        Analytics will raise an error if you use a
+        Tumult Analytics will raise an error if you use a
         :class:`~.tmlt.analytics.keyset.KeySet` for that column
         that contains null values.
     """
