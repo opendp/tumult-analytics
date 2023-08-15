@@ -6,6 +6,8 @@ Changelog
 Unreleased
 ----------
 
+This is a maintenance release that addresses a performance regression for complex queries and improves naming consistency in some areas of the Tumult Analytics API.
+
 Added
 ~~~~~
 
@@ -17,6 +19,10 @@ Changed
 - **Backwards-incompatible**: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics.query_expr.FlatMap.max_rows`.
 - Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
 
+Fixed
+~~~~~
+- Upgrades to version 0.11 of Tumult Core.
+  This addresses a performance issue introduced in Tumult Analytics 0.7.0 where some complex queries compiled much more slowly than they had previously.
 
 0.7.3 - 2023-07-13
 ------------------

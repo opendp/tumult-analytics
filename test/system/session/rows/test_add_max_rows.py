@@ -828,7 +828,9 @@ class TestSession:
         assert session2._accountant.state == PrivacyAccountantState.RETIRED
 
         # Now trying to do operations on session2 should raise an error
-        select_query2 = Select(columns=["A"], child=PrivateSource(source_id="private0"))
+        select_query2 = Select(  # type: ignore
+            columns=["A"], child=PrivateSource(source_id="private0")
+        )  # mypy thinks this is unreachable
         with pytest.raises(
             RuntimeError,
             match=(
