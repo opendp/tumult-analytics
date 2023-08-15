@@ -961,13 +961,12 @@ class TestMeasurementVisitor:
             got.group_keys.toPandas(), keyset.dataframe().toPandas()
         )
         expected_output_domain = SparkGroupedDataFrameDomain(
-            schema=input_domain.schema, group_keys=keyset.dataframe()
+            schema=input_domain.schema, groupby_columns=["A", "B"]
         )
         assert isinstance(got.output_domain, SparkGroupedDataFrameDomain)
         assert got.output_domain.schema == expected_output_domain.schema
-        assert_frame_equal_with_sort(
-            got.output_domain.group_keys.toPandas(),
-            expected_output_domain.group_keys.toPandas(),
+        assert (
+            got.output_domain.groupby_columns == expected_output_domain.groupby_columns
         )
         assert got.output_metric == expected_output_metric
 
@@ -1101,13 +1100,13 @@ class TestMeasurementVisitor:
         table_domain = transformation.output_domain
         assert isinstance(table_domain, SparkDataFrameDomain)
         expected_groupby_domain = SparkGroupedDataFrameDomain(
-            schema=dict(table_domain.schema), group_keys=query.groupby_keys.dataframe()
+            schema=dict(table_domain.schema), groupby_columns=["A"]
         )
         assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
         assert info.groupby.output_domain.schema == expected_groupby_domain.schema
-        assert_frame_equal_with_sort(
-            info.groupby.output_domain.group_keys.toPandas(),
-            expected_groupby_domain.group_keys.toPandas(),
+        assert (
+            info.groupby.output_domain.groupby_columns
+            == expected_groupby_domain.groupby_columns
         )
 
     def test_validate_measurement(self):

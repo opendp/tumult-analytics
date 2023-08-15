@@ -41,13 +41,13 @@ python = "^3.7.1, <3.11.0"
 # When updating Core, PySpark, Pandas or SymPy, remember to update
 # test_multi_deps in the Noxfile.
 
-"tmlt.core" = "^0.10.1"
+"tmlt.core" = "^0.11.0"
 
 pandas = "^1.2.0"
-pyspark = { version = "^3.0.0,<=3.3.1", extras = ["sql"] }
+pyspark = { version = "^3.0.0,<=3.3.2", extras = ["sql"] }
 sympy = "^1.8,<1.10"
 typeguard = "^2.12.1,<2.13.0"
-typing-extensions = "^3.10.0"
+typing-extensions = "^4.1.0"
 
 
 [tool.poetry.dev-dependencies]
