@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+0.8.0 - 2023-08-15
+------------------
+
 This is a maintenance release that addresses a performance regression for complex queries and improves naming consistency in some areas of the Tumult Analytics API.
 
 Added
