@@ -163,7 +163,20 @@ html_theme_options = {
         "json_url": "https://docs.tmlt.dev/analytics/versions.json",
         "version_match": version,
     },
-    "gitlab_url": "https://gitlab.com/tumult-labs/analytics",
+    "icon_links": [
+        {
+            "name": "GitLab",
+            "url": "https://gitlab.com/tumult-labs/analytics",
+            "icon": "fab fa-gitlab",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Slack",
+            "url": "https://tmlt.dev/slack",
+            "icon": "fab fa-slack",
+            "type": "fontawesome",
+        },
+    ],
 }
 html_context = {
     "default_mode": "light",
