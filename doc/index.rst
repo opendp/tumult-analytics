@@ -28,12 +28,9 @@ Tumult Analytics is…
   to very large datasets.
 
 For new users, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
-To explore further or work on larger datasets, a good starting point is the :ref:`installation instructions <installation instructions>`.
+To explore further, start with the :ref:`installation instructions <installation instructions>`, then follow our :ref:`tutorial series <First steps>`.
 
-The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
-Users who wish to learn more about the fundamentals of differential privacy can consult
-`this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
-or `this longer introduction <https://privacytools.seas.harvard.edu/files/privacytools/files/pedagogical-document-dp_0.pdf>`__.
+If you have any questions, feedback, or feature requests, please `let us know on Slack <https://tmlt.dev/slack>`__!
 
 .. panels::
    :card: + intro-card text-center
@@ -95,6 +92,11 @@ or `this longer introduction <https://privacytools.seas.harvard.edu/files/privac
        :type: ref
        :text:
        :classes: stretched-link
+
+The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
+Users who wish to learn more about the fundamentals of differential privacy can consult
+`this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
+or `this longer introduction <https://privacytools.seas.harvard.edu/files/privacytools/files/pedagogical-document-dp_0.pdf>`__.
 
 ..
    This Additional Resources section forces "Contact Us", etc to be subsubsections.
