@@ -1,3 +1,7 @@
+[![PyPI - Version](https://img.shields.io/pypi/v/tmlt-analytics?color=006dad)](https://pypi.org/project/tmlt-analytics/) |
+[![Documentation - Latest](https://img.shields.io/badge/documentation-latest-cc3d56)](https://docs.tmlt.dev/analytics/latest/) |
+[![Join our Slack!](https://img.shields.io/badge/Join%20our%20Slack!-634ad3?logo=slack)](https://tmlt.dev/slack)
+
 # Tumult Analytics
 
 Tumult Analytics is a library that allows users to execute differentially private operations on
@@ -21,11 +25,12 @@ The full documentation is located at https://docs.tmlt.dev/analytics/latest/.
 
 ## Support
 
-If you have any questions/concerns, please [create an issue](https://gitlab.com/tumult-labs/analytics/-/issues) or reach out to us on [Slack](https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#).
+If you have any questions, feedback, or feature requests, please reach out to us on [Slack](https://tmlt.dev/slack).
 
 ## Contributing
 
-We are not yet accepting external contributions, but please let us know if you are interested in contributing [via Slack](https://tmltdev.slack.com/join/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg#).
+We do not yet have a process in place to accept external contributions, but we are open to collaboration opportunities.
+If you are interested in contributing, please let us know [via Slack](https://tmlt.dev/slack).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our development dependencies and running tests.
 
