@@ -175,7 +175,7 @@ can run this code:
 
 .. code-block::
 
-    spark = SparkSession.builder.config('spark.driver.memory', '8gb').getOrCreate()
+    spark = SparkSession.builder.config('spark.driver.memory', '8g').getOrCreate()
 
 This only applies when running Spark on a single, local node; see Spark's
 documentation for how to configure Spark to use more RAM across a cluster.
