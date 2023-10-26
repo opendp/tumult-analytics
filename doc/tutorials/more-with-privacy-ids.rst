@@ -250,7 +250,7 @@ groups and the subset of genres we’re interested in for the analysis…
 .. testcode::
 
     # Define age groups
-    # bin edges at [0, 10, 20,...,100]
+    # bin edges are [0, 20, 40, ... , 100]
     age_binspec = BinningSpec(bin_edges = [20*i for i in range(0, 6)])
     binned_age_genre_keys = KeySet.from_dict(
         {
