@@ -78,12 +78,17 @@ sphinxcontrib-images = "^0.9.4"
 # Needed for examples, and for testing examples
 notebook = "^6.1.6"
 nbconvert = "^6.0.7"
-# Needed for code snippets in tutorials
+# Needed for code snippets in tutorials, examples
+matplotlib = "^3.0.0"
 seaborn = "^0.11.1"
 
 # click 8.1.0 removes _unicodefun which breaks the CI; remove this after
 # upgrading Black.
-click = "8.0.4"
+#click = "8.0.4"
+# dunamai 1.19.0 introduces a breaking change that some of our dev dependencies don't seem
+# to handle yet. If we ever update them (scanpydoc is a particular problem I think), try
+# removing this pin.
+dunamai = "<1.19.0"
 
 
 [build-system]

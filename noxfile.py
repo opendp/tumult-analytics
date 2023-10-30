@@ -318,7 +318,7 @@ def test_smoketest(session):
 
 @poetry_session(tags=["test"], python="3.7")
 @install_package
-@install("notebook", "nbconvert")
+@install("notebook", "nbconvert", "matplotlib", "seaborn")
 @show_installed
 def test_examples(session):
     """Run all examples."""
