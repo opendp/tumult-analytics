@@ -202,7 +202,10 @@ test_release_linux:
   extends: .base
   stage: test-release
   needs: ["package"]
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   script:
     - nox -s release_smoketest release_test
   coverage: '/^TOTAL.+?(\d+\%)$/'
@@ -227,7 +230,7 @@ test_dep_matrix:
   stage: test-dependency-matrix
   parallel:
     matrix:
-      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10"]
+      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         TEST_TYPE: ["oldest", "newest"]
       - PYTHON_VERSION: ["3.7"]
         TEST_TYPE: ["pyspark3.1", "pyspark3.2"]

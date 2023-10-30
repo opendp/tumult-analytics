@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+This release adds support for Python 3.11, as well as compatibility with newer versions of various dependencies, including PySpark.
+It also includes documentation improvements, but no API changes.
+
 0.8.0 - 2023-08-15
 ------------------
 
