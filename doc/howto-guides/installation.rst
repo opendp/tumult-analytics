@@ -9,7 +9,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 Tumult Analytics is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
-It is compatible with Python 3.7, 3.8, and 3.9.
+It is compatible with Python 3.7 through 3.11.
 Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.0.0/index.html#downloading>`__.
 
 Only the x86_64 processor architecture is officially supported at present.
