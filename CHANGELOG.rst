@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+0.8.2 - 2023-11-29
+------------------
+
 This release addresses a serious security vulnerability in PyArrow: `CVE-2023-47248 <https://nvd.nist.gov/vuln/detail/CVE-2023-47248>`__.
 It is **strongly recommended** that all users update to this version of Analytics or apply one of the mitigations described in the `GitHub Advisory <https://github.com/advisories/GHSA-5wvp-7f3h-6wmm>`__.
 
