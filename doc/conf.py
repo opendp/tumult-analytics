@@ -34,7 +34,8 @@ build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 # Linkcheck will complain that these anchors don't exist,
 # even though the link works.
 linkcheck_ignore = [
-    "https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true"
+    "https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true",
+    "https://docs.databricks.com/release-notes/runtime/releases.html",
 ]
 
 # Sphinx configuration
