@@ -41,10 +41,7 @@ python = "^3.7.1, <3.12.0"
 # When updating Core, PySpark, Pandas or SymPy, remember to update
 # test_multi_deps in the Noxfile.
 
-"tmlt.core" = [
-  { version = "^0.11.0", python = "<3.11" },
-  { version = "^0.11.2", python = ">=3.11" },
-]
+"tmlt.core" = "^0.11.5"
 
 pandas = [
   { version = ">=1.2.0,<1.4.0", python = "<3.8" },
@@ -63,15 +60,25 @@ typing-extensions = "^4.1.0"
 
 [tool.poetry.dev-dependencies]
 
-# Give Poetry some help figuring out what numpy version to use. Analytics
-# doesn't directly depend on numpy, but it is a transitive dependency, and
-# unless you give a complex rule like this Poetry will try to find a single
-# version of numpy that works for all versions of Python. There isn't one, so
-# without this locking will fail.
+# This is a hack to convince Poetry to allow different versions of various
+# transitive dependencies on different Python versions, as there is not a single
+# version of these dependencies that works across our entire supported Python
+# version range. Just having `version = "*"` does not work, as Poetry merges
+# such constraints, but having an extra irrelevant version constraint prevents
+# that behavior.
 numpy = [
-  { version = "~1.21.0", python = "<3.8" },
-  { version = ">=1.22.0,<1.25.0", python = ">=3.8,<3.9" },
-  { version = "^1.23.2,<=1.26.1", python = ">=3.9" },
+  { version = "*,!=0.0.1", python = "<3.8" },
+  { version = "*,!=0.0.2", python = ">=3.8,<3.9" },
+  { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
+  { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
+  { version = "*,!=0.0.5", python = ">=3.11" },
+]
+scipy = [
+  { version = "*,!=0.0.1", python = "<3.8" },
+  { version = "*,!=0.0.2", python = ">=3.8,<3.9" },
+  { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
+  { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
+  { version = "*,!=0.0.5", python = ">=3.11" },
 ]
 
 # Build scripting
@@ -105,9 +112,6 @@ nbconvert = "^6.0.7"
 matplotlib = "^3.0.0"
 seaborn = "^0.11.1"
 
-# click 8.1.0 removes _unicodefun which breaks the CI; remove this after
-# upgrading Black.
-#click = "8.0.4"
 # dunamai 1.19.0 introduces a breaking change that some of our dev dependencies don't seem
 # to handle yet. If we ever update them (scanpydoc is a particular problem I think), try
 # removing this pin.
