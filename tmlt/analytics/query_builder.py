@@ -1129,7 +1129,9 @@ class QueryBuilder:
                 have the same keys regardless of input, and the values in those
                 dictionaries should match the column type specified in
                 ``new_column_types``. The function should not have any side effects
-                (in particular, ``f`` must not raise exceptions).
+                (in particular, ``f`` must not raise exceptions), and must be
+                deterministic (running it multiple times on a fixed input should
+                always return the same output).
             new_column_types: Mapping from column names to types, for new columns
                 produced by ``f``. Using
                 :class:`~tmlt.analytics.query_builder.ColumnDescriptor`
