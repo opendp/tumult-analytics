@@ -42,7 +42,7 @@ If you have any questions, feedback, or feature requests, please reach out to us
 We do not yet have a process in place to accept external contributions, but we are open to collaboration opportunities.
 If you are interested in contributing, please let us know [via Slack](https://tmlt.dev/slack).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for information about installing our development dependencies and running tests.
+See [CONTRIBUTING.md](https://gitlab.com/tumult-labs/analytics/-/blob/dev/CONTRIBUTING.md) for information about installing our development dependencies and running tests.
 
 ## Citing Tumult Analytics
 
