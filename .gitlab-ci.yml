@@ -151,13 +151,13 @@ test_nightly:
     - when: manual
       allow_failure: true
 
-test_examples:
+test_demos:
   extends: test
   script:
-    - nox -s test_examples
+    - nox -s test_demos
   coverage: null
   artifacts: null
-  timeout: 15m
+  timeout: 1h
   tags: [aws-small]
 
 # Requires the following CI variables to be set:

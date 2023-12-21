@@ -285,7 +285,7 @@ def _smoketest(session):
     """Run a no-extra-dependencies smoketest on the package."""
     session.run("python", "-c", SMOKETEST_SCRIPT)
 
-# Only this session, test_doctest, and test_examples one get the 'test' tag,
+# Only this session, test_doctest, and test_demos one get the 'test' tag,
 # because the others are just subsets of this session so there's no need to run
 # them again.
 @poetry_session(tags=["test"], python="3.7")
@@ -320,28 +320,28 @@ def test_smoketest(session):
 @install_package
 @install("notebook", "nbconvert", "matplotlib", "seaborn")
 @show_installed
-def test_examples(session):
-    """Run all examples."""
-    examples_path = CWD / "examples"
-    if not examples_path.exists():
+def test_demos(session):
+    """Run all demos."""
+    demos_path = CWD / "demos"
+    if not demos_path.exists():
         session.error("No examples directory found, nothing to run")
-    examples_py = []
-    examples_ipynb = []
+    demos_py = []
+    demos_ipynb = []
     unknown = []
     ignored = []
-    for f in examples_path.iterdir():
+    for f in demos_path.iterdir():
         if f.is_file and f.suffix == ".py":
-            examples_py.append(f)
+            demos_py.append(f)
         elif f.is_file and f.suffix == ".ipynb":
             if ".nbconvert" not in f.suffixes:
-                examples_ipynb.append(f)
+                demos_ipynb.append(f)
             else:
                 ignored.append(f)
         else:
             unknown.append(f)
-    for py in examples_py:
+    for py in demos_py:
         session.run("python", str(py))
-    for nb in examples_ipynb:
+    for nb in demos_ipynb:
         session.run("jupyter", "nbconvert", "--to=notebook", "--execute", str(nb))
     if ignored:
         session.log(
@@ -349,7 +349,7 @@ def test_examples(session):
         )
     if unknown:
         session.warn(
-            f"Found unknown files in examples: {', '.join(str(f) for f in unknown)}"
+            f"Found unknown files in demos: {', '.join(str(f) for f in unknown)}"
         )
 
 ### Test various dependency configurations ###
