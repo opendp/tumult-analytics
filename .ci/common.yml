@@ -1,0 +1,27 @@
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pypoetry"
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
+
+.base:
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.7
+  before_script:
+    - java -version
+    - python --version
+    - poetry self show
+    - poetry install --only scripting
+    - source .venv/bin/activate
+  artifacts:
+    when: always
+    expire_in: 1 week
+  cache:
+    # Cache the pip cache. While the cache could be persisted across changes to
+    # the Poetry lock file, clearing it when that changes provides a good way to
+    # keep the cache from growing too large due to old packages.
+    - key:
+        files: ["poetry.lock"]
+      paths: [".cache/pip", ".cache/pypoetry"]
+  tags: [aws-small]
+  interruptible: true

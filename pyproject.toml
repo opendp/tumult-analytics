@@ -1,12 +1,15 @@
 [tool.poetry]
+
 name = "tmlt.analytics"
+license = "Apache-2.0"
+
 description = "Tumult's differential privacy analytics API"
 readme = "README.md"
 authors = []
-license = "Apache-2.0"
 homepage = "https://www.tmlt.dev/"
 repository = "https://gitlab.com/tumult-labs/analytics"
 documentation = "https://docs.tmlt.dev/analytics/latest"
+
 # The version field is required in this file format, even though it's ignored because of poetry-dynamic-versioning.
 version = "0.0.0"
 
@@ -27,8 +30,8 @@ include = [
   { path = "test/", format = "sdist" },
   { path = "CHANGELOG.md", format = "sdist" },
   { path = "test_requirements.txt", format = "sdist" },
-  { path = "LICENSE", format = "sdist" },
   { path = "NOTICE", format = "sdist" },
+  { path = "LICENSE", format = "sdist" },
 ]
 packages = [
   { include = "tmlt" },
@@ -58,8 +61,7 @@ sympy = "^1.8,<1.10"
 typeguard = "^2.12.1,<2.13.0"
 typing-extensions = "^4.1.0"
 
-[tool.poetry.dev-dependencies]
-
+[tool.poetry.group.fix-lock.dependencies]
 # This is a hack to convince Poetry to allow different versions of various
 # transitive dependencies on different Python versions, as there is not a single
 # version of these dependencies that works across our entire supported Python
@@ -81,9 +83,7 @@ scipy = [
   { version = "*,!=0.0.5", python = ">=3.11" },
 ]
 
-# Build scripting
-nox = "2022.8.7"
-nox_poetry = "1.0.1"
+[tool.poetry.group.dev.dependencies]
 
 # Linters, formatters
 black = "^23.3"
@@ -116,6 +116,10 @@ seaborn = "^0.11.1"
 # to handle yet. If we ever update them (scanpydoc is a particular problem I think), try
 # removing this pin.
 dunamai = "<1.19.0"
+
+[tool.poetry.group.scripting.dependencies]
+nox = "2022.8.7"
+nox_poetry = "1.0.1"
 
 
 [build-system]

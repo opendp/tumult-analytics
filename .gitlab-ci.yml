@@ -1,11 +1,11 @@
-# GitLab CI can create duplicate pipelines in certain cases when one event that
-# triggers a pipeline (e.g. a push) causes another such event (e.g. the
-# resulting update to an MR). This block prevents that in common cases.
 workflow:
   rules:
-    # If pushing to a branch that has an open MR associated with it, don't
-    # launch the on-push pipeline.
-    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+    # Don't create pipelines on push for any branches other than the default
+    # branch -- if such pipelines are needed, they will be triggered from
+    # elsewhere. Also, don't run dev pipelines in staging repos.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: never
+    - if: '$CI_PROJECT_NAME != "analytics" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: never
     - when: always
 
@@ -14,39 +14,12 @@ stages:
   - setup
   - lint
   - test
-  - test-dependency-matrix
   - docs
   - test-release
   - release
   - handler
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  # Force nox to produce colorful logs:
-  FORCE_COLOR: "true"
-
-.base:
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
-  before_script:
-    - java -version
-    - python --version
-    - poetry self show
-    # TODO(#2140): This could be done more cleanly using Poetry 1.2 dependency
-    #              groups with `--only` instead of using --constraint.
-    - pip install nox nox-poetry --constraint=<(poetry export --dev -f constraints.txt --without-hashes)
-  artifacts:
-    when: always
-    expire_in: 1 week
-  cache:
-    # Cache the pip cache. While the cache could be persisted across changes to
-    # the Poetry lock file, clearing it when that changes provides a good way to
-    # keep the cache from growing too large due to old packages.
-    - key:
-        files: ["poetry.lock"]
-      paths: [".cache/pip"]
-  tags: [aws-small]
-  interruptible: true
+include: ".ci/common.yml"
 
 # "Fake" job to prevent dev pipelines from being interrupted on new commits.
 # See gitlab-org/gitlab#34221
@@ -64,7 +37,7 @@ package:
   extends: .base
   stage: setup
   needs: []
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.7
   script:
     - nox -s build
   artifacts:
@@ -87,33 +60,6 @@ lint:
       when: never
     - when: on_success
 
-# This is a separate job from a regular "lint"
-# so that it can inherit artifacts from core
-lint_from_core:
-  extends: lint
-  needs:
-    - project: tumult-labs/core
-      job: package_linux
-      ref: dev
-      artifacts: true
-    - job: package
-      artifacts: true
-  rules:
-    - if: "$PARENT_PIPELINE_ID"
-
-# This is a separate job from a regular "test"
-# so that it can inherit artifacts from core
-test_from_core:
-  extends: test
-  needs:
-    - project: tumult-labs/core
-      job: package_linux
-      ref: dev
-      artifacts: true
-    - job: package
-      artifacts: true
-  rules:
-    - if: "$PARENT_PIPELINE_ID"
 
 test:
   extends: .base
@@ -133,13 +79,13 @@ test:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG || $PARENT_PIPELINE_ID'
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
       allow_failure: true
   tags: [aws-c6a.xlarge]
 
-test_nightly:
+test_slow:
   extends: test
   script:
     - nox -s test_slow
@@ -160,23 +106,34 @@ test_demos:
   timeout: 1h
   tags: [aws-small]
 
-# Requires the following CI variables to be set:
-# * NIGHTLY_HANDLER_TOKEN, a GitLab project access token with the read_api permission
-# * NIGHTLY_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
-#   channel
-nightly_handler:
-  stage: handler
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
-  script:
-    - source .pipeline_handlers
-    - nightly_handler
-  variables:
-    GIT_DEPTH: 1
-  timeout: 2m
+test_dep_matrix:
+  extends: .base
+  stage: test
+  needs: ["package"]
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        TEST_TYPE: ["oldest", "newest"]
+      - PYTHON_VERSION: ["3.7"]
+        TEST_TYPE: ["pyspark3.1", "pyspark3.2"]
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   rules:
+    - if: '$CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+      when: never
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-  interruptible: false
+    - when: manual
+      allow_failure: true
+  script:
+    - pip install -U pip setuptools
+    - nox -s "test_dependency_matrix(${PYTHON_VERSION}-${TEST_TYPE})"
+  cache:
+    - key:
+        prefix: "$PYTHON_VERSION-$TEST_TYPE"
+        files: ["poetry.lock"]
+      paths: [".cache/pip"]
+  timeout: 3h
+  tags: [aws-c6a.xlarge]
+  interruptible: true
 
 docs:
   extends: .base
@@ -192,7 +149,7 @@ docs:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
     - if: '$CI_COMMIT_TAG'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
@@ -224,34 +181,24 @@ test_release_linux:
       allow_failure: true
   tags: [aws-c6a.xlarge]
 
-test_dep_matrix:
-  extends: .base
-  stage: test-dependency-matrix
-  needs: ["package"]
-  parallel:
-    matrix:
-      - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        TEST_TYPE: ["oldest", "newest"]
-      - PYTHON_VERSION: ["3.7"]
-        TEST_TYPE: ["pyspark3.1", "pyspark3.2"]
-  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
-  rules:
-    - if: '$CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - when: manual
-      allow_failure: true
+# Requires the following CI variables to be set:
+# * NIGHTLY_HANDLER_TOKEN, a GitLab project access token with the read_api permission
+# * NIGHTLY_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
+#   channel
+nightly_handler:
+  stage: handler
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.7
   script:
-    - pip install -U pip setuptools
-    - nox -s "test_multi_deps(${PYTHON_VERSION}-${TEST_TYPE})"
-  cache:
-    - key:
-        prefix: "$PYTHON_VERSION-$TEST_TYPE"
-        files: ["poetry.lock"]
-      paths: [".cache/pip"]
-  timeout: 3h
-  tags: [aws-c6a.xlarge]
-  interruptible: true
+    - source .ci/pipeline-handlers.bash
+    - nightly_handler
+  variables:
+    GIT_DEPTH: 1
+  timeout: 2m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+  interruptible: false
+
 
 publish:
   stage: release
