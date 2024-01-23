@@ -19,7 +19,8 @@ from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
 
-from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP, closest_value
+from ...conftest import closest_value
+from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
 _TRUNCATED_N = {
     1: [{4, 7, 8}, {4, 7, 9}, {5, 7, 8}, {5, 7, 9}, {6, 7, 8}, {6, 7, 9}],

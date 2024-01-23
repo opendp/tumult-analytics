@@ -44,10 +44,10 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler._measurement_visitor import (
-    MeasurementVisitor,
+from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
     _get_query_bounds,
 )
+from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._table_reference import lookup_domain, lookup_metric
@@ -1253,7 +1253,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_count."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1363,7 +1363,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_count_distinct."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1539,7 +1539,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_quantile."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1655,7 +1655,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_bounded_sum."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1766,7 +1766,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_bounded_average."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1877,7 +1877,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_bounded_variance."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
@@ -1988,7 +1988,7 @@ class TestMeasurementVisitor:
     ) -> None:
         """Test visit_groupby_bounded_stdev."""
         with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.GroupBy",
+            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
             autospec=True,
         ) as mock_groupby, patch(
             "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",

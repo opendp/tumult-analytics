@@ -109,3 +109,25 @@ def get_adjusted_budget(
             f"of {requested_privacy_budget} and a remaining budget of "
             f"{remaining_privacy_budget}."
         )
+
+
+@typechecked
+def get_infinite_budget(privacy_budget: PrivacyBudget) -> PrivacyBudget:
+    """Creates a privacy budget with infinite epsilon/rho and 0 delta.
+
+    Args:
+        privacy_budget: The privacy budget to use as a template.
+    """
+    if isinstance(privacy_budget, PureDPBudget):
+        return PureDPBudget(ExactNumber.from_float(float("inf"), round_up=False))
+
+    elif isinstance(privacy_budget, ApproxDPBudget):
+        return ApproxDPBudget(ExactNumber.from_float(float("inf"), round_up=False), 0)
+
+    elif isinstance(privacy_budget, RhoZCDPBudget):
+        return RhoZCDPBudget(ExactNumber.from_float(float("inf"), round_up=False))
+    else:
+        raise ValueError(
+            "Unable to return an infinite version of budget with the input budget "
+            f"of {privacy_budget}."
+        )

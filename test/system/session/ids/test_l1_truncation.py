@@ -14,7 +14,8 @@ from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import QueryExpr
 
-from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP, closest_value
+from ...conftest import closest_value
+from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
 _BASE_QUERIES = [QueryBuilder("id_a1").enforce(MaxRowsPerID(n)) for n in range(1, 4)]
 _BASE_QUERY_NS_GROUPED: List[Set[Tuple[Tuple[int, ...], Tuple[int, ...]]]] = [

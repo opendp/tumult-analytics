@@ -64,6 +64,11 @@ class PrivacyBudget(ABC):
     def value(self) -> Union[ExactNumber, Tuple[ExactNumber, ExactNumber]]:
         """Return the value of the privacy budget."""
 
+    @property
+    @abstractmethod
+    def is_infinite(self) -> bool:
+        """Returns true if the privacy budget is infinite."""
+
 
 class PureDPBudget(PrivacyBudget):
     """A privacy budget under pure differential privacy.
@@ -108,6 +113,11 @@ class PureDPBudget(PrivacyBudget):
         a computation, you should use self.value instead.
         """
         return _to_int_or_float(self._epsilon)
+
+    @property
+    def is_infinite(self) -> bool:
+        """Returns true if epsilon is float('inf')."""
+        return self._epsilon == float("inf")
 
     def __repr__(self) -> str:
         """Returns string representation of this PureDPBudget."""
