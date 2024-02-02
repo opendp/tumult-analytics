@@ -170,7 +170,6 @@ class SessionBuilder:
             check_flags = ["--check", "--diff"] if "--check" in session.posargs else []
             session.run(
                 "black",
-                "--skip-magic-trailing-comma",
                 *check_flags,
                 *map(str, self._get_code_dirs()),
             )
