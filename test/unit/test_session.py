@@ -197,14 +197,20 @@ class TestSession:
     combined_input_domain: DictDomain
 
     @pytest.mark.parametrize(
-        "budget_value,output_measure,expected_budget",
+        "budget_values,output_measure,expected_budget",
         [
             pytest.param(ExactNumber(10), PureDP(), PureDPBudget(10), id="puredp"),
             pytest.param(ExactNumber(10), RhoZCDP(), RhoZCDPBudget(10), id="zcdp"),
+            pytest.param(
+                (ExactNumber(10), ExactNumber("0.5")),
+                ApproxDP(),
+                ApproxDPBudget(10, 0.5),
+                id="approxdp",
+            ),
         ],
     )
     def test_remaining_privacy_budget(
-        self, budget_value, output_measure, expected_budget
+        self, budget_values, output_measure, expected_budget
     ):
         """Test that remaining_privacy_budget returns the right type of budget."""
         with patch(
@@ -213,7 +219,7 @@ class TestSession:
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
             self._setup_accountant(
-                mock_accountant, privacy_budget=budget_value, d_in=ExactNumber(1)
+                mock_accountant, privacy_budget=budget_values, d_in=ExactNumber(1)
             )
             mock_accountant.output_measure = output_measure
 
@@ -221,11 +227,19 @@ class TestSession:
 
             session = Session(mock_accountant, {}, mock_compiler)
             privacy_budget = session.remaining_privacy_budget
+            # Check that the output privacy_budget is the correct Type
             assert type(expected_budget) == type(privacy_budget)
-            if isinstance(expected_budget, PureDPBudget):
-                assert budget_value == ExactNumber(expected_budget.epsilon)
-            elif isinstance(expected_budget, RhoZCDPBudget):
-                assert budget_value == ExactNumber(expected_budget.rho)
+
+            # Check that the correct privacy budget values are returned
+            if isinstance(privacy_budget, PureDPBudget):
+                assert budget_values == ExactNumber(privacy_budget.epsilon)
+            elif isinstance(privacy_budget, RhoZCDPBudget):
+                assert budget_values == ExactNumber(privacy_budget.rho)
+            elif isinstance(privacy_budget, ApproxDPBudget):
+                assert budget_values == (
+                    ExactNumber(privacy_budget.epsilon),
+                    ExactNumber(str(privacy_budget.delta)),
+                )
             else:
                 raise RuntimeError(
                     f"Unexpected budget type: found {type(expected_budget)}"
@@ -722,6 +736,7 @@ class TestSession:
                     privacy_budget=ApproxDPBudget(10, 0.5),
                 )
 
+    # Checks that every privacy budget type has an error with zero budget.
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_with_zero_budget(self, spark, d_in):
         """Confirm that calling evaluate with a 'budget' of 0 fails."""
@@ -752,6 +767,18 @@ class TestSession:
             ):
                 session.evaluate(
                     query_expr=PrivateSource("private"), privacy_budget=RhoZCDPBudget(0)
+                )
+
+            # set output measures to ApproxDP
+            mock_accountant.output_measure = ApproxDP()
+            mock_compiler.output_measure = ApproxDP()
+            with pytest.raises(
+                ValueError,
+                match="You need a non-zero privacy budget to evaluate a query.",
+            ):
+                session.evaluate(
+                    query_expr=PrivateSource("private"),
+                    privacy_budget=ApproxDPBudget(0, 0),
                 )
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])

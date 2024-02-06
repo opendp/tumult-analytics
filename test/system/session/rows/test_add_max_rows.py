@@ -360,10 +360,15 @@ class TestSession:
         with pytest.raises(ValueError, match="Nonexistent columns in get_groups query"):
             session.evaluate(query, session.remaining_privacy_budget)
 
-    def test_get_groups_errors(self):
-        """Test that the GetGroups query errors with PureDP."""
+    @pytest.mark.parametrize(
+        "session_budget", [(PureDPBudget(float("inf"))), (RhoZCDPBudget(float("inf")))]
+    )
+    def test_get_groups_errors(
+        self, session_budget: Union[PureDPBudget, ApproxDPBudget]
+    ):
+        """Test that the GetGroups query errors with non ApproxDPBudgets."""
         session = Session.from_dataframe(
-            privacy_budget=PureDPBudget(1),
+            privacy_budget=session_budget,
             source_id="private",
             dataframe=self.sdf,
             protected_change=AddOneRow(),
@@ -459,6 +464,7 @@ class TestSession:
                 RhoZCDPBudget(10000),
                 pd.DataFrame({"sum": [12]}),
             ),
+            (ApproxDPBudget(10000, 1 / 2), pd.DataFrame({"sum": [12]})),
         ],
     )
     def test_create_view_with_stability(

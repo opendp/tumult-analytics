@@ -164,8 +164,6 @@ def _generate_neighboring_relation(
     return Conjunction(relations)
 
 
-# TODO(2476): Uncomment this once we allow consuming delta, and remove the part
-# that only reports epsilon (immediately after the commented section).
 def _format_insufficient_budget_msg(
     requested_budget: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
     remaining_budget: Union[ExactNumber, Tuple[ExactNumber, ExactNumber]],
@@ -173,6 +171,7 @@ def _format_insufficient_budget_msg(
 ) -> str:
     """Format message for InsufficientBudgetError."""
     output = ""
+    format_threshold = 0.1
 
     if isinstance(privacy_budget, ApproxDPBudget):
         if is_exact_number_tuple(requested_budget) and is_exact_number_tuple(
@@ -182,43 +181,37 @@ def _format_insufficient_budget_msg(
             assert isinstance(remaining_budget, tuple)
             remaining_epsilon = remaining_budget[0].to_float(round_up=True)
             requested_epsilon = requested_budget[0].to_float(round_up=True)
-            #   requested_delta = requested_budget[1].to_float(round_up=True)
-            #   remaining_delta = remaining_budget[1].to_float(round_up=True)
-            #   output += f"\nRequested: ε={requested_epsilon:.3f},"
-            #   output += f" δ={requested_delta:.3f}"
-            #   output += f"\nRemaining: ε={remaining_epsilon:.3f},"
-            #   output += f" δ={remaining_delta:.3f}"
-            #   output += "\nDifference: "
-            #   lacks_epsilon = remaining_epsilon < requested_epsilon
-            #   lacks_delta = remaining_delta < requested_delta
-            #   if lacks_epsilon and lacks_delta:
-            #       eps_diff = abs(remaining_epsilon - requested_epsilon)
-            #       delta_diff = abs(remaining_delta - requested_delta)
-            #       if eps_diff >= 0.1 and delta_diff >= 0.1:
-            #           output += f"ε={eps_diff:.3f}, δ={delta_diff:.3f}"
-            #       elif eps_diff < 0.1:
-            #           output += f"ε={eps_diff:.3e}, δ={delta_diff:.3f}"
-            #       elif delta_diff < 0.1:
-            #           output += f"ε={eps_diff:.3f}, δ={delta_diff:.3e}"
-            #   elif lacks_epsilon:
-            #       eps_diff = abs(remaining_epsilon - requested_epsilon)
-            #       if eps_diff >= 0.1:
-            #           output += f"ε={eps_diff:.3f}"
-            #       else:
-            #           output += f"ε={eps_diff:.3e}"
-            #   elif lacks_delta:
-            #       delta_diff = abs(remaining_delta - requested_delta)
-            #       if delta_diff >= 0.1:
-            #           output += f"δ={delta_diff:.3f}"
-            #       else:
-            #           output += f"δ={delta_diff:.3e}"
-            approx_diff = abs(remaining_epsilon - requested_epsilon)
-            output += f"\nRequested: ε={requested_epsilon:.3f}"
-            output += f"\nRemaining: ε={remaining_epsilon:.3f}"
-            if approx_diff >= 0.1:
-                output += f"\nDifference: ε={approx_diff:.3f}"
-            else:
-                output += f"\nDifference: ε={approx_diff:.3e}"
+            requested_delta = requested_budget[1].to_float(round_up=True)
+            remaining_delta = remaining_budget[1].to_float(round_up=True)
+            output += f"\nRequested: ε={requested_epsilon:.3f},"
+            output += f" δ={requested_delta:.3f}"
+            output += f"\nRemaining: ε={remaining_epsilon:.3f},"
+            output += f" δ={remaining_delta:.3f}"
+            output += "\nDifference: "
+            lacks_epsilon = remaining_epsilon < requested_epsilon
+            lacks_delta = remaining_delta < requested_delta
+            if lacks_epsilon and lacks_delta:
+                eps_diff = round(abs(remaining_epsilon - requested_epsilon), 3)
+                delta_diff = round(abs(remaining_delta - requested_delta), 3)
+                if eps_diff >= format_threshold and delta_diff >= format_threshold:
+                    output += f"ε={eps_diff:.3f}, δ={delta_diff:.3f}"
+                elif eps_diff < format_threshold:
+                    output += f"ε={eps_diff:.3e}, δ={delta_diff:.3f}"
+                elif delta_diff < format_threshold:
+                    output += f"ε={eps_diff:.3f}, δ={delta_diff:.3e}"
+            elif lacks_epsilon:
+                eps_diff = round(abs(remaining_epsilon - requested_epsilon), 3)
+                if eps_diff >= format_threshold:
+                    output += f"ε={eps_diff:.3f}"
+                else:
+                    output += f"ε={eps_diff:.3e}"
+            elif lacks_delta:
+                delta_diff = round(abs(remaining_delta - requested_delta), 3)
+                if delta_diff >= format_threshold:
+                    output += f"δ={delta_diff:.3f}"
+                else:
+                    output += f"δ={delta_diff:.3e}"
+
         else:
             raise AssertionError(
                 "Unable to convert privacy budget of type"
@@ -231,20 +224,20 @@ def _format_insufficient_budget_msg(
         if isinstance(privacy_budget, PureDPBudget):
             remaining_epsilon = remaining_budget.to_float(round_up=True)
             requested_epsilon = requested_budget.to_float(round_up=True)
-            approx_diff = abs(remaining_epsilon - requested_epsilon)
+            approx_diff = round(abs(remaining_epsilon - requested_epsilon), 3)
             output += f"\nRequested: ε={requested_epsilon:.3f}"
             output += f"\nRemaining: ε={remaining_epsilon:.3f}"
-            if approx_diff >= 0.1:
+            if approx_diff >= format_threshold:
                 output += f"\nDifference: ε={approx_diff:.3f}"
             else:
                 output += f"\nDifference: ε={approx_diff:.3e}"
         elif isinstance(privacy_budget, RhoZCDPBudget):
             remaining_rho = remaining_budget.to_float(round_up=True)
             requested_rho = requested_budget.to_float(round_up=True)
-            approx_diff = abs(remaining_rho - requested_rho)
+            approx_diff = round(abs(remaining_rho - requested_rho), 3)
             output += f"\nRequested: 𝝆={requested_rho:.3f}"
             output += f"\nRemaining: 𝝆={remaining_rho:.3f}"
-            if approx_diff >= 0.1:
+            if approx_diff >= format_threshold:
                 output += f"\nDifference: 𝝆={approx_diff:.3f}"
             else:
                 output += f"\nDifference: 𝝆={approx_diff:.3e}"
@@ -630,24 +623,11 @@ class Session:
         elif isinstance(privacy_budget, ApproxDPBudget):
             output_measure = ApproxDP()
             if privacy_budget.is_infinite:
-                warn(
-                    (
-                        "The use of ApproxDP is not yet fully supported. Because you"
-                        " selected an infinite ApproxDP budget, your session will be"
-                        " initialized with PureDP using an infinite epsilon budget."
-                    ),
-                    UserWarning,
-                )
                 sympy_budget = (
                     ExactNumber.from_float(float("inf"), round_up=False).expr,
-                    0,
+                    1,
                 )
             else:
-                warn(
-                    "The use of ApproxDP is not yet fully supported. Your session"
-                    " will be initialized with PureDP using the epsilon provided.",
-                    UserWarning,
-                )
                 sympy_budget = (
                     privacy_budget._epsilon.expr,
                     privacy_budget._delta.expr,
