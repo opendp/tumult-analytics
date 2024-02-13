@@ -1078,7 +1078,7 @@ class TestSession:
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @pytest.mark.parametrize("columns", [(["B"]), (["count", "B"]), ([]), (None)])
+    @pytest.mark.parametrize("columns", [(["B"]), (["count", "B"])])
     def test_get_groups_on_id_column(self, spark, columns: List[str]):
         """Test that the GetGroups on ID column errors."""
         sdf = spark.createDataFrame(
@@ -1098,6 +1098,43 @@ class TestSession:
                 QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups(columns),
                 session.remaining_privacy_budget,
             )
+
+    @pytest.mark.parametrize(
+        "test_df,id_column,expected_columns",
+        [
+            (pd.DataFrame({"ID": [1, 2, 3], "VAR": [4, 5, 6]}), "ID", ["VAR"]),
+            (
+                pd.DataFrame(
+                    {
+                        "CUST_ID": [1, 2, 3],
+                        "VARONE": [4, 5, 6],
+                        "VARTWO": ["A", "B", "C"],
+                    }
+                ),
+                "CUST_ID",
+                ["VARONE", "VARTWO"],
+            ),
+        ],
+    )
+    def test_get_groups_defaults_to_non_id_columns(
+        self, spark, test_df: pd.DataFrame, id_column: str, expected_columns: List[str]
+    ):
+        """Tests that get_groups applies to all non-ID cols if no cols are provided."""
+        sdf = spark.createDataFrame(test_df)
+        session = Session.from_dataframe(
+            privacy_budget=ApproxDPBudget(1, 1e-5),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddRowsWithID(id_column),
+        )
+
+        get_groups_query = QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups()
+
+        end_df = session.evaluate(get_groups_query, session.remaining_privacy_budget)
+
+        print(end_df)
+
+        assert set(expected_columns) == set(end_df.columns)
 
     def test_describe(self, spark):
         """Test that :func:`_describe` works correctly."""

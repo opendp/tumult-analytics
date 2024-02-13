@@ -961,6 +961,15 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 {column: input_schema[column] for column in expr.columns}
             )
 
+        else:
+            input_schema = Schema(
+                {
+                    column: input_schema[column]
+                    for column in input_schema
+                    if column != input_schema.id_column
+                }
+            )
+
         return input_schema
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:

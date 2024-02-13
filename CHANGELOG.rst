@@ -9,6 +9,7 @@ Unreleased
 Fixed
 ~~~~~
 - Improved the error message when attempting to overspend an ApproxDPBudget to more clearly indicate which component of the budget was insufficient to evaluate the query.
+- Updated the default behavior for the function :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` to avoid using ID columns.
 
 0.8.2 - 2023-11-29
 ------------------

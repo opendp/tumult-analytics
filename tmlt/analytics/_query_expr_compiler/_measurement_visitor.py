@@ -155,6 +155,13 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
+
+        # Set the columns if no columns were provided.
+        if not expr.columns:
+            expr.columns = [
+                col for col in schema.column_descs.keys() if col != schema.id_column
+            ]
+
         # Check if ID column is one of the columns in get_groups
         # Note: if get_groups columns is None or empty, all of the columns in the table
         # is used for partition selection, hence that needs to be checked as well
