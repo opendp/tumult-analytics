@@ -46,11 +46,9 @@ from tmlt.core.metrics import (
     SumOf,
     SymmetricDifference,
 )
-from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
-from typeguard import check_type
 
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
@@ -68,7 +66,6 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable, TableCollection
-from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import (
     Constraint,
     MaxGroupsPerID,
@@ -92,7 +89,7 @@ from tmlt.analytics.query_builder import GroupedQueryBuilder, QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
 
-from ..conftest import assert_frame_equal_with_sort, create_mock_transformation
+from ..conftest import assert_frame_equal_with_sort
 
 
 def _privacy_budget_to_exact_number(
@@ -214,8 +211,6 @@ class TestSession:
     ):
         """Test that remaining_privacy_budget returns the right type of budget."""
         with patch(
-            "tmlt.analytics.session.QueryExprCompiler", autospec=True
-        ) as mock_compiler, patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
             self._setup_accountant(
@@ -223,9 +218,7 @@ class TestSession:
             )
             mock_accountant.output_measure = output_measure
 
-            mock_compiler.output_measure = output_measure
-
-            session = Session(mock_accountant, {}, mock_compiler)
+            session = Session(mock_accountant, {})
             privacy_budget = session.remaining_privacy_budget
             # Check that the output privacy_budget is the correct Type
             assert type(expected_budget) == type(privacy_budget)
@@ -349,7 +342,7 @@ class TestSession:
                 self.sdf.toPandas(),
             )
             mock_session_init.assert_called_with(
-                self=ANY, accountant=ANY, public_sources={}, compiler=ANY
+                self=ANY, accountant=ANY, public_sources={}
             )
 
     @pytest.mark.parametrize(
@@ -427,7 +420,7 @@ class TestSession:
                 self.sdf.toPandas(),
             )
             mock_session_init.assert_called_with(
-                self=ANY, accountant=ANY, public_sources={}, compiler=ANY
+                self=ANY, accountant=ANY, public_sources={}
             )
 
     @pytest.mark.parametrize(
@@ -601,19 +594,14 @@ class TestSession:
         """Tests that :func:`add_public_dataframe` works correctly."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics.session.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
             )
             mock_accountant.input_domain = self.sdf_input_domain
             mock_accountant.d_in = {NamedTable("private"): ExactNumber(1)}
-            mock_compiler.output_measure = PureDP()
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
             session.add_public_dataframe(source_id="public", dataframe=self.join_df)
             assert "public" in session.public_source_dataframes
             assert_frame_equal_with_sort(
@@ -623,92 +611,6 @@ class TestSession:
             expected_schema = self.join_df.schema
             actual_schema = session.public_source_dataframes["public"].schema
             assert actual_schema == expected_schema
-
-    @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
-    def test_create_view(self, d_in):
-        """Creating views without caching works."""
-        with patch.object(
-            QueryExprCompiler, "build_transformation", autospec=True
-        ) as mock_compiler_transform, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant",
-            autospec=True,
-        ) as mock_accountant:
-            mock_accountant.output_measure = PureDP()
-            # Use RootSumOfSquared since SymmetricDifference
-            # doesn't allow non-ints. Wrap
-            # that in IfGroupedBy since RootSumOfSquared on its own is not valid in many
-            # places in the framework.
-            mock_accountant.input_metric = DictMetric(
-                {
-                    NamedTable("private"): IfGroupedBy(
-                        "A", RootSumOfSquared(SymmetricDifference())
-                    )
-                }
-            )
-            mock_accountant.input_domain = self.sdf_input_domain
-            mock_accountant.d_in = {NamedTable("private"): ExactNumber(d_in)}
-            view_transformation = create_mock_transformation(
-                input_domain=self.sdf_input_domain,
-                input_metric=DictMetric(
-                    {
-                        NamedTable("private"): IfGroupedBy(
-                            "A", RootSumOfSquared(SymmetricDifference())
-                        )
-                    }
-                ),
-                output_domain=self.sdf_input_domain,
-                output_metric=DictMetric(
-                    {
-                        NamedTable("private"): IfGroupedBy(
-                            "A", RootSumOfSquared(SymmetricDifference())
-                        )
-                    }
-                ),
-                stability_function_implemented=True,
-                stability_function_return_value=ExactNumber(13),
-            )
-            mock_compiler_transform.return_value = (
-                view_transformation,
-                TableReference(path=[NamedTable("private")]),
-                [],
-            )
-            session = Session(accountant=mock_accountant, public_sources={})
-            session.create_view(
-                query_expr=PrivateSource("private"),
-                source_id="identity_transformation",
-                cache=False,
-            )
-
-            mock_compiler_transform.assert_called_with(
-                self=ANY,
-                query=PrivateSource("private"),
-                input_domain=mock_accountant.input_domain,
-                input_metric=mock_accountant.input_metric,
-                public_sources={},
-                catalog=ANY,
-                table_constraints=ANY,
-            )
-
-    @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
-    def test_evaluate_puredp_session(self, spark, d_in):
-        """Tests that :func:`evaluate` calls the right things given a puredp session."""
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            self._setup_accountant_and_compiler(
-                spark, d_in, mock_accountant, mock_compiler
-            )
-            mock_accountant.privacy_budget = ExactNumber(10)
-            session = Session(accountant=mock_accountant, public_sources={})
-            answer = session.evaluate(
-                query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(10)
-            )
-            self._assert_test_evaluate_correctness(
-                session, mock_accountant, mock_compiler, PureDPBudget(10)
-            )
-            check_type("answer", answer, DataFrame)
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_puredp_session_approxdp_query(self, spark, d_in):
@@ -833,30 +735,6 @@ class TestSession:
                     privacy_budget=RhoZCDPBudget(10),
                 )
 
-    @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
-    def test_evaluate_zcdp_session(self, spark, d_in):
-        """Tests that :func:`evaluate` calls the right things given a zcdp session."""
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            self._setup_accountant_and_compiler(
-                spark, d_in, mock_accountant, mock_compiler
-            )
-            mock_accountant.privacy_budget = ExactNumber(5)
-            # Set the output measures manually
-            mock_accountant.output_measure = RhoZCDP()
-            mock_compiler.output_measure = RhoZCDP()
-            session = Session(accountant=mock_accountant, public_sources={})
-            answer = session.evaluate(
-                query_expr=PrivateSource("private"), privacy_budget=RhoZCDPBudget(5)
-            )
-            self._assert_test_evaluate_correctness(
-                session, mock_accountant, mock_compiler, RhoZCDPBudget(5)
-            )
-            check_type("answer", answer, DataFrame)
-
     def _setup_accountant(
         self, mock_accountant, d_in=None, privacy_budget=None
     ) -> None:
@@ -933,29 +811,6 @@ class TestSession:
         ]
         mock_compiler.output_measure = PureDP()
         mock_compiler.return_value = Mock(spec_set=Measurement)
-
-    def _assert_test_evaluate_correctness(
-        self, session, mock_accountant, mock_compiler, privacy_budget
-    ):
-        """Confirm that :func:`evaluate` worked correctly."""
-        assert "private" in session.private_sources
-        assert session.get_schema("private") == self.sdf_col_types
-
-        mock_compiler.assert_called_with(
-            self=ANY,
-            queries=[PrivateSource("private")],
-            stability=mock_accountant.d_in,
-            input_domain=mock_accountant.input_domain,
-            input_metric=mock_accountant.input_metric,
-            privacy_budget=privacy_budget,
-            public_sources={},
-            catalog=ANY,
-            table_constraints={t: [] for t in mock_accountant.d_in.keys()},
-        )
-
-        mock_accountant.measure.assert_called_with(
-            mock_compiler.return_value, d_out=privacy_budget.value
-        )
 
     def test_partition_and_create(self):
         """Tests that :func:`partition_and_create` calls the right things."""
@@ -1629,19 +1484,6 @@ class TestInvalidSession:
         )
         mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
 
-    def test_invalid_compiler_initialization(self):
-        """session errors if compiler is not a QueryExprCompiler."""
-        with patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            with pytest.raises(
-                TypeError,
-                match=r"type of compiler must be one of "
-                r"\(QueryExprCompiler, NoneType\); got list instead",
-            ):
-                self._setup_accountant(mock_accountant)
-                Session(mock_accountant, public_sources={}, compiler=[])  # type: ignore
-
     def test_invalid_dataframe_initialization(self):
         """session raises error on invalid dataframe type"""
         with patch(
@@ -1825,9 +1667,7 @@ class TestInvalidSession:
         """session raises error on invalid source_id."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -1836,7 +1676,6 @@ class TestInvalidSession:
                 {NamedTable("private"): self.sdf_input_domain}
             )
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
             #### from spark dataframe ####
             # Private
@@ -1848,9 +1687,7 @@ class TestInvalidSession:
                     protected_change=AddOneRow(),
                 )
             # Public
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(exception_type, match=expected_error_msg):
                 session.add_public_dataframe(source_id, dataframe=self.sdf)
             # create_view
@@ -1861,9 +1698,7 @@ class TestInvalidSession:
         """Session raises an error adding a public source with duplicate source_id."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -1872,11 +1707,8 @@ class TestInvalidSession:
                 {NamedTable("private"): self.sdf_input_domain}
             )
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            session = Session(
-                accountant=mock_accountant, compiler=mock_compiler, public_sources={}
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
 
             # This should work
             session.add_public_dataframe("public_df", dataframe=self.sdf)
@@ -1894,9 +1726,7 @@ class TestInvalidSession:
         """evaluate raises error on invalid queries."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -1906,11 +1736,8 @@ class TestInvalidSession:
             )
             mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(
                 TypeError,
                 match=(
@@ -1940,9 +1767,7 @@ class TestInvalidSession:
         """create functions raise error on invalid input queries."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -1952,11 +1777,8 @@ class TestInvalidSession:
             )
             mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(exception_type, match=expected_error_msg):
                 session.create_view(query_expr, source_id="view", cache=True)
 
@@ -1964,9 +1786,7 @@ class TestInvalidSession:
         """Tests that invalid column name for column errors."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -1976,20 +1796,8 @@ class TestInvalidSession:
             )
             mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            mock_compiler.build_transformation.return_value = (
-                Mock(
-                    spec_set=Transformation,
-                    output_domain=self.sdf_input_domain,
-                    output_metric=SymmetricDifference(),
-                ),
-                sp.Integer(1),
-            )
-
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
 
             expected_schema = spark_schema_to_analytics_columns(self.sdf.schema)
             # We expect a transformation that will disallow NaNs on floats and infs
@@ -2015,9 +1823,7 @@ class TestInvalidSession:
         """Tests that invalid splits name errors."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -2027,20 +1833,8 @@ class TestInvalidSession:
             )
             mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            mock_compiler.build_transformation.return_value = (
-                Mock(
-                    spec_set=Transformation,
-                    output_domain=self.sdf_input_domain,
-                    output_metric=SymmetricDifference(),
-                ),
-                sp.Integer(1),
-            )
-
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
 
             with pytest.raises(
                 ValueError,
@@ -2059,9 +1853,7 @@ class TestInvalidSession:
         """Tests error when given invalid splits value type on partition."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant, patch(
-            "tmlt.analytics._query_expr_compiler.QueryExprCompiler"
-        ) as mock_compiler:
+        ) as mock_accountant:
             mock_accountant.output_measure = PureDP()
             mock_accountant.input_metric = DictMetric(
                 {NamedTable("private"): SymmetricDifference()}
@@ -2071,20 +1863,8 @@ class TestInvalidSession:
             )
             mock_accountant.privacy_budget = ExactNumber(1)
             mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
-            mock_compiler.output_measure = PureDP()
 
-            mock_compiler.build_transformation.return_value = (
-                Mock(
-                    spec_set=Transformation,
-                    output_domain=self.sdf_input_domain,
-                    output_metric=SymmetricDifference(),
-                ),
-                sp.Integer(1),
-            )
-
-            session = Session(
-                accountant=mock_accountant, public_sources={}, compiler=mock_compiler
-            )
+            session = Session(accountant=mock_accountant, public_sources={})
 
             with pytest.raises(
                 TypeError,
@@ -2416,11 +2196,7 @@ class TestSessionBuilder:
             assert_frame_equal_with_sort(
                 public_sources[key].toPandas(), expected_public_sources[key].toPandas()
             )
-
-        compiler = session._compiler
-        # pylint: enable=protected-access
-        assert isinstance(compiler, QueryExprCompiler)
-        assert compiler.output_measure == expected_output_measure
+        assert session._output_measure == expected_output_measure
 
     @pytest.mark.parametrize("nullable", [(True), (False)])
     def test_builder_with_dataframe_keep_nullable_status(self, spark, nullable: bool):

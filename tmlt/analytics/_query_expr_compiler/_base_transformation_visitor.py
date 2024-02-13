@@ -240,7 +240,6 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 "and a grouping column, which is not allowed. This is probably a bug; "
                 "please let us know about it so we can fix it!"
             )
-
         if expected_schema.grouping_column is not None:
             expected_output_metric = IfGroupedBy(
                 expected_schema.grouping_column, self.inner_metric()

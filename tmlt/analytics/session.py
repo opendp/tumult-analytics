@@ -458,15 +458,13 @@ class Session:
             return self
 
     def __init__(
-        self,
-        accountant: PrivacyAccountant,
-        public_sources: Dict[str, DataFrame],
-        compiler: Optional[QueryExprCompiler] = None,
+        self, accountant: PrivacyAccountant, public_sources: Dict[str, DataFrame]
     ) -> None:
         """Initializes a DP session from a queryable.
 
-        This constructor is not intended to be used directly. Use
-        :class:`Session.Builder` or ``from_`` constructors instead.
+        .. warning::
+            This constructor is not intended to be used directly. Use
+            :class:`Session.Builder` or ``from_`` constructors instead.
         """
         # pylint: disable=pointless-string-statement
         """
@@ -474,8 +472,6 @@ class Session:
             accountant: A PrivacyAccountant.
             public_sources: The public data for the queries.
                 Provided as a dictionary {source_id: dataframe}
-            compiler: Compiles queries into Measurements,
-                which the queryable uses for evaluation.
         """
         # ensure the session is created with java 11
         try:
@@ -493,7 +489,6 @@ class Session:
 
         check_type("accountant", accountant, PrivacyAccountant)
         check_type("public_sources", public_sources, Dict[str, DataFrame])
-        check_type("compiler", compiler, Optional[QueryExprCompiler])
 
         self._accountant = accountant
 
@@ -504,15 +499,6 @@ class Session:
         if not isinstance(self._accountant.input_domain, DictDomain):
             raise ValueError("The input domain to a session must be a DictDomain.")
         self._public_sources = public_sources
-        if compiler is None:
-            compiler = QueryExprCompiler(output_measure=self._accountant.output_measure)
-        if self._accountant.output_measure != compiler.output_measure:
-            raise ValueError(
-                "PrivacyAccountant's output measure is"
-                f" {self._accountant.output_measure}, but compiler output measure is"
-                f" {compiler.output_measure}."
-            )
-        self._compiler = compiler
         self._table_constraints: Dict[Identifier, List[Constraint]] = {
             NamedTable(t): [] for t in self.private_sources
         }
@@ -650,8 +636,6 @@ class Session:
             NeighboringRelationCoreVisitor(private_sources, output_measure)
         )
 
-        compiler = QueryExprCompiler(output_measure=output_measure)
-
         measurement = SequentialComposition(
             input_domain=domain,
             input_metric=metric,
@@ -660,7 +644,7 @@ class Session:
             output_measure=output_measure,
         )
         accountant = PrivacyAccountant.launch(measurement, dataframes)
-        return Session(accountant=accountant, public_sources={}, compiler=compiler)
+        return Session(accountant=accountant, public_sources={})
 
     @property
     def private_sources(self) -> List[str]:
@@ -725,6 +709,11 @@ class Session:
                 "fix it!"
             )
         return self._accountant.input_metric
+
+    @property
+    def _output_measure(self) -> Union[PureDP, ApproxDP, RhoZCDP]:
+        """Returns the output measure of the underlying accountant."""
+        return self._accountant.output_measure
 
     def describe(
         self,
@@ -881,11 +870,12 @@ class Session:
             expr = query_obj._query_expr  # pylint: disable=protected-access
         else:
             expr = query_obj
-        schema = self._compiler.query_schema(expr, self._catalog)
+        compiler = QueryExprCompiler(self._output_measure)
+        schema = compiler.query_schema(expr, self._catalog)
         schema_desc = _describe_schema(schema)
         constraints: Optional[List[Constraint]] = None
         try:
-            constraints = self._compiler.build_transformation(
+            constraints = compiler.build_transformation(
                 query=expr,
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
@@ -1140,7 +1130,7 @@ class Session:
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
-        measurement = self._compiler(
+        measurement = QueryExprCompiler(self._output_measure)(
             queries=[query_expr],
             privacy_budget=adjusted_budget,
             stability=self._accountant.d_in,
@@ -1379,7 +1369,10 @@ class Session:
 
         if not isinstance(query_expr, QueryExpr):
             raise ValueError("query_expr must be of type QueryBuilder or QueryExpr.")
-        transformation, ref, constraints = self._compiler.build_transformation(
+
+        transformation, ref, constraints = QueryExprCompiler(
+            self._output_measure
+        ).build_transformation(
             query=query_expr,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
@@ -1610,7 +1603,7 @@ class Session:
                 child_transformation=transformation,
                 child_ref=table_ref,
                 update_metric=True,
-                use_l2=isinstance(self._compiler.output_measure, RhoZCDP),
+                use_l2=isinstance(self._output_measure, RhoZCDP),
             )
         transformation = get_table_from_ref(transformation, table_ref)
         if not isinstance(
@@ -1680,7 +1673,7 @@ class Session:
         partition_transformation = PartitionByKeys(
             input_domain=transformation_domain,
             input_metric=transformation.output_metric,
-            use_l2=isinstance(self._compiler.output_measure, RhoZCDP),
+            use_l2=isinstance(self._output_measure, RhoZCDP),
             keys=[column],
             list_values=split_vals,
         )
@@ -1734,9 +1727,7 @@ class Session:
 
         new_sessions = {}
         for new_accountant, source in zip(new_accountants, new_sources):
-            new_sessions[source] = Session(
-                new_accountant, self._public_sources, self._compiler
-            )
+            new_sessions[source] = Session(new_accountant, self._public_sources)
         return new_sessions
 
     def _process_requested_budget(self, privacy_budget: PrivacyBudget) -> PrivacyBudget:

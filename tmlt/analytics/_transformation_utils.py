@@ -153,8 +153,22 @@ def delete_table(
     def gen_transformation(pd, pm, tgt):
         assert isinstance(pd, DictDomain)
         assert isinstance(pm, (DictMetric, AddRemoveKeys))
+        # having temp tables around can cause problems,
+        # so remove themn along with the target table
         return SubsetTransformation(
-            pd, pm, list(set(pd.key_to_domain.keys()) - {base_ref.identifier})
+            pd,
+            pm,
+            list(
+                set(pd.key_to_domain.keys())
+                - set(
+                    (
+                        table
+                        for table in pd.key_to_domain.keys()
+                        if isinstance(table, TemporaryTable)
+                    )
+                )
+                - {base_ref.identifier}
+            ),
         )
 
     transformation_generators: Dict[Type[Metric], Callable] = {
