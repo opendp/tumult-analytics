@@ -1,6 +1,5 @@
 """Creates a Spark Context to use for each testing session."""
 
-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 

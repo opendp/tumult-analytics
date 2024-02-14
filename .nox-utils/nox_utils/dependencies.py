@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 from .environment import in_ci
 from .utils import get_session
 
+
 def install(*decorator_args, **decorator_kwargs):
     """Install packages into the test virtual environment.
 

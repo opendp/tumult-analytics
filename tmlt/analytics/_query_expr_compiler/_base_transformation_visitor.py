@@ -1,4 +1,5 @@
 """Defines a base class for visitors for transformations."""
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023
 

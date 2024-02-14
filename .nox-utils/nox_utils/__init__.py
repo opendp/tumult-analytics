@@ -10,6 +10,7 @@ nox-managed virtualenv (as they would run in the CI). Sessions that only work in
 one or the other will indicate this in their docstrings.
 """
 
+
 import subprocess
 from functools import wraps
 from typing import Dict, Any, Callable, List, Optional
