@@ -1243,7 +1243,6 @@ class Session:
         )
         self._activate_accountant()
 
-        # check if type of self._accountant.privacy_budget matches adjusted_budget value
         if xor(
             isinstance(self._accountant.privacy_budget, tuple),
             isinstance(adjusted_budget.value, tuple),

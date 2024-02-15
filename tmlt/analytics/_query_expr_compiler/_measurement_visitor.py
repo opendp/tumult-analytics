@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2023
 
 import dataclasses
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.aggregations import (
@@ -21,6 +21,7 @@ from tmlt.core.measurements.aggregations import (
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.postprocess import PostProcess
 from tmlt.core.metrics import HammingDistance, IfGroupedBy, SymmetricDifference
+from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.converters import UnwrapIfGroupedBy
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
@@ -33,7 +34,11 @@ from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
+from tmlt.analytics._query_expr_compiler._transformation_visitor import (
+    TransformationVisitor,
+)
 from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.constraints import (
     Constraint,
@@ -55,6 +60,7 @@ from tmlt.analytics.query_expr import (
     GroupByCount,
     GroupByCountDistinct,
     GroupByQuantile,
+    QueryExpr,
     ReplaceInfinity,
 )
 
@@ -145,6 +151,23 @@ def _generate_constrained_count_distinct(
 
 class MeasurementVisitor(BaseMeasurementVisitor):
     """A visitor to create a measurement from a DP query expression."""
+
+    def _visit_child_transformation(
+        self, expr: QueryExpr, mechanism: NoiseMechanism
+    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
+        """Visit a child transformation, producing a transformation."""
+        tv = TransformationVisitor(
+            input_domain=self.input_domain,
+            input_metric=self.input_metric,
+            mechanism=mechanism,
+            public_sources=self.public_sources,
+            table_constraints=self.table_constraints,
+        )
+        child, reference, constraints = expr.accept(tv)
+
+        tv.validate_transformation(expr, child, reference, self.catalog)
+
+        return child, reference, constraints
 
     def visit_get_groups(self, expr: GetGroups) -> Measurement:
         """Create a measurement from a GetGroups query expression."""

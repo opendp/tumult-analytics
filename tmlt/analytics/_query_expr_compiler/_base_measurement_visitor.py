@@ -6,6 +6,7 @@
 import dataclasses
 import math
 import warnings
+from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sympy as sp
@@ -33,9 +34,6 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
-)
-from tmlt.analytics._query_expr_compiler._transformation_visitor import (
-    TransformationVisitor,
 )
 from tmlt.analytics._schema import ColumnType, analytics_to_spark_columns_descriptor
 from tmlt.analytics._table_identifier import Identifier
@@ -189,22 +187,11 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self.catalog = catalog
         self.table_constraints = table_constraints
 
+    @abstractmethod
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
     ) -> Tuple[Transformation, TableReference, List[Constraint]]:
-        """Visit a child transformation, producing a transformation."""
-        tv = TransformationVisitor(
-            input_domain=self.input_domain,
-            input_metric=self.input_metric,
-            mechanism=mechanism,
-            public_sources=self.public_sources,
-            table_constraints=self.table_constraints,
-        )
-        child, reference, constraints = expr.accept(tv)
-
-        tv.validate_transformation(expr, child, reference, self.catalog)
-
-        return child, reference, constraints
+        pass
 
     def _truncate_table(
         self,
