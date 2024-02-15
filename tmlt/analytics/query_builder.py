@@ -184,6 +184,11 @@ class QueryBuilder:
         private table and :math:`Y` rows in the public table, then the output table
         will contain :math:`X*Y` rows for this group.
 
+        .. note::
+            Tables with a :class:`~tmlt.analytics.protected_change.ProtectedChange` of
+            :class:`~tmlt.analytics.protected_change.AddRowsWithID` must include the
+            *privacy ID* column in the join columns.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> import tmlt.analytics.session
@@ -302,6 +307,11 @@ class QueryBuilder:
         :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`, as no
         truncation is necessary while performing the join.
+
+        .. note::
+            Tables with a :class:`~tmlt.analytics.protected_change.ProtectedChange` of
+            :class:`~tmlt.analytics.protected_change.AddRowsWithID` must include the
+            *privacy ID* column in the join columns.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1456,7 +1466,10 @@ class QueryBuilder:
 
         Args:
             columns: Name of the column used to assign bins. If empty or none
-                are provided, will use all of the columns in the table.
+                are provided, all of the columns in the table will be used, excluding
+                any column marked as a *privacy ID* in a table with a
+                :class:`~tmlt.analytics.protected_change.ProtectedChange` of
+                :class:`~tmlt.analytics.protected_change.AddRowsWithID`.
         """
         query_expr = GetGroups(child=self._query_expr, columns=columns)
         return query_expr
