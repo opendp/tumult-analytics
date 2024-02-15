@@ -180,20 +180,21 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
 
         # Set the columns if no columns were provided.
-        if not expr.columns:
-            expr.columns = [
+        if expr.columns:
+            columns = expr.columns
+        else:
+            columns = [
                 col for col in schema.column_descs.keys() if col != schema.id_column
             ]
 
         # Check if ID column is one of the columns in get_groups
         # Note: if get_groups columns is None or empty, all of the columns in the table
         # is used for partition selection, hence that needs to be checked as well
-        if schema.id_column and (
-            not expr.columns or (schema.id_column in expr.columns)
-        ):
+        if schema.id_column and (not columns or (schema.id_column in columns)):
             raise RuntimeError(
-                "GetGroups is not supported on ID column provided in AddRowsWithID "
-                "protected change."
+                "get_groups cannot be used on the privacy ID column"
+                f" ({schema.id_column}) of a table with the AddRowsWithID protected"
+                " change."
             )
 
         child_transformation, child_ref = self._truncate_table(
@@ -216,10 +217,10 @@ class MeasurementVisitor(BaseMeasurementVisitor):
             transformation.output_metric,
             (IfGroupedBy, HammingDistance, SymmetricDifference),
         )
-        if expr.columns:
-            transformation |= SelectTransformation(
-                transformation.output_domain, transformation.output_metric, expr.columns
-            )
+
+        transformation |= SelectTransformation(
+            transformation.output_domain, transformation.output_metric, columns
+        )
 
         mid_stability = transformation.stability_function(self.stability)
         assert isinstance(transformation.output_domain, SparkDataFrameDomain)

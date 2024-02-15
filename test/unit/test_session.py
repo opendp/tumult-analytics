@@ -945,9 +945,13 @@ class TestSession:
             dataframe=sdf,
             protected_change=AddRowsWithID("B"),
         )
+        match_str = re.escape(
+            "get_groups cannot be used on the privacy ID column"
+            " (B) of a table with the AddRowsWithID protected change."
+        )
         with pytest.raises(
             RuntimeError,
-            match="^GetGroups is not supported on ID column provided in AddRowsWithID",
+            match=match_str,
         ):
             session.evaluate(
                 QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups(columns),
@@ -986,8 +990,6 @@ class TestSession:
         get_groups_query = QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups()
 
         end_df = session.evaluate(get_groups_query, session.remaining_privacy_budget)
-
-        print(end_df)
 
         assert set(expected_columns) == set(end_df.columns)
 
