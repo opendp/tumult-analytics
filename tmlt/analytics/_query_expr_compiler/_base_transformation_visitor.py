@@ -206,8 +206,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
         self.public_sources = public_sources
         self.table_constraints = table_constraints
 
-    def _get_visitor(self, transformation: Transformation):
-        """Return a new visitor of the same type as the current instance."""
+    def _new_visitor_after_transformation(self, transformation: Transformation):
+        """Return a new visitor that is expecting queries that follow `transformation`.
+
+        The visitor will be initialized with a new domain and metric that match the
+        output of the given transformation, but otherwise will be configured the same
+        as the original visitor.
+        """
         assert isinstance(transformation.output_domain, DictDomain)
         assert isinstance(transformation.output_metric, DictMetric)
         return self.__class__(
@@ -753,7 +758,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
     def visit_join_private(self, expr: JoinPrivateExpr) -> Output:
         """Create a transformation from a JoinPrivate query expression."""
         left_transformation, left_ref, left_constraints = expr.child.accept(self)
-        right_visitor = self._get_visitor(left_transformation)
+        right_visitor = self._new_visitor_after_transformation(left_transformation)
         (
             right_transformation,
             right_ref,
