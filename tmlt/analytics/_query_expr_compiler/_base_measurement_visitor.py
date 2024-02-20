@@ -193,6 +193,22 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Transformation, TableReference, List[Constraint]]:
         pass
 
+    @abstractmethod
+    def _handle_enforce(
+        self,
+        constraint: Constraint,
+        child_transformation: Transformation,
+        child_ref: TableReference,
+        **kwargs,
+    ) -> Tuple[Transformation, TableReference]:
+        """Append the constraint to the end of the transformation.
+
+        This is a helper method for :meth:`~._truncate_table`.
+
+        It is pulled out to make it easier to override in subclasses which change the
+        behavior of constraints, not for code maintainability.
+        """
+
     def _truncate_table(
         self,
         transformation: Transformation,
@@ -230,17 +246,15 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                         isinstance(self.output_measure, RhoZCDP)
                         and c.grouping_column in grouping_columns
                     )
-                    # pylint: disable=protected-access
-                    transformation, reference = c._enforce(
-                        transformation, reference, update_metric=True, use_l2=use_l2
+                    transformation, reference = self._handle_enforce(
+                        c, transformation, reference, update_metric=True, use_l2=use_l2
                     )
-                    # pylint: enable=protected-access
                 else:
                     (
                         transformation,
                         reference,
-                    ) = c._enforce(  # pylint: disable=protected-access
-                        transformation, reference, update_metric=True
+                    ) = self._handle_enforce(
+                        c, transformation, reference, update_metric=True
                     )
             return transformation, reference
 

@@ -147,6 +147,7 @@ nitpick_ignore = [
     ("py:class", "Epsilon"),
     ("py:class", "Delta"),
     ("py:class", "Rho"),
+    ("py:class", "Transformation"),
 ]
 
 # Remove this after intersphinx can use core

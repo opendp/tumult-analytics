@@ -169,6 +169,18 @@ class MeasurementVisitor(BaseMeasurementVisitor):
 
         return child, reference, constraints
 
+    def _handle_enforce(
+        self,
+        constraint: Constraint,
+        child_transformation: Transformation,
+        child_ref: TableReference,
+        **kwargs,
+    ) -> Tuple[Transformation, TableReference]:
+        """Enforce a constraint after a child transformation."""
+        return constraint._enforce(  # pylint: disable=protected-access
+            child_transformation, child_ref, **kwargs
+        )
+
     def visit_get_groups(self, expr: GetGroups) -> Measurement:
         """Create a measurement from a GetGroups query expression."""
         if not isinstance(self.budget, ApproxDPBudget):
