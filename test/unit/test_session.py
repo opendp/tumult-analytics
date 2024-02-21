@@ -818,17 +818,24 @@ class TestSession:
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
             self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
+            input_spark_domain = self.sdf_input_domain.key_to_domain[
+                NamedTable("private")
+            ]
             mock_accountant.split.return_value = [
                 Mock(
                     spec_set=PrivacyAccountant,
-                    input_metric=DictMetric({"part0": SymmetricDifference()}),
-                    input_domain=self.sdf_input_domain,
+                    input_metric=DictMetric(
+                        {NamedTable("part0"): SymmetricDifference()}
+                    ),
+                    input_domain=DictDomain({NamedTable("part0"): input_spark_domain}),
                     output_measure=PureDP(),
                 ),
                 Mock(
                     spec_set=PrivacyAccountant,
-                    input_metric=DictMetric({"part1": SymmetricDifference()}),
-                    input_domain=self.sdf_input_domain,
+                    input_metric=DictMetric(
+                        {NamedTable("part1"): SymmetricDifference()}
+                    ),
+                    input_domain=DictDomain({NamedTable("part1"): input_spark_domain}),
                     output_measure=PureDP(),
                 ),
             ]
@@ -1431,7 +1438,7 @@ Grouped on columns 'A', 'B' (4 groups)""",
                     "private",
                     privacy_budget=PureDPBudget(1),
                     column="A",
-                    splits={"part0": 0, "part1": 1},
+                    splits={"part0": "0", "part1": "1"},
                 )
 
 

@@ -41,7 +41,6 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
 )
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
-from tmlt.core.metrics import AddRemoveKeys as AddRemoveKeysMetric
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -1428,6 +1427,162 @@ class Session:
         self._accountant.transform_in_place(transformation)
         self._table_constraints.pop(ref.identifier, None)
 
+    def _create_partition_constraint(
+        self,
+        constraint: MaxGroupsPerID,
+        child_transformation: Transformation,
+        child_ref: TableReference,
+    ) -> Tuple[Transformation, TableReference]:
+        """Create the constraint needed for partitioning on an id column.
+
+        This is a helper method for :meth:`~._create_partition_transformation`.
+
+        It is pulled out to make it easier to override in subclasses which change the
+        behavior of constraints, not for code maintainability.
+        """
+        return constraint._enforce(  # pylint: disable=protected-access
+            child_transformation=child_transformation,
+            child_ref=child_ref,
+            update_metric=True,
+            use_l2=isinstance(self._output_measure, RhoZCDP),
+        )
+
+    def _create_partition_transformation(
+        self,
+        source_id: str,
+        column: str,
+        splits: Union[Dict[str, str], Dict[str, int]],
+    ) -> Transformation:
+        """Create a transformation for partitioning a table.
+
+        Helper method for :meth:`~.partition_and_create`.
+
+        ..
+            >>> # Get data
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> # Create Session
+            >>> sess = Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(1),
+            ...     source_id="my_private_data",
+            ...     dataframe=data,
+            ...     protected_change=AddOneRow(),
+            ... )
+
+        Example:
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.remaining_privacy_budget
+            PureDPBudget(epsilon=1)
+            >>> # Partition the Session
+            >>> transformation = sess._create_partition_transformation(
+            ...     "my_private_data",
+            ...     column="A",
+            ...     splits={"part0":"0", "part1":"1"}
+            ... )
+            >>> transformation.input_domain == sess._input_domain
+            True
+            >>> transformation.input_metric == sess._input_metric
+            True
+            >>> transformation.output_domain
+            ListDomain(element_domain=SparkDataFrameDomain(schema={'A': SparkStringColumnDescriptor(allow_null=True), 'B': SparkIntegerColumnDescriptor(allow_null=True, size=64), 'X': SparkIntegerColumnDescriptor(allow_null=True, size=64)}), length=2)
+            >>> transformation.output_metric
+            SumOf(inner_metric=SymmetricDifference())
+
+        Args:
+            source_id: The private source to partition
+            column: The name of the column partitioning on.
+            splits: Mapping of split name to value of partition.
+                Split name is ``source_id`` in new session.
+        """
+        # First we need to check whether the table can be partitioned
+        table_ref = find_reference(source_id, self._input_domain)
+        if table_ref is None:
+            if source_id in self.public_sources:
+                raise ValueError(
+                    f"Table '{source_id}' is a public table, "
+                    "and you cannot partition_and_create on a public table."
+                )
+            raise KeyError(
+                f"Private table '{source_id}' does not exist. "
+                f"Available private tables are: {', '.join(self.private_sources)}"
+            )
+        # Next we need to check if the table has ID columns. If so, it requires
+        # a MaxGroupsPerID constraint.
+        metric = lookup_metric(self._input_metric, table_ref)
+        has_id_column = isinstance(metric, IfGroupedBy) and isinstance(
+            metric.inner_metric, SymmetricDifference
+        )
+        transformation: Transformation = Identity(
+            domain=self._input_domain, metric=self._input_metric
+        )
+        if has_id_column:
+            # look for the expected constraint
+            constraint = next(
+                (
+                    c
+                    for c in self._table_constraints.get(table_ref.identifier, [])
+                    if isinstance(c, MaxGroupsPerID) and c.grouping_column == column
+                ),
+                None,
+            )
+            if constraint is None:
+                raise ValueError(
+                    "You must create a MaxGroupsPerID constraint before using"
+                    " partition_and_create on tables with the AddRowsWithID"
+                    " protected change."
+                )
+            # if found, create the transformation enforcing it
+            transformation, table_ref = self._create_partition_constraint(
+                constraint, transformation, table_ref
+            )
+        # Get the table we will split on from the dictionary
+        transformation = get_table_from_ref(transformation, table_ref)
+        if not isinstance(
+            transformation.output_metric, (IfGroupedBy, SymmetricDifference)
+        ):
+            raise AssertionError(
+                "Transformation has an unexpected output metric. This is "
+                "probably a bug; please let us know about it so we can fix it!"
+            )
+        transformation_domain = cast(SparkDataFrameDomain, transformation.output_domain)
+
+        try:
+            attr_type = transformation_domain.schema[column]
+        except KeyError as e:
+            raise KeyError(
+                f"'{column}' not present in transformed dataframe's columns; "
+                "schema of transformed dataframe is "
+                f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
+            ) from e
+
+        # Actual type is Union[List[Tuple[str, ...]], List[Tuple[int, ...]]]
+        # but mypy doesn't like that.
+        split_vals: List[Tuple[Union[str, int], ...]] = []
+        for split_val in splits.values():
+            if not attr_type.valid_py_value(split_val):
+                raise TypeError(
+                    f"'{column}' column is of type '{attr_type.data_type}'; "
+                    f"'{attr_type.data_type}' column not compatible with splits "
+                    f"value type '{type(split_val).__name__}'"
+                )
+            split_vals.append((split_val,))
+
+        transformation |= PartitionByKeys(
+            input_domain=transformation_domain,
+            input_metric=transformation.output_metric,
+            use_l2=isinstance(self._output_measure, RhoZCDP),
+            keys=[column],
+            list_values=split_vals,
+        )
+        return transformation
+
     # pylint: disable=line-too-long
     @typechecked
     def partition_and_create(
@@ -1550,84 +1705,10 @@ class Session:
             privacy_budget = ApproxDPBudget(privacy_budget.value, 0)
 
         self._validate_budget_type_matches_session(privacy_budget)
-        self._activate_accountant()
 
-        transformation: Transformation = Identity(
-            domain=self._input_domain, metric=self._input_metric
-        )
-        table_ref = find_reference(source_id, self._input_domain)
-        if table_ref is None:
-            if source_id in self.public_sources:
-                raise ValueError(
-                    f"Table '{source_id}' is a public table, which cannot have an "
-                    "ID space."
-                )
-            raise KeyError(
-                f"Private table '{source_id}' does not exist. "
-                f"Available private tables are: {', '.join(self.private_sources)}"
-            )
-
-        # Either DictMetric or AddRemoveKeys
-        parent_metric = lookup_metric(self._input_metric, table_ref.parent)
-        table_has_ids: bool = isinstance(parent_metric, AddRemoveKeysMetric)
-        if table_has_ids:
-            parent_last_element = table_ref.parent.identifier
-            constraints = self._table_constraints.get(NamedTable(source_id))
-            if constraints is None:
-                raise AssertionError(
-                    f"Table '{source_id}' has no constraints. This is probably a"
-                    " bug; please let us know about it so we can fix it!"
-                )
-
-            constraint = next(
-                (
-                    c
-                    for c in constraints
-                    if (isinstance(c, MaxGroupsPerID) and c.grouping_column == column)
-                ),
-                None,
-            )
-
-            if constraint is None:
-                raise ValueError(
-                    "You must create MaxGroupsPerID constraint before using"
-                    " partition_and_create on tables with the AddRowsWithID"
-                    " protected change."
-                )
-
-            (
-                transformation,
-                table_ref,
-            ) = constraint._enforce(  # pylint: disable=protected-access
-                child_transformation=transformation,
-                child_ref=table_ref,
-                update_metric=True,
-                use_l2=isinstance(self._output_measure, RhoZCDP),
-            )
-        transformation = get_table_from_ref(transformation, table_ref)
-        if not isinstance(
-            transformation.output_metric, (IfGroupedBy, SymmetricDifference)
-        ):
-            raise AssertionError(
-                "Transformation has an unrecognized output metric. This is "
-                "probably a bug; please let us know about it so we can fix it!"
-            )
-        transformation_domain = cast(SparkDataFrameDomain, transformation.output_domain)
-
-        try:
-            attr_type = transformation_domain.schema[column]
-        except KeyError as e:
-            raise KeyError(
-                f"'{column}' not present in transformed dataframe's columns; "
-                "schema of transformed dataframe is "
-                f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
-            ) from e
-
+        # Check that new source names will be valid before using any budget
         new_sources = []
-        # Actual type is Union[List[Tuple[str, ...]], List[Tuple[int, ...]]]
-        # but mypy doesn't like that.
-        split_vals: List[Tuple[Union[str, int], ...]] = []
-        for split_name, split_val in splits.items():
+        for split_name in splits:
             if not split_name.isidentifier():
                 raise ValueError(
                     "The string passed as split name must be a valid Python identifier:"
@@ -1635,54 +1716,18 @@ class Session:
                     " underscores (_), and it cannot start with a number, or contain"
                     " any spaces."
                 )
-            if not attr_type.valid_py_value(split_val):
-                raise TypeError(
-                    f"'{column}' column is of type '{attr_type.data_type}'; "
-                    f"'{attr_type.data_type}' column not compatible with splits "
-                    f"value type '{type(split_val).__name__}'"
-                )
             new_sources.append(split_name)
-            split_vals.append((split_val,))
-
-        element_metric: Union[IfGroupedBy, SymmetricDifference]
-        if isinstance(transformation.output_metric, SymmetricDifference) or (
-            isinstance(transformation.output_metric, IfGroupedBy)
-            and column != transformation.output_metric.column
-        ):
-            element_metric = transformation.output_metric
-        elif (
-            isinstance(transformation.output_metric, IfGroupedBy)
-            and column == transformation.output_metric.column
-        ):
-            assert isinstance(
-                transformation.output_metric.inner_metric,
-                (IfGroupedBy, RootSumOfSquared, SumOf),
-            )
-            assert isinstance(
-                transformation.output_metric.inner_metric.inner_metric,
-                (IfGroupedBy, SymmetricDifference),
-            )
-            element_metric = transformation.output_metric.inner_metric.inner_metric
-        else:
-            raise AssertionError(
-                "Transformation has an unrecognized output metric. This is "
-                "probably a bug; please let us know about it so  we can fix it!"
-            )
-
-        partition_transformation = PartitionByKeys(
-            input_domain=transformation_domain,
-            input_metric=transformation.output_metric,
-            use_l2=isinstance(self._output_measure, RhoZCDP),
-            keys=[column],
-            list_values=split_vals,
-        )
-        chained_partition = transformation | partition_transformation
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
+        partition_transformation = self._create_partition_transformation(
+            source_id=source_id, column=column, splits=splits
+        )
 
+        # Split the accountants
+        self._activate_accountant()
         try:
             new_accountants = self._accountant.split(
-                chained_partition, privacy_budget=adjusted_budget.value
+                partition_transformation, privacy_budget=adjusted_budget.value
             )
         except InactiveAccountantError as e:
             raise RuntimeError(
@@ -1700,33 +1745,36 @@ class Session:
                 "the Session privacy budget." + msg
             ) from err
 
-        for i, source in enumerate(new_sources):
-            if table_has_ids:
-                create_dict = CreateDictFromValue(
-                    input_domain=transformation_domain,
-                    input_metric=element_metric,
+        # We now have split accountants, and names for each.
+        # The only remaining steps are to:
+        # 1. Update the accountants to have the standard nested dictionary format
+        # 2. Return new sessions from the accountants
+        new_sessions = {}
+        for accountant, source in zip(new_accountants, new_sources):
+            id_space = self.get_id_space(source_id)
+            if id_space is not None:
+                # Create the inner dictionary for the id space
+                nested_dict_transformation: Transformation = CreateDictFromValue(
+                    input_domain=accountant.input_domain,
+                    input_metric=accountant.input_metric,
                     key=NamedTable(source),
                     use_add_remove_keys=True,
                 )
-                dict_transformation_wrapper = create_dict | CreateDictFromValue(
-                    input_domain=create_dict.output_domain,
-                    input_metric=create_dict.output_metric,
-                    key=parent_last_element,
+                # Create the outer dictionary
+                nested_dict_transformation |= CreateDictFromValue(
+                    input_domain=nested_dict_transformation.output_domain,
+                    input_metric=nested_dict_transformation.output_metric,
+                    key=TableCollection(id_space),
                 )
             else:
-                dict_transformation_wrapper = CreateDictFromValue(
-                    input_domain=transformation_domain,
-                    input_metric=element_metric,
+                # Only has the outer dictionary
+                nested_dict_transformation = CreateDictFromValue(
+                    input_domain=accountant.input_domain,
+                    input_metric=accountant.input_metric,
                     key=NamedTable(source),
                 )
-
-            new_accountants[i].queue_transformation(
-                transformation=dict_transformation_wrapper
-            )
-
-        new_sessions = {}
-        for new_accountant, source in zip(new_accountants, new_sources):
-            new_sessions[source] = Session(new_accountant, self._public_sources)
+            accountant.queue_transformation(nested_dict_transformation)
+            new_sessions[source] = Session(accountant, self._public_sources)
         return new_sessions
 
     def _process_requested_budget(self, privacy_budget: PrivacyBudget) -> PrivacyBudget:

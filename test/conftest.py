@@ -6,7 +6,7 @@
 # TODO(#2206): Import these fixtures from core once it is rewritten
 
 import logging
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, TypeVar
 from unittest.mock import Mock, create_autospec
 
 import numpy as np
@@ -20,6 +20,13 @@ from tmlt.core.measures import Measure, PureDP
 from tmlt.core.metrics import AbsoluteDifference, Metric
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.utils.exact_number import ExactNumber
+
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 
 
 def quiet_py4j():
@@ -187,3 +194,49 @@ def params(d):
         argvalues=[[v.get(k) for k in argnames] for v in d.values()],
         ids=d.keys(),
     )
+
+
+T = TypeVar("T", bound=PrivacyBudget)
+
+
+def assert_approx_equal_budgets(
+    budget1: T, budget2: T, atol: float = 1e-8, rtol: float = 1e-5
+):
+    """Asserts that two budgets are approximately equal.
+
+    Args:
+        budget1: The first budget.
+        budget2: The second budget.
+        atol: The absolute tolerance for the comparison.
+        rtol: The relative tolerance for the comparison.
+    """
+    if not isinstance(budget1, type(budget2)) or not isinstance(budget2, type(budget1)):
+        raise AssertionError(
+            f"Budgets are not of the same type: {type(budget1)} and {type(budget2)}"
+        )
+    if isinstance(budget1, PureDPBudget) and isinstance(budget2, PureDPBudget):
+        if not np.allclose(budget1.epsilon, budget2.epsilon, atol=atol, rtol=rtol):
+            raise AssertionError(
+                f"Epsilon values are not approximately equal: {budget1} and {budget2}"
+            )
+        return
+    if isinstance(budget1, ApproxDPBudget) and isinstance(budget2, ApproxDPBudget):
+        if not np.allclose(budget1.epsilon, budget2.epsilon, atol=atol, rtol=rtol):
+            raise AssertionError(
+                "Epsilon values are not approximately equal: "
+                f"{budget1.epsilon} and {budget2.epsilon}"
+            )
+        if not np.allclose(budget1.delta, budget2.delta, atol=atol, rtol=rtol):
+            raise AssertionError(
+                "Delta values are not approximately equal: "
+                f"{budget1.delta} and {budget2.delta}"
+            )
+        return
+    if isinstance(budget1, RhoZCDPBudget) and isinstance(budget2, RhoZCDPBudget):
+        if not np.allclose(budget1.rho, budget2.rho, atol=atol, rtol=rtol):
+            raise AssertionError(
+                f"Rho values are not approximately equal: "
+                f"{budget1.rho} and {budget2.rho}"
+            )
+        return
+    raise AssertionError(f"Budget type not recognized: {type(budget1)}")

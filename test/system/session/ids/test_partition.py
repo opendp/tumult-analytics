@@ -29,7 +29,7 @@ def test_invalid_constraint_partition_and_create(session):
     with pytest.raises(
         ValueError,
         match=(
-            "You must create MaxGroupsPerID constraint before using "
+            "You must create a MaxGroupsPerID constraint before using "
             "partition_and_create on tables with the AddRowsWithID protected change."
         ),
     ):
@@ -44,7 +44,7 @@ def test_invalid_constraint_partition_and_create(session):
     with pytest.raises(
         ValueError,
         match=(
-            "You must create MaxGroupsPerID constraint before using "
+            "You must create a MaxGroupsPerID constraint before using "
             "partition_and_create on tables with the AddRowsWithID protected change."
         ),
     ):
