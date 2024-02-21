@@ -270,23 +270,23 @@ class KeySet:
         """
         if not isinstance(other, KeySet):
             return False
-        # TODO(#2107): Fix typing once Pandas has working type stubs
-        self_df = self.dataframe().toPandas()
-        other_df = other.dataframe().toPandas()
-        if sorted(self_df.columns) != sorted(other_df.columns):  # type: ignore
+        self_df = self.dataframe()
+        other_df = other.dataframe()
+        if sorted(self_df.columns) != sorted(other_df.columns):
             return False
-        if self_df.empty and other_df.empty:  # type: ignore
-            return True
-        sorted_columns = sorted(self_df.columns)  # type: ignore
-        self_df_sorted = (
-            self_df.set_index(sorted_columns).sort_index().reset_index()  # type: ignore
-        )
-        other_df_sorted = (
-            other_df.set_index(sorted_columns)  # type: ignore
-            .sort_index()
-            .reset_index()
-        )
-        return self_df_sorted.equals(other_df_sorted)
+        # Re-select the columns so that both dataframes have columns
+        # in the same order
+        self_df = self_df.select(sorted(self_df.columns))
+        other_df = other_df.select(sorted(other_df.columns))
+        if self_df.schema != other_df.schema:
+            return False
+        # other_df should contain all rows in self_df
+        if self_df.exceptAll(other_df).count() != 0:
+            return False
+        # and vice versa
+        if other_df.exceptAll(self_df).count() != 0:
+            return False
+        return True
 
     def schema(self) -> Schema:
         # pylint: disable=line-too-long

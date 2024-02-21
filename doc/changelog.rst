@@ -6,6 +6,12 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+
+- :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without
+  converting the underlying dataframe to Pandas.
+
 Fixed
 ~~~~~
 - Improved the error message when attempting to overspend an ApproxDPBudget to more clearly indicate which component of the budget was insufficient to evaluate the query.
