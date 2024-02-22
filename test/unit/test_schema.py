@@ -1,7 +1,7 @@
 """Unit tests for schema."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 # pylint: disable=pointless-string-statement
 import re
 

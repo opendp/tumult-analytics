@@ -5,7 +5,7 @@ Troubleshooting
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 This page lists common issues that can arise when using Tumult Analytics,
 and explains how to address them.

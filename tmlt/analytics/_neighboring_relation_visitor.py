@@ -1,7 +1,7 @@
 """Module to define NeighboringRelationVisitors."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import dataclasses
 from typing import Any, Dict, NamedTuple, Union

@@ -3,7 +3,7 @@ Using Tumult Analytics on Databricks
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 This guide covers installing and running Tumult Analytics in notebooks on `Databricks <https://www.databricks.com/>`__.
 It assumes that you have an existing Databricks workspace with a compatible compute cluster available.

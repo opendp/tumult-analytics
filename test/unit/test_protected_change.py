@@ -1,7 +1,7 @@
 """Tests for :mod:`tmlt.analytics.protected_change`."""
 
-# Copyright Tumult Labs 2023
 # SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2024
 
 from contextlib import nullcontext as does_not_raise
 from typing import Any, ContextManager, List

@@ -1,7 +1,7 @@
 """Defines a visitor for creating noisy measurements from query expressions."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import dataclasses
 from typing import List, Optional, Tuple

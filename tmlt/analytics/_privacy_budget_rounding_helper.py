@@ -1,7 +1,7 @@
 """Helper functions for dealing with budget floating point imprecision."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import sympy as sp
 from tmlt.core.utils.exact_number import ExactNumber

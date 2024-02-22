@@ -5,7 +5,7 @@ BigQuery inputs and outputs
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In this section, we will show how to adapt a Tumult Analytics
 program to use BigQuery inputs and outputs, and provide a minimal

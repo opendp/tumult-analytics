@@ -5,7 +5,7 @@ Tutorial 7: Doing more with privacy IDs
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In the previous tutorial, we covered the basics of privacy IDs: how to
 initialize a :class:`Session<tmlt.analytics.session.Session>` where each person appears in multiple rows, and run simple queries.

@@ -5,7 +5,7 @@ Calling Tumult Analytics from a BigQuery stored procedure
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In this section, we will explain how to run a Tumult Analytics
 program directly from BigQuery. We will do so using the sample

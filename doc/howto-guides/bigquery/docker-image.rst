@@ -5,7 +5,7 @@ Creating a Docker image for GCP
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In this final part of the topic guide, we will customize our own
 Docker image to contain additional libraries and dependencies.

@@ -6,7 +6,7 @@ Understanding sensitivity
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 This topic guide goes into detail on the concept of *sensitivity* in
 differential privacy.

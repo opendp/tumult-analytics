@@ -5,7 +5,7 @@ Tutorial 6: Working with privacy IDs
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In previous tutorials, we were working with a table where each person in the
 data was associated with exactly one row. But this is not always the case: in

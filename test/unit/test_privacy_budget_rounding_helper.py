@@ -1,7 +1,7 @@
 """Tests for :mod:`tmlt.analytics._privacy_budget_rounding_helper`."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 # pylint: disable=pointless-string-statement
 
 

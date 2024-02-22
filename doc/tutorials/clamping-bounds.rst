@@ -5,7 +5,7 @@ Tutorial 3: Introduction to clamping bounds
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 Counting queries, which we saw in tutorials :ref:`one <First steps>` and
 :ref:`two <Working with privacy budgets>`, are very useful, but we often need a

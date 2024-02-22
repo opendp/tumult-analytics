@@ -10,7 +10,7 @@ user-friendly features.
 # TODO: Known typeguard issue: https://github.com/agronholm/typeguard/issues/65
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import datetime
 from abc import ABC, abstractmethod

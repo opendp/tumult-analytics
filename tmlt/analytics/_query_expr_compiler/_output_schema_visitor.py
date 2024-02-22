@@ -1,7 +1,7 @@
 """Defines a visitor for determining the output schemas of query expressions."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 from copy import deepcopy
 from typing import KeysView, List, Optional, Union, cast

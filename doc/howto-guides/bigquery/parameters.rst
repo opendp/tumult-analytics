@@ -5,7 +5,7 @@ Passing parameters to a stored procedure
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2023
+    Copyright Tumult Labs 2024
 
 In this additional section of the topic guide, we will explain how
 to pass parameters from BigQuery to the stored procedure containing

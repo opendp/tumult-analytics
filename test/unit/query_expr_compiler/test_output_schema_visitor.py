@@ -1,7 +1,7 @@
 """Tests for OutputSchemaVisitor."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import datetime
 from typing import Dict, List, Type

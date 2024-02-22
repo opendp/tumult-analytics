@@ -5,7 +5,7 @@ For a full introduction to privacy budgets, see the
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2023
+# Copyright Tumult Labs 2024
 
 import math
 from abc import ABC, abstractmethod
