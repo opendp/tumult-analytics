@@ -1,4 +1,6 @@
 """Tests for Analytics cleanup functions."""
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2024
 
 
 from unittest.mock import patch

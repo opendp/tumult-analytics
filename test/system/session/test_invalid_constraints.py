@@ -1,4 +1,6 @@
 """Tests for invalid constraint enforcement."""
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2024
 
 import pytest
 
