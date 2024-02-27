@@ -148,6 +148,22 @@ nitpick_ignore = [
     ("py:class", "Delta"),
     ("py:class", "Rho"),
     ("py:class", "Transformation"),
+    ("py:class", "pydantic.BaseModel"),
+    ("py:class", "Model"),
+    ("py:class", "Literal"),
+    ("py:class", "IncEx"),
+    ("py:class", "pydantic.json_schema.GenerateJsonSchema"),
+    ("py:class", "pydantic.json_schema.JsonSchemaMode"),
+    ("py:class", "pydantic.json_schema.JsonSchemaValue"),
+    ("py:exc", "ValidationError"),
+    ("py:class", "BaseModel"),
+    ("py:class", "pydantic.annotated_handlers.GetCoreSchemaHandler"),
+    ("py:class", "pydantic_core.CoreSchema"),
+    ("py:class", "pydantic.annotated_handlers.GetJsonSchemaHandler"),
+    ("py:class", "TupleGenerator"),
+    ("py:class", "AbstractSetIntStr"),
+    ("py:class", "MappingIntStrAny"),
+    ("py:class", "pydantic.fields.ComputedFieldInfo"),
 ]
 
 # Remove this after intersphinx can use core
