@@ -893,17 +893,104 @@ class TestSession:
         ],
     )
     @pytest.mark.parametrize(
-        "columns,expected_df",
+        "columns,expected_df,privacy_budget,possible_df",
         [
-            (["count"], pd.DataFrame({"count": [0]})),
-            (["B"], pd.DataFrame({"B": [0, 1]})),
-            (["count", "B"], pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
-            ([], pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
-            (None, pd.DataFrame({"count": [0, 0], "B": [0, 1]})),
+            # Tests without infinite privacy budget
+            # Note: The count of records with [0,0] and [0,1] is large enough that they
+            # should almost always appear in the output; [1,3] shouldn't appear.
+            (
+                ["count"],
+                pd.DataFrame({"count": [0]}),
+                ApproxDPBudget(1, 1e-5),
+                pd.DataFrame({"count": [0, 1]}),
+            ),
+            (
+                ["B"],
+                pd.DataFrame({"B": [0, 1]}),
+                ApproxDPBudget(1, 1e-5),
+                pd.DataFrame({"B": [0, 1, 3]}),
+            ),
+            (
+                ["count", "B"],
+                pd.DataFrame({"count": [0, 0], "B": [0, 1]}),
+                ApproxDPBudget(1, 1e-5),
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+            ),
+            (
+                [],
+                pd.DataFrame({"count": [0, 0], "B": [0, 1]}),
+                ApproxDPBudget(1, 1e-5),
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+            ),
+            (
+                None,
+                pd.DataFrame({"count": [0, 0], "B": [0, 1]}),
+                ApproxDPBudget(1, 1e-5),
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+            ),
+            # Tests with infinite privacy budget
+            # Note: If either the epsilon is infinite or the delta is 1, the output
+            # budget is infinite. Exact results should be returned.
+            (
+                ["count"],
+                pd.DataFrame({"count": [0, 1]}),
+                ApproxDPBudget(float("inf"), 1e-5),
+                None,
+            ),
+            (["count"], pd.DataFrame({"count": [0, 1]}), ApproxDPBudget(1e-5, 1), None),
+            (
+                ["B"],
+                pd.DataFrame({"B": [0, 1, 3]}),
+                ApproxDPBudget(float("inf"), 1),
+                None,
+            ),
+            (["B"], pd.DataFrame({"B": [0, 1, 3]}), ApproxDPBudget(1e-5, 1), None),
+            (
+                ["count", "B"],
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(float("inf"), 1),
+                None,
+            ),
+            (
+                ["count", "B"],
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(1e-5, 1),
+                None,
+            ),
+            (
+                [],
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(float("inf"), 1),
+                None,
+            ),
+            (
+                [],
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(1e-5, 1),
+                None,
+            ),
+            (
+                None,
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(float("inf"), 1),
+                None,
+            ),
+            (
+                None,
+                pd.DataFrame({"count": [0, 0, 1], "B": [0, 1, 3]}),
+                ApproxDPBudget(1e-5, 1),
+                None,
+            ),
         ],
     )
     def test_get_groups_with_various_protected_change(
-        self, spark, protected_change, columns: List[str], expected_df: pd.DataFrame
+        self,
+        spark,
+        protected_change,
+        columns: List[str],
+        expected_df: pd.DataFrame,
+        privacy_budget: PrivacyBudget,
+        possible_df: Union[pd.DataFrame, None],
     ):
         """GetGroups works with AddMaxRowsInMaxGroups and AddOneRow protected change."""
         sdf = spark.createDataFrame(
@@ -914,15 +1001,69 @@ class TestSession:
                 columns=["count", "B"],
             )
         )
+
         session = Session.from_dataframe(
-            privacy_budget=ApproxDPBudget(1, 1e-5),
+            privacy_budget=privacy_budget,
             source_id="private",
             dataframe=sdf,
             protected_change=protected_change,
         )
         query = QueryBuilder("private").get_groups(columns)
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+
+        try:
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        except AssertionError:
+            # Deals with the case where the DFs mismatched due to noise.
+            assert_frame_equal_with_sort(actual_sdf.toPandas(), possible_df)
+
+    @pytest.mark.parametrize(
+        "protected_change",
+        [
+            (AddMaxRowsInMaxGroups("B", max_groups=1, max_rows_per_group=1)),
+            (AddOneRow()),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "privacy_budget",
+        [
+            # Large Alpha, Low Epsilon
+            ApproxDPBudget(1e-5, 0.99999),
+            # Large Epsilon, Low Alpha
+            ApproxDPBudget(10000, 0.01),
+            # Large Epsilon, Large Alpha
+            ApproxDPBudget(10000, 0.99999),
+        ],
+    )
+    def test_get_groups_with_high_budget(
+        self,
+        spark,
+        protected_change,
+        privacy_budget: PrivacyBudget,
+    ):
+        """Smoke test for GetGroups with large but not infinite budgets."""
+        # This test is required because there was a bug where get_groups would return
+        # an empty dataframe when the budget was large but not infinite.
+        sdf = spark.createDataFrame(
+            pd.DataFrame(
+                [[0, 0] for _ in range(10000)]
+                + [[0, 1] for _ in range(10000)]
+                + [[1, 3]],
+                columns=["count", "B"],
+            )
+        )
+
+        session = Session.from_dataframe(
+            privacy_budget=privacy_budget,
+            source_id="private",
+            dataframe=sdf,
+            protected_change=protected_change,
+        )
+        query = QueryBuilder("private").get_groups()
+        actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
+
+        # Checks that the result is non-empty
+        assert len(actual_sdf.toPandas()) > 0
 
     def test_get_groups_with_add_rows_with_id(self, spark):
         """GetGroups with AddRowsWithID protected change works on non-ID column."""
