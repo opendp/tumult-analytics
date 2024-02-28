@@ -6,6 +6,9 @@ Changelog
 Unreleased
 ----------
 
+0.8.3 - 2024-02-27
+------------------
+
 This is a maintenance release that adds support for newer versions of Tumult Core. It contains no API changes.
 
 0.8.2 - 2023-11-29
