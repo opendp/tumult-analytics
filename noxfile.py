@@ -34,7 +34,7 @@ DEPENDENCY_MATRIX = {
         "python": python,
         # All other entries take PEP440 version specifiers for the package named in
         # the key -- see https://peps.python.org/pep-0440/#version-specifiers
-        "pyspark": pyspark,
+        "pyspark[sql]": pyspark,
         "sympy": sympy,
         "pandas": pandas,
         "tmlt.core": core,
