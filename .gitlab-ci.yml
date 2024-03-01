@@ -56,10 +56,9 @@ lint:
   rules:
     - if: "$CI_COMMIT_TAG"
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+    - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
     - when: on_success
-
 
 test:
   extends: .base
@@ -77,7 +76,7 @@ test:
     expose_as: "Coverage"
   timeout: 1h
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG || $PARENT_PIPELINE_ID'
+    - if: '$CI_COMMIT_TAG || $PARENT_PIPELINE_ID'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -91,7 +90,7 @@ test_slow:
     - nox -s test_slow
   timeout: 23h
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$NIGHTLY == "true"'
     - if: '$CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
     - when: manual
@@ -118,9 +117,9 @@ test_dep_matrix:
         TEST_TYPE: ["pyspark3.1", "pyspark3.2"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   rules:
+    - if: '$NIGHTLY == "true"'
     - if: '$CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - when: manual
       allow_failure: true
   script:
@@ -147,7 +146,7 @@ docs:
     expose_as: "Documentation"
   timeout: 25m
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+    - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
     - if: '$CI_COMMIT_TAG'
@@ -174,30 +173,13 @@ test_release_linux:
       junit: junit.xml
   timeout: 1h
   rules:
+    - if: '$NIGHTLY == "true"'
     - if: '$CI_COMMIT_TAG'
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+    - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
     - when: manual
       allow_failure: true
   tags: [aws-c6a.xlarge]
-
-# Requires the following CI variables to be set:
-# * NIGHTLY_HANDLER_TOKEN, a GitLab project access token with the read_api permission
-# * NIGHTLY_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
-#   channel
-nightly_handler:
-  stage: handler
-  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.7
-  script:
-    - source .ci/pipeline-handlers.bash
-    - nightly_handler
-  variables:
-    GIT_DEPTH: 1
-  timeout: 2m
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-  interruptible: false
 
 
 publish:
@@ -260,71 +242,6 @@ publish_docs:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_TAG'
-
-# Requires the following CI variables to be set:
-# * VERSION, the semantic version number to be given to the release. This would
-#   typically be specified when launching the manual job.
-# * RELEASER_TOKEN_USERNAME and RELEASER_TOKEN, a GitLab project access token
-#   (and an associated username) with the api permission and the ability to push
-#   tags.
-trigger_release:
-  extends: .base
-  stage: handler
-  script:
-    - |
-      if [[ -z "$RELEASER_TOKEN_USERNAME" || -z "$RELEASER_TOKEN" ]]; then
-        echo "RELEASER_TOKEN and/or RELEASER_TOKEN_USERNAME is unset, exiting..."
-        exit 1
-      fi
-    - nox -s prepare_release
-    - git config user.name "gitlab"
-    - git config user.email "gitlab@tmlt.io"
-    - git checkout -B "release/$VERSION"
-    - git add -u
-    - git diff --staged --stat
-    # This commit may be empty for pre-releases, because they don't update the changelog.
-    - git commit -m "[auto] Release $VERSION" --author "$CI_COMMIT_AUTHOR" --allow-empty
-    - git tag "$VERSION"
-    - nox -s post_release
-    - git add -u
-    - git diff --staged --stat
-    - git commit -m "[auto] Post-release $VERSION" --author "$CI_COMMIT_AUTHOR" --allow-empty
-    - |
-      git remote add origin-https \
-          "https://$RELEASER_TOKEN_USERNAME:$RELEASER_TOKEN@gitlab.com/$CI_PROJECT_PATH.git"
-    - git push origin-https "release/$VERSION" --push-option ci.skip
-    - git push origin-https "$VERSION"
-    - |
-      cat > body.json <<EOF
-      {
-        "source_branch": "release/$VERSION",
-        "target_branch": "$CI_COMMIT_BRANCH",
-        "title": "Merge release $VERSION",
-        "assignee_id": $GITLAB_USER_ID,
-        "remove_source_branch": true,
-        "squash": false,
-        "approvals_before_merge": 1
-      }
-      EOF
-    - cat body.json
-    - |
-      http_status=$(
-        curl -XPOST -s -o response.json -w "%{http_code}" \
-            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests" \
-            --header "PRIVATE-TOKEN: $RELEASER_TOKEN" \
-            -H "Content-Type: application/json" -d "@body.json"
-      )
-      echo "Response body:"
-      cat response.json | jq
-      if [[ $http_status -ne 201 ]]; then
-        echo "Got unexpected HTTP status $http_status, exiting..."
-        exit 1
-      fi
-  timeout: 5m
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /^stable\/.*$/)'
-      when: manual
-  interruptible: false
 
 # Requires the following CI variables to be set:
 # * RELEASE_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate
