@@ -9,16 +9,16 @@ Changelog
 Unreleased
 ----------
 
-Removed
-~~~~~~~
-- **Backwards-incompatible**: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since Tumult Analytics 0.7.0).
-  As a result, the ``protected_change`` parameter to those methods is now required.
-
 Changed
 ~~~~~~~
 
 - :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without
   converting the underlying dataframe to Pandas.
+
+Removed
+~~~~~~~
+- *Backwards-incompatible*: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since Tumult Analytics 0.7.0).
+  As a result, the ``protected_change`` parameter to those methods is now required.
 
 Fixed
 ~~~~~
@@ -26,6 +26,11 @@ Fixed
 - Updated the default behavior for the function :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` to avoid using ID columns.
 - Flat maps now correctly ignore max_rows. Previously they would raise a warning saying that max_rows was ignored, but would still use it to limit the number of rows in the output.
 - Upgrades to version 0.12.0 of Tumult Core.
+
+0.8.3 - 2024-02-27
+------------------
+
+This is a maintenance release that adds support for newer versions of Tumult Core. It contains no API changes.
 
 0.8.2 - 2023-11-29
 ------------------
@@ -62,8 +67,8 @@ Added
 
 Changed
 ~~~~~~~
-- **Backwards-incompatible**: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
-- **Backwards-incompatible**: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics.query_expr.FlatMap.max_rows`.
+- *Backwards-incompatible*: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
+- *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics.query_expr.FlatMap.max_rows`.
 - Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
 
 Fixed
