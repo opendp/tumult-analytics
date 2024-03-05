@@ -7,7 +7,6 @@
 
 import datetime
 from typing import Dict, List, Union
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -30,7 +29,6 @@ from tmlt.core.domains.spark_domains import (
     SparkIntegerColumnDescriptor,
     SparkStringColumnDescriptor,
 )
-from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 
@@ -42,7 +40,7 @@ from tmlt.analytics._schema import (
     Schema,
     analytics_to_spark_columns_descriptor,
 )
-from tmlt.analytics._table_identifier import Identifier, NamedTable
+from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
@@ -72,7 +70,7 @@ from tmlt.analytics.query_expr import (
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ..conftest import assert_frame_equal_with_sort, create_mock_measurement
+from ..conftest import assert_frame_equal_with_sort
 
 GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
 GROUPBY_TWO_SCHEMA = StructType(
@@ -697,7 +695,7 @@ class TestQueryExprCompiler:
                 columns=["A", "B", "X"],
             )
         )
-        measurement = self.compiler(
+        measurement, _ = self.compiler(
             [query_expr],
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
@@ -723,7 +721,7 @@ class TestQueryExprCompiler:
             query_exprs: The queries to evaluate.
             expected: The expected answers.
         """
-        measurement = self.compiler(
+        measurement, _ = self.compiler(
             query_exprs,
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
@@ -1055,7 +1053,7 @@ class TestQueryExprCompiler:
             if isinstance(output_measure, PureDP)
             else RhoZCDPBudget(float("inf"))
         )
-        measurement = compiler(
+        measurement, _ = compiler(
             [query],
             privacy_budget=privacy_budget,
             stability=self.stability,
@@ -1305,7 +1303,7 @@ class TestQueryExprCompiler:
                 mechanism=SumMechanism.LAPLACE,
             )
         ]
-        measurement = QueryExprCompiler()(
+        measurement, _ = QueryExprCompiler()(
             query_exprs,
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
@@ -1416,7 +1414,7 @@ class TestQueryExprCompiler:
             }
         )
 
-        measurement = self.compiler(
+        measurement, _ = self.compiler(
             query_exprs,
             privacy_budget=PureDPBudget(10),
             stability=stability,
@@ -1509,7 +1507,7 @@ class TestCompileGroupByQuantile:
             high=29,
             output_column="out",
         )
-        measurement = compiler(
+        measurement, _ = compiler(
             [query_expr],
             privacy_budget=privacy_budget,
             stability=stability,
@@ -1549,174 +1547,3 @@ def setup_components(request):
     request.cls._catalog.add_private_table(
         source_id="test", col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER}
     )
-
-
-@pytest.mark.usefixtures("test_component_data")
-class TestComponentIsUsed:
-    """Tests that specific components are used inside of compiled measurements."""
-
-    _stability: Dict[Identifier, sp.Integer]
-    _privacy_budget: sp.Integer
-    _input_domain: DictDomain
-    _input_metric: DictMetric
-    _catalog: Catalog
-
-    @pytest.mark.parametrize(
-        "output_measure,query_expr,column,preprocessing_stability",
-        [
-            (output_measure, query_expr, column, preprocessing_stability)
-            for output_measure in [PureDP(), RhoZCDP()]
-            for preprocessing_expr, preprocessing_stability in [
-                (
-                    ReplaceNullAndNan(
-                        replace_with={},
-                        child=FlatMap(
-                            child=PrivateSource(source_id="test"),
-                            f=lambda row: [{}, {}],
-                            schema_new_columns=Schema({}),
-                            augment=True,
-                            max_rows=2,
-                        ),
-                    ),
-                    2,
-                ),
-                (PrivateSource(source_id="test"), 1),
-            ]
-            for query_expr, column in [
-                (
-                    GroupByCount(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                    ),
-                    "count",
-                ),
-                (
-                    GroupByBoundedSum(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                        measure_column="X",
-                        low=-1,
-                        high=5,
-                        output_column="sum",
-                    ),
-                    "sum",
-                ),
-                (
-                    GroupByBoundedAverage(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                        measure_column="X",
-                        low=-1,
-                        high=5,
-                        output_column="average",
-                    ),
-                    "average",
-                ),
-                (
-                    GroupByBoundedSTDEV(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                        measure_column="X",
-                        low=-1,
-                        high=5,
-                        output_column="standard deviation",
-                    ),
-                    "standard deviation",
-                ),
-                (
-                    GroupByBoundedVariance(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                        measure_column="X",
-                        low=-1,
-                        high=5,
-                        output_column="variance",
-                    ),
-                    "variance",
-                ),
-                (
-                    GroupByQuantile(
-                        child=preprocessing_expr,
-                        groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
-                        measure_column="X",
-                        quantile=0.6,
-                        low=-1,
-                        high=5,
-                        output_column="quantile",
-                    ),
-                    "quantile",
-                ),
-            ]
-        ],
-    )
-    def test_used_create_measurement(
-        self,
-        output_measure: Union[PureDP, RhoZCDP],
-        query_expr: QueryExpr,
-        column: str,
-        preprocessing_stability: int,
-    ):
-        """Compiled measurements contain aggregations with the expected noise scale."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_quantile_measurement"
-        ) as mock_create_quantile_measurement, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_standard_deviation_measurement"
-        ) as mock_create_standard_deviation_measurement, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_variance_measurement"
-        ) as mock_create_variance_measurement, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_average_measurement"
-        ) as mock_create_average_measurement, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_sum_measurement"
-        ) as mock_create_sum_measurement, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor."
-            "create_count_measurement"
-        ) as mock_create_count_measurement:
-            d_in = sp.Integer(3)
-            d_out = sp.Integer(5)
-            compiler = QueryExprCompiler(output_measure=output_measure)
-            mock_create_measurement_dict = {
-                "count": mock_create_count_measurement,
-                "sum": mock_create_sum_measurement,
-                "average": mock_create_average_measurement,
-                "variance": mock_create_variance_measurement,
-                "standard deviation": mock_create_standard_deviation_measurement,
-                "quantile": mock_create_quantile_measurement,
-            }
-            mock_create_measurement = mock_create_measurement_dict[column]
-            mock_create_measurement.return_value = create_mock_measurement(
-                input_domain=self._input_domain[NamedTable("test")],
-                input_metric=self._input_metric[NamedTable("test")],
-                output_measure=output_measure,
-                privacy_function_return_value=d_out,
-                privacy_function_implemented=True,
-            )
-            _ = compiler(
-                [query_expr],
-                privacy_budget=self._privacy_budget,
-                stability=self._stability,
-                input_domain=self._input_domain,
-                input_metric=self._input_metric,
-                public_sources={},
-                catalog=self._catalog,
-                table_constraints={t: [] for t in self._stability.keys()},
-            )
-            expected_arguments = {  # Other arguments are not checked
-                "input_domain": self._input_domain[NamedTable("test")],
-                "input_metric": self._input_metric[NamedTable("test")],
-                "d_in": d_in * preprocessing_stability,
-                "d_out": d_out,
-            }
-            if column != "quantile":
-                expected_arguments["noise_mechanism"] = (
-                    NoiseMechanism.GEOMETRIC
-                    if isinstance(output_measure, PureDP)
-                    else NoiseMechanism.DISCRETE_GAUSSIAN
-                )
-            _, kwargs = mock_create_measurement.call_args_list[-1]
-            for kwarg, value in expected_arguments.items():
-                assert kwargs[kwarg] == value

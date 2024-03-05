@@ -1,24 +1,16 @@
 """Tests for MeasurementVisitor."""
-
-# SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
-
-# pylint: disable=no-self-use
-
+from test.conftest import create_empty_input
 from typing import List, Optional, Union
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
-import sympy as sp
-from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
     SparkColumnDescriptor,
     SparkDataFrameDomain,
     SparkFloatColumnDescriptor,
-    SparkGroupedDataFrameDomain,
     SparkIntegerColumnDescriptor,
     SparkStringColumnDescriptor,
 )
@@ -30,27 +22,29 @@ from tmlt.core.metrics import (
     DictMetric,
     HammingDistance,
     IfGroupedBy,
-    RootSumOfSquared,
-    SumOf,
     SymmetricDifference,
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
-from tmlt.core.transformations.spark_transformations.groupby import GroupBy
-from tmlt.core.transformations.spark_transformations.select import (
-    Select as SelectTransformation,
-)
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
 from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._noise_info import NoiseInfo, _NoiseMechanism
 from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
     _get_query_bounds,
 )
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
+    OutputSchemaVisitor,
+)
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    spark_schema_to_analytics_columns,
+)
 from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics._table_reference import lookup_domain, lookup_metric
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.query_expr import (
@@ -83,7 +77,8 @@ from tmlt.analytics.query_expr import Select as SelectExpr
 from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ...conftest import assert_frame_equal_with_sort
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tumult Labs 2024
 
 
 def chain_to_list(t: ChainTT) -> List[Transformation]:
@@ -318,6 +313,33 @@ class TestMeasurementVisitor:
     catalog: Catalog
     base_query: QueryExpr
 
+    def run_with_empty_data_and_check_schema(
+        self, query: QueryExpr, output_measure: Union[PureDP, RhoZCDP]
+    ):
+        """Run a query and check the schema of the result."""
+        expected_column_types = query.accept(
+            OutputSchemaVisitor(self.catalog)
+        ).column_types
+        self.visitor.output_measure = output_measure
+        measurement, _ = query.accept(self.visitor)
+        empty_data = create_empty_input(measurement.input_domain)
+        result = measurement(empty_data)
+        actual_column_types = Schema(
+            spark_schema_to_analytics_columns(result.schema)
+        ).column_types
+        assert actual_column_types == expected_column_types
+
+    def check_noise_info(
+        self,
+        query: QueryExpr,
+        output_measure: Union[PureDP, RhoZCDP],
+        expected_noise_info: NoiseInfo,
+    ):
+        """Check the noise info for a query."""
+        self.pick_noise_visitor.output_measure = output_measure
+        _, noise_info = query.accept(self.pick_noise_visitor)
+        assert noise_info == expected_noise_info
+
     @pytest.mark.parametrize(
         "query_mechanism,output_measure,expected_mechanism",
         [
@@ -464,9 +486,15 @@ class TestMeasurementVisitor:
         expected_mechanism: Optional[NoiseMechanism],
     ) -> None:
         """Test _pick_noise_for_non_count for GroupByBoundedAverage query exprs."""
+        if isinstance(measure_column_type, SparkIntegerColumnDescriptor):
+            measure_column = "B"
+        elif isinstance(measure_column_type, SparkFloatColumnDescriptor):
+            measure_column = "X"
+        else:
+            raise AssertionError("Unknown measure column type")
         query = GroupByBoundedAverage(
             child=self.base_query,
-            measure_column="",
+            measure_column=measure_column,
             low=0,
             high=1,
             mechanism=query_mechanism,
@@ -475,9 +503,7 @@ class TestMeasurementVisitor:
         self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
-                query, measure_column_type
-            )
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
             assert got_mechanism == expected_mechanism
         else:
             with pytest.raises(
@@ -487,9 +513,7 @@ class TestMeasurementVisitor:
                     "Please use RhoZCDP or another measure."
                 ),
             ):
-                self.pick_noise_visitor._pick_noise_for_non_count(
-                    query, measure_column_type
-                )
+                self.pick_noise_visitor._pick_noise_for_non_count(query)
         # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
@@ -568,9 +592,15 @@ class TestMeasurementVisitor:
         expected_mechanism: Optional[NoiseMechanism],
     ) -> None:
         """Test _pick_noise_for_non_count for GroupByBoundedSum query exprs."""
+        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
+            measure_column = "X"
+        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
+            measure_column = "B"
+        else:
+            raise AssertionError("Unknown measure column type")
         query = GroupByBoundedSum(
             child=self.base_query,
-            measure_column="",
+            measure_column=measure_column,
             low=0,
             high=1,
             mechanism=query_mechanism,
@@ -579,9 +609,7 @@ class TestMeasurementVisitor:
         self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
-                query, measure_column_type
-            )
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
             assert got_mechanism == expected_mechanism
         else:
             with pytest.raises(
@@ -591,9 +619,7 @@ class TestMeasurementVisitor:
                     "Please use RhoZCDP or another measure."
                 ),
             ):
-                self.pick_noise_visitor._pick_noise_for_non_count(
-                    query, measure_column_type
-                )
+                self.pick_noise_visitor._pick_noise_for_non_count(query)
         # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
@@ -677,9 +703,15 @@ class TestMeasurementVisitor:
         expected_mechanism: Optional[NoiseMechanism],
     ) -> None:
         """Test _pick_noise_for_non_count for GroupByBoundedVariance query exprs."""
+        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
+            measure_column = "X"
+        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
+            measure_column = "B"
+        else:
+            raise AssertionError("Unknown measure column type")
         query = GroupByBoundedVariance(
             child=self.base_query,
-            measure_column="",
+            measure_column=measure_column,
             low=0,
             high=1,
             mechanism=query_mechanism,
@@ -688,9 +720,7 @@ class TestMeasurementVisitor:
         self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
-                query, measure_column_type
-            )
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
             assert got_mechanism == expected_mechanism
         else:
             with pytest.raises(
@@ -700,9 +730,7 @@ class TestMeasurementVisitor:
                     "Please use RhoZCDP or another measure."
                 ),
             ):
-                self.pick_noise_visitor._pick_noise_for_non_count(
-                    query, measure_column_type
-                )
+                self.pick_noise_visitor._pick_noise_for_non_count(query)
         # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
@@ -781,9 +809,15 @@ class TestMeasurementVisitor:
         expected_mechanism: Optional[NoiseMechanism],
     ) -> None:
         """Test _pick_noise_for_non_count for GroupByBoundedSTDEV query exprs."""
+        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
+            measure_column = "X"
+        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
+            measure_column = "B"
+        else:
+            raise AssertionError("Unknown measure column type")
         query = GroupByBoundedSTDEV(
             child=self.base_query,
-            measure_column="",
+            measure_column=measure_column,
             low=0,
             high=1,
             mechanism=query_mechanism,
@@ -792,9 +826,7 @@ class TestMeasurementVisitor:
         self.pick_noise_visitor.output_measure = output_measure
         # pylint: disable=protected-access
         if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(
-                query, measure_column_type
-            )
+            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
             assert got_mechanism == expected_mechanism
         else:
             with pytest.raises(
@@ -804,9 +836,7 @@ class TestMeasurementVisitor:
                     "Please use RhoZCDP or another measure."
                 ),
             ):
-                self.pick_noise_visitor._pick_noise_for_non_count(
-                    query, measure_column_type
-                )
+                self.pick_noise_visitor._pick_noise_for_non_count(query)
         # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
@@ -837,7 +867,7 @@ class TestMeasurementVisitor:
         if isinstance(mechanism, AverageMechanism):
             query = GroupByBoundedAverage(
                 child=self.base_query,
-                measure_column="",
+                measure_column="A",
                 low=0,
                 high=1,
                 mechanism=mechanism,
@@ -846,7 +876,7 @@ class TestMeasurementVisitor:
         elif isinstance(mechanism, StdevMechanism):
             query = GroupByBoundedSTDEV(
                 child=self.base_query,
-                measure_column="",
+                measure_column="A",
                 low=0,
                 high=1,
                 mechanism=mechanism,
@@ -855,7 +885,7 @@ class TestMeasurementVisitor:
         elif isinstance(mechanism, SumMechanism):
             query = GroupByBoundedSum(
                 child=self.base_query,
-                measure_column="",
+                measure_column="A",
                 low=0,
                 high=1,
                 mechanism=mechanism,
@@ -864,7 +894,7 @@ class TestMeasurementVisitor:
         elif isinstance(mechanism, VarianceMechanism):
             query = GroupByBoundedVariance(
                 child=self.base_query,
-                measure_column="",
+                measure_column="A",
                 low=0,
                 high=1,
                 mechanism=mechanism,
@@ -876,238 +906,8 @@ class TestMeasurementVisitor:
             AssertionError, match="Query's measure column should be numeric."
         ):
             # pylint: disable=protected-access
-            self.visitor._pick_noise_for_non_count(query, SparkStringColumnDescriptor())
+            self.visitor._pick_noise_for_non_count(query)
             # pylint: enable=protected-access
-
-    @pytest.mark.parametrize(
-        "input_metric,mechanism,expected_output_metric",
-        [
-            (HammingDistance(), NoiseMechanism.LAPLACE, SumOf(SymmetricDifference())),
-            (HammingDistance(), NoiseMechanism.GEOMETRIC, SumOf(SymmetricDifference())),
-            (
-                HammingDistance(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-                RootSumOfSquared(SymmetricDifference()),
-            ),
-            (
-                HammingDistance(),
-                NoiseMechanism.GAUSSIAN,
-                RootSumOfSquared(SymmetricDifference()),
-            ),
-            (
-                SymmetricDifference(),
-                NoiseMechanism.LAPLACE,
-                SumOf(SymmetricDifference()),
-            ),
-            (
-                SymmetricDifference(),
-                NoiseMechanism.GEOMETRIC,
-                SumOf(SymmetricDifference()),
-            ),
-            (
-                SymmetricDifference(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-                RootSumOfSquared(SymmetricDifference()),
-            ),
-            (
-                SymmetricDifference(),
-                NoiseMechanism.GAUSSIAN,
-                RootSumOfSquared(SymmetricDifference()),
-            ),
-            (
-                IfGroupedBy(column="A", inner_metric=SumOf(SymmetricDifference())),
-                NoiseMechanism.LAPLACE,
-                SumOf(SymmetricDifference()),
-            ),
-            (
-                IfGroupedBy(column="A", inner_metric=SumOf(SymmetricDifference())),
-                NoiseMechanism.GEOMETRIC,
-                SumOf(SymmetricDifference()),
-            ),
-            (
-                IfGroupedBy(
-                    column="A", inner_metric=RootSumOfSquared(SymmetricDifference())
-                ),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-                RootSumOfSquared(SymmetricDifference()),
-            ),
-        ],
-    )
-    def test_build_groupby(
-        self,
-        input_metric: Union[HammingDistance, SymmetricDifference, IfGroupedBy],
-        mechanism: NoiseMechanism,
-        expected_output_metric: Union[RootSumOfSquared, SumOf],
-    ) -> None:
-        """Test _build_groupby (without a _public_id)."""
-        input_domain = SparkDataFrameDomain(
-            schema={
-                "A": SparkStringColumnDescriptor(),
-                "B": SparkIntegerColumnDescriptor(),
-            }
-        )
-        keyset = KeySet.from_dict({"A": ["zero", "one"], "B": [0, 1]})
-        # pylint: disable=protected-access
-        got = self.visitor._build_groupby(
-            input_domain=input_domain,
-            input_metric=input_metric,
-            groupby_keys=keyset,
-            mechanism=mechanism,
-        )
-        # pylint: enable=protected-access
-        assert got.input_domain == input_domain
-        assert got.input_metric == input_metric
-        assert_frame_equal_with_sort(
-            got.group_keys.toPandas(), keyset.dataframe().toPandas()
-        )
-        expected_output_domain = SparkGroupedDataFrameDomain(
-            schema=input_domain.schema, groupby_columns=["A", "B"]
-        )
-        assert isinstance(got.output_domain, SparkGroupedDataFrameDomain)
-        assert got.output_domain.schema == expected_output_domain.schema
-        assert (
-            got.output_domain.groupby_columns == expected_output_domain.groupby_columns
-        )
-        assert got.output_metric == expected_output_metric
-
-    @pytest.mark.parametrize(
-        "query,expected_mid_stability,expected_mechanism",
-        [
-            (
-                GroupByBoundedAverage(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="B",
-                    low=-100,
-                    high=100,
-                    mechanism=AverageMechanism.LAPLACE,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                GroupByBoundedAverage(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="nan",
-                    low=-100,
-                    high=100,
-                    mechanism=AverageMechanism.LAPLACE,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="X",
-                    low=-100,
-                    high=100,
-                    mechanism=SumMechanism.LAPLACE,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="null",
-                    low=-100,
-                    high=100,
-                    mechanism=SumMechanism.LAPLACE,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedVariance(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="B",
-                    low=-100,
-                    high=100,
-                    mechanism=VarianceMechanism.DEFAULT,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                GroupByBoundedVariance(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="inf",
-                    low=-100,
-                    high=100,
-                    mechanism=VarianceMechanism.LAPLACE,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="B",
-                    low=-100,
-                    high=100,
-                    mechanism=StdevMechanism.DEFAULT,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero", "one"]}),
-                    measure_column="null_and_nan_and_inf",
-                    low=-100,
-                    high=100,
-                    mechanism=StdevMechanism.DEFAULT,
-                ),
-                ExactNumber(3).expr,
-                NoiseMechanism.LAPLACE,
-            ),
-        ],
-    )
-    def test_build_common(
-        self,
-        query: Union[
-            GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
-            GroupByBoundedSum,
-            GroupByBoundedVariance,
-        ],
-        expected_mid_stability: sp.Expr,
-        expected_mechanism: NoiseMechanism,
-    ):
-        """Test _build_common."""
-        info = self.visitor._build_common(query)  # pylint: disable=protected-access
-        transformation: ChainTT
-        assert isinstance(info.transformation, ChainTT)
-        transformation = info.transformation
-
-        assert transformation.input_domain == self.visitor.input_domain
-        assert transformation.input_metric == self.visitor.input_metric
-
-        assert info.mechanism == expected_mechanism
-        assert info.mid_stability == expected_mid_stability
-        assert info.lower_bound == ExactNumber.from_float(query.low, round_up=True)
-        assert info.upper_bound == ExactNumber.from_float(query.high, round_up=False)
-
-        assert isinstance(info.groupby, GroupBy)
-        table_domain = transformation.output_domain
-        assert isinstance(table_domain, SparkDataFrameDomain)
-        expected_groupby_domain = SparkGroupedDataFrameDomain(
-            schema=dict(table_domain.schema), groupby_columns=["A"]
-        )
-        assert isinstance(info.groupby.output_domain, SparkGroupedDataFrameDomain)
-        assert info.groupby.output_domain.schema == expected_groupby_domain.schema
-        assert (
-            info.groupby.output_domain.groupby_columns
-            == expected_groupby_domain.groupby_columns
-        )
 
     def test_validate_measurement(self):
         """Test _validate_measurement."""
@@ -1157,44 +957,8 @@ class TestMeasurementVisitor:
             == measurement.measurement.input_metric
         )
 
-    def check_mock_groupby_call(
-        self,
-        mock_groupby,
-        transformation: Transformation,
-        keys: KeySet,
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Check that the mock groupby was called with the right arguments."""
-        groupby_df: DataFrame = keys.dataframe()
-        mock_groupby.assert_called_with(
-            input_domain=transformation.output_domain,
-            input_metric=transformation.output_metric,
-            use_l2=(expected_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN),
-            group_keys=groupby_df,
-        )
-
-    def _setup_mock_measurement(
-        self,
-        mock_measurement,
-        child_query: QueryExpr,
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Initialize a mock measurement."""
-        # pylint: disable=protected-access
-        transformation, reference, _ = self.visitor._visit_child_transformation(
-            child_query, expected_mechanism
-        )
-        # pylint: enable=protected-access
-        mock_measurement.input_domain = lookup_domain(
-            transformation.output_domain, reference
-        )
-        mock_measurement.input_metric = lookup_metric(
-            transformation.output_metric, reference
-        )
-        mock_measurement.privacy_function.return_value = self.visitor.budget.value
-
     @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
+        "query,output_measure,noise_info",
         [
             (
                 GroupByCount(
@@ -1203,7 +967,14 @@ class TestMeasurementVisitor:
                     mechanism=CountMechanism.DEFAULT,
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.3,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCount(
@@ -1213,7 +984,14 @@ class TestMeasurementVisitor:
                     output_column="count",
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.3,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCount(
@@ -1223,7 +1001,14 @@ class TestMeasurementVisitor:
                     output_column="custom_count_column",
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.449999999999999,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCount(
@@ -1232,7 +1017,14 @@ class TestMeasurementVisitor:
                     mechanism=CountMechanism.DEFAULT,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.449999999999999,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCount(
@@ -1241,7 +1033,14 @@ class TestMeasurementVisitor:
                     mechanism=CountMechanism.LAPLACE,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.6708203932499359,
+                        }
+                    ]
+                ),
             ),
         ],
     )
@@ -1249,53 +1048,14 @@ class TestMeasurementVisitor:
         self,
         query: GroupByCount,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_count."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_count_measurement",
-            autospec=True,
-        ) as mock_create_count:
-            self.visitor.output_measure = output_measure
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            mock_create_count.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_count(query)
-            assert isinstance(measurement, ChainTM)
-
-            self._check_measurement(measurement)
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            mock_create_count.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                count_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
+        "query,output_measure,noise_info",
         [
             (
                 GroupByCountDistinct(
@@ -1304,7 +1064,14 @@ class TestMeasurementVisitor:
                     mechanism=CountDistinctMechanism.DEFAULT,
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.3,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCountDistinct(
@@ -1314,7 +1081,14 @@ class TestMeasurementVisitor:
                     output_column="count",
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.3,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCountDistinct(
@@ -1323,7 +1097,14 @@ class TestMeasurementVisitor:
                     columns_to_count=["A"],
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.3,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCountDistinct(
@@ -1333,7 +1114,14 @@ class TestMeasurementVisitor:
                     output_column="custom_count_column",
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.449999999999999,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCountDistinct(
@@ -1342,7 +1130,14 @@ class TestMeasurementVisitor:
                     mechanism=CountDistinctMechanism.DEFAULT,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.449999999999999,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByCountDistinct(
@@ -1351,7 +1146,14 @@ class TestMeasurementVisitor:
                     mechanism=CountDistinctMechanism.LAPLACE,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.6708203932499359,
+                        }
+                    ]
+                ),
             ),
         ],
     )
@@ -1359,81 +1161,14 @@ class TestMeasurementVisitor:
         self,
         query: GroupByCountDistinct,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_count_distinct."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_count_distinct_measurement",
-            autospec=True,
-        ) as mock_create_count_distinct:
-            self.visitor.output_measure = output_measure
-
-            mock_create_count_distinct.return_value = mock_measurement
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            if query.columns_to_count:
-                select_columns = query.columns_to_count + list(
-                    query.groupby_keys.schema().keys()
-                )
-                mock_measurement.input_domain = SparkDataFrameDomain(
-                    {
-                        c: d
-                        for c, d in mock_measurement.input_domain.schema.items()
-                        if c in select_columns
-                    }
-                )
-
-            measurement = self.visitor.visit_groupby_count_distinct(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            if query.columns_to_count:
-                assert isinstance(measurement.transformation, ChainTT)
-                assert isinstance(
-                    measurement.transformation.transformation2, SelectTransformation
-                )
-                assert (
-                    measurement.transformation.transformation2.columns == select_columns
-                )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-
-            mock_create_count_distinct.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                count_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
-        "query,output_measure,expected_new_child",
+        "query,output_measure,noise_info",
         [
             (
                 GroupByQuantile(
@@ -1446,7 +1181,14 @@ class TestMeasurementVisitor:
                     quantile=0.1,
                 ),
                 PureDP(),
-                None,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 3.3333333333333326,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByQuantile(
@@ -1459,7 +1201,14 @@ class TestMeasurementVisitor:
                     quantile=0.1,
                 ),
                 PureDP(),
-                DropNullAndNan(PrivateSource("private"), ["null_and_nan"]),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 3.3333333333333326,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByQuantile(
@@ -1472,7 +1221,14 @@ class TestMeasurementVisitor:
                     quantile=0.25,
                 ),
                 PureDP(),
-                None,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 3.3333333333333326,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByQuantile(
@@ -1485,9 +1241,13 @@ class TestMeasurementVisitor:
                     quantile=0.25,
                 ),
                 PureDP(),
-                ReplaceInfExpr(
-                    DropNullAndNan(PrivateSource("private"), ["null_and_inf"]),
-                    {"null_and_inf": (123.345, 987.65)},
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 3.3333333333333326,
+                        }
+                    ]
                 ),
             ),
             (
@@ -1500,7 +1260,14 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                None,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 2.9814239699997196,
+                        }
+                    ]
+                ),
             ),
             (
                 GroupByQuantile(
@@ -1512,9 +1279,13 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                ReplaceInfExpr(
-                    DropNullAndNan(PrivateSource("private"), ["nan_and_inf"]),
-                    {"nan_and_inf": (0, 1)},
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 2.9814239699997196,
+                        }
+                    ]
                 ),
             ),
             (
@@ -1527,7 +1298,14 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                ReplaceInfExpr(PrivateSource("private"), {"inf": (0, 1)}),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                            "noise_parameter": 2.9814239699997196,
+                        }
+                    ]
+                ),
             ),
         ],
     )
@@ -1535,175 +1313,14 @@ class TestMeasurementVisitor:
         self,
         query: GroupByQuantile,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_new_child: Optional[QueryExpr],
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_quantile."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_quantile_measurement",
-            autospec=True,
-        ) as mock_create_quantile:
-            self.visitor.output_measure = output_measure
-
-            expected_mechanism = self.visitor.default_mechanism
-            expected_child_query: QueryExpr
-            if expected_new_child is not None:
-                expected_child_query = expected_new_child
-            else:
-                expected_child_query = query.child
-            self._setup_mock_measurement(
-                mock_measurement, expected_child_query, expected_mechanism
-            )
-            mock_create_quantile.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_quantile(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            mock_create_quantile.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                measure_column=query.measure_column,
-                quantile=query.quantile,
-                lower=query.low,
-                upper=query.high,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                quantile_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
-        [
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({}),
-                    low=-100,
-                    high=100,
-                    mechanism=SumMechanism.DEFAULT,
-                    output_column="custom_output_column",
-                    measure_column="B",
-                ),
-                PureDP(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-                    measure_column="X",
-                    mechanism=SumMechanism.DEFAULT,
-                    output_column="sum",
-                    low=123.345,
-                    high=987.65,
-                ),
-                PureDP(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-                    measure_column="X",
-                    mechanism=SumMechanism.LAPLACE,
-                    output_column="different_sum",
-                    low=123.345,
-                    high=987.65,
-                ),
-                PureDP(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                GroupByBoundedSum(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
-                    mechanism=SumMechanism.DEFAULT,
-                    measure_column="B",
-                    low=0,
-                    high=1,
-                ),
-                RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-        ],
-    )
-    def test_visit_groupby_bounded_sum(
-        self,
-        query: GroupByBoundedSum,
-        output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Test visit_groupby_bounded_sum."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_sum_measurement",
-            autospec=True,
-        ) as mock_create_sum:
-            self.visitor.output_measure = output_measure
-
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            mock_create_sum.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_bounded_sum(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            lower, upper = _get_query_bounds(query)
-            mock_create_sum.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                measure_column=query.measure_column,
-                lower=lower,
-                upper=upper,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                sum_column=query.output_column,
-            )
-
-    @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
+        "query,output_measure,noise_info",
         [
             (
                 GroupByBoundedAverage(
@@ -1716,7 +1333,18 @@ class TestMeasurementVisitor:
                     measure_column="B",
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 60,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.6,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedAverage(
@@ -1729,7 +1357,18 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 259.2915,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.6,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedAverage(
@@ -1742,7 +1381,18 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 259.2915,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.6,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedAverage(
@@ -1754,7 +1404,18 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
         ],
     )
@@ -1762,59 +1423,108 @@ class TestMeasurementVisitor:
         self,
         query: GroupByBoundedAverage,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_bounded_average."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_average_measurement",
-            autospec=True,
-        ) as mock_create_average:
-            self.visitor.output_measure = output_measure
-
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            mock_create_average.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_bounded_average(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            lower, upper = _get_query_bounds(query)
-            mock_create_average.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                measure_column=query.measure_column,
-                lower=lower,
-                upper=upper,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                average_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
+        "query,output_measure,noise_info",
+        [
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    low=-100,
+                    high=100,
+                    mechanism=SumMechanism.DEFAULT,
+                    output_column="custom_output_column",
+                    measure_column="B",
+                ),
+                PureDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 30,
+                        }
+                    ]
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
+                    measure_column="X",
+                    mechanism=SumMechanism.DEFAULT,
+                    output_column="sum",
+                    low=123.345,
+                    high=987.65,
+                ),
+                PureDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 296.2949999999999,
+                        }
+                    ]
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
+                    measure_column="X",
+                    mechanism=SumMechanism.LAPLACE,
+                    output_column="different_sum",
+                    low=123.345,
+                    high=987.65,
+                ),
+                PureDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 296.2949999999999,
+                        }
+                    ]
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
+                    mechanism=SumMechanism.DEFAULT,
+                    measure_column="B",
+                    low=0,
+                    high=1,
+                ),
+                RhoZCDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 0.449999999999999,
+                        }
+                    ]
+                ),
+            ),
+        ],
+    )
+    def test_visit_groupby_bounded_sum(
+        self,
+        query: GroupByBoundedSum,
+        output_measure: Union[PureDP, RhoZCDP],
+        noise_info: NoiseInfo,
+    ) -> None:
+        """Test visit_groupby_bounded_sum."""
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
+
+    @pytest.mark.parametrize(
+        "query,output_measure,noise_info",
         [
             (
                 GroupByBoundedVariance(
@@ -1827,7 +1537,22 @@ class TestMeasurementVisitor:
                     measure_column="B",
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 90,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 4500,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedVariance(
@@ -1840,7 +1565,22 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 388.9372499999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 432107.34006374987,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedVariance(
@@ -1853,7 +1593,22 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 388.9372499999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 432107.34006374987,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedVariance(
@@ -1865,7 +1620,22 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                    ]
+                ),
             ),
         ],
     )
@@ -1873,59 +1643,14 @@ class TestMeasurementVisitor:
         self,
         query: GroupByBoundedVariance,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_bounded_variance."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_variance_measurement",
-            autospec=True,
-        ) as mock_create_variance:
-            self.visitor.output_measure = output_measure
-
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            mock_create_variance.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_bounded_variance(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            lower, upper = _get_query_bounds(query)
-            mock_create_variance.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                measure_column=query.measure_column,
-                lower=lower,
-                upper=upper,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                variance_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
-        "query,output_measure,expected_mechanism",
+        "query,output_measure,noise_info",
         [
             (
                 GroupByBoundedSTDEV(
@@ -1938,7 +1663,22 @@ class TestMeasurementVisitor:
                     measure_column="B",
                 ),
                 PureDP(),
-                NoiseMechanism.GEOMETRIC,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 90,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 4500,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1951,7 +1691,22 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 388.9372499999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 432107.34006374987,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1964,7 +1719,22 @@ class TestMeasurementVisitor:
                     high=987.65,
                 ),
                 PureDP(),
-                NoiseMechanism.LAPLACE,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 388.9372499999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 432107.34006374987,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 0.899999999999999,
+                        },
+                    ]
+                ),
             ),
             (
                 GroupByBoundedSTDEV(
@@ -1976,7 +1746,22 @@ class TestMeasurementVisitor:
                     high=1,
                 ),
                 RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                        {
+                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_parameter": 1.349999999999999,
+                        },
+                    ]
+                ),
             ),
         ],
     )
@@ -1984,57 +1769,11 @@ class TestMeasurementVisitor:
         self,
         query: GroupByBoundedSTDEV,
         output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
+        noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_bounded_stdev."""
-        with patch(
-            "tmlt.analytics._query_expr_compiler._base_measurement_visitor.GroupBy",
-            autospec=True,
-        ) as mock_groupby, patch(
-            "tmlt.analytics._query_expr_compiler._measurement_visitor.Measurement",
-            autospec=True,
-        ) as mock_measurement, patch(
-            "tmlt.analytics._query_expr_compiler."
-            + "_measurement_visitor.create_standard_deviation_measurement",
-            autospec=True,
-        ) as mock_create_stdev:
-            self.visitor.output_measure = output_measure
-            self.visitor.output_measure = output_measure
-
-            self._setup_mock_measurement(
-                mock_measurement, query.child, expected_mechanism
-            )
-            mock_create_stdev.return_value = mock_measurement
-
-            measurement = self.visitor.visit_groupby_bounded_stdev(query)
-
-            self._check_measurement(measurement)
-            assert isinstance(measurement, ChainTM)
-            assert measurement.measurement == mock_measurement
-            self.check_mock_groupby_call(
-                mock_groupby,
-                measurement.transformation,
-                query.groupby_keys,
-                expected_mechanism,
-            )
-
-            mid_stability = measurement.transformation.stability_function(
-                self.visitor.stability
-            )
-            lower, upper = _get_query_bounds(query)
-            mock_create_stdev.assert_called_with(
-                input_domain=measurement.transformation.output_domain,
-                input_metric=measurement.transformation.output_metric,
-                measure_column=query.measure_column,
-                lower=lower,
-                upper=upper,
-                noise_mechanism=expected_mechanism,
-                d_in=mid_stability,
-                d_out=self.visitor.budget.value,
-                output_measure=self.visitor.output_measure,
-                groupby_transformation=mock_groupby.return_value,
-                standard_deviation_column=query.output_column,
-            )
+        self.run_with_empty_data_and_check_schema(query, output_measure)
+        self.check_noise_info(query, output_measure, noise_info)
 
     @pytest.mark.parametrize(
         "query",

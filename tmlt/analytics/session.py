@@ -71,7 +71,7 @@ from tmlt.analytics._neighboring_relation import (
     NeighboringRelation,
 )
 from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
-from tmlt.analytics._noise_info import _noise_from_measurement
+from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
@@ -1110,9 +1110,9 @@ class Session:
         dataframe = coerce_spark_schema_or_fail(dataframe)
         self._public_sources[source_id] = dataframe
 
-    def _compile_and_get_budget(
+    def _compile_and_get_info(
         self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
-    ) -> Tuple[Measurement, PrivacyBudget]:
+    ) -> Tuple[Measurement, PrivacyBudget, NoiseInfo]:
         """Pre-processing needed for evaluate() and _noise_info()."""
         check_type("query_expr", query_expr, QueryExpr)
         check_type("privacy_budget", privacy_budget, PrivacyBudget)
@@ -1129,7 +1129,7 @@ class Session:
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
-        measurement = QueryExprCompiler(self._output_measure)(
+        measurement, noise_info = QueryExprCompiler(self._output_measure)(
             queries=[query_expr],
             privacy_budget=adjusted_budget,
             stability=self._accountant.d_in,
@@ -1139,7 +1139,7 @@ class Session:
             catalog=self._catalog,
             table_constraints=self._table_constraints,
         )
-        return (measurement, adjusted_budget)
+        return measurement, adjusted_budget, noise_info
 
     def _noise_info(
         self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
@@ -1178,8 +1178,8 @@ class Session:
             >>> count_info # doctest: +NORMALIZE_WHITESPACE
             [{'noise_mechanism': <_NoiseMechanism.GEOMETRIC: 2>, 'noise_parameter': 2}]
         """
-        measurement, _ = self._compile_and_get_budget(query_expr, privacy_budget)
-        return _noise_from_measurement(measurement)
+        _, _, noise_info = self._compile_and_get_info(query_expr, privacy_budget)
+        return list(iter(noise_info))
 
     # pylint: disable=line-too-long
     def evaluate(
@@ -1237,7 +1237,7 @@ class Session:
             privacy_budget: The privacy budget used for the query.
         """
         # pylint: enable=line-too-long
-        measurement, adjusted_budget = self._compile_and_get_budget(
+        measurement, adjusted_budget, _ = self._compile_and_get_info(
             query_expr, privacy_budget
         )
         self._activate_accountant()

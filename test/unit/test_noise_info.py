@@ -20,6 +20,7 @@ from tmlt.core.measurements.pandas_measurements.series import NoisyQuantile
 from tmlt.core.measures import PureDP
 
 from tmlt.analytics._noise_info import (
+    NoiseInfo,
     _inverse_cdf,
     _noise_from_measurement,
     _NoiseMechanism,
@@ -31,26 +32,34 @@ from tmlt.analytics._noise_info import (
     [
         (
             AddLaplaceNoise(NumpyIntegerDomain(), scale=sp.Rational(2.5)),
-            [{"noise_mechanism": _NoiseMechanism.LAPLACE, "noise_parameter": 2.5}],
+            NoiseInfo(
+                [{"noise_mechanism": _NoiseMechanism.LAPLACE, "noise_parameter": 2.5}]
+            ),
         ),
         (
             AddGeometricNoise(alpha=sp.Rational(3.5)),
-            [{"noise_mechanism": _NoiseMechanism.GEOMETRIC, "noise_parameter": 3.5}],
+            NoiseInfo(
+                [{"noise_mechanism": _NoiseMechanism.GEOMETRIC, "noise_parameter": 3.5}]
+            ),
         ),
         (
             AddDiscreteGaussianNoise(sigma_squared=sp.Rational(4.5)),
-            [
-                {
-                    "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                    "noise_parameter": 4.5,
-                }
-            ],
+            NoiseInfo(
+                [
+                    {
+                        "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                        "noise_parameter": 4.5,
+                    }
+                ]
+            ),
         ),
         (
             AddGaussianNoise(
                 input_domain=NumpyFloatDomain(), sigma_squared=sp.Rational(5.5)
             ),
-            [{"noise_mechanism": _NoiseMechanism.GAUSSIAN, "noise_parameter": 5.5}],
+            NoiseInfo(
+                [{"noise_mechanism": _NoiseMechanism.GAUSSIAN, "noise_parameter": 5.5}]
+            ),
         ),
         (
             NoisyQuantile(
@@ -61,7 +70,14 @@ from tmlt.analytics._noise_info import (
                 upper=10,
                 epsilon=sp.Rational(5.5),
             ),
-            [{"noise_mechanism": _NoiseMechanism.EXPONENTIAL, "noise_parameter": 5.5}],
+            NoiseInfo(
+                [
+                    {
+                        "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
+                        "noise_parameter": 5.5,
+                    }
+                ],
+            ),
         ),
     ],
 )

@@ -6,15 +6,17 @@
 # TODO(#2206): Import these fixtures from core once it is rewritten
 
 import logging
-from typing import Any, Optional, Sequence, TypeVar
+from typing import Any, Dict, List, Optional, Sequence, TypeVar, Union, cast, overload
 from unittest.mock import Mock, create_autospec
 
 import numpy as np
 import pandas as pd
 import pytest
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession
 from tmlt.core.domains.base import Domain
+from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measures import Measure, PureDP
 from tmlt.core.metrics import AbsoluteDifference, Metric
@@ -240,3 +242,47 @@ def assert_approx_equal_budgets(
             )
         return
     raise AssertionError(f"Budget type not recognized: {type(budget1)}")
+
+
+@overload
+def create_empty_input(domain: DictDomain) -> Dict:
+    ...
+
+
+@overload
+def create_empty_input(domain: SparkDataFrameDomain) -> DataFrame:
+    ...
+
+
+def create_empty_input(domain):  # pylint: disable=missing-type-doc
+    """Returns an empty input for a given domain.
+
+    Args:
+        domain: The domain for which to create an empty input.
+    """
+    spark = SparkSession.builder.getOrCreate()
+    if isinstance(domain, DictDomain):
+        return {
+            k: create_empty_input(cast(Union[DictDomain, SparkDataFrameDomain], v))
+            for k, v in domain.key_to_domain.items()
+        }
+    if isinstance(domain, SparkDataFrameDomain):
+        # TODO(#3092): the row is only necessary b/c of a bug in core for empty dfs
+        row: List[Any] = []
+        for field in domain.spark_schema.fields:
+            if field.dataType.simpleString() == "string":
+                row.append("")
+            elif field.dataType.simpleString() == "integer":
+                row.append(0)
+            elif field.dataType.simpleString() == "double":
+                row.append(0.0)
+            elif field.dataType.simpleString() == "boolean":
+                row.append(False)
+            elif field.dataType.simpleString() == "bigint":
+                row.append(0)
+            else:
+                raise ValueError(
+                    f"Unsupported field type: {field.dataType.simpleString()}"
+                )
+        return spark.createDataFrame([row], domain.spark_schema)
+    raise ValueError(f"Unsupported domain type: {type(domain)}")

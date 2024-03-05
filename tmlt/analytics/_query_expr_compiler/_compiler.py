@@ -19,6 +19,7 @@ from tmlt.core.metrics import DictMetric
 from tmlt.core.transformations.base import Transformation
 
 from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
@@ -126,8 +127,8 @@ class QueryExprCompiler:
         public_sources: Dict[str, DataFrame],
         catalog: Catalog,
         table_constraints: Dict[Identifier, List[Constraint]],
-    ) -> Measurement:
-        """Returns a compiled DP measurement.
+    ) -> Tuple[Measurement, NoiseInfo]:
+        """Returns a compiled DP measurement and its noise information.
 
         Args:
             queries: Queries representing measurements to compile.
@@ -157,10 +158,11 @@ class QueryExprCompiler:
         )
 
         measurements: List[Measurement] = []
+        noise_infos: List[NoiseInfo] = []
         # Note: Each query is re-using the adjusted_budget from the same visitor, which
         # could become a problem if we go back to supporting multiple queries.
         for query in queries:
-            query_measurement = query.accept(visitor)
+            query_measurement, noise_info = query.accept(visitor)
             if not isinstance(query_measurement, Measurement):
                 raise AssertionError(
                     "This query did not create a measurement. "
@@ -189,8 +191,11 @@ class QueryExprCompiler:
                     "please let us know so we can fix it!"
                 )
             measurements.append(query_measurement)
+            noise_infos.append(noise_info)
 
         measurement = Composition(measurements)
+        assert len(noise_infos) == 1
+        noise_info = noise_infos[0]
 
         if isinstance(visitor.adjusted_budget.value, tuple):
             # TODO(#2754): add a log message.
@@ -212,7 +217,7 @@ class QueryExprCompiler:
                 "privacy budget. This is probably a bug; "
                 "please let us know so we can fix it!"
             )
-        return measurement
+        return measurement, noise_info
 
     def build_transformation(
         self,

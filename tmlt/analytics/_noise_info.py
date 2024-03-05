@@ -5,7 +5,7 @@
 from copy import deepcopy
 from enum import Enum
 from functools import singledispatch
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 
 from pyspark.sql import DataFrame
 from tmlt.core.measurements.base import Measurement
@@ -18,6 +18,32 @@ from tmlt.core.measurements.noise_mechanisms import (
 from tmlt.core.measurements.pandas_measurements.series import NoisyQuantile
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.utils.exact_number import ExactNumber
+
+
+class NoiseInfo:
+    """Container for noise information."""
+
+    def __init__(self, noise_info: List[Dict[str, Any]]):
+        """Constructor."""
+        self._noise_info = noise_info
+
+    def __getitem__(self, i: int) -> Dict[str, Any]:
+        """Get the ith noise info."""
+        return self._noise_info[i]
+
+    def __iter__(self) -> Iterable[Dict[str, Any]]:
+        """Iterate over noise info."""
+        return iter(self._noise_info)
+
+    def __repr__(self) -> str:
+        """Return a string representation of this object."""
+        return f"NoiseInfo({self._noise_info})"
+
+    def __eq__(self, other: Any) -> bool:
+        """Check if this object is equal to another object."""
+        if not isinstance(other, NoiseInfo):
+            return NotImplemented
+        return list(iter(self)) == list(iter(other))
 
 
 class _NoiseMechanism(Enum):
@@ -102,13 +128,13 @@ def _(df: DataFrame) -> str:
     return f"<a Spark DataFrame with columns: {df.columns}>"
 
 
-def _noise_from_measurement(m: Measurement) -> List[Dict[str, Any]]:
+def _noise_from_measurement(m: Measurement) -> NoiseInfo:
     """Get noise information from a measurement.
 
     Each dictionary will look like:
     {"noise_mechanism": _NoiseMechanism.LAPLACE, "noise_parameter": 1}
     """
-    return _noise_from_info(_get_info(m))
+    return NoiseInfo(_noise_from_info(_get_info(m)))
 
 
 def _inverse_cdf(noise_info: Dict[str, Any], p: float) -> float:
