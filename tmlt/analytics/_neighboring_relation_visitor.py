@@ -119,23 +119,15 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
         self, relation: AddRemoveRowsAcrossGroups
     ) -> Output:
         """Build Core state from ``AddRemoveRowsAcrossGroups`` neighboring relation."""
-        # This is needed because it's currently allowed to pass float-valued
-        # stabilities in the per_group parameter (for backwards compatibility).
-        # TODO(#2272): Remove this.
-        per_group = (
-            sp.Rational(relation.per_group)
-            if isinstance(relation.per_group, float)
-            else relation.per_group
-        )
         agg_metric: Union[RootSumOfSquared, SumOf]
         if isinstance(self.output_measure, RhoZCDP):
             agg_metric = RootSumOfSquared(SymmetricDifference())
             distance = ExactNumber(
-                per_group * ExactNumber(sp.sqrt(relation.max_groups))
+                relation.per_group * ExactNumber(sp.sqrt(relation.max_groups))
             )
         elif isinstance(self.output_measure, (PureDP, ApproxDP)):
             agg_metric = SumOf(SymmetricDifference())
-            distance = ExactNumber(per_group * relation.max_groups)
+            distance = ExactNumber(relation.per_group * relation.max_groups)
         else:
             raise TypeError(
                 f"The provided output measure {self.output_measure} for this visitor is"

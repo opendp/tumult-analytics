@@ -21,6 +21,7 @@ members in a fake dataset containing members of a public library
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
     from tmlt.analytics.privacy_budget import PureDPBudget
+    from tmlt.analytics.protected_change import AddOneRow
     from tmlt.analytics.query_builder import QueryBuilder
     from tmlt.analytics.session import Session
 
@@ -36,7 +37,8 @@ members in a fake dataset containing members of a public library
     session = Session.from_dataframe(
         privacy_budget=PureDPBudget(3),
         source_id="members",
-        dataframe=members_df
+        dataframe=members_df,
+        protected_change=AddOneRow()
     )
 
     count_query = QueryBuilder("members").count()
@@ -165,6 +167,7 @@ In the end, your program should look structually similar to this final program.
     from pyspark.sql import SparkSession
 
     from tmlt.analytics.privacy_budget import PureDPBudget
+    from tmlt.analytics.protected_change import AddOneRow
     from tmlt.analytics.query_builder import QueryBuilder
     from tmlt.analytics.session import Session
 
@@ -189,7 +192,8 @@ In the end, your program should look structually similar to this final program.
     session = Session.from_dataframe(
         privacy_budget=PureDPBudget(3),
         source_id="members",
-        dataframe=members_df
+        dataframe=members_df,
+        protected_change=AddOneRow()
     )
 
     count_query = QueryBuilder("members").count()

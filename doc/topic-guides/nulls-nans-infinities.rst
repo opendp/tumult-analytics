@@ -22,6 +22,7 @@ This topic guide details how
 
     from tmlt.analytics.keyset import KeySet
     from tmlt.analytics.privacy_budget import PureDPBudget
+    from tmlt.analytics.protected_change import AddOneRow
     from tmlt.analytics.query_builder import QueryBuilder
     from tmlt.analytics.session import Session
 
@@ -52,6 +53,7 @@ contains those values:
        privacy_budget=PureDPBudget(2),
        source_id="my_private_data",
        dataframe=spark_df,
+       protected_change=AddOneRow(),
    )
    spark_df.show()
 
@@ -185,6 +187,7 @@ Session with an infinite budget to demonstrate this:
         privacy_budget=PureDPBudget(float("inf")),
         source_id="checkouts",
         dataframe=private_data,
+        protected_change=AddOneRow(),
     )
     private_data.show()
 
@@ -293,6 +296,7 @@ The following example uses a Session with an infinite budget to demonstrate this
         privacy_budget=PureDPBudget(float("inf")),
         source_id="checkouts",
         dataframe=private_data,
+        protected_change=AddOneRow(),
     )
     private_data.show()
 

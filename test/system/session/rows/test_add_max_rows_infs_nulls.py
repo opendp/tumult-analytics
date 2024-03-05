@@ -277,8 +277,10 @@ class TestSessionWithNulls:
         session = (
             Session.Builder()
             .with_privacy_budget(PureDPBudget(float("inf")))
-            .with_private_dataframe("private", self.sdf)
-            .with_private_dataframe("private2", spark.createDataFrame(private_df))
+            .with_private_dataframe("private", self.sdf, AddOneRow())
+            .with_private_dataframe(
+                "private2", spark.createDataFrame(private_df), AddOneRow()
+            )
             .build()
         )
         result = session.evaluate(

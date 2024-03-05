@@ -4,11 +4,12 @@
 # Copyright Tumult Labs 2024
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, NamedTuple, Optional, Set
 
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
+from tmlt.analytics._utils import assert_is_identifier
 from tmlt.analytics.privacy_budget import PrivacyBudget
 from tmlt.analytics.protected_change import ProtectedChange
 
@@ -45,10 +46,17 @@ class PrivacyBudgetMixin:
         return self.__budget
 
 
+class PrivateDataframe(NamedTuple):
+    """A private dataframe and its protected change."""
+
+    dataframe: DataFrame
+    protected_change: ProtectedChange
+
+
 class DataframeMixin:
     """Add private and public dataframe support to a builder."""
 
-    __private_dataframes: Dict[str, Tuple[DataFrame, ProtectedChange]]
+    __private_dataframes: Dict[str, PrivateDataframe]
     __public_dataframes: Dict[str, DataFrame]
     __id_spaces: Set[str]
 
@@ -76,7 +84,7 @@ class DataframeMixin:
                 :class:`~tmlt.analytics.protected_change.ProtectedChange`
                 specifying what changes to the input data should be protected.
         """
-        _assert_is_identifier(source_id)
+        assert_is_identifier(source_id)
         if (
             source_id in self.__private_dataframes
             or source_id in self.__public_dataframes
@@ -84,12 +92,14 @@ class DataframeMixin:
             raise ValueError(f"Table '{source_id}' already exists")
 
         dataframe = coerce_spark_schema_or_fail(dataframe)
-        self.__private_dataframes[source_id] = (dataframe, protected_change)
+        self.__private_dataframes[source_id] = PrivateDataframe(
+            dataframe, protected_change
+        )
         return self
 
     def with_public_dataframe(self, source_id: str, dataframe: DataFrame):
         """Add a public dataframe."""
-        _assert_is_identifier(source_id)
+        assert_is_identifier(source_id)
         if (
             source_id in self.__private_dataframes
             or source_id in self.__public_dataframes
@@ -108,14 +118,14 @@ class DataframeMixin:
         change. Any table with such a protected change must be a member of some
         identifier space.
         """
-        _assert_is_identifier(id_space)
+        assert_is_identifier(id_space)
         if id_space in self.__id_spaces:
             raise ValueError(f"ID space '{id_space}' already exists")
         self.__id_spaces.add(id_space)
         return self
 
     @property
-    def _private_dataframes(self) -> Dict[str, Tuple[DataFrame, ProtectedChange]]:
+    def _private_dataframes(self) -> Dict[str, PrivateDataframe]:
         if not self.__private_dataframes:
             raise ValueError("At least one private dataframe must be specified")
         return dict(self.__private_dataframes)
@@ -149,12 +159,3 @@ class ParameterMixin:
     @property
     def _parameters(self) -> Dict[str, Any]:
         return dict(self.__parameters)
-
-
-def _assert_is_identifier(identifier: str):
-    """Check that the given ``identifier`` is a valid table name."""
-    if not identifier.isidentifier():
-        raise ValueError(
-            "Names must be valid Python identifiers: they can only contain "
-            "alphanumeric characters and underscores, and cannot begin with a number."
-        )

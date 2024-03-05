@@ -118,7 +118,7 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
     """The maximum number of groups which may differ for two instances of the table
      to be neighbors.
     """
-    per_group: Union[int, float]
+    per_group: int
     """The max number of rows in any single group that may differ for two instances of
      the table to be neighbors.
      """
@@ -128,7 +128,7 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
         check_type("table", self.table, str)
         check_type("grouping_column", self.grouping_column, str)
         check_type("max_groups", self.max_groups, int)
-        check_type("per_group", self.per_group, (int, float))
+        check_type("per_group", self.per_group, int)
 
     def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
         """Does nothing if input is valid, otherwise raises an informative exception.

@@ -5,7 +5,6 @@
 
 # pylint: disable=no-self-use
 
-import math
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -26,7 +25,7 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.analytics.protected_change import AddOneRow
+from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups, AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -867,7 +866,10 @@ class TestSession:
     def test_partition_on_flatmap_grouping_column(self, budget: PrivacyBudget):
         """Tests that you can partition on columns created by grouping flat maps."""
         session = Session.from_dataframe(
-            privacy_budget=budget, source_id="private", dataframe=self.sdf
+            privacy_budget=budget,
+            source_id="private",
+            dataframe=self.sdf,
+            protected_change=AddOneRow(),
         )
         grouping_flat_map = QueryBuilder("private").flat_map(
             f=lambda row: [{"new": 1}, {"new": 2}],
@@ -1142,7 +1144,8 @@ class TestSession:
             RhoZCDPBudget(float("inf")),
             "id",
             grouped_df,
-            stability=math.sqrt(2),
-            grouping_column="group",
+            protected_change=AddMaxRowsInMaxGroups(
+                grouping_column="group", max_groups=2, max_rows_per_group=1
+            ),
         )
         session.evaluate(query, RhoZCDPBudget(1))

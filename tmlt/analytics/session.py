@@ -23,7 +23,7 @@ found in the :ref:`Privacy promise topic guide <Privacy promise>`.
 # Copyright Tumult Labs 2024
 
 from operator import xor
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
@@ -57,6 +57,12 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 from typeguard import check_type, typechecked
 
+from tmlt.analytics._base_builder import (
+    BaseBuilder,
+    DataframeMixin,
+    PrivacyBudgetMixin,
+    PrivateDataframe,
+)
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._coerce_spark_schema import (
     SUPPORTED_SPARK_TYPES,
@@ -95,6 +101,7 @@ from tmlt.analytics._transformation_utils import (
     unpersist_table,
 )
 from tmlt.analytics._type_checking import is_exact_number_tuple
+from tmlt.analytics._utils import assert_is_identifier
 from tmlt.analytics.constraints import Constraint, MaxGroupsPerID
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -102,7 +109,7 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.analytics.protected_change import (
+from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
     AddMaxRows,
     AddMaxRowsInMaxGroups,
     AddOneRow,
@@ -115,28 +122,13 @@ from tmlt.analytics.query_expr import QueryExpr
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
 
-class _PrivateSourceTuple(NamedTuple):
-    """Named tuple of private Dataframe, domain and protected change."""
-
-    dataframe: DataFrame
-    """Private DataFrame."""
-
-    protected_change: ProtectedChange
-    """Protected change for this private source."""
-
-    domain: SparkDataFrameDomain
-    """Domain of private DataFrame."""
-
-
-def _generate_neighboring_relation(
-    sources: Dict[str, _PrivateSourceTuple]
-) -> Conjunction:
+def _generate_neighboring_relation(sources: Dict[str, PrivateDataframe]) -> Conjunction:
     """Convert a collection of private source tuples into a neighboring relation."""
     relations: List[NeighboringRelation] = []
     # this is used only for AddRemoveKeys.
     protected_ids_dict: Dict[str, Dict[str, str]] = {}
 
-    for name, (_, protected_change, _) in sources.items():
+    for name, (_, protected_change) in sources.items():
         if isinstance(protected_change, AddMaxRows):
             relations.append(AddRemoveRows(name, protected_change.max_rows))
         elif isinstance(protected_change, AddMaxRowsInMaxGroups):
@@ -256,26 +248,21 @@ class Session:
     using :meth:`from_dataframe` or with a :class:`Builder`.
     """
 
-    class Builder:
+    class Builder(DataframeMixin, PrivacyBudgetMixin, BaseBuilder):
         """Builder for :class:`Session`."""
-
-        def __init__(self):
-            """Constructor."""
-            self._privacy_budget: Optional[PrivacyBudget] = None
-            self._private_sources: Dict[str, _PrivateSourceTuple] = {}
-            self._public_sources: Dict[str, DataFrame] = {}
-            self._id_spaces: List[str] = []
 
         def build(self) -> "Session":
             """Builds Session with specified configuration."""
             if self._privacy_budget is None:
                 raise ValueError("Privacy budget must be specified.")
-            if not self._private_sources:
+            if not self._private_dataframes:
                 raise ValueError("At least one private source must be provided.")
-            neighboring_relation = _generate_neighboring_relation(self._private_sources)
+            neighboring_relation = _generate_neighboring_relation(
+                self._private_dataframes
+            )
             tables = {
-                source_id: source_tuple.dataframe
-                for source_id, source_tuple in self._private_sources.items()
+                source_id: dataframe
+                for source_id, (dataframe, _) in self._private_dataframes.items()
             }
             sess = (
                 Session._from_neighboring_relation(  # pylint: disable=protected-access
@@ -294,167 +281,10 @@ class Session:
                             f"Identifier spaces for the session: {self._id_spaces}"
                         )
             # add public sources
-            for source_id, dataframe in self._public_sources.items():
+            for source_id, dataframe in self._public_dataframes.items():
                 sess.add_public_dataframe(source_id, dataframe)
 
             return sess
-
-        def with_privacy_budget(
-            self, privacy_budget: PrivacyBudget
-        ) -> "Session.Builder":
-            """Sets the privacy budget for the Session to be built.
-
-            Args:
-                privacy_budget: Privacy Budget to be allocated to Session.
-            """
-            if self._privacy_budget is not None:
-                raise ValueError("This Builder already has a privacy budget")
-            self._privacy_budget = privacy_budget
-            return self
-
-        def with_private_dataframe(
-            self,
-            source_id: str,
-            dataframe: DataFrame,
-            stability: Optional[Union[int, float]] = None,
-            grouping_column: Optional[str] = None,
-            protected_change: Optional[ProtectedChange] = None,
-        ) -> "Session.Builder":
-            """Adds a Spark DataFrame as a private source.
-
-            Not all Spark column types are supported in private sources; see
-            :data:`SUPPORTED_SPARK_TYPES` for information about which types are
-            supported.
-
-            Args:
-                source_id: Source id for the private source dataframe.
-                dataframe: Private source dataframe to perform queries on,
-                    corresponding to the ``source_id``.
-                stability: Deprecated: use ``protected_change`` instead, see
-                    :ref:`changelog<changelog#protected-change>`.
-                grouping_column: Deprecated: use ``protected_change`` instead, see
-                    :ref:`changelog<changelog#protected-change>`.
-                protected_change: A
-                    :class:`~tmlt.analytics.protected_change.ProtectedChange`
-                    specifying what changes to the input data the resulting
-                    :class:`Session` should protect.
-            """
-            _assert_is_identifier(source_id)
-            if source_id in self._private_sources or source_id in self._public_sources:
-                raise ValueError(f"Duplicate source id: '{source_id}'")
-
-            dataframe = coerce_spark_schema_or_fail(dataframe)
-            domain = SparkDataFrameDomain.from_spark_schema(dataframe.schema)
-
-            if protected_change is not None:
-                if stability is not None:
-                    raise ValueError(
-                        "stability must not be specified when using protected_change."
-                    )
-                if grouping_column is not None:
-                    raise ValueError(
-                        "grouping_column must not be specified when using"
-                        " protected_change."
-                    )
-                self._private_sources[source_id] = _PrivateSourceTuple(
-                    dataframe, protected_change, domain
-                )
-                return self
-
-            if stability is None:
-                warn(
-                    (
-                        "Using a default for protected_change is deprecated. Future"
-                        " code should explicitly specify protected_change=AddOneRow()"
-                    ),
-                    DeprecationWarning,
-                )
-                if grouping_column is None:
-                    protected_change = AddOneRow()
-                else:
-                    warn(
-                        (
-                            "Providing a grouping_column parameter instead of a"
-                            " protected_change parameter is deprecated"
-                        ),
-                        DeprecationWarning,
-                    )
-                    protected_change = AddMaxRowsInMaxGroups(grouping_column, 1, 1)
-                    grouping_column = None
-            else:
-                warn(
-                    "Providing a stability instead of a protected_change is deprecated",
-                    DeprecationWarning,
-                )
-                if stability < 1:
-                    raise ValueError("Stability must be a positive integer.")
-
-                if grouping_column is None:
-                    if not isinstance(stability, int):
-                        raise ValueError(
-                            "stability must be an integer when no grouping column is"
-                            " specified"
-                        )
-                    protected_change = AddMaxRows(stability)
-                else:
-                    warn(
-                        (
-                            "Providing a grouping_column parameter instead of a"
-                            " protected_change parameter is deprecated"
-                        ),
-                        DeprecationWarning,
-                    )
-                    if not isinstance(stability, (int, float)):
-                        raise ValueError("stability must be a numeric value")
-                    protected_change = AddMaxRowsInMaxGroups(
-                        grouping_column, max_groups=1, max_rows_per_group=stability
-                    )
-                    grouping_column = None
-
-            self._private_sources[source_id] = _PrivateSourceTuple(
-                dataframe, protected_change, domain
-            )
-            return self
-
-        def with_public_dataframe(
-            self, source_id: str, dataframe: DataFrame
-        ) -> "Session.Builder":
-            """Adds a Spark DataFrame as a public source.
-
-            Not all Spark column types are supported in public sources; see
-            :data:`SUPPORTED_SPARK_TYPES` for information about which types are
-            supported.
-
-            Args:
-                source_id: Source id for the public data source.
-                dataframe: Public DataFrame corresponding to the source id.
-            """
-            _assert_is_identifier(source_id)
-            if source_id in self._private_sources or source_id in self._public_sources:
-                raise ValueError(f"Duplicate source id: '{source_id}'")
-            dataframe = coerce_spark_schema_or_fail(dataframe)
-            self._public_sources[source_id] = dataframe
-            return self
-
-        def with_id_space(self, id_space: str) -> "Session.Builder":
-            """Creates an identifier space for the session.
-
-            This defines a space of identifiers that map 1-to-1 to the
-            identifiers being protected by a table with the
-            :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected
-            change. Any table with such a protected change must be a member of
-            some identifier space.
-
-            Args:
-                id_space: The name of the identifier space.
-            """
-            _assert_is_identifier(id_space)
-            if id_space in self._id_spaces:
-                raise ValueError(
-                    f"This Builder already has an ID space of the name: {id_space}."
-                )
-            self._id_spaces.append(id_space)
-            return self
 
     def __init__(
         self, accountant: PrivacyAccountant, public_sources: Dict[str, DataFrame]
@@ -510,9 +340,7 @@ class Session:
         privacy_budget: PrivacyBudget,
         source_id: str,
         dataframe: DataFrame,
-        stability: Optional[Union[int, float]] = None,
-        grouping_column: Optional[str] = None,
-        protected_change: Optional[ProtectedChange] = None,
+        protected_change: ProtectedChange,
     ) -> "Session":
         """Initializes a DP session from a Spark dataframe.
 
@@ -558,10 +386,6 @@ class Session:
             source_id: The source id for the private source dataframe.
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
-            stability: Deprecated: use ``protected_change`` instead, see
-                :ref:`changelog<changelog#protected-change>`
-            grouping_column: Deprecated: use ``protected_change`` instead, see
-                :ref:`changelog<changelog#protected-change>`
             protected_change: A
                 :class:`~tmlt.analytics.protected_change.ProtectedChange`
                 specifying what changes to the input data the resulting
@@ -574,8 +398,6 @@ class Session:
             .with_private_dataframe(
                 source_id=source_id,
                 dataframe=dataframe,
-                stability=stability,
-                grouping_column=grouping_column,
                 protected_change=protected_change,
             )
         )
@@ -1104,7 +926,7 @@ class Session:
             dataframe: The public data source corresponding to the ``source_id``.
         """
         # pylint: enable=line-too-long
-        _assert_is_identifier(source_id)
+        assert_is_identifier(source_id)
         if source_id in self.public_sources or source_id in self.private_sources:
             raise ValueError(f"This session already has a table named '{source_id}'.")
         dataframe = coerce_spark_schema_or_fail(dataframe)
@@ -1357,7 +1179,7 @@ class Session:
             cache: Whether or not to cache the view.
         """
         # pylint: enable=line-too-long
-        _assert_is_identifier(source_id)
+        assert_is_identifier(source_id)
         self._activate_accountant()
         if source_id in self.private_sources or source_id in self.public_sources:
             raise ValueError(f"Table '{source_id}' already exists.")
@@ -1879,20 +1701,6 @@ class Session:
     def stop(self) -> None:
         """Close out this session, allowing other sessions to become active."""
         self._accountant.retire()
-
-
-def _assert_is_identifier(source_id: str):
-    """Checks that the ``source_id`` is a valid Python identifier.
-
-    Args:
-        source_id: The name of the dataframe or transformation.
-    """
-    if not source_id.isidentifier():
-        raise ValueError(
-            "The string passed as source_id must be a valid Python identifier: it can"
-            " only contain alphanumeric letters (a-z) and (0-9), or underscores (_),"
-            " and it cannot start with a number, or contain any spaces."
-        )
 
 
 def _describe_schema(schema: Schema) -> List[str]:

@@ -6,7 +6,7 @@
 # pylint: disable=no-self-use, unidiomatic-typecheck
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
 
 import pandas as pd
@@ -245,16 +245,7 @@ class TestSession:
                 PureDPBudget(float("inf")),
                 PureDP(),
                 SymmetricDifference(),
-                {"stability": 21, "grouping_column": None, "protected_change": None},
-                id="puredp-stability",
-            ),
-            pytest.param(
-                PureDPBudget(float("inf")),
-                PureDP(),
-                SymmetricDifference(),
                 {
-                    "stability": None,
-                    "grouping_column": None,
                     "protected_change": AddMaxRows(21),
                 },
                 id="puredp-protected_change",
@@ -263,23 +254,7 @@ class TestSession:
                 PureDPBudget(float("inf")),
                 PureDP(),
                 IfGroupedBy("X", SumOf(SymmetricDifference())),
-                {"stability": 21, "grouping_column": "X", "protected_change": None},
-                id="puredp-grouped-stability",
-            ),
-            pytest.param(
-                RhoZCDPBudget(float("inf")),
-                RhoZCDP(),
-                IfGroupedBy("X", RootSumOfSquared(SymmetricDifference())),
-                {"stability": 21, "grouping_column": "X", "protected_change": None},
-                id="zcdp-grouped-stability",
-            ),
-            pytest.param(
-                PureDPBudget(float("inf")),
-                PureDP(),
-                IfGroupedBy("X", SumOf(SymmetricDifference())),
                 {
-                    "stability": None,
-                    "grouping_column": None,
                     "protected_change": AddMaxRowsInMaxGroups("X", 3, 7),
                 },
                 id="puredp-grouped-protected_change",
@@ -289,8 +264,6 @@ class TestSession:
                 RhoZCDP(),
                 IfGroupedBy("X", RootSumOfSquared(SymmetricDifference())),
                 {
-                    "stability": None,
-                    "grouping_column": None,
                     "protected_change": AddMaxRowsInMaxGroups("X", 9, 7),
                 },
                 id="zcdp-grouped-protected_change",
@@ -359,8 +332,6 @@ class TestSession:
                     }
                 ),
                 {
-                    "stability": None,
-                    "grouping_column": None,
                     "protected_change": AddRowsWithID("A"),
                 },
                 id="puredp-addrowswithID-protected_change",
@@ -1754,16 +1725,6 @@ class TestInvalidSession:
                 self.sdf,
                 protected_change=AddMaxRowsInMaxGroups("not_a_column", 1, 1),
             )
-        with pytest.raises(
-            ValueError,
-            match=(
-                "^Grouping column 'not_a_column' does not exist in the input. Available"
-                " columns: A, B, X$"
-            ),
-        ):
-            Session.from_dataframe(
-                PureDPBudget(1), "private", self.sdf, grouping_column="not_a_column"
-            )
 
         float_df = spark.createDataFrame(pd.DataFrame({"A": [1, 2], "F": [0.1, 0.2]}))
         with pytest.raises(
@@ -1777,15 +1738,6 @@ class TestInvalidSession:
                 "private",
                 float_df,
                 protected_change=AddMaxRowsInMaxGroups("F", 1, 1),
-            )
-        with pytest.raises(
-            ValueError,
-            match=(
-                "^Grouping column 'F' is not of a type on which grouping is supported.*"
-            ),
-        ):
-            Session.from_dataframe(
-                PureDPBudget(1), "private", float_df, grouping_column="F"
             )
 
     def test_invalid_key_column(self) -> None:
@@ -1808,7 +1760,13 @@ class TestInvalidSession:
         "source_id,exception_type,expected_error_msg",
         [
             (2, TypeError, 'type of argument "source_id" must be str; got int instead'),
-            ("@str", ValueError, "source_id must be a valid Python identifier."),
+            (
+                "@str",
+                ValueError,
+                "Names must be valid Python identifiers: they can only contain "
+                "alphanumeric characters and underscores, and cannot begin with a "
+                "number.",
+            ),
         ],
     )
     def test_invalid_source_id(
@@ -2103,11 +2061,11 @@ class TestSessionBuilder:
         [
             (
                 Session.Builder(),
-                "Privacy budget must be specified.",
+                "This builder must have a privacy budget set",
             ),  # No Privacy Budget
             (
                 Session.Builder().with_privacy_budget(PureDPBudget(10)),
-                "At least one private source must be provided.",
+                "At least one private dataframe must be specified",
             ),  # No Private Sources
         ],
     )
@@ -2116,75 +2074,33 @@ class TestSessionBuilder:
         with pytest.raises(ValueError, match=error_msg):
             builder.build()
 
-    def test_invalid_stability(self):
-        """Tests that private source cannot be added with an invalid stability."""
-        with pytest.raises(ValueError, match="Stability must be a positive integer"):
-            Session.Builder().with_private_dataframe(
-                source_id="df1", dataframe=self.dataframes["df1"], stability=0
-            )
-        with pytest.raises(ValueError, match="Stability must be a positive integer"):
-            Session.Builder().with_private_dataframe(
-                source_id="df1", dataframe=self.dataframes["df1"], stability=-1
-            )
-
-    @pytest.mark.parametrize(
-        "stability,grouping_column,error_msg",
-        [
-            (None, None, "Using a default for protected_change is deprecated"),
-            (
-                None,
-                "A",
-                "Providing a grouping_column parameter instead of a"
-                " protected_change parameter is deprecated",
-            ),
-            (
-                1,
-                None,
-                "Providing a stability instead of a protected_change is deprecated",
-            ),
-            (
-                1,
-                "A",
-                "Providing a grouping_column parameter instead of a"
-                " protected_change parameter is deprecated",
-            ),
-        ],
-    )
-    def test_stability_deprecation(
-        self, stability: Optional[int], grouping_column: Optional[str], error_msg: str
-    ):
-        """Test that stability and grouping_column give deprecation warnings."""
-        with pytest.warns(DeprecationWarning, match=error_msg):
-            Session.Builder().with_private_dataframe(
-                source_id="df1",
-                dataframe=self.dataframes["df1"],
-                stability=stability,
-                grouping_column=grouping_column,
-            )
-
     @pytest.mark.parametrize("initial_budget", [(PureDPBudget(1)), (RhoZCDPBudget(1))])
     def test_invalid_to_add_budget_twice(self, initial_budget: PrivacyBudget):
         """Test that you can't call ``with_privacy_budget()`` twice."""
         builder = Session.Builder().with_privacy_budget(initial_budget)
         with pytest.raises(
-            ValueError, match="This Builder already has a privacy budget"
+            ValueError, match="This builder already has a privacy budget set"
         ):
             builder.with_privacy_budget(PureDPBudget(1))
         with pytest.raises(
-            ValueError, match="This Builder already has a privacy budget"
+            ValueError, match="This builder already has a privacy budget set"
         ):
             builder.with_privacy_budget(RhoZCDPBudget(1))
 
     def test_duplicate_source_id(self):
         """Tests that a repeated source id raises appropriate error."""
         builder = Session.Builder().with_private_dataframe(
-            source_id="A", dataframe=self.dataframes["df1"], stability=1
+            source_id="A",
+            dataframe=self.dataframes["df1"],
+            protected_change=AddOneRow(),
         )
-        with pytest.raises(ValueError, match="Duplicate source id: 'A'"):
+        with pytest.raises(ValueError, match="Table 'A' already exists"):
             builder.with_private_dataframe(
-                source_id="A", dataframe=self.dataframes["df2"], stability=2
+                source_id="A",
+                dataframe=self.dataframes["df2"],
+                protected_change=AddOneRow(),
             )
-        with pytest.raises(ValueError, match="Duplicate source id: 'A'"):
+        with pytest.raises(ValueError, match="Table 'A' already exists"):
             builder.with_public_dataframe(
                 source_id="A", dataframe=self.dataframes["df2"]
             )
@@ -2224,7 +2140,7 @@ class TestSessionBuilder:
             builder.build()
         ### build should succeed when the identifier space is added
         builder = builder.with_id_space("random_id")
-        with pytest.raises(ValueError, match="This Builder already has an ID space"):
+        with pytest.raises(ValueError, match="ID space 'random_id' already exists"):
             builder.with_id_space("random_id")
         assert len(builder._id_spaces) == 2  # pylint: disable=protected-access
         builder.build()
@@ -2358,6 +2274,7 @@ class TestSessionBuilder:
                 [(1,)],
                 schema=StructType([StructField("A", LongType(), nullable=nullable)]),
             ),
+            protected_change=AddOneRow(),
         )
         builder = builder.with_public_dataframe(
             source_id="public_df",
@@ -2367,12 +2284,12 @@ class TestSessionBuilder:
             ),
         )
         actual_private_schema = (
-            builder._private_sources[  # pylint: disable=protected-access
+            builder._private_dataframes[  # pylint: disable=protected-access
                 "private_df"
             ].dataframe.schema
         )
         actual_public_schema = (
-            builder._public_sources[  # pylint: disable=protected-access
+            builder._public_dataframes[  # pylint: disable=protected-access
                 "public_df"
             ].schema
         )

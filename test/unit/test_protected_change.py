@@ -69,10 +69,7 @@ def test_add_max_rows(args: List[Any], expectation: ContextManager[None]):
             ["x", 1, "y"],
             pytest.raises(
                 TypeError,
-                match=(
-                    r"^type of max_rows_per_group must be one of \(int, float\); got"
-                    r" str instead$"
-                ),
+                match=(r"^type of max_rows_per_group must be int; got str instead$"),
             ),
         ),
     ],

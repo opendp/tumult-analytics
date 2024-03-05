@@ -4,7 +4,6 @@
 # Copyright Tumult Labs 2024
 from abc import ABC
 from dataclasses import dataclass
-from typing import Union
 
 from typeguard import check_type
 
@@ -87,14 +86,14 @@ class AddMaxRowsInMaxGroups(ProtectedChange):
     """The name of the column specifying the group."""
     max_groups: int
     """The maximum number of groups that may differ."""
-    max_rows_per_group: Union[int, float]
+    max_rows_per_group: int
     """The maximum number of rows which may be added to or removed from each group."""
 
     def __post_init__(self):
         """Validate attributes."""
         check_type("column", self.grouping_column, str)
         check_type("max_groups", self.max_groups, int)
-        check_type("max_rows_per_group", self.max_rows_per_group, Union[int, float])
+        check_type("max_rows_per_group", self.max_rows_per_group, int)
         if self.max_groups < 1:
             raise ValueError("max_groups must be positive")
         if self.max_rows_per_group < 1:

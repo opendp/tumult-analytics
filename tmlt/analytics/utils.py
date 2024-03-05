@@ -12,6 +12,7 @@ from tmlt.core.utils import configuration
 
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
+from tmlt.analytics.protected_change import AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.session import Session
 
@@ -90,7 +91,10 @@ def check_installation():
 
         print("Creating Tumult Analytics session... ", end="")
         session = Session.from_dataframe(
-            privacy_budget=PureDPBudget(1), source_id="private_data", dataframe=sdf
+            privacy_budget=PureDPBudget(1),
+            source_id="private_data",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
         )
         print(" OK")
 

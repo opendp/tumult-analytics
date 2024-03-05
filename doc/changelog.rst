@@ -9,6 +9,11 @@ Changelog
 Unreleased
 ----------
 
+Removed
+~~~~~~~
+- **Backwards-incompatible**: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since Tumult Analytics 0.7.0).
+  As a result, the ``protected_change`` parameter to those methods is now required.
+
 Changed
 ~~~~~~~
 
