@@ -759,9 +759,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
             simplify_constraints(propagate_flat_map(expr, child_constraints)),
         )
 
-    # override in subclass, returning NonPrivateJoin if no truncation
-    @staticmethod
-    def build_private_join_transformation(
+    def build_private_join_transformation(  # pylint: disable=no-self-use
+        self,
         input_domain: DictDomain,
         left_key: Any,
         right_key: Any,
