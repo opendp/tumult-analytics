@@ -244,16 +244,17 @@ class TestAddKeys(TestTransformationVisitor):
             (
                 FlatMap(
                     child=PrivateSource("ids1"),
-                    f=lambda row: [{"X": n} for n in range(row["I"] + 10)],
+                    f=lambda row: [{"X": n} for n in range(row["I"] + 4)],
                     schema_new_columns=Schema({"X": "INTEGER"}),
                     augment=True,
-                    max_rows=3,
+                    max_rows=3,  # this is ignored
                 ),
                 pd.DataFrame(
                     [
                         [1, "0", 0, 0.1, DATE1, TIMESTAMP1, 0],
                         [1, "0", 0, 0.1, DATE1, TIMESTAMP1, 1],
                         [1, "0", 0, 0.1, DATE1, TIMESTAMP1, 2],
+                        [1, "0", 0, 0.1, DATE1, TIMESTAMP1, 3],
                     ],
                     columns=["id", "S", "I", "F", "D", "T", "X"],
                 ),

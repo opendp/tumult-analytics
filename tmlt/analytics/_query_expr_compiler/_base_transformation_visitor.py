@@ -614,8 +614,38 @@ class BaseTransformationVisitor(QueryExprVisitor):
             simplify_constraints(propagate_map(expr, child_constraints)),
         )
 
-    # general implementation, shared between subclasses
-    def _visit_flat_map(self, expr: FlatMapExpr, max_rows: Optional[int]) -> Output:
+    def build_flat_map(  # pylint: disable=no-self-use
+        self,
+        input_metric: Union[IfGroupedBy, SymmetricDifference],
+        row_transformer: RowToRowsTransformation,
+        max_rows: Optional[int],
+    ) -> Transformation:
+        """Build a Transformation for a FlatMap query expression with grouping=False."""
+        transformation = FlatMapTransformation(
+            metric=input_metric,
+            row_transformer=row_transformer,
+            max_num_rows=max_rows,
+        )
+        return transformation
+
+    def build_grouping_flat_map(  # pylint: disable=no-self-use
+        self,
+        inner_metric: Union[SumOf, RootSumOfSquared],
+        row_transformer: RowToRowsTransformation,
+        max_rows: int,
+    ) -> Transformation:
+        """Build a Transformation for a FlatMap query expression with grouping=True."""
+        transformation = GroupingFlatMap(
+            output_metric=inner_metric,
+            row_transformer=row_transformer,
+            max_num_rows=max_rows,
+        )
+        return transformation
+
+    def visit_flat_map(
+        self,
+        expr: FlatMapExpr,
+    ) -> Output:
         """Create a transformation from a FlatMap query expression."""
         child_transformation, child_ref, child_constraints = self._ensure_not_hamming(
             *expr.child.accept(self)
@@ -657,7 +687,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
         )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
-            if max_rows is None:
+            if expr.max_rows is None:
                 raise ValueError(
                     "Flat maps on tables without IDs must have a defined max_rows"
                     " parameter."
@@ -670,16 +700,16 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 )
             transformation: Transformation
             if expr.schema_new_columns.grouping_column is not None:
-                transformation = GroupingFlatMap(
-                    output_metric=self.inner_metric(),
+                transformation = self.build_grouping_flat_map(
+                    inner_metric=self.inner_metric(),
                     row_transformer=row_transformer,
-                    max_num_rows=max_rows,
+                    max_rows=expr.max_rows,
                 )
             else:
-                transformation = FlatMapTransformation(
-                    metric=input_metric,
+                transformation = self.build_flat_map(
+                    input_metric=input_metric,
                     row_transformer=row_transformer,
-                    max_num_rows=max_rows,
+                    max_rows=expr.max_rows,
                 )
 
             return create_copy_and_transform_value(
@@ -702,7 +732,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                     "Flat maps on tables with the AddRowsWithID protected "
                     "change cannot be grouping"
                 )
-            if max_rows is not None:
+            if expr.max_rows is not None:
                 warnings.warn(
                     "When performing a flat map on a table with the AddRowsWithID "
                     "ProtectedChange(), the max_rows parameter "
@@ -714,7 +744,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 child_ref.identifier,
                 target,
                 row_transformer=row_transformer,
-                max_num_rows=max_rows,
+                max_num_rows=None,
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
@@ -1440,11 +1470,6 @@ class BaseTransformationVisitor(QueryExprVisitor):
             ref,
             simplify_constraints(child_constraints + [expr.constraint]),
         )
-
-    # Specific implementations in subclasses
-    def visit_flat_map(self, expr: FlatMapExpr) -> Any:
-        """Visit a FlatMap query expression (raises an error)."""
-        raise NotImplementedError
 
     # None of the queries that produce measurements are implemented
     def visit_get_groups(self, expr: GetGroups) -> Any:
