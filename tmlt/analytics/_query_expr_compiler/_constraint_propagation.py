@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Set, Union, cast
 
+import pandas as pd
 from pyspark.sql import DataFrame
 
 from tmlt.analytics.constraints import (
@@ -196,13 +197,16 @@ def propagate_join_public(
     constraints: List[Constraint],
 ) -> List[Constraint]:
     """Propagate a list of constraints through a JoinPublic transformation."""
-    join_stability = max(
+    count_df = cast(
+        pd.DataFrame,
         public_df.select(*join_cols)
         .groupby(*join_cols)
         .count()
         .select("count")
-        .toPandas()["count"]
-        .to_list(),
+        .toPandas(),
+    )
+    join_stability = max(
+        count_df["count"].to_list(),
         default=0,
     )
     propagated = [
