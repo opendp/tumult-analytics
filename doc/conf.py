@@ -236,6 +236,7 @@ def skip_members(app, what, name, obj, skip, options):
         "__sizeof__",
         "__str__",
         "__subclasshook__",
+        "__init_subclass__",
     ]
     excluded_attributes = ["__slots__"]
     if what == "method" and name.split(".")[-1] in excluded_methods:
