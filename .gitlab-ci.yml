@@ -21,13 +21,6 @@ stages:
 
 include: ".ci/common.yml"
 
-debug:
-  stage: setup
-  script:
-    - env | grep "CI_" | grep -v "TOKEN" || true
-    - env | grep "NIGHTLY" | grep -v "TOKEN" || true
-  timeout: 2m
-
 # "Fake" job to prevent dev pipelines from being interrupted on new commits.
 # See gitlab-org/gitlab#34221
 prevent_dev_interrupt:
