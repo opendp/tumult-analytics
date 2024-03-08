@@ -499,7 +499,10 @@ class SessionBuilder:
             # Check version number against our allowed version format. This matches a
             # subset of semantic versions that closely matches PEP440 versions. Some
             # examples include: 0.1.2, 1.2.3-alpha.2, 1.3.0-rc.1
-            version_regex = r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(alpha|beta|rc)\.(0|[1-9]\d*))?$"
+            version_regex = (
+                r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+                r"(-(alpha|beta|rc)\.(0|[1-9]\d*))?$"
+            )
             if not re.match(version_regex, version):
                 session.error(f"VERSION {version} is not a valid version number.")
             session.debug(f"Preparing release {version}")
@@ -511,10 +514,10 @@ class SessionBuilder:
             is_pre_release = "-" in version
             if not is_pre_release:
                 session.log("Updating CHANGELOG.rst unreleased version...")
-                with Path("CHANGELOG.rst").open("r") as fp:
+                with Path("CHANGELOG.rst").open("r", encoding="utf-8") as fp:
                     changelog_content = fp.readlines()
-                for i in range(len(changelog_content)):
-                    if re.match("^Unreleased$", changelog_content[i]):
+                for i, content in enumerate(changelog_content):
+                    if re.match("^Unreleased$", content):
                         # BEFORE
                         # Unreleased
                         # ----------
@@ -531,7 +534,7 @@ class SessionBuilder:
                         "Renaming unreleased section in changelog failed, "
                         "unable to find matching line"
                     )
-                with Path("CHANGELOG.rst").open("w") as fp:
+                with Path("CHANGELOG.rst").open("w", encoding="utf-8") as fp:
                     fp.writelines(changelog_content)
             else:
                 session.log("Prerelease, skipping CHANGELOG.rst update...")
@@ -541,15 +544,15 @@ class SessionBuilder:
         def post_release(session):
             """Update files after a release."""
             version_and_date_regex = (
-                r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(alpha|beta|rc)\.(0|[1-9]\d*))?"
-                r" - \d{4}-\d{2}-\d{2}$"
+                r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+                r"(-(alpha|beta|rc)\.(0|[1-9]\d*))? - \d{4}-\d{2}-\d{2}$"
             )
             # Find the latest release
-            with Path("CHANGELOG.rst").open("r") as fp:
+            with Path("CHANGELOG.rst").open("r", encoding="utf-8") as fp:
                 changelog_content = fp.readlines()
-                for i in range(len(changelog_content)):
-                    if re.match(version_and_date_regex, changelog_content[i]):
-                        version = changelog_content[i].split(" - ")[0]
+                for i, content in enumerate(changelog_content):
+                    if re.match(version_and_date_regex, content):
+                        version = content.split(" - ")[0]
                         is_pre_release = "-" in version
                         if not is_pre_release:
                             # BEFORE
@@ -566,10 +569,9 @@ class SessionBuilder:
                             for new_line in reversed(new_lines):
                                 changelog_content.insert(i, new_line)
                             break
-                        else:
-                            session.log("Prerelease, skipping CHANGELOG.rst update...")
-                            return
+                        session.log("Prerelease, skipping CHANGELOG.rst update...")
+                        return
                 else:
                     session.error("Unable to find latest release in CHANGELOG.rst")
-                with Path("CHANGELOG.rst").open("w") as fp:
+                with Path("CHANGELOG.rst").open("w", encoding="utf-8") as fp:
                     fp.writelines(changelog_content)
