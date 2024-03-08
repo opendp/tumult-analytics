@@ -110,7 +110,7 @@ test_demos:
   coverage: null
   artifacts: null
   timeout: 1h
-  tags: [aws-small]
+  tags: [aws-c6a.xlarge]
 
 test_dep_matrix:
   extends: .base
