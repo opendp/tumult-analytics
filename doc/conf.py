@@ -13,10 +13,9 @@ _logger = logging.getLogger(__name__)
 # Project information
 
 project = "Tumult Analytics"
-author = "Tumult Labs"
-copyright = "Tumult Labs 2023"
-
 package_name = "tmlt.analytics"
+author = "Tumult Labs"
+copyright = "Tumult Labs 2024"
 
 # TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove suppress_warnings setting
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
