@@ -393,15 +393,19 @@ class SessionBuilder:
             )
             session.install(*[pkg + version for pkg, version in packages.items()])
             session.run("pip", "freeze")
+
+            test_selector = session.posargs or [
+                "-m",
+                "not slow",
+                *map(str, self._get_code_dirs()),
+            ]
             test_options = [
                 "-rfs",
                 "--disable-warnings",
                 f"--junitxml={self.cwd}/junit.xml",
                 # Show runtimes of the 10 slowest tests, for later comparison if needed.
                 "--durations=10",
-                "-m",
-                "not slow",
-                *map(str, self._get_code_dirs()),
+                *test_selector,
             ]
             session.run("coverage", "run", "--branch", "-m", "pytest", *test_options)
             session.run(
