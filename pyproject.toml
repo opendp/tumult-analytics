@@ -121,6 +121,9 @@ dunamai = "<1.19.0"
 nox = "2022.8.7"
 nox_poetry = "1.0.1"
 
+[tool.poetry.group.ci-tools.dependencies]
+requests = "^2.31.0"
+
 
 [build-system]
 build-backend = "poetry_dynamic_versioning.backend"
