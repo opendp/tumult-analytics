@@ -188,8 +188,23 @@ publish:
   stage: release
   dependencies: [package]
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
+  variables:
+    # multi-repo: include when=ce
+    POETRY_USER: "__token__"
+    POETRY_PASSWORD: "${RELEASE_PYPI_TOKEN}"
+    POETRY_PUBLISH: "poetry publish"
+    # multi-repo: end
+    # multi-repo: include when=ee
+    POETRY_USER: "gitlab-ci-token"
+    POETRY_PASSWORD: "${CI_JOB_TOKEN}"
+    POETRY_PUBLISH: "poetry publish --repository gitlab"
+    # multi-repo: end
+  # multi-repo: include when=ee
+  before_script:
+    - poetry config repositories.gitlab "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi"
+  # multi-repo: end
   script:
-    - poetry publish -u __token__ -p "${RELEASE_PYPI_TOKEN}"
+    - $POETRY_PUBLISH -u "$POETRY_USER" -p "$POETRY_PASSWORD"
   timeout: 3m
   rules:
     - if: '$CI_COMMIT_TAG'
@@ -208,6 +223,8 @@ publish_docs:
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   variables:
     GIT_STRATEGY: none
+    DOCS_GIT: "https://$DOCS_TOKEN_USER:$DOCS_TOKEN@gitlab.com/tumult-labs/ops/docs.tmlt.dev.git"
+    DOCS_ROOT: "docs.tmlt.dev/public/analytics"
   before_script:
     - |
       if [[ -z "$DOCS_TOKEN_USER" || -z "$DOCS_TOKEN" ]]; then
@@ -230,10 +247,10 @@ publish_docs:
       fi
     - echo "Publishing version $version as $docs_version..."
   script:
-    - git clone https://$DOCS_TOKEN_USER:$DOCS_TOKEN@gitlab.com/tumult-labs/ops/docs.tmlt.dev.git
+    - git clone $DOCS_GIT
     # Remove old docs published as this version, if any
-    - rm -rf docs.tmlt.dev/public/analytics/$docs_version
-    - mv public/ docs.tmlt.dev/public/analytics/$docs_version
+    - rm -rf $DOCS_ROOT/$docs_version
+    - mv public/ $DOCS_ROOT/$docs_version
     - cd docs.tmlt.dev
     - git config user.name "gitlab"
     - git config user.email "gitlab@tmlt.io"

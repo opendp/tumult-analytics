@@ -134,7 +134,6 @@ function release_handler () {
         exit 1
     fi
 
-
     links="<https://pypi.org/project/tmlt.analytics/|:package: Package Registry>"
     # Prereleases don't have docs published for them, so skip the docs link in
     # that case.
