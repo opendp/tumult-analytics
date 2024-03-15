@@ -43,7 +43,7 @@ def _get_pipeline_jobs(project_id: int, pipeline_id: int, token: str):
     if resp.status_code > 399:
         _log.critical(
             f"Unable to list pipeline {pipeline_id} jobs (HTTP {resp.status_code}), "
-            f"response: {resp.body}"
+            f"response: {resp.text}"
         )
         raise RuntimeError("Error making GitLab API requests")
     return resp
@@ -57,6 +57,8 @@ def _nightly_handler(args):
     pipeline_url = os.environ["CI_PIPELINE_URL"]
     pipeline_branch = os.environ["CI_COMMIT_BRANCH"]
 
+    _log.info(f"Handling pipeline {pipeline_id} as nightly pipeline...")
+
     jobs_json = _get_pipeline_jobs(project_id, pipeline_id, token).json()
     jobs = {j["name"]: j for j in jobs_json}
 
@@ -65,7 +67,8 @@ def _nightly_handler(args):
     )
     if bridges_resp.status_code > 399:
         _log.critical(
-            f"Unable to list downstream pipelines (HTTP {bridges_resp.status_code}), response: {bridges_resp.body}"
+            f"Unable to list downstream pipelines (HTTP {bridges_resp.status_code}), "
+            f"response: {bridges_resp.text}"
         )
         raise RuntimeError("Error making GitLab API requests")
     bridges_json = bridges_resp.json()
