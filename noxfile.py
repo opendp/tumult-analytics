@@ -8,10 +8,8 @@ API reference.
 import os
 from glob import glob
 from pathlib import Path
-from typing import List
 import sys
 
-from nox import session as nox_session
 from nox_poetry import session as poetry_session
 
 PACKAGE_NAME = "tmlt.analytics"
@@ -90,6 +88,7 @@ _builder = SessionBuilder(
         "smoketest_script": SMOKETEST_SCRIPT,
         "dependency_matrix": DEPENDENCY_MATRIX,
         "minimum_coverage": MIN_COVERAGE,
+        "coverage_module": "tmlt.analytics",
     },
 )
 

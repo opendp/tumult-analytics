@@ -13,7 +13,7 @@ one or the other will indicate this in their docstrings.
 
 import subprocess
 from functools import wraps
-from typing import Dict, Any, Callable, List, Optional
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 import os
 import re
@@ -28,14 +28,13 @@ from nox import session as nox_session
 from nox_poetry import session as poetry_session
 
 from .dependencies import install, show_installed
-from .environment import with_clean_workdir
+from .environment import in_ci, with_clean_workdir
 
 # TODO(#2140): Once support for is added to nox-poetry (see
 #   https://github.com/cjolowicz/nox-poetry/issues/663), some of the
 #   installation lists here can be rewritten in terms of dependency groups,
 #   making the pyproject file more of a single source for information about
 #   dependencies.
-
 
 class SessionBuilder:
     """Class for creating common Nox sessions based on project-specific configuration.
@@ -210,7 +209,7 @@ class SessionBuilder:
         def pydocstyle(session):
             session.run("pydocstyle", *map(str, self._get_code_dirs()))
 
-    @install("pytest", "coverage")
+    @install("pytest", "pytest-xdist", "pytest-cov")
     @show_installed
     @with_clean_workdir
     def _test(
@@ -230,7 +229,7 @@ class SessionBuilder:
         if session.posargs:
             test_paths = []
             extra_args.extend(session.posargs)
-
+        parallelism_options = ["-n", "auto"] if in_ci() else []
         test_options = [
             "-r fEs",
             "--verbose",
@@ -238,22 +237,19 @@ class SessionBuilder:
             f"--junitxml={self.cwd}/junit.xml",
             # Show runtimes of the 10 slowest tests, for later comparison if needed.
             "--durations=10",
+            *parallelism_options,
+            # Collect coverage data, enforce minimum, output reports
+            f"--cov={self.options['coverage_module']}",
+            f"--cov-fail-under={min_coverage}",
+            "--cov-report=term",
+            f"--cov-report=html:{self.cwd}/coverage/",
+            f"--cov-report=xml:{self.cwd}/coverage.xml",
+            # Any extra args
             *extra_args,
+            # The files to be tested
             *map(str, test_paths),
         ]
-        session.run("coverage", "run", "--branch", "-m", "pytest", *test_options)
-        session.run(
-            "coverage",
-            "html",
-            f"--include={self.package_source}/*",
-            f"--directory={self.cwd}/coverage/",
-        )
-        session.run(
-            "coverage",
-            "report",
-            f"--include={self.package_source}/*",
-            f"--fail-under={min_coverage}",
-        )
+        session.run("pytest", *test_options)
 
     @show_installed
     @with_clean_workdir
@@ -379,7 +375,7 @@ class SessionBuilder:
             packages.append(config)
 
         @nox_session
-        @install("pytest", "coverage")
+        @install("pytest", "pytest-xdist", "pytest-cov")
         @with_clean_workdir
         @nox.parametrize("python,packages", zip(pythons, packages), ids=ids)
         def test_dependency_matrix(session, packages):
@@ -399,27 +395,24 @@ class SessionBuilder:
                 "not slow",
                 *map(str, self._get_code_dirs()),
             ]
+            parallelism_options = ["-n", "auto"] if in_ci() else []
             test_options = [
                 "-rfs",
                 "--disable-warnings",
                 f"--junitxml={self.cwd}/junit.xml",
                 # Show runtimes of the 10 slowest tests, for later comparison if needed.
                 "--durations=10",
+                *parallelism_options,
+                # Collect coverage data, enforce minimum, output reports
+                f"--cov={self.options['coverage_module']}",
+                "--cov-report=term",
+                f"--cov-report=html:{self.cwd}/coverage/",
+                f"--cov-report=xml:{self.cwd}/coverage.xml",
+                # The files to be tested
                 *test_selector,
             ]
-            session.run("coverage", "run", "--branch", "-m", "pytest", *test_options)
-            session.run(
-                "coverage",
-                "html",
-                f"--include={self.package_source}/*",
-                f"--directory={self.cwd}/coverage/",
-            )
-            session.run(
-                "coverage",
-                "report",
-                f"--include={self.package_source}/*",
-                "--fail-under=75",
-            )
+            session.run("pytest", *test_options)
+
 
     @install(
         "pandoc",

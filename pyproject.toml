@@ -94,6 +94,8 @@ pylint = "^2.13"
 
 # CI, testing, docs
 pytest = "^7.1.2"
+pytest-xdist = "^3.5.0"
+pytest-cov = "^4.1.0"
 coverage = "^6.5"
 pydata-sphinx-theme = "0.9.0"
 scanpydoc = "0.7.3" # 0.7.4 doesn't work
