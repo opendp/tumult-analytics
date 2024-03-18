@@ -19,6 +19,7 @@ import os
 import re
 import datetime
 import nox
+import platform
 
 # The distinction between these two session types is that poetry_session
 # automatically limits installations to the version numbers in the Poetry lock
@@ -67,6 +68,21 @@ class SessionBuilder:
             .stdout.decode("utf-8")
             .strip()
         )
+
+    def _get_physical_cpu_count(self):
+        """Get the number of physical CPUs on the current machine."""
+        try:
+            if platform.system() == "Darwin":
+                command = "sysctl -n hw.physicalcpu"
+            elif platform.system() == "Linux":
+                command = "nproc --all"
+            cores = int(subprocess.check_output(command, shell=True).strip())
+        except Exception as e:
+            print(f"Error getting physical CPU count: {e}, defaulting to 1")
+            cores = 1
+        if cores == 1:
+            return cores
+        return cores // 2 if in_ci() else 1
 
     def _build(self, session):
         """Build sdists and wheels for the package.
@@ -229,7 +245,6 @@ class SessionBuilder:
         if session.posargs:
             test_paths = []
             extra_args.extend(session.posargs)
-        parallelism_options = ["-n", "auto"] if in_ci() else []
         test_options = [
             "-r fEs",
             "--verbose",
@@ -237,7 +252,8 @@ class SessionBuilder:
             f"--junitxml={self.cwd}/junit.xml",
             # Show runtimes of the 10 slowest tests, for later comparison if needed.
             "--durations=10",
-            *parallelism_options,
+            "-n",
+            f"{self._get_physical_cpu_count()}",
             # Collect coverage data, enforce minimum, output reports
             f"--cov={self.options['coverage_module']}",
             f"--cov-fail-under={min_coverage}",
@@ -395,14 +411,14 @@ class SessionBuilder:
                 "not slow",
                 *map(str, self._get_code_dirs()),
             ]
-            parallelism_options = ["-n", "auto"] if in_ci() else []
             test_options = [
                 "-rfs",
                 "--disable-warnings",
                 f"--junitxml={self.cwd}/junit.xml",
                 # Show runtimes of the 10 slowest tests, for later comparison if needed.
                 "--durations=10",
-                *parallelism_options,
+                "-n",
+                f"{self._get_physical_cpu_count()}",
                 # Collect coverage data, enforce minimum, output reports
                 f"--cov={self.options['coverage_module']}",
                 "--cov-report=term",
@@ -412,7 +428,6 @@ class SessionBuilder:
                 *test_selector,
             ]
             session.run("pytest", *test_options)
-
 
     @install(
         "pandoc",
