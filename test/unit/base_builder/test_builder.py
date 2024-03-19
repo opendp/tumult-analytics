@@ -9,7 +9,7 @@ from pyspark.sql.types import DoubleType, LongType, StructField, StructType
 
 from tmlt.analytics._base_builder import (
     BaseBuilder,
-    DataframeMixin,
+    DataFrameMixin,
     ParameterMixin,
     PrivacyBudgetMixin,
 )
@@ -17,7 +17,7 @@ from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.protected_change import AddMaxRows, AddRowsWithID
 
 
-class _Builder(PrivacyBudgetMixin, DataframeMixin, ParameterMixin, BaseBuilder):
+class _Builder(PrivacyBudgetMixin, DataFrameMixin, ParameterMixin, BaseBuilder):
     def build(self):
         return (
             self._privacy_budget,
@@ -93,13 +93,8 @@ def test_multiple_builds(spark):
 
 
 def test_incomplete_builds(spark):
-    """Builds fail when they do not contain a budget and at least one private source."""
+    """Builds fail when they do not contain a budget."""
     builder = _Builder()
-    with pytest.raises(ValueError):
-        builder.build()
-
-    budget = PureDPBudget(1)
-    builder.with_privacy_budget(budget)
     with pytest.raises(ValueError):
         builder.build()
 

@@ -96,7 +96,7 @@ def assert_frame_equal_with_sort(
     """
     if sorted(first_df.columns) != sorted(second_df.columns):
         raise ValueError(
-            "Dataframes must have matching columns. "
+            "DataFrames must have matching columns. "
             f"first_df: {sorted(first_df.columns)}. "
             f"second_df: {sorted(second_df.columns)}."
         )

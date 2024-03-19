@@ -59,9 +59,9 @@ from typeguard import check_type, typechecked
 
 from tmlt.analytics._base_builder import (
     BaseBuilder,
-    DataframeMixin,
+    DataFrameMixin,
     PrivacyBudgetMixin,
-    PrivateDataframe,
+    PrivateDataFrame,
 )
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._coerce_spark_schema import (
@@ -122,7 +122,7 @@ from tmlt.analytics.query_expr import QueryExpr
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 
 
-def _generate_neighboring_relation(sources: Dict[str, PrivateDataframe]) -> Conjunction:
+def _generate_neighboring_relation(sources: Dict[str, PrivateDataFrame]) -> Conjunction:
     """Convert a collection of private source tuples into a neighboring relation."""
     relations: List[NeighboringRelation] = []
     # this is used only for AddRemoveKeys.
@@ -248,7 +248,7 @@ class Session:
     using :meth:`from_dataframe` or with a :class:`Builder`.
     """
 
-    class Builder(DataframeMixin, PrivacyBudgetMixin, BaseBuilder):
+    class Builder(DataFrameMixin, PrivacyBudgetMixin, BaseBuilder):
         """Builder for :class:`Session`."""
 
         def build(self) -> "Session":
@@ -256,7 +256,7 @@ class Session:
             if self._privacy_budget is None:
                 raise ValueError("Privacy budget must be specified.")
             if not self._private_dataframes:
-                raise ValueError("At least one private source must be provided.")
+                raise ValueError("At least one private dataframe must be specified")
             neighboring_relation = _generate_neighboring_relation(
                 self._private_dataframes
             )
@@ -418,7 +418,7 @@ class Session:
         Args:
             privacy_budget: The total privacy budget allocated to this session.
             private_sources: The private data to be used in the session.
-                Provided as a dictionary {source_id: Dataframe}.
+                Provided as a dictionary {source_id: DataFrame}.
             relation: the :class:`NeighboringRelation` to be used in the session.
         """
         # pylint: disable=protected-access

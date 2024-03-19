@@ -9,7 +9,7 @@ from pyspark.sql.types import DoubleType, LongType, StructField, StructType
 
 from tmlt.analytics._base_builder import (
     BaseBuilder,
-    DataframeMixin,
+    DataFrameMixin,
     ParameterMixin,
     PrivacyBudgetMixin,
 )
@@ -42,19 +42,19 @@ def test_privacy_budget_multiple_set():
         builder.with_privacy_budget(budget)
 
 
-class _DataframeBuilder(DataframeMixin, BaseBuilder):
+class _DataFrameBuilder(DataFrameMixin, BaseBuilder):
     def build(self):
         return self._private_dataframes, self._public_dataframes, self._id_spaces
 
 
 def test_dataframes(spark):
-    """DataframeMixin works correctly."""
+    """DataFrameMixin works correctly."""
     df1 = spark.createDataFrame(pd.DataFrame({"A": [1]}))
     df2 = spark.createDataFrame(pd.DataFrame({"A": [2.0]}))
     df3 = spark.createDataFrame(pd.DataFrame({"A": [3]}))
 
     private_dfs, public_dfs, id_spaces = (
-        _DataframeBuilder()
+        _DataFrameBuilder()
         .with_id_space("id1")
         .with_id_space("df3")  # Make sure id spaces don't conflict with dataframes
         .with_private_dataframe("df1", df1, AddRowsWithID("A"))
@@ -83,50 +83,50 @@ def test_dataframes(spark):
 
 
 def test_dataframes_invalid_ids(spark):
-    """DataframeMixin rejects invalid IDs."""
+    """DataFrameMixin rejects invalid IDs."""
     df = spark.createDataFrame(pd.DataFrame({"A": [1]}))
 
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe("1st", df, AddMaxRows(1))
+        _DataFrameBuilder().with_private_dataframe("1st", df, AddMaxRows(1))
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe("test-id", df, AddMaxRows(1))
+        _DataFrameBuilder().with_private_dataframe("test-id", df, AddMaxRows(1))
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_public_dataframe("1st", df)
+        _DataFrameBuilder().with_public_dataframe("1st", df)
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_public_dataframe("test-id", df)
+        _DataFrameBuilder().with_public_dataframe("test-id", df)
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_id_space("1st")
+        _DataFrameBuilder().with_id_space("1st")
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_id_space("test-id")
+        _DataFrameBuilder().with_id_space("test-id")
 
 
 def test_dataframes_name_conflicts(spark):
-    """DataframeMixin rejects duplicate IDs."""
+    """DataFrameMixin rejects duplicate IDs."""
     df = spark.createDataFrame(pd.DataFrame({"A": [1]}))
 
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe(
+        _DataFrameBuilder().with_private_dataframe(
             "t1", df, AddMaxRows(1)
         ).with_private_dataframe("t1", df, AddMaxRows(1))
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_public_dataframe("t1", df).with_private_dataframe(
+        _DataFrameBuilder().with_public_dataframe("t1", df).with_private_dataframe(
             "t1", df, AddMaxRows(1)
         )
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe(
+        _DataFrameBuilder().with_private_dataframe(
             "t1", df, AddMaxRows(1)
         ).with_public_dataframe("t1", df)
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_id_space("id1").with_id_space("id2").with_id_space(
+        _DataFrameBuilder().with_id_space("id1").with_id_space("id2").with_id_space(
             "id1"
         )
 
 
 def test_dataframes_empty_column_name(spark):
-    """DataframeMixin rejects dataframes with empty column names."""
+    """DataFrameMixin rejects dataframes with empty column names."""
     df = spark.createDataFrame(pd.DataFrame({"": [1]}))
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe("t1", df, AddMaxRows(1))
+        _DataFrameBuilder().with_private_dataframe("t1", df, AddMaxRows(1))
 
 
 @pytest.mark.parametrize(
@@ -137,10 +137,10 @@ def test_dataframes_empty_column_name(spark):
     ],
 )
 def test_dataframes_invalid_schemas(spark, dataframe):
-    """DataframeMixin rejects dataframes with unsupported schemas."""
+    """DataFrameMixin rejects dataframes with unsupported schemas."""
     df = spark.createDataFrame(dataframe)
     with pytest.raises(ValueError):
-        _DataframeBuilder().with_private_dataframe("t1", df, AddMaxRows(1))
+        _DataFrameBuilder().with_private_dataframe("t1", df, AddMaxRows(1))
 
 
 class _ParameterBuilder(ParameterMixin, BaseBuilder):

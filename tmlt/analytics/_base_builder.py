@@ -46,17 +46,17 @@ class PrivacyBudgetMixin:
         return self.__budget
 
 
-class PrivateDataframe(NamedTuple):
+class PrivateDataFrame(NamedTuple):
     """A private dataframe and its protected change."""
 
     dataframe: DataFrame
     protected_change: ProtectedChange
 
 
-class DataframeMixin:
+class DataFrameMixin:
     """Add private and public dataframe support to a builder."""
 
-    __private_dataframes: Dict[str, PrivateDataframe]
+    __private_dataframes: Dict[str, PrivateDataFrame]
     __public_dataframes: Dict[str, DataFrame]
     __id_spaces: Set[str]
 
@@ -68,7 +68,10 @@ class DataframeMixin:
         self.__id_spaces = set()
 
     def with_private_dataframe(
-        self, source_id: str, dataframe: DataFrame, protected_change: ProtectedChange
+        self,
+        source_id: str,
+        dataframe: DataFrame,
+        protected_change: ProtectedChange,
     ):
         """Adds a Spark DataFrame as a private source.
 
@@ -92,7 +95,7 @@ class DataframeMixin:
             raise ValueError(f"Table '{source_id}' already exists")
 
         dataframe = coerce_spark_schema_or_fail(dataframe)
-        self.__private_dataframes[source_id] = PrivateDataframe(
+        self.__private_dataframes[source_id] = PrivateDataFrame(
             dataframe, protected_change
         )
         return self
@@ -125,9 +128,7 @@ class DataframeMixin:
         return self
 
     @property
-    def _private_dataframes(self) -> Dict[str, PrivateDataframe]:
-        if not self.__private_dataframes:
-            raise ValueError("At least one private dataframe must be specified")
+    def _private_dataframes(self) -> Dict[str, PrivateDataFrame]:
         return dict(self.__private_dataframes)
 
     @property

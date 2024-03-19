@@ -42,7 +42,7 @@ from tmlt.analytics.query_expr import (
 _DATE1 = datetime.date.fromisoformat("2022-01-01")
 _DATE2 = datetime.date.fromisoformat("2022-01-02")
 
-# Dataframes for public data,
+# DataFrames for public data,
 # placed here so that test case KeySets can use them
 GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
 GET_GROUPBY_TWO_COLUMNS = lambda: SparkSession.builder.getOrCreate().createDataFrame(
