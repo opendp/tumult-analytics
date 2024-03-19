@@ -80,7 +80,7 @@ def _nightly_handler(args):
         for job in bridge_jobs_json:
             jobs[f"{bridge['name']}:{job['name']}"] = job
 
-    jobs = {j.replace(" ", ""): status for j, status in jobs.items()}
+    jobs = {j.replace(" ", ""): body for j, body in jobs.items()}
     # The handler job is obviously still running when this script runs, which
     # makes the script consider it as failed. So, we ignore it.
     jobs.pop("nightly_handler")
@@ -120,12 +120,7 @@ def _nightly_handler(args):
         job_links = [f"<{body['web_url']}|{j}>" for j, body in failed_jobs.items()]
         body_text = f"Failed jobs: {', '.join(job_links)}\n@channel"
     else:
-        try:
-            trigger_release_url = next(
-                j["web_url"] for j in jobs if j["name"] == "trigger_release"
-            )
-        except StopIteration:
-            raise RuntimeError("No trigger_release job found")
+        trigger_release_url = jobs["trigger_release"]["web_url"]
         status_text = (
             f"Nightly <{pipeline_url}|pipeline> for `{pipeline_branch}`: "
             ":white_check_mark: Passed"
