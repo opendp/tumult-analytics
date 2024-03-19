@@ -81,6 +81,9 @@ def _nightly_handler(args):
             jobs[f"{bridge['name']}:{job['name']}"] = job
 
     jobs = {j.replace(" ", ""): status for j, status in jobs.items()}
+    # The handler job is obviously still running when this script runs, which
+    # makes the script consider it as failed. So, we ignore it.
+    jobs.pop("nightly_handler")
 
     unknown_allow_failures = set(args.allow_failure) - set(jobs.keys())
     if unknown_allow_failures:
@@ -100,9 +103,15 @@ def _nightly_handler(args):
         for j, body in jobs.items()
         if body["status"] not in {"success", "manual"} and j in args.allow_failure
     }
+
+    def format_job_status(jobs):
+        return [f"{j} ({b['status']})" for j, b in jobs.items()]
+
     _log.info(f"Passed jobs: {', '.join(passed_jobs.keys())}")
-    _log.info(f"Failed jobs: {', '.join(failed_jobs.keys())}")
-    _log.info(f"Allowed failed jobs: {', '.join(allowed_failed_jobs.keys())}")
+    _log.info(f"Failed jobs: {', '.join(format_job_status(failed_jobs))}")
+    _log.info(
+        f"Allowed failed jobs: {', '.join(format_job_status(allowed_failed_jobs))}"
+    )
 
     if failed_jobs:
         status_text = (
@@ -127,8 +136,8 @@ def _nightly_handler(args):
             job_links = [f"<{body['web_url']}|{j}>" for j, body in failed_jobs.items()]
             body_text += (
                 "\nSome jobs which are allowed to fail are failing: "
-                + ", ".join(job_links) +
-                "\nThis may be because of a bug, or just the result of intentional "
+                + ", ".join(job_links)
+                + "\nThis may be because of a bug, or just the result of intentional "
                 "backwards-incompatible changes. If you are making a release based on "
                 "this commit, ensure that we know the cause of all of these failures "
                 "and that they are expected."
