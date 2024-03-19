@@ -1,4 +1,4 @@
-"""Useful functions to be used with transfomations."""
+"""Useful functions to be used with transformations."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -60,7 +60,7 @@ def generate_nested_transformation(
          TableReference.
         generator_dict: a dictionary of the form { Metric : generator() },
           where generator() is a function which takes the associated domain and metric
-          of the parent_reference and generates a transormation using the
+          of the parent_reference and generates a transformation using the
           Metric, e.g. generator(parent_domain, parent_metric, target_identifier)
         table_identifier: identifier for new table in case of rename and original
           table in case of delete/persist/unpersist
@@ -131,8 +131,8 @@ def rename_table(
     def gen_transformation_ark(pd, pm, tgt):
         assert isinstance(pd, DictDomain)
         assert isinstance(pm, AddRemoveKeys)
-        # Note: No dataframe column is getting renamed here, RenameValue
-        # is used to rename tables
+        # Note: No dataframe column is getting renamed here;
+        # RenameValueTransformation is used to rename tables
         return RenameValueTransformation(pd, pm, base_ref.identifier, tgt, {})
 
     transformation_generators: Dict[Type[Metric], Callable] = {
@@ -154,7 +154,7 @@ def delete_table(
         assert isinstance(pd, DictDomain)
         assert isinstance(pm, (DictMetric, AddRemoveKeys))
         # having temp tables around can cause problems,
-        # so remove themn along with the target table
+        # so remove them along with the target table
         return SubsetTransformation(
             pd,
             pm,

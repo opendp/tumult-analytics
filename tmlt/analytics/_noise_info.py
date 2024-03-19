@@ -27,9 +27,9 @@ class NoiseInfo:
         """Constructor."""
         self._noise_info = noise_info
 
-    def __getitem__(self, i: int) -> Dict[str, Any]:
-        """Get the ith noise info."""
-        return self._noise_info[i]
+    def __getitem__(self, n: int) -> Dict[str, Any]:
+        """Get the nth noise info."""
+        return self._noise_info[n]
 
     def __iter__(self) -> Iterable[Dict[str, Any]]:
         """Iterate over noise info."""
@@ -121,7 +121,7 @@ def _(s: Set) -> Set:
 
 @_get_info.register(DataFrame)
 def _(df: DataFrame) -> str:
-    # Deepcopying dataframes doesn't work
+    # Deep-copying dataframes doesn't work
     # (If you try, you'll see an error about being unable to
     # pickle threads.)
     # for now, just report that there was a DataFrame here

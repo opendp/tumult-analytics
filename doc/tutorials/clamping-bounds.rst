@@ -94,7 +94,7 @@ individual values for column `age` will be in the interval `[0, 120]`.
 When you know that there is a reasonable minimum and maximum for each value of a
 column, you can use those as clamping bounds. This is what we did here: without
 looking at the dataset, we made the assumption that all members of our library
-were younger than 120 years old, and that ages have to be a nonnegative value.
+were younger than 120 years old, and that ages have to be a non-negative value.
 
 Sometimes, the situation is not so clear. To understand what to do in more
 complex cases, let's first explain what these clamping bounds actually *do*.

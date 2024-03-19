@@ -254,7 +254,7 @@ def _generate_constrained_count_distinct(
     elif len(groupby_columns) == 1:
         # A groupby on exactly one column is performed; if that column has a
         # MaxGroupsPerID constraint, then this is equivalent to a
-        # MaxRowsPerGroupsPerID(grouping_column, 1) constraint.
+        # MaxRowsPerGroupPerID(grouping_column, 1) constraint.
         grouping_column = groupby_columns[0]
         constraint = next(
             (
@@ -514,7 +514,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 )
                 if isinstance(c, MaxGroupsPerID):
                     # Taking advantage of the L2 noise behavior only works for
-                    # RhoZCDP Sessions, and then only when the grouping column
+                    # Sessions initialized with a RhoZCDP privacy budget,
+                    # and then only when the grouping column
                     # of the constraints is being grouped on.
                     use_l2 = (
                         isinstance(self.output_measure, RhoZCDP)
@@ -605,7 +606,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             VarianceMechanism.GAUSSIAN,
         ):
             raise NotImplementedError(
-                "Gaussian noise is only supported with RhoZCDP. Please use "
+                "Gaussian noise is only supported with a RhoZCDPBudget. Please use "
                 "CountMechanism.LAPLACE instead."
             )
 

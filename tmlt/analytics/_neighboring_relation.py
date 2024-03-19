@@ -85,7 +85,7 @@ class AddRemoveRows(NeighboringRelation):
         These are the validation checks to be done
         in any case, i.e. regardless of if the relation is top-level.
         """
-        # validation checks that can be called by other relations. this
+        # validation checks that can be called by other relations. This
         # just verifies that the initialized table is in the dfs input,
         # and that it points to a dataframe object in the Dict.
         coerce_spark_schema_or_fail(dfs[self.table])

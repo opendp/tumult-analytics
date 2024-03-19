@@ -269,7 +269,7 @@ class Session:
                     self._privacy_budget, tables, neighboring_relation
                 )
             )
-            # check list of ARK identifiers agains session's ID spaces
+            # check list of ARK identifiers against session's ID spaces
             assert isinstance(neighboring_relation, Conjunction)
             for child in neighboring_relation.children:
                 if isinstance(child, AddRemoveKeys):
@@ -941,7 +941,7 @@ class Session:
 
         is_approxDP_session = self._accountant.output_measure == ApproxDP()
 
-        # If pureDP session, and approxDP budget, let Core handle the error.
+        # If PureDP session, and ApproxDP budget, let Core handle the error.
         if is_approxDP_session and isinstance(privacy_budget, PureDPBudget):
             privacy_budget = ApproxDPBudget(privacy_budget.value, 0)
 
@@ -1010,7 +1010,7 @@ class Session:
         """Answers a query within the given privacy budget and returns a Spark dataframe.
 
         The type of privacy budget that you use must match the type your Session was
-        initialized with (i.e., you cannot evaluate a query using rho-zCDPBudget if
+        initialized with (i.e., you cannot evaluate a query using RhoZCDPBudget if
         the Session was initialized with a PureDPBudget, and vice versa).
 
         ..

@@ -43,7 +43,7 @@ def _get_column_descriptor(
     )
     allow_null = True
 
-    # nan_bin type is checked in the __init__.
+    # nan_bin type is checked in the __init__ method.
     column_type = ColumnType(get_element_type(bin_names, allow_none=False))
     return ColumnDescriptor(column_type, allow_null, allow_nan, allow_inf)
 

@@ -77,8 +77,8 @@ is ultimately a balance between accuracy and privacy, with lower budgets
 yielding noisier results and higher budgets yielding more accurate
 (and thus less private) results.
 
-To better understand how epsilon impacts this tradeoff, let's look at a simple
-example. We'll use the example dataset from :ref:`first steps tutorial<First steps>`,
+To better understand how epsilon impacts this trade-off, let's look at a simple
+example. We'll use the example dataset from the :ref:`first steps tutorial<First steps>`,
 and we'll perform a simple query to count the number of rows in the dataset.
 The figure below plots the results of running this count query using a
 :code:`PureDPBudget` with 3 different epsilon values, 50 times each:
@@ -140,7 +140,7 @@ For an even more in-depth explanation of this topic, you can check out the follo
 The impact of data size
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Another factor that impacts the privacy/accuracy tradeoff associated with a given
+Another factor that impacts the privacy/accuracy trade-off associated with a given
 budget is the size of each group on which aggregations are computed. In our first example
 above, even with the smallest budget of 0.2, all the noisy results were within
 about +/- 25 of the true count, which is a relative spread of about 0.05%.

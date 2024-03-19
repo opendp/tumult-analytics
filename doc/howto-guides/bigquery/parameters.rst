@@ -135,7 +135,7 @@ if we have a parameter named ``epsilon``, we can access it with
 Full example
 ------------
 
-In the end, your program should look structually similar to this final program.
+In the end, your program should look structurally similar to this final program.
 
 .. code-block:: python
 

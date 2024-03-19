@@ -27,7 +27,7 @@ class TruncationStrategy:
         truncation strategies, respectively. This value is 2 for ``DropExcess`` and 1
         for ``DropNonUnique``.
       - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the
-        ``AddMaxRows`` protected changes of the the left and right tables, respectively.
+        ``AddMaxRows`` protected changes of the left and right tables, respectively.
 
     """
 

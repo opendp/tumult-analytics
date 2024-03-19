@@ -153,7 +153,7 @@ def test_invalid_map(
             -1,
             Schema({"i": "INTEGER"}),
             False,
-            "Limit on number of rows '-1' must be nonnegative.",
+            "Limit on number of rows '-1' must be non-negative.",
         ),
         (  # Invalid augment
             FlatMap(

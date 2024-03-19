@@ -50,7 +50,7 @@ class CountMechanism(Enum):
 
 
 class CountDistinctMechanism(Enum):
-    """Enumerating the possible mechanims used for the count_distinct aggregation.
+    """Enumerating the possible mechanisms used for the count_distinct aggregation.
 
     Currently, the
     :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.count_distinct`
@@ -375,7 +375,7 @@ class FlatMap(QueryExpr):
         check_type("augment", self.augment, bool)
         if self.max_rows and self.max_rows < 0:
             raise ValueError(
-                f"Limit on number of rows '{self.max_rows}' must be nonnegative."
+                f"Limit on number of rows '{self.max_rows}' must be non-negative."
             )
         if (
             self.schema_new_columns.grouping_column
@@ -546,7 +546,7 @@ class AnalyticsDefault:
     See :meth:`~.datetime.date.fromtimestamp`.
     """
     TIMESTAMP = datetime.datetime.fromtimestamp(0)
-    """The defauLt value used for timestamps (``datetime.datetime.fromtimestamp(0)``).
+    """The default value used for timestamps (``datetime.datetime.fromtimestamp(0)``).
 
     See :meth:`~.datetime.datetime.fromtimestamp`.
     """

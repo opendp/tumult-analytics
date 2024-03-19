@@ -32,5 +32,5 @@ to see the schema, and query the data in the query editor
 using SQL.
 
 Now that we've set up our environment in BigQuery, let's move on to the :ref:`next part<bigquery inputs and outputs>`
-of the topic guide and see how we would modify a simple Tumult Analtyics program to be able
+of the topic guide and see how we would modify a simple Tumult Analytics program to be able
 to run in BigQuery.

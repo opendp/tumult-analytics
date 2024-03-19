@@ -723,7 +723,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                         f"available columns are {list(input_schema.keys())}"
                     )
                 if not isinstance(val, pytypes[col]):
-                    # it's ok to use an int as a float
+                    # it's okay to use an int as a float
                     # so don't raise an error in that case
                     if not (isinstance(val, int) and pytypes[col] == float):
                         raise ValueError(
