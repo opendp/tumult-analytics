@@ -11,7 +11,7 @@ In this section, we will show how to adapt a Tumult Analytics
 program to use BigQuery inputs and outputs, and provide a minimal
 example of a BigQuery-compatible program.
 
-We will use the simple program from :ref:`the first tutorial<first steps>`
+We will use the simple program from :ref:`first steps tutorial<first steps>`
 which constructs a differentially private count of the number of
 members in a fake dataset containing members of a public library
 ``library-members``.

@@ -49,7 +49,7 @@ Flat maps
 
 A :meth:`flat_map<tmlt.analytics.query_builder.QueryBuilder.flat_map>` maps each
 input row to zero or more new rows. Consider the example from
-:ref:`tutorial five <flat-map-tutorial-5>`, where each input row is mapped to up
+:ref:`simple transformations tutorial<flat-map-tutorial-5>`, where each input row is mapped to up
 to three new rows, using to the ``max_rows=3`` parameter. On a per-row basis, this operation might look like this:
 
 .. image:: ../images/flat_map_row_example.svg

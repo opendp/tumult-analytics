@@ -81,7 +81,7 @@ using :meth:`~tmlt.analytics.session.Session.from_dataframe` as follows:
 
 When you load a Spark DataFrame into a Session, you don't need to specify the
 schema of the source; it is automatically inferred from the DataFrame's schema.
-Recall from the :ref:`first tutorial <First steps>` that :code:`source_id` is
+Recall from the :ref:`first steps tutorial<First steps>` that :code:`source_id` is
 simply a unique identifier for the private data that is used when constructing
 queries.
 

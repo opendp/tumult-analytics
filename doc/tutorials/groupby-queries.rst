@@ -1,7 +1,7 @@
 .. _Group-by queries:
 
-Tutorial 4: Group-by queries
-============================
+Group-by queries
+================
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0

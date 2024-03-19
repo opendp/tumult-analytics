@@ -1,7 +1,7 @@
 .. _Advanced IDs features:
 
-Tutorial 7: Doing more with privacy IDs
-=======================================
+Doing more with privacy IDs
+===========================
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0

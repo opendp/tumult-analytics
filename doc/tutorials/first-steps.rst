@@ -1,7 +1,7 @@
 .. _First steps:
 
-Tutorial 1: First steps with Tumult Analytics
-=============================================
+First steps with Tumult Analytics
+=================================
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0

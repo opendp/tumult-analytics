@@ -1,7 +1,7 @@
 .. _Simple transformations:
 
-Tutorial 5: Simple transformations
-==================================
+Simple transformations
+======================
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
@@ -56,7 +56,7 @@ Revisiting the filter transformation
 ------------------------------------
 
 You might recall that we already used a transformation in
-:ref:`tutorial 2 <Working with privacy budgets>`! Let's run that query again.
+:ref:`working with privacy budgets tutorial<Working with privacy budgets>`! Let's run that query again.
 
 .. testcode::
 
@@ -239,7 +239,7 @@ In this example, we leave ``augment`` with its default value of ``False``.
 
 Unlike ``map``, ``flat_map`` has an argument ``max_rows``. It clamps the maximum number
 of new rows that can be created for each input row. This serves a similar function as
-the clamping bounds on aggregations we used in :ref:`tutorial 3 <Clamping bounds>`, and
+the clamping bounds on aggregations we used in :ref:`clamping bounds tutorial<Clamping bounds>`, and
 also has the analogous trade-offs: higher values for ``max_rows`` will result in more
 noise in the final results, while lower values may cause more rows to be silently
 dropped. In this case, the choice is easy: no members have more than three favorites and

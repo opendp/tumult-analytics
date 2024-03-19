@@ -1,7 +1,7 @@
 .. _Working with privacy IDs:
 
-Tutorial 6: Working with privacy IDs
-====================================
+Working with privacy IDs
+========================
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
