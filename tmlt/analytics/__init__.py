@@ -3,7 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+from typing import List
+
 from tmlt.core.utils.configuration import check_java11
+
+__all__: List[str] = []
 
 try:
     # Addresses https://nvd.nist.gov/vuln/detail/CVE-2023-47248 for Python 3.7
