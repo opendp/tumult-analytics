@@ -94,14 +94,14 @@ def _nightly_handler(args):
 
     passed_jobs = {j: body for j, body in jobs.items() if body["status"] == "success"}
     failed_jobs = {
-        j: body
-        for j, body in jobs.items()
-        if body["status"] not in {"success", "manual"} and j not in args.allow_failure
+        j: body for j, body in jobs.items()
+        if body["status"] not in {"success", "manual", "skipped"}
+        and j not in args.allow_failure
     }
     allowed_failed_jobs = {
-        j: body
-        for j, body in jobs.items()
-        if body["status"] not in {"success", "manual"} and j in args.allow_failure
+        j: body for j, body in jobs.items()
+        if body["status"] not in {"success", "manual", "skipped"}
+        and j in args.allow_failure
     }
 
     def format_job_status(jobs):
