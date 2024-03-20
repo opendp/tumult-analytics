@@ -151,7 +151,7 @@ docs:
     paths:
       - public/
     expose_as: "Documentation"
-  timeout: 25m
+  timeout: 1h
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
       when: never
