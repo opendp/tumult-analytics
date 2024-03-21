@@ -3,7 +3,7 @@ workflow:
     # Don't create pipelines on push for any branches other than the default
     # branch -- if such pipelines are needed, they will be triggered from
     # elsewhere. Also, don't run dev pipelines in staging repos.
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
       when: never
     - if: '$CI_PROJECT_NAME != "analytics" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: never
