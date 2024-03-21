@@ -44,9 +44,10 @@ As long as this session is active, Tumult Analytics will use it.
 
     .. code-block::
 
-        from tmlt.analytics.utils import get_java11_config
+        from pyspark.sql import SparkSession
+        from tmlt.analytics.utils import get_java_11_config
 
-        spark = SparkSession.builder.config(conf=get_java11_config()).getOrCreate()
+        spark = SparkSession.builder.config(conf=get_java_11_config()).getOrCreate()
 
     instead of:
 
