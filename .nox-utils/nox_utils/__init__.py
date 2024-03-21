@@ -555,6 +555,8 @@ class SessionBuilder:
         @nox_session(python=None)
         def post_release(session):
             """Update files after a release."""
+            unreleased_header = ["Unreleased\n", "----------\n", "\n"]
+
             version_and_date_regex = (
                 r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
                 r"(-(alpha|beta|rc)\.(0|[1-9]\d*))? - \d{4}-\d{2}-\d{2}$"
@@ -563,26 +565,27 @@ class SessionBuilder:
             with Path("CHANGELOG.rst").open("r", encoding="utf-8") as fp:
                 changelog_content = fp.readlines()
                 for i, content in enumerate(changelog_content):
-                    if re.match(version_and_date_regex, content):
-                        version = content.split(" - ")[0]
-                        is_pre_release = "-" in version
-                        if not is_pre_release:
-                            # BEFORE
-                            # 1.2.3 - 2020-01-01
-                            # ------------------
-
-                            # AFTER
-                            # Unreleased
-                            # ----------
-                            #
-                            # 1.2.3 - 2020-01-01
-                            # ------------------
-                            new_lines = ["Unreleased\n", "----------\n", "\n"]
-                            for new_line in reversed(new_lines):
-                                changelog_content.insert(i, new_line)
-                            break
-                        session.log("Prerelease, skipping CHANGELOG.rst update...")
+                    # If prerelease, the Unreleased header should still remain and we
+                    # will skip the update.
+                    if changelog_content[i : i + 3] == unreleased_header:
+                        session.log(
+                            "Unreleased section found, skipping CHANGELOG.rst update..."
+                        )
                         return
+                    if re.match(version_and_date_regex, content):
+                        # BEFORE
+                        # 1.2.3 - 2020-01-01
+                        # ------------------
+
+                        # AFTER
+                        # Unreleased
+                        # ----------
+                        #
+                        # 1.2.3 - 2020-01-01
+                        # ------------------
+                        for new_line in reversed(unreleased_header):
+                            changelog_content.insert(i, new_line)
+                        break
                 else:
                     session.error("Unable to find latest release in CHANGELOG.rst")
                 with Path("CHANGELOG.rst").open("w", encoding="utf-8") as fp:
