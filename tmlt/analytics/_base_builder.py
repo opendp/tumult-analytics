@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, NamedTuple, Optional, Set
 
 from pyspark.sql import DataFrame
+from typeguard import check_type, typechecked
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._utils import assert_is_identifier
@@ -32,8 +33,10 @@ class PrivacyBudgetMixin:
         super().__init__()
         self.__budget = None
 
+    @typechecked
     def with_privacy_budget(self, privacy_budget: PrivacyBudget):
         """Set the privacy budget for the object being built."""
+        check_type("privacy_budget", privacy_budget, PrivacyBudget)
         if self.__budget is not None:
             raise ValueError("This builder already has a privacy budget set")
         self.__budget = privacy_budget
@@ -67,6 +70,7 @@ class DataFrameMixin:
         self.__public_dataframes = {}
         self.__id_spaces = set()
 
+    @typechecked
     def with_private_dataframe(
         self,
         source_id: str,
@@ -100,6 +104,7 @@ class DataFrameMixin:
         )
         return self
 
+    @typechecked
     def with_public_dataframe(self, source_id: str, dataframe: DataFrame):
         """Add a public dataframe."""
         assert_is_identifier(source_id)
@@ -113,6 +118,7 @@ class DataFrameMixin:
         self.__public_dataframes[source_id] = dataframe
         return self
 
+    @typechecked
     def with_id_space(self, id_space: str):
         """Add an identifier space.
 
@@ -150,8 +156,10 @@ class ParameterMixin:
         super().__init__()
         self.__parameters = {}
 
+    @typechecked
     def with_parameter(self, name: str, value: Any):
         """Set the value of a parameter."""
+        check_type("name", name, str)
         if name in self.__parameters:
             raise ValueError(f"Parameter '{name}' has already been set")
         self.__parameters[name] = value
