@@ -29,7 +29,7 @@ If you encounter any issues during the installation process, please `let us know
 
     .. code-block:: bash
 
-        apt install python3 python3-pip
+        apt install python3.11 python3-pip
 
     Java may already be installed as well.
     If it is not, install the Java Runtime Environment with:
@@ -47,7 +47,7 @@ If you encounter any issues during the installation process, please `let us know
 
     .. code-block:: bash
 
-        yum install python3 python3-pip
+        yum install python3.11 python3-pip
 
     To install Java, run:
 
@@ -71,7 +71,7 @@ If you encounter any issues during the installation process, please `let us know
 
     .. code-block:: bash
 
-        brew install python@3.7
+        brew install python@3.11
 
     And Java may be installed with:
 
@@ -85,7 +85,7 @@ If you encounter any issues during the installation process, please `let us know
 
 .. tabbed:: macOS (Apple silicon)
 
-    Since Python 3.7 is not supported on the Apple silicon processor architecture, you will need to first install `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__ and the x86_64 version of Homebrew.
+    Since some dependencies of Tumult Analytics are not supported on the Apple silicon processor architecture, you will need to first install `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__ and the x86_64 version of Homebrew.
     If you do not already have Rosetta 2, it can be installed with:
 
     .. code-block:: bash
@@ -98,11 +98,11 @@ If you encounter any issues during the installation process, please `let us know
 
         arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
-    Now, you can install Python 3.7 with:
+    Now, you can install Python 3.11 with:
 
     .. code-block:: bash
 
-        arch -x86_64 /usr/local/bin/brew install python@3.7
+        arch -x86_64 /usr/local/bin/brew install python@3.11
 
     And Java may be installed with:
 
