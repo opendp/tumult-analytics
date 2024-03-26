@@ -380,7 +380,7 @@ Once we have our KeySet, we can use it in the desired aggregation…
 
     teen_edu_query = (
         QueryBuilder("members")
-        .groupby(teen_edu_keys)
+        .groupby(teen_edu_subset_keys)
         .count()
     )
     teen_edu_counts = session.evaluate(
