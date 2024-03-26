@@ -123,7 +123,7 @@ class DataFrameMixin:
         """Add an identifier space.
 
         This defines a space of identifiers that map 1-to-1 to the identifiers
-        being protected by a table with the :class`~.AddRowsWithID` protected
+        being protected by a table with the :class:`~.AddRowsWithID` protected
         change. Any table with such a protected change must be a member of some
         identifier space.
         """
