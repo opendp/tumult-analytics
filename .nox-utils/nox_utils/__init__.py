@@ -225,6 +225,26 @@ class SessionBuilder:
         def pydocstyle(session):
             session.run("pydocstyle", *map(str, self._get_code_dirs()))
 
+    def audit(self):
+        """Generate the audit parameterized Nox session.
+
+        To be useful, this function needs the `audit_versions` option to be
+        set. It should contain a list of Python versions to be audited.
+        """
+        python_versions = self.options.get("audit_versions")
+        if not python_versions:
+            raise KeyError(
+                "audit_versions option must be set to a list of Python versions"
+            )
+
+        @nox_session
+        @self.install_package
+        @install("pip-audit")
+        @show_installed
+        @nox.parametrize("python", python_versions)
+        def audit(session):
+            session.run("pip-audit", "-v", "--progress-spinner", "off")
+
     @install("pytest", "pytest-xdist", "pytest-cov")
     @show_installed
     @with_clean_workdir

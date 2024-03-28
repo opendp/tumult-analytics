@@ -54,6 +54,7 @@ DEPENDENCY_MATRIX = {
         # fmt: on
     ]
 }
+AUDIT_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 
 
 def install_overrides(session):
@@ -87,6 +88,7 @@ _builder = SessionBuilder(
         "install_overrides": install_overrides,
         "smoketest_script": SMOKETEST_SCRIPT,
         "dependency_matrix": DEPENDENCY_MATRIX,
+        "audit_versions": AUDIT_VERSIONS,
         "minimum_coverage": MIN_COVERAGE,
         "coverage_module": "tmlt.analytics",
     },
@@ -99,6 +101,7 @@ _builder.isort()
 _builder.mypy()
 _builder.pylint()
 _builder.pydocstyle()
+_builder.audit()
 
 _builder.test()
 _builder.test_doctest()
