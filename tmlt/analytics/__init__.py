@@ -1,6 +1,6 @@
 """`Tumult Labs' <https://tmlt.io>`_ differentially private analytics library."""
 
-__version__ = "0.8.3"
+__version__ = "0.9.0-rc.3"
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
