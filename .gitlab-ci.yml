@@ -297,7 +297,7 @@ publish_docs:
 release_handler:
   stage: handler
   script:
-    - source .pipeline_handlers
+    - source .ci/pipeline-handlers.bash
     - release_handler
   timeout: 2m
   rules:
