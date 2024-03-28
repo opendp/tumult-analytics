@@ -1411,8 +1411,8 @@ class Session:
         self,
         source_id: str,
         privacy_budget: PrivacyBudget,
-        column: Optional[str] = None,
-        splits: Optional[Union[Dict[str, str], Dict[str, int]]] = None,
+        column: str,
+        splits: Union[Dict[str, str], Dict[str, int]],
     ) -> Dict[str, "Session"]:
         """Returns new sessions from a partition mapped to split name/``source_id``.
 
@@ -1500,18 +1500,7 @@ class Session:
                 Split name is ``source_id`` in new session.
         """
         # pylint: enable=line-too-long
-        if splits is None:
-            raise ValueError(
-                "You must provide a dictionary mapping split names (new source_ids) to"
-                " values on which to partition"
-            )
         # If you remove this if-block, mypy will complain
-        if column is None:
-            raise AssertionError(
-                "column is None, even though either column or attr_name were provided."
-                " This is probably a bug; please let us know about it so we can fix it!"
-            )
-
         if not (
             isinstance(self._accountant.privacy_budget, ExactNumber)
             or is_exact_number_tuple(self._accountant.privacy_budget)

@@ -14,6 +14,8 @@ Changed
 
 - :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without
   converting the underlying dataframe to Pandas.
+- :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits``
+  arguments are now annotated as required.
 
 Removed
 ~~~~~~~

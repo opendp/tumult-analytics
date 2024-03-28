@@ -813,18 +813,6 @@ class TestSession:
 
             session = Session(accountant=mock_accountant, public_sources={})
 
-        # Test that you need to provide splits
-        with pytest.raises(
-            ValueError,
-            match=re.escape(
-                "You must provide a dictionary mapping split names (new source_ids) to"
-                " values on which to partition"
-            ),
-        ):
-            session.partition_and_create(
-                source_id="private", privacy_budget=PureDPBudget(10), column="A"
-            )
-
         new_sessions = session.partition_and_create(
             source_id="private",
             privacy_budget=PureDPBudget(10),
