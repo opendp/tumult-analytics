@@ -221,6 +221,19 @@ intersphinx_mapping = {
 }
 
 
+# Substitutions
+
+rst_epilog = """
+.. |PRO| raw:: html
+    
+    <a href="https://tmlt.dev" style="text-decoration : none">
+        <img src="https://img.shields.io/badge/PRO-c53a58" alt="This is only applicable to Analytics Pro." title="This is only available in Analytics Pro">
+    </a>
+.. |PRO_NOTE| replace:: This is only available on a paid version of Tumult Analytics. If you
+    would like to hear more, please contact us at info@tmlt.io.
+"""
+
+
 def skip_members(app, what, name, obj, skip, options):
     """Skip some members."""
     excluded_methods = [

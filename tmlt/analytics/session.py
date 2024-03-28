@@ -469,7 +469,7 @@ class Session:
 
     @property
     def private_sources(self) -> List[str]:
-        """Returns the ids of the private sources."""
+        """Returns the IDs of the private sources."""
         table_refs = find_named_tables(self._input_domain)
         return [
             t.identifier.name
@@ -479,12 +479,12 @@ class Session:
 
     @property
     def public_sources(self) -> List[str]:
-        """Returns the ids of the public sources."""
+        """Returns the IDs of the public sources."""
         return list(self._public_sources)
 
     @property
     def public_source_dataframes(self) -> Dict[str, DataFrame]:
-        """Returns a dictionary of public source dataframes."""
+        """Returns a dictionary of public source DataFrames."""
         return self._public_sources
 
     @property
@@ -540,7 +540,7 @@ class Session:
         self,
         obj: Optional[Union[QueryExpr, QueryBuilder, GroupedQueryBuilder, str]] = None,
     ) -> None:
-        """Describe a Session, table, or query.
+        """Describes this session, or one of its tables, or the result of a query.
 
         If ``obj`` is not specified, ``session.describe()`` will describe the
         Session and all of the tables it contains.
@@ -610,7 +610,7 @@ class Session:
             assert_never(obj)
 
     def _describe_self(self) -> str:
-        """Describe the current state of this session."""
+        """Describes the current state of this session."""
         out = []
         state = self._accountant.state
         if state == PrivacyAccountantState.ACTIVE:
@@ -881,7 +881,7 @@ class Session:
         """Adds a public data source to the session.
 
         Not all Spark column types are supported in public sources; see
-        :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+        :data:`~.session.SUPPORTED_SPARK_TYPES` for information about which types are
         supported.
 
         ..
@@ -1118,7 +1118,7 @@ class Session:
     def create_view(
         self, query_expr: Union[QueryExpr, QueryBuilder], source_id: str, cache: bool
     ):
-        """Create a new view from a transformation and possibly cache it.
+        """Creates a new view from a transformation and possibly cache it.
 
         ..
             >>> # Get data
@@ -1255,7 +1255,7 @@ class Session:
         child_transformation: Transformation,
         child_ref: TableReference,
     ) -> Tuple[Transformation, TableReference]:
-        """Create the constraint needed for partitioning on an id column.
+        """Creates the constraint needed for partitioning on an id column.
 
         This is a helper method for :meth:`~._create_partition_transformation`.
 
@@ -1275,7 +1275,7 @@ class Session:
         column: str,
         splits: Union[Dict[str, str], Dict[str, int]],
     ) -> Transformation:
-        """Create a transformation for partitioning a table.
+        """Creates a transformation for partitioning a table.
 
         Helper method for :meth:`~.partition_and_create`.
 
@@ -1379,8 +1379,8 @@ class Session:
             attr_type = transformation_domain.schema[column]
         except KeyError as e:
             raise KeyError(
-                f"'{column}' not present in transformed dataframe's columns; "
-                "schema of transformed dataframe is "
+                f"'{column}' not present in transformed DataFrame's columns; "
+                "schema of transformed DataFrame is "
                 f"{spark_dataframe_domain_to_analytics_columns(transformation_domain)}"
             ) from e
 
@@ -1699,7 +1699,7 @@ class Session:
         self._accountant.force_activate()
 
     def stop(self) -> None:
-        """Close out this session, allowing other sessions to become active."""
+        """Closes out this session, allowing other sessions to become active."""
         self._accountant.retire()
 
 

@@ -20,16 +20,19 @@ class BaseBuilder(ABC):
 
     @abstractmethod
     def build(self) -> Any:
-        """Construct the type that this builder builds."""
+        """Constructs the type that this builder builds."""
 
 
 class PrivacyBudgetMixin:
-    """Add support for setting the privacy budget for a builder."""
+    """Adds support for setting the privacy budget for a builder."""
 
     __budget: Optional[PrivacyBudget] = None
 
     def __init__(self):
-        """Constructor."""
+        """Constructor.
+
+        @nodoc
+        """
         super().__init__()
         self.__budget = None
 
@@ -57,14 +60,17 @@ class PrivateDataFrame(NamedTuple):
 
 
 class DataFrameMixin:
-    """Add private and public dataframe support to a builder."""
+    """Adds private and public dataframe support to a builder."""
 
     __private_dataframes: Dict[str, PrivateDataFrame]
     __public_dataframes: Dict[str, DataFrame]
     __id_spaces: Set[str]
 
     def __init__(self):
-        """Constructor."""
+        """Constructor.
+
+        @nodoc
+        """
         super().__init__()
         self.__private_dataframes = {}
         self.__public_dataframes = {}
@@ -106,7 +112,7 @@ class DataFrameMixin:
 
     @typechecked
     def with_public_dataframe(self, source_id: str, dataframe: DataFrame):
-        """Add a public dataframe."""
+        """Adds a public dataframe."""
         assert_is_identifier(source_id)
         if (
             source_id in self.__private_dataframes
@@ -120,7 +126,7 @@ class DataFrameMixin:
 
     @typechecked
     def with_id_space(self, id_space: str):
-        """Add an identifier space.
+        """Adds an identifier space.
 
         This defines a space of identifiers that map 1-to-1 to the identifiers
         being protected by a table with the :class:`~.AddRowsWithID` protected
@@ -147,12 +153,15 @@ class DataFrameMixin:
 
 
 class ParameterMixin:
-    """Add support for setting parameters to a builder."""
+    """Adds support for setting parameters to a builder."""
 
     __parameters: Dict[str, Any]
 
     def __init__(self):
-        """Constructor."""
+        """Constructor.
+
+        @nodoc
+        """
         super().__init__()
         self.__parameters = {}
 

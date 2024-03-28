@@ -1915,8 +1915,8 @@ class TestInvalidSession:
             with pytest.raises(
                 KeyError,
                 match=re.escape(
-                    "'T' not present in transformed dataframe's columns; "
-                    "schema of transformed dataframe is "
+                    "'T' not present in transformed DataFrame's columns; "
+                    "schema of transformed DataFrame is "
                     f"{expected_schema}"
                 ),
             ):
