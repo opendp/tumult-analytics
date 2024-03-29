@@ -566,11 +566,18 @@ class SessionBuilder:
                         # ----------
 
                         # AFTER
+                        # .. _v1.2.3:
+                        #
                         # 1.2.3 - 2020-01-01
                         # ------------------
                         version_header = f"{version} - {datetime.date.today()}"
-                        changelog_content[i] = version_header + "\n"
-                        changelog_content[i + 1] = "-" * len(version_header) + "\n"
+                        # The anchor is necessary because sphinx doesn't support anchors
+                        # starting with numerics, so we have to generate our own
+                        # reference link.
+                        anchor = f".. _v{version}:\n\n"
+                        subsection = f"{version_header}\n{'-' * len(version_header)}\n"
+                        changelog_content[i] = anchor
+                        changelog_content[i + 1] = subsection
                         break
                 else:
                     session.error(
@@ -588,9 +595,9 @@ class SessionBuilder:
             """Update files after a release."""
             unreleased_header = ["Unreleased\n", "----------\n", "\n"]
 
-            version_and_date_regex = (
-                r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-                r"(-(alpha|beta|rc)\.(0|[1-9]\d*))? - \d{4}-\d{2}-\d{2}$"
+            anchor_regex = (
+                r"^\.\. _v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+                r"(-(alpha|beta|rc)\.(0|[1-9]\d*))?:$"
             )
             # Find the latest release
             with Path("CHANGELOG.rst").open("r", encoding="utf-8") as fp:
@@ -603,14 +610,18 @@ class SessionBuilder:
                             "Unreleased section found, skipping CHANGELOG.rst update..."
                         )
                         return
-                    if re.match(version_and_date_regex, content):
+                    if re.match(anchor_regex, content):
                         # BEFORE
+                        # .. _v1.2.3:
+                        #
                         # 1.2.3 - 2020-01-01
                         # ------------------
 
                         # AFTER
                         # Unreleased
                         # ----------
+                        #
+                        # .. _v1.2.3:
                         #
                         # 1.2.3 - 2020-01-01
                         # ------------------

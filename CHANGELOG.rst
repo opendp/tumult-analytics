@@ -29,10 +29,14 @@ Fixed
 - Flat maps now correctly ignore max_rows. Previously they would raise a warning saying that max_rows was ignored, but would still use it to limit the number of rows in the output.
 - Upgrades to version 0.12.0 of Tumult Core.
 
+.. _v0.8.3:
+
 0.8.3 - 2024-02-27
 ------------------
 
 This is a maintenance release that adds support for newer versions of Tumult Core. It contains no API changes.
+
+.. _v0.8.2:
 
 0.8.2 - 2023-11-29
 ------------------
@@ -51,11 +55,15 @@ Changed
     Note that if you are using Python 3.7, the hotfix must be imported before using PySpark in order to be effective.
     Analytics imports the hotfix, so importing Analytics before using Spark will also work.
 
+.. _v0.8.1:
+
 0.8.1 - 2023-10-30
 ------------------
 
 This release adds support for Python 3.11, as well as compatibility with newer versions of various dependencies, including PySpark.
 It also includes documentation improvements, but no API changes.
+
+.. _v0.8.0:
 
 0.8.0 - 2023-08-15
 ------------------
@@ -78,12 +86,16 @@ Fixed
 - Upgrades to version 0.11 of Tumult Core.
   This addresses a performance issue introduced in Tumult Analytics 0.7.0 where some complex queries compiled much more slowly than they had previously.
 
+.. _v0.7.3:
+
 0.7.3 - 2023-07-13
 ------------------
 
 Fixed
 ~~~~~
 - Fixed a crash in public and private joins.
+
+.. _v0.7.2:
 
 0.7.2 - 2023-06-15
 ------------------
@@ -112,11 +124,15 @@ Fixed
 - Creating a :class:`~tmlt.analytics.session.Session` with multiple tables in an ID space used to fail if some of those tables' ID columns allowed nulls and others did not.
   This no longer occurs, and in such cases all of the tables' ID columns are made nullable.
 
+.. _v0.7.1:
+
 0.7.1 - 2023-05-23
 ------------------
 
 This is a maintenance release that mainly contains documentation updates.
 It also fixes a bug where installing Tumult Analytics using pip 23 and above could fail due to a dependency mismatch.
+
+.. _v0.7.0:
 
 0.7.0 - 2023-04-27
 ------------------
@@ -171,10 +187,14 @@ Fixed
 - In certain unusual cases, join transformations could erroneously drop rows containing nulls in columns that were not being joined on.
   These rows are no longer dropped.
 
+.. _v0.6.1:
+
 0.6.1 - 2022-12-07
 ------------------
 
 This is a maintenance release which introduces a number of documentation improvements, but has no publicly-visible API changes.
+
+.. _v0.6.0:
 
 0.6.0 - 2022-12-06
 ------------------
@@ -202,6 +222,8 @@ Changed
 
 -  Updated to Tumult Core 0.6.0.
 
+.. _v0.5.0:
+
 0.5.0 - 2022-10-17
 ------------------
 
@@ -226,6 +248,8 @@ Deprecated
 
 -  The contents of the ``cleanup`` module have been moved to the ``utils`` module. The ``cleanup`` module will be removed in a future version.
 
+.. _v0.4.2:
+
 0.4.2 - 2022-09-06
 ------------------
 
@@ -233,6 +257,8 @@ Fixed
 ~~~~~
 
 -  Switched to Core version 0.4.3 to avoid warnings when evaluating some queries.
+
+.. _v0.4.1:
 
 0.4.1 - 2022-08-25
 ------------------
@@ -253,6 +279,8 @@ Fixed
 
 -  Switched to Core version 0.4.2, which contains a fix for an issue that sometimes caused queries to fail to be compiled.
 
+.. _v0.4.0:
+
 0.4.0 - 2022-07-22
 ------------------
 
@@ -262,6 +290,8 @@ Added
 -  ``Session.from_dataframe`` and ``Session.Builder.with_private_dataframe`` now have a ``grouping_column`` option and support non-integer stabilities.
    This allows setting up grouping columns like those that result from grouping flatmaps when loading data.
    This is an advanced feature, and should be used carefully.
+
+.. _v0.3.0:
 
 0.3.0 - 2022-06-23
 ------------------
@@ -308,6 +338,8 @@ Fixed
    This no longer occurs.
 -  It is now possible to partition on a column created by a grouping flat map, which used to raise exception from Core.
 
+.. _v0.2.1:
+
 0.2.1 - 2022-04-14 (internal release)
 -------------------------------------
 
@@ -322,6 +354,8 @@ Changed
 ~~~~~~~
 
 -  Switch session to use Persist/Unpersist instead of Cache.
+
+.. _v0.2.0:
 
 0.2.0 - 2022-03-28 (internal release)
 -------------------------------------
@@ -348,6 +382,8 @@ Fixed
 
 -  Joining with a public table that contains no NaNs, but has a column where NaNs are allowed, previously caused an error when compiling queries. This is now handled correctly.
 
+.. _v0.1.1:
+
 0.1.1 - 2022-02-28 (internal release)
 -------------------------------------
 
@@ -371,6 +407,8 @@ Deprecated
 
 -  ``QueryBuilder.groupby_domains()`` and ``QueryBuilder.groupby_public_source()`` are now deprecated in favor of using ``QueryBuilder.groupby()`` with ``KeySet``\ s.
    They will be removed in a future version.
+
+.. _v0.1.0:
 
 0.1.0 - 2022-02-15 (internal release)
 -------------------------------------
