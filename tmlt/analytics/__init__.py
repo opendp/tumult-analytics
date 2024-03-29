@@ -1,9 +1,12 @@
 """`Tumult Labs' <https://tmlt.io>`_ differentially private analytics library."""
 
-__version__ = "0.8.3"
-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
+
+# These gets automatically replaced by the version number during the release process
+# by poetry-dynamic-versioning.
+__version__ = "0.0.0"
+__version_tuple__ = (0, 0, 0)
 
 from typing import List
 

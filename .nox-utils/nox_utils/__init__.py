@@ -549,25 +549,6 @@ class SessionBuilder:
             if not re.match(version_regex, version):
                 session.error(f"VERSION {version} is not a valid version number.")
             session.debug(f"Preparing release {version}")
-            init_file =(self.package_source / "__init__.py")
-            with init_file.open("r", encoding="utf-8") as fp:
-                init_content = fp.readlines()
-                for i, content in enumerate(init_content):
-                    if re.match("__version__", content):
-                        # BEFORE
-                        # __version__ = "0.8.3"
-
-                        # AFTER
-                        # __version__ = "0.8.4"
-                        init_content[i] = f'__version__ = "{version}"\n'
-                        break
-                else:
-                    session.error(
-                        "Updating version number in the __init__ file failed, "
-                        "unable to find matching line."
-                    )
-            with init_file.open("w", encoding="utf-8") as fp:
-                fp.writelines(init_content)
 
             # Replace "Unreleased" section header in changelog for non-prerelease
             # releases. Between the base version and prerelease number is the only place
