@@ -55,6 +55,14 @@ DEPENDENCY_MATRIX = {
     ]
 }
 AUDIT_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
+AUDIT_SUPPRESSIONS = [
+    "PYSEC-2023-228",
+    # Affects: pip<23.3
+    # Notice: Command Injection in pip when used with Mercurial
+    # Link: https://github.com/advisories/GHSA-mq26-g339-26xf
+    # Impact: None, we don't use Mercurial, and in any case we assume that users will
+    #         have their own pip installations -- it is not a dependency of Analytics.
+]
 
 
 def install_overrides(session):
@@ -89,6 +97,7 @@ _builder = SessionBuilder(
         "smoketest_script": SMOKETEST_SCRIPT,
         "dependency_matrix": DEPENDENCY_MATRIX,
         "audit_versions": AUDIT_VERSIONS,
+        "audit_suppressions": AUDIT_SUPPRESSIONS,
         "minimum_coverage": MIN_COVERAGE,
         "coverage_module": "tmlt.analytics",
     },

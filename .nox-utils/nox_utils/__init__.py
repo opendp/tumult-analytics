@@ -237,13 +237,24 @@ class SessionBuilder:
                 "audit_versions option must be set to a list of Python versions"
             )
 
+        ignore_vulns = self.options.get("audit_suppressions", [])
+        # Should produce --ignore-vuln [vuln_id] for each vulnerability ID
+        ignore_options = [
+            i
+            for vuln in ignore_vulns
+            for i in ("--ignore-vuln", vuln)
+        ]
+
         @nox_session
         @self.install_package
         @install("pip-audit")
         @show_installed
         @nox.parametrize("python", python_versions)
         def audit(session):
-            session.run("pip-audit", "-v", "--progress-spinner", "off")
+            session.run(
+                "pip-audit", "-v", "--progress-spinner", "off",
+                *ignore_options
+            )
 
     @install("pytest", "pytest-xdist", "pytest-cov")
     @show_installed
