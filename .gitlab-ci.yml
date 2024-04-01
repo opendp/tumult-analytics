@@ -52,7 +52,7 @@ lint:
   needs: ["package"]
   script:
     - nox -t lint -- --check
-  timeout: 12m
+  timeout: 20m
   rules:
     - if: '$NIGHTLY == "true"'
       when: never
