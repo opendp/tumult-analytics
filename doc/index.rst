@@ -145,7 +145,7 @@ Both citations can be found below; for the software citation, please replace the
 
 License
 ^^^^^^^
-The Tumult Analytics source code and documentation are copyright Tumult Labs 2023.
+The Tumult Analytics source code and documentation are copyright Tumult Labs 2024.
 
 This documentation is licensed under the
 Creative Commons Attribution-ShareAlike 4.0 Unported License.
