@@ -6,11 +6,8 @@ API reference.
 """
 
 import os
-from glob import glob
 from pathlib import Path
 import sys
-
-from nox_poetry import session as poetry_session
 
 PACKAGE_NAME = "tmlt.analytics"
 """Name of the package."""
@@ -68,13 +65,15 @@ AUDIT_SUPPRESSIONS = [
 def install_overrides(session):
     """Custom logic run after installing the current package."""
     # Install Core from dist/, if it exists there
-    if os.environ.get("PARENT_PIPELINE_ID"):
-        core_wheels = glob(r"./dist/*tmlt_core*-cp37*")
+    if os.environ.get("CORE_WHEEL_DIR"):
+        core_path = Path(os.environ["CORE_WHEEL_DIR"]).resolve()
+        core_wheels = list(core_path.glob("*tmlt_core*-cp37*"))
         if len(core_wheels) == 0:
             raise AssertionError(
-                "Expected a core wheel since PARENT_PIPELINE_ID was set "
-                f"(to {os.environ.get('PARENT_PIPELINE_ID')}), but didn't find any. "
-                f"There should be one in dist/, which contains: {glob(r'dist/*')}, "
+                "Expected a core wheel since CORE_WHEEL_DIR was set "
+                f"(to {os.environ.get('CORE_WHEEL_DIR')}), but didn't find any. "
+                f"Instead, found these files in {str(core_path)}: "
+                "\n".join(list(core_path.glob("*")))
             )
         # Poetry is going to expect, and require, Core version X.Y.Z (ex. "0.6.2"),
         # but the Gitlab-built Core will have a version number
