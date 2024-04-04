@@ -4,6 +4,10 @@ variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
   # Force nox to produce colorful logs:
   FORCE_COLOR: "true"
+  # Enable feature flags
+  # https://docs.gitlab.com/runner/configuration/feature-flags.html
+  FF_SCRIPT_SECTIONS: "true"
+  FF_USE_FASTZIP: "true"
 
 .base:
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.7
