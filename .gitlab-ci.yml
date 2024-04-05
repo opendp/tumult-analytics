@@ -212,20 +212,9 @@ publish:
   dependencies: [package]
   image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
   variables:
-    # multi-repo: include when=ce
     POETRY_USER: "__token__"
     POETRY_PASSWORD: "${RELEASE_PYPI_TOKEN}"
     POETRY_PUBLISH: "poetry publish"
-    # multi-repo: end
-    # multi-repo: include when=ee
-    POETRY_USER: "gitlab-ci-token"
-    POETRY_PASSWORD: "${CI_JOB_TOKEN}"
-    POETRY_PUBLISH: "poetry publish --repository gitlab"
-    # multi-repo: end
-  # multi-repo: include when=ee
-  before_script:
-    - poetry config repositories.gitlab "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi"
-  # multi-repo: end
   script:
     - $POETRY_PUBLISH -u "$POETRY_USER" -p "$POETRY_PASSWORD"
   timeout: 3m
