@@ -1495,7 +1495,7 @@ class Session:
 
         Args:
             source_id: The private source to partition.
-            privacy_budget: Amount of privacy budget to pass to each new session.
+            privacy_budget: Privacy budget to pass to each new session.
             column: The name of the column partitioning on.
             splits: Mapping of split name to value of partition.
                 Split name is ``source_id`` in new session.
