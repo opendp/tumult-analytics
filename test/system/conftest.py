@@ -24,8 +24,11 @@ def closest_value(value, collection):
     if isinstance(value, (int, float)):
         return min(collection, key=lambda c: abs(value - c))
     elif isinstance(value, tuple):
-        return min(
-            collection, key=lambda c: sum(abs(t[0] - t[1]) for t in zip(value, c))
+        for candidate in collection:
+            if value == pytest.approx(candidate, nan_ok=True):
+                return candidate
+        raise AssertionError(
+            "No element of the collection is approximately equal to the value"
         )
     else:
         raise AssertionError("Unknown input data type")

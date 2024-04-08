@@ -35,12 +35,11 @@ from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.base import Measurement
 from tmlt.core.measurements.interactive_measurements import (
     InactiveAccountantError,
-    InsufficientBudgetError,
     PrivacyAccountant,
     PrivacyAccountantState,
     SequentialComposition,
 )
-from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.measures import ApproxDP, InsufficientBudgetError, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
@@ -1090,7 +1089,9 @@ class Session:
                 )
             except InsufficientBudgetError as err:
                 msg = _format_insufficient_budget_msg(
-                    err.requested_budget, err.remaining_budget, privacy_budget
+                    err.requested_budget.value,
+                    err.remaining_budget.value,
+                    privacy_budget,
                 )
                 raise RuntimeError(
                     "Cannot answer query without exceeding the Session privacy budget."
@@ -1549,7 +1550,7 @@ class Session:
             ) from e
         except InsufficientBudgetError as err:
             msg = _format_insufficient_budget_msg(
-                err.requested_budget, err.remaining_budget, privacy_budget
+                err.requested_budget.value, err.remaining_budget.value, privacy_budget
             )
             raise RuntimeError(
                 "Cannot perform this partition without exceeding "

@@ -16,6 +16,7 @@ Changed
   converting the underlying dataframe to Pandas.
 - :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits``
   arguments are now annotated as required.
+- Upgrades to version 0.13.0 of Tumult Core.
 
 Removed
 ~~~~~~~

@@ -1996,11 +1996,11 @@ test = ["flake8", "isort", "pytest"]
 
 [[package]]
 name = "tmlt-core"
-version = "0.12.0"
+version = "0.13.0"
 description = "Tumult's differential privacy primitives"
 category = "main"
 optional = false
-python-versions = ">=3.7.1,<3.12"
+python-versions = "<3.12,>=3.7.1"
 
 [package.dependencies]
 numpy = [
@@ -2199,7 +2199,7 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1, <3.12.0"
-content-hash = "252379b4bffab8088422932287e5b89abb1cae1c004ff853ad6dd8719b9759da"
+content-hash = "f5b749218239c73229c00fdebb9bbd7a3a1202f73d3d9c44ddb9b7416ca9b3d4"
 
 [metadata.files]
 alabaster = [
@@ -3914,17 +3914,17 @@ tinycss2 = [
     {file = "tinycss2-1.2.1.tar.gz", hash = "sha256:8cff3a8f066c2ec677c06dbc7b45619804a6938478d9d73c284b29d14ecb0627"},
 ]
 tmlt-core = [
-    {file = "tmlt_core-0.12.0-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:7677b4e5234b16b87196c1918b187383cf6a0b416ce3811fc8914700bf8a9e30"},
-    {file = "tmlt_core-0.12.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:de00deef5728b99a6354e6208946568ae5008bcf707f2d79309516c169bb0d93"},
-    {file = "tmlt_core-0.12.0-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:8c3ca0ca266a427e0e91a579a06b0b02cd1587d004c52c372c70b3b0e8d89301"},
-    {file = "tmlt_core-0.12.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6369ed68977e1a28140d531d816d9be8977e44c50278308a75792616ea36e604"},
-    {file = "tmlt_core-0.12.0-cp37-cp37m-macosx_11_0_x86_64.whl", hash = "sha256:c55599cfc506408a33ef59168fea50b5312fbf1874eb8ee88273a9eac024721b"},
-    {file = "tmlt_core-0.12.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3d0e21718dc09b3588fe5566cb2e8817a8f1652aef7f4fff94024c9ccf9418b9"},
-    {file = "tmlt_core-0.12.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:faa353bcf6d4242244b10addfcc73f3e01c39e8f97b6f0c982de5b7af13a073a"},
-    {file = "tmlt_core-0.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a11a68a39c912020b7ad5ad8e3449cbfe051b9b4825de078cff83609546bad6f"},
-    {file = "tmlt_core-0.12.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:36993d8fc56faa58fa7ba9cdd1f1e020e75990bd3468fd355e351d7bdb569fda"},
-    {file = "tmlt_core-0.12.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bb1a131a300916cdd913ef54b35c3203f33dcbfb45b2d0f6ad583b5fb97f8f16"},
-    {file = "tmlt_core-0.12.0.tar.gz", hash = "sha256:eb69e38f1ba264fa17419312cf48316613dff3f7513c8500a721273d751df5ea"},
+    {file = "tmlt_core-0.13.0-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:b31e80ad0b05fbdda58a426ab1994f1235d5fd085db7621e525912d3d98b6f8f"},
+    {file = "tmlt_core-0.13.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6db89ac72ae870d208394e245abf1f74126df1631a672e39403ae26d1939dc45"},
+    {file = "tmlt_core-0.13.0-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:fa0778238c579fafe53128a441e5101dc975bdfaaf25101f495a3d1ea0026794"},
+    {file = "tmlt_core-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:727dd094f1796a3eb3fd60c3844b44775ffbd18ebf62ea9a7a8c02b14ec7e0ed"},
+    {file = "tmlt_core-0.13.0-cp37-cp37m-macosx_11_0_x86_64.whl", hash = "sha256:6febf13fa4998aa91d888e485cffc566b78ab494ff7e39f64c2484f3dbee0e2a"},
+    {file = "tmlt_core-0.13.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f6d4b3067fed4af864c5cfe25432a1210d54e9ee07df26a06a18697ee4e65555"},
+    {file = "tmlt_core-0.13.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:b6b6e0dac1652954c278f3fddc15684bedbc52151d158a5b2b43a31c2528e667"},
+    {file = "tmlt_core-0.13.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:452abe44fc689604702f0365ced08796eee64f850b5d8961c85879a79f9e493f"},
+    {file = "tmlt_core-0.13.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:70dda9d80c38187dcd6d32512cfb5be6a80ac2e5d20e6317e729bfcf0882e133"},
+    {file = "tmlt_core-0.13.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a014d65742ed2dc947adb75edd4179598f82602a4016f923e5b35acb05451601"},
+    {file = "tmlt_core-0.13.0.tar.gz", hash = "sha256:c77fb3c3f8d11e5d7a44191b876db24c8935148f20ae6f318925cc06e1db1e72"},
 ]
 tomli = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},

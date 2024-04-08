@@ -6,6 +6,7 @@
 import statistics
 from typing import List, Set, Tuple
 
+import pandas as pd
 import pytest
 
 from tmlt.analytics.constraints import MaxRowsPerID
@@ -219,8 +220,8 @@ def test_variance(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
     # of rows, so fill that in to prevent pvariance from raising an exception in
     # that case.
     value = res["n_variance"][0]
-    closest = closest_value(value, {statistics.pvariance(n) if n else 25 for n in ns})
-    assert value == pytest.approx(closest)
+    closest = closest_value(value, {pd.Series(n).var() for n in ns})
+    assert value == pytest.approx(closest, nan_ok=True)
 
 
 @pytest.mark.parametrize(
@@ -235,16 +236,14 @@ def test_variance_grouped(
         base_query.groupby(_KEYSET).variance("n", 0, 10),
         session.remaining_privacy_budget,
     ).toPandas()
-    expected_variances = {
-        tuple(statistics.pvariance(g) if len(g) > 1 else 25 for g in n) for n in ns
-    }
+    expected_variances = {tuple(pd.Series(g).var() for g in n) for n in ns}
     # There's some floating-point imprecision at play here, so find the closest
     # value and use approx() for the comparison.
     value = tuple(
         res.loc[res["group"] == group]["n_variance"].values[0] for group in ["A", "B"]
     )
     closest = closest_value(value, expected_variances)
-    assert value == pytest.approx(closest)
+    assert value == pytest.approx(closest, nan_ok=True)
 
 
 @pytest.mark.parametrize(
@@ -263,8 +262,8 @@ def test_stdev(base_query: QueryBuilder, ns: Set[Tuple[int, ...]], session):
     # points are available, so fill that in to prevent pstdev from raising an
     # exception in that case.
     value = res["n_stdev"][0]
-    closest = closest_value(value, {statistics.pstdev(n) if n else 25 for n in ns})
-    assert value == pytest.approx(closest)
+    closest = closest_value(value, {pd.Series(n).std() for n in ns})
+    assert value == pytest.approx(closest, nan_ok=True)
 
 
 @pytest.mark.parametrize(
@@ -278,14 +277,12 @@ def test_stdev_grouped(
     res = session.evaluate(
         base_query.groupby(_KEYSET).stdev("n", 0, 10), session.remaining_privacy_budget
     ).toPandas()
-    expected_stdevs = {
-        tuple(statistics.pstdev(g) if len(g) > 1 else 5 for g in n) for n in ns
-    }
+    expected_stdevs = {tuple(pd.Series(g).std() for g in n) for n in ns}
     value = tuple(
         res.loc[res["group"] == group]["n_stdev"].values[0] for group in ["A", "B"]
     )
     closest = closest_value(value, expected_stdevs)
-    assert value == pytest.approx(closest)
+    assert value == pytest.approx(closest, nan_ok=True)
 
 
 @pytest.mark.parametrize("session", [INF_BUDGET], indirect=True, ids=["puredp"])

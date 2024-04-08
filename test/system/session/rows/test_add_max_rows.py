@@ -7,6 +7,7 @@
 
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
@@ -137,7 +138,7 @@ class TestSession:
                     mechanism=StdevMechanism.GAUSSIAN,
                     output_column="B_stdev",
                 ),
-                pd.DataFrame({"A": ["0", "1"], "B_stdev": [0.471405, 0.0]}),
+                pd.DataFrame({"A": ["0", "1"], "B_stdev": [0.5, np.nan]}),
             ),
         ],
     )

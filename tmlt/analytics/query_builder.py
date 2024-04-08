@@ -2294,7 +2294,7 @@ class QueryBuilder:
             ... )
             >>> answer.toPandas()
                B_variance
-            0    0.666667
+            0         1.0
 
         Args:
             column: The column to compute the variance over.
@@ -2377,8 +2377,8 @@ class QueryBuilder:
             ...     PureDPBudget(float("inf"))
             ... )
             >>> answer.toPandas()
-                B_stdev
-            0  0.816497
+               B_stdev
+            0      1.0
 
         Args:
             column: The column to compute the stdev over.
@@ -3109,6 +3109,7 @@ class GroupedQueryBuilder:
             >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import tmlt.analytics.session
             >>> import pandas as pd
+            >>> import numpy as np
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
             >>> my_private_data = spark.createDataFrame(
@@ -3147,7 +3148,7 @@ class GroupedQueryBuilder:
             ... )
             >>> answer.sort("A").toPandas()
                A  B_variance
-            0  0         1.0
+            0  0         NaN
             1  1         1.0
 
         Args:
@@ -3242,7 +3243,7 @@ class GroupedQueryBuilder:
             ... )
             >>> answer.sort("A").toPandas()
                A  B_stdev
-            0  0      1.0
+            0  0      NaN
             1  1      1.0
 
         Args:
