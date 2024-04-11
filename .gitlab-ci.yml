@@ -69,7 +69,7 @@ test:
   script:
     # Run doctest before test_fast so that it doesn't overwrite the coverage
     # report from test_fast.
-    - nox -s test_smoketest test_doctest test_fast
+    - nox -s test_smoketest test_fast
   coverage: '/^TOTAL.+?(\d+\%)$/'
   artifacts:
     paths: ["coverage/"]
@@ -91,14 +91,17 @@ test:
       allow_failure: true
   tags: [aws-c6a.xlarge]
 
+test_docs:
+  extends: test
+  script:
+    - nox -s test_doctest
+
 test_demos:
   extends: test
   script:
     - nox -s test_demos
   coverage: null
   artifacts: null
-  timeout: 1h
-  tags: [aws-c6a.xlarge]
 
 test_slow:
   extends: test
