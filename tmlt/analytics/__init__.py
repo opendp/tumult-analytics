@@ -1,4 +1,34 @@
-"""`Tumult Labs' <https://tmlt.io>`_ differentially private analytics library."""
+"""`Tumult Labs' <https://tmlt.io>`_ differentially private analytics library.
+
+Tumult Analytics is broken up into a number of modules that provide different
+functionality. These modules fall into a few broad categories, described below.
+
+**For specifying privacy guarantees**:
+
+* :mod:`~.session` defines the :class:`~.session.Session`, an interactive
+  interface for making differentially private queries.
+
+* :mod:`~.privacy_budget` contains types for representing privacy budgets.
+
+* :mod:`~.protected_change` contains types for expressing what changes in input
+  tables are protected by differential privacy.
+
+**For defining queries**:
+
+* :mod:`~.query_builder` provides an interface for constructing differentially
+  private queries from basic query operations.
+
+* :mod:`~.keyset` defines :class:`~.keyset.KeySet`, a type for specifying the
+  keys used in group-by operations.
+
+* :mod:`~.constraints` contains types for representing constraints used when
+  evaluating queries on data with the :class:`~.protected_change.AddRowsWithID`
+  protected change.
+
+* :mod:`~.truncation_strategy` and :mod:`~.binning_spec` provide types that are used
+  to define certain types of queries.
+
+"""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024

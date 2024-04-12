@@ -108,7 +108,7 @@ class AddRowsWithID(ProtectedChange):
     :class:`AddRowsWithID` hides the addition or removal of *all rows*
     with the same value in the specified column.
 
-    The id column *must* be a string, integer (or long), or date; it cannot
+    The ID column *must* be a string, integer (or long), or date; it cannot
     be a float or a timestamp.
     """
 
