@@ -13,9 +13,11 @@ _logger = logging.getLogger(__name__)
 # Project information
 
 project = "Tumult Analytics"
-package_name = "tmlt.analytics"
 author = "Tumult Labs"
 copyright = "Tumult Labs 2024"
+# Note that this is the name of the module provided by the package, not
+# necessarily the name of the package as pip understands it.
+package_name = "tmlt.analytics"
 
 # TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove suppress_warnings setting
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
@@ -225,7 +227,7 @@ intersphinx_mapping = {
 
 rst_epilog = """
 .. |PRO| raw:: html
-    
+
     <a href="https://tmlt.dev" style="text-decoration : none">
         <img src="https://img.shields.io/badge/PRO-c53a58" alt="This is only applicable to Analytics Pro." title="This is only available in Analytics Pro">
     </a>
