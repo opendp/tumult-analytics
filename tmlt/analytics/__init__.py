@@ -1,6 +1,8 @@
-"""`Tumult Labs' <https://tmlt.io>`_ differentially private analytics library.
+"""Tumult Analytics is a differentially private analytics library from `Tumult Labs`_.
 
-Tumult Analytics is broken up into a number of modules that provide different
+.. _Tumult Labs: https://tmlt.io
+
+The library is broken up into a number of modules that provide different
 functionality. These modules fall into a few broad categories, described below.
 
 **For specifying privacy guarantees**:
