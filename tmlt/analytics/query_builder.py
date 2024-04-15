@@ -1159,7 +1159,7 @@ class QueryBuilder:
             max_rows: The enforced limit on the number of rows from each ``f(row)``.
                 If ``f`` produces more rows than this, only the first ``max_rows``
                 rows will be in the output.
-            max_num_rows: Deprecated synonym for max_rows.
+            max_num_rows: Deprecated synonym for ``max_rows``.
         """
         grouping_column: Optional[str]
         if grouping:

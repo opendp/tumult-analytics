@@ -9,26 +9,29 @@ Changelog
 Unreleased
 ----------
 
+This is a maintenance release, fixing a number of bugs and improving our API documentation.
+
+Note that the 0.9.x release series will be the last to support Python 3.7, which has not been receiving security updates for several months.
+If this is a problem, please `reach out to us <mailto:info@tmlt.io>`_.
+
 Changed
 ~~~~~~~
 
-- :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without
-  converting the underlying dataframe to Pandas.
-- :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits``
-  arguments are now annotated as required.
-- Upgrades to version 0.13.0 of Tumult Core.
+- :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without converting the underlying dataframe to Pandas.
+- :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits`` arguments are now annotated as required.
+- The minimum supported version of Tumult Core is now 0.13.0.
 
 Removed
 ~~~~~~~
-- *Backwards-incompatible*: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since Tumult Analytics 0.7.0).
+- *Backwards-incompatible*: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since :ref:`0.7.0 <v0.7.0>`).
   As a result, the ``protected_change`` parameter to those methods is now required.
 
 Fixed
 ~~~~~
-- Improved the error message when attempting to overspend an ApproxDPBudget to more clearly indicate which component of the budget was insufficient to evaluate the query.
-- Updated the default behavior for the function :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` to avoid using ID columns.
-- Flat maps now correctly ignore max_rows. Previously they would raise a warning saying that max_rows was ignored, but would still use it to limit the number of rows in the output.
-- Upgrades to version 0.12.0 of Tumult Core.
+- The error message when attempting to overspend an :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` now more clearly indicates which component of the budget was insufficient to evaluate the query.
+- :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` now automatically excludes ID columns if no columns are specified.
+- Flat maps now correctly ignore ``max_rows`` when it does not apply.
+  Previously they would raise a warning saying that ``max_rows`` was ignored, but would still use it to limit the number of rows in the output.
 
 .. _v0.8.3:
 
