@@ -161,7 +161,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 high=1.0,
             )
         ],
-        [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.nan]})],
+        [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
     ),
     (  # BoundedVariance
         [
@@ -174,7 +174,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 output_column="var",
             )
         ],
-        [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.nan]})],
+        [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
     ),
     (  # BoundedSum
         [
@@ -811,7 +811,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
             ),
             (  # BoundedSTDEV on integer valued measure column with LAPLACE
                 GroupByBoundedSTDEV(
@@ -823,7 +823,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
             ),
             (  # BoundedSTDEV on integer valued measure column with GAUSSIAN
                 GroupByBoundedSTDEV(
@@ -835,7 +835,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
             ),
             (  # BoundedVariance on floating-point valued measure column with LAPLACE
                 GroupByBoundedVariance(
@@ -848,7 +848,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
             ),
             (  # BoundedVariance on integer valued measure column with LAPLACE
                 GroupByBoundedVariance(
@@ -861,7 +861,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
             ),
             (  # BoundedVariance on integer valued measure column with GAUSSIAN
                 GroupByBoundedVariance(
@@ -874,7 +874,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.nan]})],
+                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
             ),
             (  # BoundedSum on floating-point valued measure column with LAPLACE
                 GroupByBoundedSum(
@@ -971,7 +971,7 @@ class TestQueryExprCompiler:
                         mechanism=StdevMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.nan]})],
+                    [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
                 ]
             ),
             (  # BoundedVariance on floating-point valued measure column with GAUSSIAN
@@ -986,7 +986,7 @@ class TestQueryExprCompiler:
                         mechanism=VarianceMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.nan]})],
+                    [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
                 ]
             ),
             (  # BoundedSum on floating-point valued measure column with GAUSSIAN
