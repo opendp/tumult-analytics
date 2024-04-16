@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.9.0:
+
+0.9.0 - 2024-04-16
+------------------
 
 This is a maintenance release, fixing a number of bugs and improving our API documentation.
 
