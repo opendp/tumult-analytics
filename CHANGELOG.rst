@@ -24,10 +24,8 @@ Changed
 
 - :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without converting the underlying dataframe to Pandas.
 - :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits`` arguments are now annotated as required.
-- The minimum supported version of Tumult Core is now 0.13.0. 
-- Adjustes the behavior of `QueryBuilder.variance <tmlt.analytics.query_builder.QueryBuilder.variance>`, `QueryBuilder.stdev <tmlt.analytics.query_builder.QueryBuilder.stdev>`,
-    `GroupedQueryBuilder.variance <tmlt.analytics.query_builder.GroupedQueryBuilder.variance>`, and `GroupedQueryBuilder.stdev <tmlt.analytics.query_builder.GroupedQueryBuilder.stdev>` to calculate the
-    sample variance or standard deviation, as opposed to the population variance or standard deviation.
+- The minimum supported version of Tumult Core is now 0.13.0.
+- The :meth:`QueryBuilder.variance <tmlt.analytics.query_builder.QueryBuilder.variance>`, :meth:`QueryBuilder.stdev <tmlt.analytics.query_builder.QueryBuilder.stdev>`, :meth:`GroupedQueryBuilder.variance <tmlt.analytics.query_builder.GroupedQueryBuilder.variance>`, and :meth:`GroupedQueryBuilder.stdev <tmlt.analytics.query_builder.GroupedQueryBuilder.stdev>` methods now calculate the sample variance or standard deviation, rather than the population variance or standard deviation.
 
 Removed
 ~~~~~~~
