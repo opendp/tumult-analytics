@@ -19,7 +19,7 @@ to the computation of a query. Choosing an appropriate budget
 for a given query is ultimately an exercise in balancing privacy and accuracy
 needs; we discuss this topic more :ref:`below <Privacy tradeoff>`.
 
-Tumult Analytics currently supports two distinct privacy definitions:
+Tumult Analytics currently supports three distinct privacy definitions:
 
 * *Pure Differential Privacy (Pure DP)*, with its associated privacy parameter ``epsilon``.
   For data publication use cases, the value of ``epsilon`` is often chosen to be
@@ -27,23 +27,28 @@ Tumult Analytics currently supports two distinct privacy definitions:
   Values below 1 are typically considered conservative.
 * *Zero Concentrated Differential Privacy (zCDP)*, with its associated
   privacy parameter ``rho``.
+* *Approximate Differential Privacy (Approx DP)*, with its associated
+  privacy parameters ``epsilon`` and ``delta``.
 
-For both pure DP and zCDP, a higher budget
-leads to less randomization and thus more accurate results, whereas
-a lower budget yields more noisy results.
+Queries with higher values of epsilon, rho, and delta will produce results with
+less randomization that are therefore more accurate, whereas
+a lower budget yields more noisy results. Lower budgets are a stronger privacy guarantee,
+which highlights the trade-off between privacy and accuracy.
 
-Understanding the differences between these two privacy definitions is out of scope
+Understanding the differences between these privacy definitions is out of scope
 for this guide; for simple use cases, pure DP is a good default choice.
-To learn more, you can consult this `blog post <https://desfontain.es/privacy/renyi-dp-zero-concentrated-dp.html>`__.
+To learn more about zCDP, you can consult this `blog post <https://desfontain.es/privacy/renyi-dp-zero-concentrated-dp.html>`__.
+To learn more about Approx DP, you can consult this `blog post <https://desfontain.es/privacy/almost-differential-privacy.html>`__.
 
 Using privacy budgets in Tumult Analytics
 -----------------------------------------
 
 Tumult Analytics provides the :class:`~tmlt.analytics.privacy_budget.PrivacyBudget`
-interface and two concrete implementations for specifying privacy budgets,
+interface and concrete implementations for specifying privacy budgets,
 depending on which privacy definition you wish to use:
-:class:`~tmlt.analytics.privacy_budget.PureDPBudget`
-and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget`.
+:class:`~tmlt.analytics.privacy_budget.PureDPBudget`,
+:class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget`,
+or :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`.
 
 Recall from tutorials :ref:`first steps<First steps>` and
 :ref:`working with privacy budgets<Working with privacy budgets>` that when you initialize a Session,
