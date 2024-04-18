@@ -80,7 +80,7 @@ def install_overrides(session):
         # X.Y.Z-<some other stuff>-<git commit hash>
         # (ex. "0.6.2-post11+ea346f3")
         # This overrides Poetry's dependencies with our own
-        session.poetry.session.install(core_wheels[0])
+        session.poetry.session.install(str(core_wheels[0]))
 
 
 CWD = Path(".").resolve()
