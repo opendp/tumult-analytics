@@ -233,8 +233,9 @@ rst_epilog = """
     </a>
 .. |PRO_NOTE| replace:: This is only available on a paid version of Tumult Analytics. If you
     would like to hear more, please contact us at info@tmlt.io.
-"""
 
+.. |project| replace:: {}
+""".format(project)
 
 def skip_members(app, what, name, obj, skip, options):
     """Skip some members."""

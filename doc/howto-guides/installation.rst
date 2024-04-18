@@ -6,14 +6,14 @@
 Installation instructions
 =========================
 
-This guide will help you set up Tumult Analytics on your local machine.
+This guide will help you set up |project| on your local machine.
 
 Prerequisites
 ^^^^^^^^^^^^^
 
-Tumult Analytics is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
+|project| is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
 It is compatible with Python 3.7 through 3.11.
-Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.0.0/index.html#downloading>`__.
+Because |project| uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.0.0/index.html#downloading>`__.
 
 Only the x86_64 processor architecture is officially supported at present.
 Apple silicon is supported through binary translation with `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__.
@@ -85,7 +85,7 @@ If you encounter any issues during the installation process, please `let us know
 
 .. tabbed:: macOS (Apple silicon)
 
-    Since some dependencies of Tumult Analytics are not supported on the Apple silicon processor architecture, you will need to first install `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__ and the x86_64 version of Homebrew.
+    Since some dependencies of |project| are not supported on the Apple silicon processor architecture, you will need to first install `Rosetta 2 <https://support.apple.com/en-us/HT211861>`__ and the x86_64 version of Homebrew.
     If you do not already have Rosetta 2, it can be installed with:
 
     .. code-block:: bash
@@ -113,7 +113,7 @@ If you encounter any issues during the installation process, please `let us know
 
 .. tabbed:: Windows
 
-    The only supported way to install Tumult Analytics on Windows is using the `Windows Subsystem for Linux (WSL) <https://docs.microsoft.com/en-us/windows/wsl/about>`__.
+    The only supported way to install |project| on Windows is using the `Windows Subsystem for Linux (WSL) <https://docs.microsoft.com/en-us/windows/wsl/about>`__.
     Once you have installed your preferred Linux distribution with WSL, follow the corresponding Linux installation instructions to get Tumult Analytics set up.
 
 
@@ -128,16 +128,19 @@ Once the above prerequisites are installed, Tumult Analytics can be installed us
 
 This will automatically install all of its Python dependencies as well.
 
-It is recommended, though not required, to install Tumult Analytics in a `virtual environment <https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments>`__ to minimize interactions with your system Python environment.
+It is recommended, though not required, to install Tumult Analytics in a `virtual environment <https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments>`__
+to minimize interactions with your system Python environment.
+
+
 
 Optional: checking your installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Once you've installed Tumult Analytics, you can run this command to
+Once you've installed |project|, you can run this command to
 check that basic functionality works:
 
 .. code-block:: bash
 
     python3 -c "from tmlt.analytics.utils import check_installation; check_installation()"
 
-If Analytics has been installed correctly, this command should finish successfully.
+If |project| has been installed correctly, this command should finish successfully.
