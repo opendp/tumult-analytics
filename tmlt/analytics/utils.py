@@ -6,6 +6,7 @@ import atexit
 from textwrap import dedent
 
 import pandas as pd
+import tmlt.core
 from pyspark.sql import SparkSession
 from tmlt.core.utils import cleanup as core_cleanup
 from tmlt.core.utils import configuration
@@ -57,9 +58,14 @@ def check_installation():
     will raise an error.
     """
     try:
+        # Printing version numbers to help people debug.
+        print(f"Using Tumult Core {tmlt.core.__version__}")
+        print(f"Using Tumult Analytics {tmlt.analytics.__version__}")
+
         try:
             print("Creating Spark session... ", end="")
             spark = SparkSession.builder.getOrCreate()
+            print(f"Using PySpark {spark.version}")
             print(" OK")
         except RuntimeError as e:
             # If Spark is broken, the Core cleanup atexit hook will fail, which
