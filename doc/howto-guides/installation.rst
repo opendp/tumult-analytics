@@ -120,6 +120,12 @@ If you encounter any issues during the installation process, please `let us know
 Installation
 ^^^^^^^^^^^^
 
+.. note::
+
+    It is **strongly recommended**, though not required, to install Tumult Analytics in a `virtual environment <https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments>`__
+    to minimize interactions with your system Python environment.
+
+
 Once the above prerequisites are installed, Tumult Analytics can be installed using ``pip3`` with:
 
 .. code-block:: bash
@@ -128,8 +134,6 @@ Once the above prerequisites are installed, Tumult Analytics can be installed us
 
 This will automatically install all of its Python dependencies as well.
 
-It is recommended, though not required, to install Tumult Analytics in a `virtual environment <https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments>`__
-to minimize interactions with your system Python environment.
 
 
 
