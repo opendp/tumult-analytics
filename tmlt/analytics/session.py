@@ -715,7 +715,9 @@ class Session:
             description += "\n".join(constraints_strs)
         if isinstance(query_obj, GroupedQueryBuilder):
             ks_df = (
-                query_obj._groupby_keys.dataframe()  # pylint: disable=protected-access
+                # pylint: disable=protected-access
+                query_obj._groupby_keys.dataframe()  # type: ignore
+                # pylint: enable=protected-access
             )
             if len(ks_df.columns) > 0:
                 description += "\nGrouped on columns "
@@ -1610,7 +1612,7 @@ class Session:
             )
         elif isinstance(privacy_budget, ApproxDPBudget):
             if privacy_budget.is_infinite:
-                return ApproxDPBudget(float("inf"), 0)
+                return ApproxDPBudget(float("inf"), 1)
             else:
                 if not is_exact_number_tuple(remaining_budget_value):
                     raise AssertionError(

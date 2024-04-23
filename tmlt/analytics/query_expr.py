@@ -23,6 +23,7 @@ from typeguard import check_type
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import Schema
+from tmlt.analytics.config import config
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -699,8 +700,8 @@ class GroupByCount(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     output_column: str = "count"
     """The name of the column to store the counts in."""
     mechanism: CountMechanism = CountMechanism.DEFAULT
@@ -712,8 +713,10 @@ class GroupByCount(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountMechanism)
 
@@ -728,8 +731,8 @@ class GroupByCountDistinct(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     columns_to_count: Optional[List[str]] = None
     """The columns that are compared when determining if two rows are distinct.
 
@@ -745,9 +748,11 @@ class GroupByCountDistinct(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
         check_type("columns_to_count", self.columns_to_count, Optional[List[str]])
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountDistinctMechanism)
 
@@ -768,8 +773,8 @@ class GroupByQuantile(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the quantile over."""
     quantile: float
@@ -787,8 +792,10 @@ class GroupByQuantile(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("measure_column", self.measure_column, str)
         check_type("quantile", self.quantile, float)
         check_type("low", self.low, float)
@@ -826,8 +833,8 @@ class GroupByBoundedSum(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the sum over."""
     low: float
@@ -849,8 +856,10 @@ class GroupByBoundedSum(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -884,8 +893,8 @@ class GroupByBoundedAverage(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the average over."""
     low: float
@@ -907,8 +916,10 @@ class GroupByBoundedAverage(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -942,8 +953,8 @@ class GroupByBoundedVariance(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the variance over."""
     low: float
@@ -965,8 +976,10 @@ class GroupByBoundedVariance(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -1000,8 +1013,8 @@ class GroupByBoundedSTDEV(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: KeySet
-    """The keys of the resulting aggregated data."""
+    groupby_keys: Union[KeySet, List[str]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the standard deviation over."""
     low: float
@@ -1023,8 +1036,10 @@ class GroupByBoundedSTDEV(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
+        if isinstance(self.groupby_keys, list):
+            config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, KeySet)
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)

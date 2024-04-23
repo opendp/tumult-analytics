@@ -18,6 +18,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.constraints import MaxGroupsPerID, MaxRowsPerGroupPerID
+from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -153,25 +154,35 @@ def _validate_groupby(
     """
     input_schema = query.child.accept(output_schema_visitor)
 
-    groupby_columns: KeysView[str] = cast(
-        KeysView[str], query.groupby_keys.schema().keys()
-    )
-    schema: Schema = query.groupby_keys.schema()
+    if isinstance(query.groupby_keys, KeySet):
+        # Checks that the KeySet is valid
+        groupby_columns: KeysView[str] = cast(
+            KeysView[str], query.groupby_keys.schema().keys()
+        )
+        schema: Schema = query.groupby_keys.schema()
 
-    for column_name, column_desc in schema.items():
-        try:
-            input_column_desc = input_schema[column_name]
-        except KeyError as e:
-            raise KeyError(
-                f"Groupby column '{column_name}' is not in the input schema."
-            ) from e
-        if column_desc.column_type != input_column_desc.column_type:
-            raise ValueError(
-                f"Groupby column '{column_name}' has type"
-                f" '{column_desc.column_type.name}', but the column with the same name"
-                f" in the input data has type '{input_column_desc.column_type.name}'"
-                " instead."
-            )
+        for column_name, column_desc in schema.items():
+            try:
+                input_column_desc = input_schema[column_name]
+            except KeyError as e:
+                raise KeyError(
+                    f"Groupby column '{column_name}' is not in the input schema."
+                ) from e
+            if column_desc.column_type != input_column_desc.column_type:
+                raise ValueError(
+                    f"Groupby column '{column_name}' has type"
+                    f" '{column_desc.column_type.name}', but the column with the same "
+                    f"name in the input data has type "
+                    f"'{input_column_desc.column_type.name}' instead."
+                )
+    elif isinstance(query.groupby_keys, list):
+        # Checks that the listed groupby columns exist in the schema
+        for col in query.groupby_keys:
+            if col not in input_schema:
+                raise ValueError(f"Groupby column '{col}' is not in the input schema.")
+        groupby_columns = cast(KeysView[str], query.groupby_keys)
+    else:
+        raise TypeError("Unexpected groupby_keys type. Accepted types: KeySet, list")
 
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:

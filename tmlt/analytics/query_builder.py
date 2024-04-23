@@ -36,6 +36,7 @@ from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.binning_spec import BinningSpec, BinT
+from tmlt.analytics.config import config
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_expr import (
@@ -1478,11 +1479,11 @@ class QueryBuilder:
         query_expr = GetGroups(child=self._query_expr, columns=columns)
         return query_expr
 
-    def groupby(self, keys: KeySet) -> "GroupedQueryBuilder":
+    def groupby(self, by: Union[KeySet, List[str]]) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
 
         ..
-            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget, ApproxDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
             >>> import tmlt.analytics.session
             >>> import pandas as pd
@@ -1608,11 +1609,18 @@ class QueryBuilder:
             3  1  2      1
 
         Args:
-            keys: A KeySet giving the set of groupby keys to be used when
-                performing an aggregation.
+            by: A KeySet or list of column names which determines the groups for the
+                groupby. A KeySet defines the columns to group on and the possible
+                values for each column, while a list of column names will be used to
+                create a KeySet with Automatic Partition Selection (requires ApproxDP).
         """
+        if isinstance(by, list):
+            config.features.auto_partition_selection.raise_if_disabled()
+
         return GroupedQueryBuilder(
-            source_id=self._source_id, query_expr=self._query_expr, groupby_keys=keys
+            source_id=self._source_id,
+            query_expr=self._query_expr,
+            groupby_keys=by,
         )
 
     def count(
@@ -2414,7 +2422,7 @@ class GroupedQueryBuilder:
         """
         self._source_id: str = source_id
         self._query_expr: QueryExpr = query_expr
-        self._groupby_keys: KeySet = groupby_keys
+        self._groupby_keys: Union[KeySet, List[str]] = groupby_keys
 
     def count(
         self,

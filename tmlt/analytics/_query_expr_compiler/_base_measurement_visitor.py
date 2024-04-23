@@ -33,6 +33,7 @@ from tmlt.core.measurements.aggregations import (
     create_average_measurement,
     create_count_distinct_measurement,
     create_count_measurement,
+    create_partition_selection_measurement,
     create_quantile_measurement,
     create_standard_deviation_measurement,
     create_sum_measurement,
@@ -45,7 +46,7 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialComposition,
     create_adaptive_composition,
 )
-from tmlt.core.measurements.postprocess import NonInteractivePostProcess
+from tmlt.core.measurements.postprocess import NonInteractivePostProcess, PostProcess
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
@@ -220,7 +221,10 @@ def _generate_constrained_count_distinct(
     handle deduplicating the values.
     """
     columns_to_count = set(query.columns_to_count or schema.columns)
-    groupby_columns = query.groupby_keys.dataframe().columns
+    if isinstance(query.groupby_keys, KeySet):
+        groupby_columns = query.groupby_keys.dataframe().columns
+    else:
+        groupby_columns = query.groupby_keys
 
     # For non-IDs cases or cases where columns other than the ID column must be
     # distinct, there's no optimization to make.
@@ -311,6 +315,32 @@ def _create_single_row_df_with_spark_schema(schema: StructType) -> DataFrame:
     return df
 
 
+def _split_auto_partition_budget(
+    budget: PrivacyBudget,
+) -> Tuple[ApproxDPBudget, ApproxDPBudget]:
+    """Split a budget for use in a query with automatic partition selection.
+
+    The entire delta is consumed by partition selection since the subsequent queries
+    do not consume delta.
+    """
+    try:
+        assert isinstance(budget, ApproxDPBudget)
+    except AssertionError as exp:
+        raise ValueError(
+            "An ApproxDPBudget is required for a query with partition selection."
+        ) from exp
+
+    if budget.is_infinite:
+        # Need to set delta to zero in the second query which cannot consume delta.
+        return ApproxDPBudget(float("inf"), 1), ApproxDPBudget(float("inf"), 0)
+
+    epsilon, delta = budget.value
+    half_epsilon = epsilon * ExactNumber("0.5")
+    return ApproxDPBudget(half_epsilon, delta), ApproxDPBudget(
+        half_epsilon, ExactNumber(0)
+    )
+
+
 class BaseMeasurementVisitor(QueryExprVisitor):
     """A visitor to create a measurement from a query expression."""
 
@@ -379,10 +409,9 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         stability: Any,
         mechanism: NoiseMechanism,
         columns: List[str],
-        keyset: Optional[KeySet],
-        build_groupby_agg_from_groupby: Callable[[GroupBy, PrivacyBudget], Measurement],
+        keyset: Union[KeySet, List[str]],
+        build_groupby_agg_from_groupby: Callable[[GroupBy], Measurement],
         keyset_budget: PrivacyBudget,
-        agg_budget: PrivacyBudget,
     ) -> Tuple[Measurement, NoiseInfo]:
         """Builds a measurement which gets a keyset and performs a groupby aggregation.
 
@@ -399,13 +428,13 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 from a groupby. The resulting measurement should satisfy
                 `measurement.privacy_relation(stability, agg_budget.value)`.
             keyset_budget: The budget to use for the keyset measurement.
-            agg_budget: The budget to use for the aggregation measurement.
 
         Returns:
             A tuple of the groupby aggregation measurement and the noise info.
         """
-        assert keyset is not None  # TODO: parameter is for implicit partition selection
-        assert keyset.dataframe().columns == columns
+        assert keyset is not None
+        if isinstance(keyset, KeySet):
+            assert keyset.dataframe().columns == columns
 
         def perform_groupby_agg(
             queryable: Queryable,
@@ -417,16 +446,16 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                         input_metric=input_metric,
                         stability=stability,
                         budget=keyset_budget,
-                        columns=columns,
-                        keyset=keyset,
+                        keyset_or_columns=keyset,
                     )
                 )
             )
             groupby = self._build_groupby(
                 input_domain, input_metric, mechanism, measurement_keyset
             )
-            agg = build_groupby_agg_from_groupby(groupby, agg_budget)
+            agg = build_groupby_agg_from_groupby(groupby)
             return queryable(MeasurementQuery(agg))
+            # agg will be a groupby sum, avg, ect. measurement.
 
         groupby_agg = NonInteractivePostProcess(
             create_adaptive_composition(
@@ -456,7 +485,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_domain, input_metric, mechanism, one_row_keyset
         )
         groupby_agg_one_row_keyset = build_groupby_agg_from_groupby(
-            groupby_one_row_keyset, agg_budget
+            groupby_one_row_keyset
         )
         noise_info = _noise_from_measurement(groupby_agg_one_row_keyset)
         return groupby_agg, noise_info
@@ -537,43 +566,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             # Tables without IDs don't need truncation
             return transformation, reference
 
-    def _pick_noise_for_count(
-        self, query: Union[GroupByCount, GroupByCountDistinct]
-    ) -> NoiseMechanism:
-        """Pick the noise mechanism to use for a count or count-distinct query."""
-        requested_mechanism: NoiseMechanism
-        if query.mechanism in (CountMechanism.DEFAULT, CountDistinctMechanism.DEFAULT):
-            if isinstance(self.output_measure, (PureDP, ApproxDP)):
-                requested_mechanism = NoiseMechanism.LAPLACE
-            else:  # output measure is RhoZCDP
-                requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
-        elif query.mechanism in (
-            CountMechanism.LAPLACE,
-            CountDistinctMechanism.LAPLACE,
-        ):
-            requested_mechanism = NoiseMechanism.LAPLACE
-        elif query.mechanism in (
-            CountMechanism.GAUSSIAN,
-            CountDistinctMechanism.GAUSSIAN,
-        ):
-            requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
-        else:
-            raise ValueError(
-                f"Did not recognize the mechanism name {query.mechanism}."
-                " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
-            )
-
-        if requested_mechanism == NoiseMechanism.LAPLACE:
-            return NoiseMechanism.GEOMETRIC
-        elif requested_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN:
-            return NoiseMechanism.DISCRETE_GAUSSIAN
-        else:
-            # This should never happen
-            raise AssertionError(
-                f"Did not recognize the requested mechanism {requested_mechanism}."
-                " This is probably a bug; please let us know about it so we can fix it!"
-            )
-
     def _validate_approxDP_and_adjust_budget(
         self,
         expr: Union[
@@ -611,7 +603,20 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         epsilon, delta = self.budget.value
-        if delta != 0:
+        if isinstance(expr.groupby_keys, list) and not self.budget.is_infinite:
+            # Automatic Partition Selection is being implemented. Validate the budget.
+            if epsilon <= 0:
+                raise ValueError(
+                    "Automatic partition selection requires a positive epsilon. "
+                    f"The budget provided was {self.budget}."
+                )
+            if delta <= 0:
+                raise ValueError(
+                    "Automatic partition selection requires a positive delta. "
+                    f"The budget provided was {self.budget}."
+                )
+            return
+        else:
             if mechanism in (
                 AverageMechanism.LAPLACE,
                 CountDistinctMechanism.LAPLACE,
@@ -642,6 +647,43 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                     f"Unknown mechanism {mechanism}. This is probably a bug; "
                     "please let us know so we can fix it!"
                 )
+
+    def _pick_noise_for_count(
+        self, query: Union[GroupByCount, GroupByCountDistinct]
+    ) -> NoiseMechanism:
+        """Pick the noise mechanism to use for a count or count-distinct query."""
+        requested_mechanism: NoiseMechanism
+        if query.mechanism in (CountMechanism.DEFAULT, CountDistinctMechanism.DEFAULT):
+            if isinstance(self.output_measure, (PureDP, ApproxDP)):
+                requested_mechanism = NoiseMechanism.LAPLACE
+            else:  # output measure is RhoZCDP
+                requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
+        elif query.mechanism in (
+            CountMechanism.LAPLACE,
+            CountDistinctMechanism.LAPLACE,
+        ):
+            requested_mechanism = NoiseMechanism.LAPLACE
+        elif query.mechanism in (
+            CountMechanism.GAUSSIAN,
+            CountDistinctMechanism.GAUSSIAN,
+        ):
+            requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
+        else:
+            raise ValueError(
+                f"Did not recognize the mechanism name {query.mechanism}."
+                " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
+            )
+
+        if requested_mechanism == NoiseMechanism.LAPLACE:
+            return NoiseMechanism.GEOMETRIC
+        elif requested_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN:
+            return NoiseMechanism.DISCRETE_GAUSSIAN
+        else:
+            # This should never happen
+            raise AssertionError(
+                f"Did not recognize the requested mechanism {requested_mechanism}."
+                " This is probably a bug; please let us know about it so we can fix it!"
+            )
 
     def _pick_noise_for_non_count(
         self,
@@ -871,8 +913,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         input_metric: Union[IfGroupedBy, SymmetricDifference, HammingDistance],
         stability: ExactNumber,
         budget: PrivacyBudget,
-        columns: List[str],
-        keyset: Optional[KeySet] = None,
+        keyset_or_columns: Union[KeySet, List[str]],
     ) -> Measurement:
         """Build a Measurement that returns a KeySet.
 
@@ -881,30 +922,74 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric: The metric of the input data.
             stability: The input stability the measurement will be applied on.
             budget: The privacy budget to use. Should be zero if using a public keyset.
-            columns: The columns to get the keyset for.
-            keyset: The KeySet to return, if using a public keyset. Must match
-                `columns`.
+            keyset_or_columns: Either a KeySet object to return, if using a public
+                keyset, or the columns to get the keyset for.
         """
-        if keyset is None:
-            raise NotImplementedError()
-        assert columns == keyset.dataframe().columns
-        if isinstance(budget, PureDPBudget):
-            assert budget.epsilon == 0
-        elif isinstance(budget, ApproxDPBudget):
-            assert budget.epsilon == 0
-            assert budget.delta == 0
-        elif isinstance(budget, RhoZCDPBudget):
-            assert budget.rho == 0
+        if isinstance(keyset_or_columns, list):
+            columns: List[str] = keyset_or_columns
+            # Check that the budget is ApproxDP and is nonzero.
+            if not isinstance(budget, ApproxDPBudget):
+                raise AssertionError(
+                    "Automatic partition selection requires an ApproxDPBudget. "
+                    f"The budget provided was {budget}. This is probably a bug; "
+                    "please let us know about it so we can fix it!"
+                )
+            assert isinstance(budget, ApproxDPBudget)  # Assertion to help mypy later.
+
+            if budget.epsilon <= 0 or budget.delta <= 0:
+                raise AssertionError(
+                    "Automatic partition selection requires an ApproxDPBudget with "
+                    "epsilon and delta greater than 0. The budget provided was "
+                    f"{budget}. This is probably a bug; please let us know about it "
+                    "so we can fix it!"
+                )
+            select = SelectTransformation(input_domain, input_metric, columns)
+            keyset_domain = SparkDataFrameDomain(
+                schema={col: input_domain[col] for col in columns}
+            )
+
+            epsilon, delta = budget.value
+            keyset_measurement = select | create_partition_selection_measurement(
+                input_domain=keyset_domain,
+                d_in=stability,
+                epsilon=epsilon,
+                delta=delta,
+            )
+
+            # Use the resulting KeySet if it is nonempty, otherwise use an empty KeySet.
+            def process_function(new_df):
+                if new_df.count() == 0:
+                    warnings.warn(
+                        "This query tried to automatically determine a keyset, but "
+                        "a null dataframe was returned from the partition selection."
+                        "This may be because the dataset is empty or because the "
+                        " ApproxDPBudget used was too small."
+                    )
+                return KeySet(new_df.select(columns))
+
+            return PostProcess(keyset_measurement, process_function)
+
         else:
-            raise AssertionError(f"Unrecognized budget type {type(budget)}")
-        no_op = SequentialComposition(
-            input_domain=input_domain,
-            input_metric=input_metric,
-            output_measure=self.output_measure,
-            d_in=stability,
-            privacy_budget=budget.value,
-        )
-        return NonInteractivePostProcess(no_op, lambda _: keyset)
+            columns = keyset_or_columns.dataframe().columns
+
+            if isinstance(budget, PureDPBudget):
+                assert budget.epsilon == 0
+            elif isinstance(budget, ApproxDPBudget):
+                assert budget.epsilon == 0
+                assert budget.delta == 0
+            elif isinstance(budget, RhoZCDPBudget):
+                assert budget.rho == 0
+            else:
+                raise AssertionError(f"Unrecognized budget type {type(budget)}")
+            keyset_measurement = lambda _: keyset_or_columns  # type: ignore
+            no_op = SequentialComposition(
+                input_domain=input_domain,
+                input_metric=input_metric,
+                output_measure=self.output_measure,
+                d_in=stability,
+                privacy_budget=budget.value,
+            )
+            return NonInteractivePostProcess(no_op, keyset_measurement)
 
     def build_groupby_count(
         self,
@@ -933,12 +1018,22 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        OutputSchemaVisitor(self.catalog).visit_groupby_count(expr)
+        expr.accept(OutputSchemaVisitor(self.catalog))
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         mechanism = self._pick_noise_for_count(expr)
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -949,7 +1044,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByCount query."""
             return self.build_groupby_count(
@@ -957,7 +1052,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 input_metric=mid_metric,
                 stability=mid_stability,
                 mechanism=mechanism,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -970,11 +1065,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1010,6 +1104,16 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
 
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
+
         mechanism = self._pick_noise_for_count(expr)
         (
             child_transformation,
@@ -1028,7 +1132,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             child_transformation,
             child_ref,
             child_constraints,
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
 
@@ -1040,7 +1144,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # If not counting all columns, drop the ones that are neither counted
         # nor grouped on.
         if expr.columns_to_count:
-            groupby_columns = list(expr.groupby_keys.schema().keys())
+            groupby_columns = list(expr.groupby_keys.schema().keys())  # type: ignore
             transformation |= SelectTransformation(
                 mid_domain,
                 mid_metric,
@@ -1055,7 +1159,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByCountDistinct query."""
             return self.build_count_distinct_measurement(
@@ -1063,7 +1167,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 input_metric=mid_metric,
                 mechanism=mechanism,
                 stability=mid_stability,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1076,11 +1180,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1118,14 +1221,27 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByQuantile query expression."""
         self._validate_approxDP_and_adjust_budget(expr)
+
+        # Peek at the schema, to see if there are errors there
+        expr.accept(OutputSchemaVisitor(self.catalog))
         expr = self._add_special_value_handling_to_query(expr)
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, self.default_mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -1136,7 +1252,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByQuantile query."""
             return self.build_groupby_quantile(
@@ -1147,7 +1263,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 lower=expr.low,  # Uses floats, so doesn't use _get_query_bounds
                 upper=expr.high,
                 stability=mid_stability,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1160,11 +1276,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=self.default_mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1202,17 +1317,27 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByBoundedSum query expression."""
         self._validate_approxDP_and_adjust_budget(expr)
-        expr = self._add_special_value_handling_to_query(expr)
 
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
+        expr = self._add_special_value_handling_to_query(expr)
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         mechanism = self._pick_noise_for_non_count(expr)
         lower, upper = _get_query_bounds(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -1223,7 +1348,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByBoundedSum query."""
             return self.build_groupby_bounded_sum(
@@ -1234,7 +1359,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 upper=upper,
                 stability=mid_stability,
                 mechanism=mechanism,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1247,11 +1372,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1289,17 +1413,27 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByBoundedAverage query expression."""
         self._validate_approxDP_and_adjust_budget(expr)
-        expr = self._add_special_value_handling_to_query(expr)
 
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
+        expr = self._add_special_value_handling_to_query(expr)
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         lower, upper = _get_query_bounds(expr)
         mechanism = self._pick_noise_for_non_count(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, self.default_mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -1310,7 +1444,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByBoundedAverage query."""
             return self.build_groupby_bounded_average(
@@ -1321,7 +1455,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 upper=upper,
                 stability=mid_stability,
                 mechanism=mechanism,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1334,11 +1468,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1376,17 +1509,27 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByBoundedVariance query expression."""
         self._validate_approxDP_and_adjust_budget(expr)
-        expr = self._add_special_value_handling_to_query(expr)
 
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
+        expr = self._add_special_value_handling_to_query(expr)
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         lower, upper = _get_query_bounds(expr)
         mechanism = self._pick_noise_for_non_count(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -1397,7 +1540,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByBoundedVariance query."""
             return self.build_groupby_bounded_variance(
@@ -1408,7 +1551,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 upper=upper,
                 stability=mid_stability,
                 mechanism=mechanism,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1421,11 +1564,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
@@ -1463,17 +1605,27 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByBoundedStdev query expression."""
         self._validate_approxDP_and_adjust_budget(expr)
-        expr = self._add_special_value_handling_to_query(expr)
 
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
+        expr = self._add_special_value_handling_to_query(expr)
+
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = expr.groupby_keys.dataframe().columns
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
 
         lower, upper = _get_query_bounds(expr)
         mechanism = self._pick_noise_for_non_count(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
-            grouping_columns=expr.groupby_keys.dataframe().columns,
+            grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
         mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
@@ -1484,7 +1636,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(
-            groupby: GroupBy, budget: PrivacyBudget
+            groupby: GroupBy,
         ) -> Measurement:
             """Build a Measurement for a GroupByBoundedStdev query."""
             return self.build_groupby_bounded_stdev(
@@ -1495,7 +1647,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 upper=upper,
                 stability=mid_stability,
                 mechanism=mechanism,
-                budget=budget,
+                budget=query_budget,
                 groupby=groupby,
                 output_column=expr.output_column,
             )
@@ -1508,11 +1660,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             input_metric=mid_metric,
             stability=transformation.stability_function(self.stability),
             mechanism=mechanism,
-            columns=expr.groupby_keys.dataframe().columns,
+            columns=groupby_cols,
             keyset=expr.groupby_keys,
             build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
-            agg_budget=self.adjusted_budget,
-            keyset_budget=self._get_zero_budget(),
+            keyset_budget=keyset_budget,
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info

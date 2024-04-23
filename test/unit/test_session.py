@@ -12,7 +12,7 @@ from unittest.mock import ANY, Mock, patch
 import pandas as pd
 import pytest
 import sympy as sp
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (
     BooleanType,
     DoubleType,
@@ -66,6 +66,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable, TableCollection
+from tmlt.analytics.config import config
 from tmlt.analytics.constraints import (
     Constraint,
     MaxGroupsPerID,
@@ -84,12 +85,17 @@ from tmlt.analytics.protected_change import (
     AddMaxRowsInMaxGroups,
     AddOneRow,
     AddRowsWithID,
+    ProtectedChange,
 )
 from tmlt.analytics.query_builder import GroupedQueryBuilder, QueryBuilder
 from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
 
 from ..conftest import assert_frame_equal_with_sort
+
+# Disable redefined-outer-name because spark is used to create dataframes as test
+# inputs and within tests to check outputs and run queries.
+# pylint: disable=redefined-outer-name
 
 
 def _privacy_budget_to_exact_number(
@@ -2284,3 +2290,252 @@ class TestSessionBuilder:
         expected_schema = StructType([StructField("A", LongType(), nullable=nullable)])
         assert actual_private_schema == expected_schema
         assert actual_public_schema == expected_schema
+
+
+# Test Constants
+TEST_DATA_SIMPLE = pd.DataFrame(
+    {
+        "id": ["A", "A", "A", "B"],
+        "A": [0, 1, 1, 1],
+    }
+).merge(pd.DataFrame({"agg_col": [1, 2, 3, 4]}), how="cross")
+
+spark = SparkSession.builder.getOrCreate()
+TEST_DATA_SPARK = spark.createDataFrame(TEST_DATA_SIMPLE)
+
+# Temporarilly turning on experimental feature to construct query expresssions.
+config.features.auto_partition_selection = True  # type: ignore
+GROUP_COLS = ["id", "A"]
+test_groupby = QueryBuilder(source_id="testdf").groupby(GROUP_COLS)
+
+# Creates the Query Expr to be tested. These can be executed correctly with inf budget.
+AGG_QUERIES = [
+    test_groupby.count(name="agg_col"),
+    test_groupby.count_distinct(name="agg_col"),
+    test_groupby.sum(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby.average(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby.variance(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby.stdev(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby.quantile(
+        column="agg_col", name="agg_col", quantile=0.5, low=1, high=4
+    ),
+]
+
+# Turning off experimental feature
+config.features.auto_partition_selection = False  # type: ignore
+
+EXPECTED_DFS = [
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS).agg({"agg_col": "count"}).reset_index(),
+    # Supporting distinct count requires non-default Pandas aggregations.
+    TEST_DATA_SIMPLE.drop_duplicates()
+    .groupby(GROUP_COLS)
+    .agg({"agg_col": "count"})
+    .reset_index(),
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS).agg({"agg_col": "sum"}).reset_index(),
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS).agg({"agg_col": "mean"}).reset_index(),
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS).agg({"agg_col": "var"}).reset_index(),
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS).agg({"agg_col": "std"}).reset_index(),
+    # The quantile calculation doesn't evaluate exactly with inf budget.
+    # The ouptut will be a set range. This tests the output is within the range.
+    {
+        ("A", 0): (2, 3),
+        ("A", 1): (2, 3),
+        ("B", 1): (2, 3),
+    },
+]
+
+
+@pytest.mark.parametrize(
+    "input_data,dp_query,expected_df",
+    [
+        (TEST_DATA_SIMPLE, dp_query, expected_df)
+        for dp_query, expected_df in zip(AGG_QUERIES, EXPECTED_DFS)
+    ],
+)
+@pytest.mark.parametrize(
+    "protected_change",
+    [
+        AddOneRow(),
+        AddMaxRows(5),
+    ],
+)
+def test_automatic_partitions(
+    input_data: pd.DataFrame,
+    dp_query: QueryExpr,
+    expected_df: Union[pd.DataFrame, Dict[Tuple[str, int], Tuple[float, float]]],
+    protected_change: ProtectedChange,
+):
+    """Tests that partition selection is automatically called with correct queries."""
+
+    # Turning on experimental features for this test.
+    config.features.auto_partition_selection = True  # type: ignore
+
+    spark = SparkSession.builder.getOrCreate()
+    test_df = spark.createDataFrame(input_data)
+
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(float("inf"), 1),
+        source_id="testdf",
+        dataframe=test_df,
+        protected_change=protected_change,
+    )
+    end_df = session.evaluate(dp_query, privacy_budget=ApproxDPBudget(float("inf"), 1))
+    end_pd_df = end_df.toPandas()
+
+    if isinstance(expected_df, pd.DataFrame):
+        assert_frame_equal_with_sort(end_pd_df, expected_df)
+    # Else the expected_df is a range of values for a quantile query.
+    else:
+        for pair, values in expected_df.items():
+            filter_df = end_pd_df[end_pd_df["id"] == pair[0]]  # type: ignore
+            filter_df = filter_df[filter_df["A"] == pair[1]].reset_index()
+            test_val = filter_df.at[0, "agg_col"]
+            assert values[0] <= test_val <= values[1]
+
+    # Turning off experimental features for other tests
+    config.features.auto_partition_selection = False  # type: ignore
+
+
+# Temporarilly turning on experimental feature to construct query expresssions.
+config.features.auto_partition_selection = True  # type: ignore
+test_groupby_id = (
+    QueryBuilder(source_id="testdf").enforce(MaxRowsPerID(20)).groupby(GROUP_COLS)
+)
+
+# Creates the Query Expr to be tested. These can be executed correctly with inf budget.
+AGG_ID_QUERIES = [
+    test_groupby_id.count(name="agg_col"),
+    test_groupby_id.count_distinct(name="agg_col"),
+    test_groupby_id.sum(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby_id.average(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby_id.variance(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby_id.stdev(column="agg_col", name="agg_col", low=1, high=4),
+    test_groupby_id.quantile(
+        column="agg_col", name="agg_col", quantile=0.5, low=1, high=4
+    ),
+]
+# Turning off experimental feature
+config.features.auto_partition_selection = False  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "input_data,dp_query,expected_df",
+    [
+        (TEST_DATA_SIMPLE, dp_query, expected_df)
+        for dp_query, expected_df in zip(AGG_ID_QUERIES, EXPECTED_DFS)
+    ],
+)
+def test_automatic_partitions_with_ids(
+    input_data: pd.DataFrame,
+    dp_query: QueryExpr,
+    expected_df: Any,
+):
+    """Tests automatic partition selection with the AddRowsWithID protected change."""
+    # Turning on experimental features for this test.
+    config.features.auto_partition_selection = True  # type: ignore
+
+    spark = SparkSession.builder.getOrCreate()
+    test_df = spark.createDataFrame(input_data)
+
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(float("inf"), 1),
+        source_id="testdf",
+        dataframe=test_df,
+        protected_change=AddRowsWithID(id_column="id"),
+    )
+    end_df = session.evaluate(dp_query, privacy_budget=ApproxDPBudget(float("inf"), 1))
+    end_pd_df = end_df.toPandas()
+
+    if isinstance(expected_df, pd.DataFrame):
+        assert_frame_equal_with_sort(end_pd_df, expected_df)
+    # Else the expected_df is a range of values for a quantile query.
+    else:
+        for pair, values in expected_df.items():
+            filter_df = end_pd_df[end_pd_df["id"] == pair[0]]  # type: ignore
+            filter_df = filter_df[filter_df["A"] == pair[1]].reset_index()
+            test_val = filter_df.at[0, "agg_col"]
+            assert values[0] <= test_val <= values[1]
+    # Turning off experimental features for other tests
+    config.features.auto_partition_selection = False  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "input_data,dp_query",
+    [(TEST_DATA_SIMPLE, dp_query) for dp_query in AGG_QUERIES],
+)
+@pytest.mark.parametrize(
+    "budget,expected_error",
+    [
+        (
+            ApproxDPBudget(0, 0.1),
+            "Automatic partition selection requires a positive "
+            f"epsilon. The budget provided was {ApproxDPBudget(0,.1)}.",
+        ),
+        (
+            ApproxDPBudget(1, 0),
+            "Automatic partition selection requires a positive "
+            f"delta. The budget provided was {ApproxDPBudget(1,0)}.",
+        ),
+    ],
+)
+def test_automatic_partition_selection_invalid_budget(
+    input_data: pd.DataFrame,
+    dp_query: QueryExpr,
+    budget: ApproxDPBudget,
+    expected_error: str,
+):
+    """Test that Automatic Partition Selection queries with an invalid budget error."""
+
+    # Turning on experimental features for this test.
+    config.features.auto_partition_selection = True  # type: ignore
+
+    spark = SparkSession.builder.getOrCreate()
+    test_df = spark.createDataFrame(input_data)
+
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(float("inf"), 1),
+        source_id="testdf",
+        dataframe=test_df,
+        protected_change=AddOneRow(),
+    )
+    with pytest.raises(ValueError, match=re.escape(expected_error)):
+        session.evaluate(dp_query, privacy_budget=budget)
+
+    # Turning off experimental features for other tests.
+    config.features.auto_partition_selection = False  # type: ignore
+
+
+@pytest.mark.parametrize("query_expr", AGG_QUERIES)
+def test_automatic_partition_null_keyset(query_expr):
+    """Tests that automatic partition selection with null keyset raises a warning and
+    completes with an output dataframe with len(0) but the correct schema."""
+
+    # Turning on experimental features for this test.
+    config.features.auto_partition_selection = True  # type: ignore
+
+    spark = SparkSession.builder.getOrCreate()
+    # An empty DF ensures that automatic partition selection returns a null keyset.
+    empty_df = pd.DataFrame({"id": [], "A": [], "agg_col": []})
+    test_df = spark.createDataFrame(empty_df, schema=TEST_DATA_SPARK.schema)
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(float("inf"), 1),
+        source_id="testdf",
+        dataframe=test_df,
+        protected_change=AddOneRow(),
+    )
+
+    print("SETUP EVERYTHING IN TEST BUT QUERY")
+
+    warning_str = (
+        "This query tried to automatically determine a keyset, but "
+        "a null dataframe was returned from the partition selection."
+        "This may be because the dataset is empty or because the "
+        " ApproxDPBudget used was too small."
+    )
+    with pytest.warns(UserWarning, match=warning_str):
+        df_out = session.evaluate(query_expr, privacy_budget=ApproxDPBudget(5, 0.05))
+        for col in GROUP_COLS:
+            assert col in df_out.columns
+
+    # Turning off experimental features for other tests.
+    config.features.auto_partition_selection = False  # type: ignore

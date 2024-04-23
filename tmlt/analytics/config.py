@@ -96,6 +96,12 @@ class Config:
             config.features.example_feature = True
         """
 
+        # Add Feature Flags here to list them as experimental:
+        # ex. "new_feature = FeatureFlag('Description of new feature', default=False)"
+        auto_partition_selection = FeatureFlag(
+            "Automatic partition selection is experimental", default=False
+        )
+
         def __init__(self):
             """@nodoc."""
             attrs = {

@@ -6,7 +6,12 @@
 
 import pytest
 
-from tmlt.analytics.privacy_budget import ApproxDPBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
 
 """Tests for :class:`tmlt.analytics.privacy_budget.PureDPBudget`."""
 
@@ -172,3 +177,26 @@ def test_constructor_fail_nan_ZCDP():
     """Tests that construction fails with rho that is a NaN."""
     with pytest.raises(ValueError, match="Rho cannot be a NaN."):
         RhoZCDPBudget(float("nan"))
+
+
+@pytest.mark.parametrize(
+    "budget,inf_bool",
+    [
+        # Handles all ApproxDP Inf Options
+        (ApproxDPBudget(float("inf"), 1), True),
+        (ApproxDPBudget(1, 1), True),
+        (ApproxDPBudget(float("inf"), 0), True),
+        # Handles all ApproxDP Non-Inf Options
+        (ApproxDPBudget(1, 0.1), False),
+        (ApproxDPBudget(1, 0), False),
+        # Handles all RhoZCDP Options
+        (RhoZCDPBudget(float("inf")), True),
+        (RhoZCDPBudget(1), False),
+        # Handles all PureDP Options
+        (PureDPBudget(float("inf")), True),
+        (PureDPBudget(1), False),
+    ],
+)
+def test_is_infinite(budget: PrivacyBudget, inf_bool: bool):
+    """Tests the is_infinite function for each budget."""
+    assert budget.is_infinite == inf_bool

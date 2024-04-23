@@ -5,6 +5,7 @@ from nox_poetry.sessions import Session as PoetrySession
 from typing import Union
 
 
+
 def get_session(args) -> Union[NoxSession, PoetrySession]:
     """Given an argument list, get the Nox session from it.
 

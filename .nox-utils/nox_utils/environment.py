@@ -4,6 +4,7 @@ import tempfile
 from .utils import get_session
 
 
+
 def in_ci() -> bool:
     """Return whether nox is running in a CI pipeline."""
     return bool(os.environ.get("CI"))
