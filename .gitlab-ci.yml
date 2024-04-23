@@ -133,7 +133,6 @@ test_dep_matrix:
     - when: manual
       allow_failure: true
   script:
-    - pip install -U pip setuptools
     - nox -s "test_dependency_matrix(${PYTHON_VERSION}-${TEST_TYPE})"
   cache:
     - key:
