@@ -123,6 +123,7 @@ dunamai = "<1.19.0"
 [tool.poetry.group.scripting.dependencies]
 nox = "2022.8.7"
 nox_poetry = "1.0.1"
+"tmlt.nox_utils" = { git = "git@gitlab.com:tumult-labs/nox-utils.git" }
 
 [tool.poetry.group.ci-tools.dependencies]
 requests = "^2.31.0"

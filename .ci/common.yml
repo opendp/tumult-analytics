@@ -15,6 +15,12 @@ variables:
     - java -version
     - python --version
     - poetry self show
+    # Set up SSH config so that the runner can `pip install` out of GitLab
+    # repositories.
+    - mkdir -p ~/.ssh/
+    - cp $GITLAB_SSH_KNOWN_HOSTS ~/.ssh/known_hosts
+    - chmod 600 "$CI_SSH_KEY"
+    - cp -pv "$CI_SSH_KEY" ~/.ssh/id_ed25519
     - poetry install --only scripting
     - source .venv/bin/activate
   artifacts:
@@ -29,3 +35,6 @@ variables:
       paths: [".cache/pip", ".cache/pypoetry"]
   tags: [aws-small]
   interruptible: true
+  after_script:
+    # Just to be safe, remove the key after the job finishes
+    - rm -v ~/.ssh/id_ed25519

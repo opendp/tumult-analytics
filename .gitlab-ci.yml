@@ -62,6 +62,22 @@ lint:
       when: never
     - when: on_success
 
+sanity_checks:
+  extends: .base
+  stage: lint
+  needs: ["package"]
+  script:
+    - nox -t sanity-checks
+  timeout: 20m
+  rules:
+    - if: '$NIGHTLY == "true"'
+      when: never
+    - if: "$CI_COMMIT_TAG"
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
+      when: never
+    - when: on_success
+
 test:
   extends: .base
   stage: test
@@ -76,8 +92,8 @@ test:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
-      junit: junit.xml
+        path: "coverage.xml"
+      junit: "junit*.xml"
     expose_as: "Coverage"
   timeout: 1h
   rules:
@@ -178,8 +194,8 @@ test_release_linux:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
-      junit: junit.xml
+        path: "coverage.xml"
+      junit: "junit*.xml"
   timeout: 1h
   rules:
     - if: '$NIGHTLY == "true"'

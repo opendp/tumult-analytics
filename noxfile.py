@@ -7,7 +7,7 @@ API reference.
 
 import os
 from pathlib import Path
-import sys
+from tmlt.nox_utils import SessionBuilder
 
 PACKAGE_NAME = "tmlt.analytics"
 """Name of the package."""
@@ -51,6 +51,38 @@ DEPENDENCY_MATRIX = {
         # fmt: on
     ]
 }
+
+LICENSE_IGNORE_GLOBS = [
+    r".*\.ci.*",
+    r".*\.gitlab.*",
+    r".*\.ico",
+    r".*\.ipynb",
+    r".*\.json",
+    r".*\.png",
+    r".*\.svg",
+]
+
+LICENSE_IGNORE_FILES = [
+    r".gitignore",
+    r".gitlab-ci.yml",
+    r"CONTRIBUTING.md",
+    r"LICENSE",
+    r"LICENSE.docs",
+    r"Makefile",
+    r"NOTICE",
+    r"noxfile.py",
+    r"poetry.lock",
+    r"py.typed",
+    r"pyproject.toml",
+]
+
+LICENSE_KEYWORDS = ["CC-BY-SA-4.0"]
+LICENSE_KEYWORDS += ["Apache-2.0"]
+
+ILLEGAL_WORDS_IGNORE_GLOBS = LICENSE_IGNORE_GLOBS
+ILLEGAL_WORDS_IGNORE_FILES = LICENSE_IGNORE_FILES
+ILLEGAL_WORDS = ["multirepo", "multi-repo"]
+
 AUDIT_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 AUDIT_SUPPRESSIONS = [
     "PYSEC-2023-228",
@@ -83,10 +115,6 @@ def install_overrides(session):
         session.poetry.session.install(str(core_wheels[0]))
 
 
-CWD = Path(".").resolve()
-sys.path.append(str(CWD / ".nox-utils"))
-from nox_utils import SessionBuilder
-
 _builder = SessionBuilder(
     PACKAGE_NAME,
     Path(PACKAGE_SOURCE_DIR).resolve(),
@@ -95,10 +123,17 @@ _builder = SessionBuilder(
         "install_overrides": install_overrides,
         "smoketest_script": SMOKETEST_SCRIPT,
         "dependency_matrix": DEPENDENCY_MATRIX,
+        "license_exclude_globs": LICENSE_IGNORE_GLOBS,
+        "license_exclude_files": LICENSE_IGNORE_FILES,
+        "license_keyword_patterns": LICENSE_KEYWORDS,
+        "illegal_words_exclude_globs": ILLEGAL_WORDS_IGNORE_GLOBS,
+        "illegal_words_exclude_files": ILLEGAL_WORDS_IGNORE_FILES,
+        "illegal_words": ILLEGAL_WORDS,
         "audit_versions": AUDIT_VERSIONS,
         "audit_suppressions": AUDIT_SUPPRESSIONS,
         "minimum_coverage": MIN_COVERAGE,
         "coverage_module": "tmlt.analytics",
+        "parallel_tests": True,
     },
 )
 
@@ -109,6 +144,8 @@ _builder.isort()
 _builder.mypy()
 _builder.pylint()
 _builder.pydocstyle()
+_builder.license_check()
+_builder.illegal_words_check()
 _builder.audit()
 
 _builder.test()
