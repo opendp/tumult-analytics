@@ -55,6 +55,7 @@ dist/
 public/
 spark-warehouse/
 examples/spark-warehouse/
+.mypy_cache/
 endef
 
 .PHONY: clean
