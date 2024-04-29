@@ -5,11 +5,10 @@ import requests
 import sys
 import os
 import logging
-from http import HTTPStatus
 import argparse
 
 _log = logging.getLogger()
-
+RESULTS_PER_PAGE = 100
 
 def _send_slack_webhook(url: str, content: str):
     """Create a Slack post with the given content using a webhook."""
@@ -33,7 +32,9 @@ def _gitlab_api_get(path: str, token: str):
     """Query the GitLab API at the given path, using the given token for auth."""
     api_v4_url = os.environ["CI_API_V4_URL"]
     headers = {"Authorization": f"Bearer {token}"}
-    return requests.get(f"{api_v4_url}/{path}", headers=headers)
+    return requests.get(
+        f"{api_v4_url}/{path}?per_page={RESULTS_PER_PAGE}", headers=headers
+    )
 
 
 def _get_pipeline_jobs(project_id: int, pipeline_id: int, token: str):
