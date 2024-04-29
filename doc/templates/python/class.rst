@@ -7,7 +7,10 @@
 
    {% if obj.bases %}
 
-   Bases: {% for base in obj.bases %}:class:`{{ base }}`{% if not loop.last %}, {% endif %}{% endfor %}
+   {% set visible_bases = obj.bases|reject("is_mixin_class")|reject("is_base_builder")|list %}
+   {% if visible_bases %}
+   Bases: {% for base in visible_bases %}:class:`{{ base }}`{% if not loop.last %}, {% endif %}{% endfor %}
+   {% endif %}
 
    {% endif %}
 

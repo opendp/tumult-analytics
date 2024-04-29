@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+import datetime
 import logging
 import os
 import sys
-import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -107,6 +107,10 @@ def autoapi_prepare_jinja_env(jinja_env):
     # docstring; this needs to be defined here because Jinja2 doesn't have a
     # built-in "contains" or "match" test.
     jinja_env.tests["nodoc"] = lambda obj: "@nodoc" in obj.docstring
+    jinja_env.tests["is_mixin_class"] = lambda classname: classname.endswith("Mixin")
+    jinja_env.tests["is_base_builder"] = (
+        lambda classname: classname == "tmlt.analytics._base_builder.BaseBuilder"
+    )
 
 
 # Autodoc settings
@@ -170,6 +174,8 @@ nitpick_ignore = [
 # Remove this after intersphinx can use core
 nitpick_ignore_regex = [(r"py:.*", r"tmlt.core.*")]
 
+json_url = "https://docs.tmlt.dev/analytics/versions.json"
+
 # Theme settings
 templates_path = ["_templates"]
 html_theme = "pydata_sphinx_theme"
@@ -179,7 +185,7 @@ html_theme_options = {
     "navbar_end": ["navbar-icon-links"],
     "footer_items": ["copyright", "build-info", "sphinx-version"],
     "switcher": {
-        "json_url": "https://docs.tmlt.dev/analytics/versions.json",
+        "json_url": json_url,
         "version_match": version,
     },
     "icon_links": [
@@ -235,7 +241,10 @@ rst_epilog = """
     would like to hear more, please contact us at info@tmlt.io.
 
 .. |project| replace:: {}
-""".format(project)
+""".format(
+    project
+)
+
 
 def skip_members(app, what, name, obj, skip, options):
     """Skip some members."""
