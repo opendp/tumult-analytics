@@ -21,24 +21,32 @@ needs; we discuss this topic more :ref:`below <Privacy tradeoff>`.
 
 Tumult Analytics currently supports three distinct privacy definitions:
 
-* *Pure Differential Privacy (Pure DP)*, with its associated privacy parameter ``epsilon``.
+* *Pure differential privacy ("pure DP", or simply "DP")*, with its associated privacy parameter ``epsilon``.
   For data publication use cases, the value of ``epsilon`` is often chosen to be
   `lower than 5 <https://desfontain.es/privacy/real-world-differential-privacy.html>`_.
-  Values below 1 are typically considered conservative.
-* *Zero Concentrated Differential Privacy (zCDP)*, with its associated
-  privacy parameter ``rho``.
-* *Approximate Differential Privacy (Approx DP)*, with its associated
-  privacy parameters ``epsilon`` and ``delta``.
+  Values below 1 are typically considered conservative. Pure DP is the
+  original definition of differential privacy. To learn more, consult this
+  `blog post <https://desfontain.es/privacy/differential-privacy-in-more-detail.html>`__.
+* *Approximate differential privacy ("Approx DP")*, with its associated
+  privacy parameters ``epsilon`` and ``delta``. Approximate DP is a relaxation of PureDP where mechanisms are
+  allowed to fail to provide Pure DP guarantees with some (hopefully small) probability,``delta``. Delta can
+  be thought of as that failure probability. The most common advice is to set ``delta`` significantly smaller
+  smaller than ``1/n``, where ``n`` is the number of people in your dataset. The relaxation of Pure DP
+  enables new types of queries and can therefore be a powerful tool that still offers reasonable privacy
+  protections when used correctly. To learn more, consult this
+  `blog post <https://desfontain.es/privacy/almost-differential-privacy.html>`__.
+* *Zero-concentrated differential privacy ("zCDP")*, with its associated
+  privacy parameter ``rho``. zCDP is a variant of differential privacy, which
+  adjusts the way privacy loss is measured. To learn more, consult this:
+  `blog post <https://desfontain.es/privacy/renyi-dp-zero-concentrated-dp.html>`__.
 
-Queries with higher values of epsilon, rho, and delta will produce results with
+Queries with higher values of epsilon, delta, and rho will produce results with
 less randomization that are therefore more accurate, whereas
 a lower budget yields more noisy results. Lower budgets are a stronger privacy guarantee,
 which highlights the trade-off between privacy and accuracy.
 
-Understanding the differences between these privacy definitions is out of scope
-for this guide; for simple use cases, pure DP is a good default choice.
-To learn more about zCDP, you can consult this `blog post <https://desfontain.es/privacy/renyi-dp-zero-concentrated-dp.html>`__.
-To learn more about Approx DP, you can consult this `blog post <https://desfontain.es/privacy/almost-differential-privacy.html>`__.
+There is far more to learn about variations on differential privacy than we can
+explain in this guide; for simple use cases, pure DP is a good default choice.
 
 Using privacy budgets in Tumult Analytics
 -----------------------------------------

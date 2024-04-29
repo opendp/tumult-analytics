@@ -561,3 +561,159 @@ possible combinations of the two columns, using a filter.
 .. testoutput::
 
    True
+
+Automatic KeySet selection
+---------------------------
+
+There are some uses cases for which it is impossible, or at least very impractical,
+to enumerate the list of group-by keys without using the private data. For instance,
+suppose that we want to find out what first names are the most common among library
+members. We don't know all possible first names a priori, so building the KeySet with prior knowledge is not possible.
+
+We can solve this problem by using *approximate differential
+privacy* (Approx DP) in our Session, and using
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups` to collect a list of
+names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries. 
+
+For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals`.
+
+.. testcode::
+
+   from tmlt.analytics.privacy_budget import ApproxDPBudget
+
+   session = Session.from_dataframe(
+      privacy_budget=ApproxDPBudget(epsilon=3, delta=1e-10),
+      source_id="members",
+      dataframe=members_df,
+      protected_change=AddOneRow(),
+   )
+
+   names_query = (
+      QueryBuilder("members")
+      .get_groups(columns=["name"])
+   )
+   names_df = session.evaluate(
+      names_query,
+      privacy_budget=ApproxDPBudget(epsilon=1, delta=1e-10),
+   )
+   # Due to noise, the shown names may differ
+   names_df.show(5, truncate=False)
+
+.. testoutput::
+   :hide:
+   :options: +NORMALIZE_WHITESPACE
+
+   +...+
+   |...|
+   +...+
+   |...|
+   |...|
+   |...|
+   |...|
+   |...|
+   +...+
+   only showing top 5 rows
+
+.. code-block::
+
+   +-------+
+   |name   |
+   +-------+
+   |Aaron  |
+   |Abby   |
+   |Adam   |
+   |Adrian |
+   |Adriana|
+   +-------+
+   only showing top 5 rows
+
+The query result is a dataframe with first names that appear in the private
+data. This can be converted into a KeySet using the
+:meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` method mentioned
+earlier.
+
+.. testcode::
+
+   names_keyset = KeySet.from_dataframe(names_df)
+
+Now that we have the KeySet, we can use it in a group-by query.
+
+.. testcode::
+
+   names_count_query = (
+      QueryBuilder("members")
+      .groupby(names_keyset)
+      .count()
+   )
+   name_counts_df = session.evaluate(
+      names_count_query,
+      PureDPBudget(epsilon=1), # equivalent to ApproxDPBudget(epsilon=1, delta=0)
+   )
+
+
+Note that :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups`
+did *not* return every name in the dataset, but only those associated to
+sufficiently many people (with some randomization). To see this, we can
+look at the lowest counts returned by our count query.
+
+.. testcode::
+
+   name_counts_df.sort("count").show(5, truncate=False)
+
+.. testoutput::
+   :hide:
+   :options: +NORMALIZE_WHITESPACE
+
+   +...+-----+
+   |...|count|
+   +...+-----+
+   |...|...|
+   |...|...|
+   |...|...|
+   |...|...|
+   |...|...|
+   +...+-----+
+   only showing top 5 rows
+
+.. code-block::
+
+   +-------+-----+
+   |name   |count|
+   +-------+-----+
+   |Iris   |   22|
+   |Ashley |   22|
+   |Devin  |   22|
+   |Alonso |   22|
+   |Lourdes|   22|
+   +-------+-----+
+   only showing top 5 rows
+
+Lastly, we can estimate how many names were suppressed during this
+operation by comparing the number of names we published using :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups` to a noisy
+count of distinct names in the dataset.
+
+.. testcode::
+
+   total_names_published = name_counts_df.count()
+
+   distinct_names_count_query = QueryBuilder("members").count_distinct(["name"])
+   distinct_names_in_data = session.evaluate(
+      distinct_names_count_query,
+      PureDPBudget(1)
+   )
+   distinct_names_in_data = distinct_names_in_data.collect()[0]["count_distinct(name)"]
+
+   print("Distinct names published with get_groups:", total_names_published)
+   print("Distinct names in the data:", distinct_names_in_data)
+
+.. testoutput::
+   :hide:
+
+   Distinct names published with get_groups: ...
+   Distinct names in the data: ...
+
+.. code-block::
+
+   Distinct names published with get_groups: 377
+   Distinct names in the data: 7200
+
