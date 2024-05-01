@@ -256,6 +256,9 @@ class Session:
                 raise ValueError("Privacy budget must be specified.")
             if not self._private_dataframes:
                 raise ValueError("At least one private dataframe must be specified")
+
+            self._add_id_space_if_one_private_df()
+
             neighboring_relation = _generate_neighboring_relation(
                 self._private_dataframes
             )
@@ -400,8 +403,6 @@ class Session:
                 protected_change=protected_change,
             )
         )
-        if isinstance(protected_change, AddRowsWithID):
-            session_builder.with_id_space(protected_change.id_space)
         return session_builder.build()
 
     @classmethod

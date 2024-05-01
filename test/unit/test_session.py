@@ -2109,6 +2109,11 @@ class TestSessionBuilder:
                 dataframe=self.dataframes["df1"],
                 protected_change=AddRowsWithID("A", "random_id"),
             )
+            .with_private_dataframe(
+                source_id="B",
+                dataframe=self.dataframes["df2"],
+                protected_change=AddOneRow(),
+            )
             .with_privacy_budget(PureDPBudget(1))
         )
 
@@ -2162,6 +2167,42 @@ class TestSessionBuilder:
             protected_change=AddRowsWithID("Y", "id_space_1"),
         )
 
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+    def test_build_with_id_and_only_one_df(self) -> None:
+        """Test that build works with only one private df + AddRowsWithID.
+
+        Specifically, if there is only one private dataframe and that dataframe
+        uses the AddRowsWithID ProtectedChange, building should succeed.
+        """
+        builder = Session.Builder().with_private_dataframe(
+            source_id="private1",
+            dataframe=self.dataframes["df1"],
+            protected_change=AddRowsWithID("A", "id_space_1"),
+        )
+
+        # This should not raise an error
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+        # Explicitly providing the ID space should also work
+        builder = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="private1",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "id_space_1"),
+            )
+            .with_id_space("id_space_1")
+        )
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+        # It should also work if you don't name the ID space
+
+        builder = Session.Builder().with_private_dataframe(
+            source_id="private1",
+            dataframe=self.dataframes["df1"],
+            protected_change=AddRowsWithID("A"),
+        )
         builder.with_privacy_budget(PureDPBudget(1)).build()
 
     @pytest.mark.parametrize(

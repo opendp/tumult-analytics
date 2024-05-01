@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, NamedTuple, Optional, Set
 
@@ -12,7 +14,7 @@ from typeguard import check_type, typechecked
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._utils import assert_is_identifier
 from tmlt.analytics.privacy_budget import PrivacyBudget
-from tmlt.analytics.protected_change import ProtectedChange
+from tmlt.analytics.protected_change import AddRowsWithID, ProtectedChange
 
 
 class BaseBuilder(ABC):
@@ -137,6 +139,27 @@ class DataFrameMixin:
         if id_space in self.__id_spaces:
             raise ValueError(f"ID space '{id_space}' already exists")
         self.__id_spaces.add(id_space)
+        return self
+
+    def _add_id_space_if_one_private_df(self):
+        """If there's only one private dataframe, add its ID space.
+
+        This only has any effect if:
+        - there is only one private DataFrame, and
+        - that private DataFrame uses the :class:`~.AddRowsWithID` protected change, and
+        - this builder does not already have the associated ID space.
+        """
+        if len(self._private_dataframes) != 1:
+            return self
+        only_protected_change = list(self._private_dataframes.values())[
+            0
+        ].protected_change
+        if not isinstance(only_protected_change, AddRowsWithID):
+            return self
+        id_space = only_protected_change.id_space
+        if id_space in self._id_spaces:
+            return self
+        self.with_id_space(id_space)
         return self
 
     @property

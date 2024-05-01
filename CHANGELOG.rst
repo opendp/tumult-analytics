@@ -9,6 +9,13 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- If a :class:`~tmlt.analytics.session.Session.Builder` has only one
+  private dataframe *and* that dataframe uses the
+  :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change,
+  the relevant ID space will automatically be added to the Builder when
+  :meth:`~tmlt.analytics.session.Session.Builder.build` is called.
 
 .. _v0.9.0:
 
