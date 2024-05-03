@@ -182,7 +182,10 @@ def _validate_groupby(
                 raise ValueError(f"Groupby column '{col}' is not in the input schema.")
         groupby_columns = cast(KeysView[str], query.groupby_keys)
     else:
-        raise TypeError("Unexpected groupby_keys type. Accepted types: KeySet, list")
+        raise TypeError(
+            f"Unexpected groupby_keys type, {type(query.groupby_keys)}. "
+            "`groupby_keys` must be a KeySet."
+        )
 
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:

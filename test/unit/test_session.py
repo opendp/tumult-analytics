@@ -2359,6 +2359,8 @@ with config.features.auto_partition_selection.enabled():
         test_groupby.quantile(
             column="agg_col", name="agg_col", quantile=0.5, low=1, high=4
         ),
+        # Adds a special test case for grouping on a string.
+        QueryBuilder(source_id="testdf").groupby("id").count(name="agg_col"),
     ]
 
 EXPECTED_DFS = [
@@ -2379,6 +2381,8 @@ EXPECTED_DFS = [
         ("A", 1): (2, 3),
         ("B", 1): (2, 3),
     },
+    # Deals with the special case of grouping on a string.
+    TEST_DATA_SIMPLE.groupby("id").agg({"agg_col": "count"}).reset_index(),
 ]
 
 
@@ -2531,8 +2535,25 @@ def test_automatic_partition_selection_invalid_budget(
             session.evaluate(dp_query, privacy_budget=budget)
 
 
-@pytest.mark.parametrize("query_expr", AGG_QUERIES)
-def test_automatic_partition_null_keyset(query_expr):
+@pytest.mark.parametrize(
+    "query_expr,expected_columns",
+    list(
+        zip(
+            AGG_QUERIES,
+            [
+                GROUP_COLS,
+                GROUP_COLS,
+                GROUP_COLS,
+                GROUP_COLS,
+                GROUP_COLS,
+                GROUP_COLS,
+                GROUP_COLS,
+                ["id"],
+            ],
+        )
+    ),
+)
+def test_automatic_partition_null_keyset(query_expr: QueryExpr, expected_columns: List):
     """Tests that automatic partition selection with null keyset raises a warning and
     completes with an output dataframe with len(0) but the correct schema."""
 
@@ -2558,5 +2579,5 @@ def test_automatic_partition_null_keyset(query_expr):
             df_out = session.evaluate(
                 query_expr, privacy_budget=ApproxDPBudget(5, 0.05)
             )
-            for col in GROUP_COLS:
+            for col in expected_columns:
                 assert col in df_out.columns

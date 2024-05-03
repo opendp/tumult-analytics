@@ -1479,7 +1479,7 @@ class QueryBuilder:
         query_expr = GetGroups(child=self._query_expr, columns=columns)
         return query_expr
 
-    def groupby(self, by: Union[KeySet, List[str]]) -> "GroupedQueryBuilder":
+    def groupby(self, by: Union[KeySet, List[str], str]) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
 
         ..
@@ -1609,18 +1609,28 @@ class QueryBuilder:
             3  1  2      1
 
         Args:
-            by: A KeySet or list of column names which determines the groups for the
-                groupby. A KeySet defines the columns to group on and the possible
-                values for each column, while a list of column names will be used to
-                create a KeySet with Automatic Partition Selection (requires ApproxDP).
+            by: A KeySet which defines the columns to group on and the possible values
+                for each column.
         """
+        if (
+            not isinstance(by, KeySet)
+            and config.features.auto_partition_selection is False
+        ):
+            raise ValueError("A groupby must group on a KeySet. Set `by` to a KeySet")
+
+        if isinstance(by, str):
+            # If a string was passed we'll treat it similarly to a list of cols.
+            grouped_on: Union[KeySet, List[str]] = [by]
+        else:
+            grouped_on = by
+
         if isinstance(by, list):
             config.features.auto_partition_selection.raise_if_disabled()
 
         return GroupedQueryBuilder(
             source_id=self._source_id,
             query_expr=self._query_expr,
-            groupby_keys=by,
+            groupby_keys=grouped_on,
         )
 
     def count(
