@@ -175,7 +175,7 @@ class QueryExpr(ABC):
         raise NotImplementedError()
 
 
-@dataclass
+@dataclass(frozen=True)
 class PrivateSource(QueryExpr):
     """Loads the private source."""
 
@@ -198,7 +198,7 @@ class PrivateSource(QueryExpr):
         return visitor.visit_private_source(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetGroups(QueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
 
@@ -222,7 +222,7 @@ class GetGroups(QueryExpr):
         return visitor.visit_get_groups(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Rename(QueryExpr):
     """Returns the dataframe with columns renamed."""
 
@@ -252,7 +252,7 @@ class Rename(QueryExpr):
         return visitor.visit_rename(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Filter(QueryExpr):
     """Returns the subset of the rows that satisfy the condition."""
 
@@ -275,7 +275,7 @@ class Filter(QueryExpr):
         return visitor.visit_filter(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Select(QueryExpr):
     """Returns a subset of the columns."""
 
@@ -296,7 +296,7 @@ class Select(QueryExpr):
         return visitor.visit_select(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Map(QueryExpr):
     """Applies a map function to each row of a relation."""
 
@@ -343,7 +343,7 @@ class Map(QueryExpr):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class FlatMap(QueryExpr):
     """Applies a flat map function to each row of a relation."""
 
@@ -410,7 +410,7 @@ class FlatMap(QueryExpr):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class JoinPrivate(QueryExpr):
     """Returns the join of two private tables.
 
@@ -458,7 +458,7 @@ class JoinPrivate(QueryExpr):
         return visitor.visit_join_private(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class JoinPublic(QueryExpr):
     """Returns the join of a private and public table."""
 
@@ -482,7 +482,11 @@ class JoinPublic(QueryExpr):
                 raise ValueError("Join columns must be distinct")
 
         if isinstance(self.public_table, DataFrame):
-            self.public_table = coerce_spark_schema_or_fail(self.public_table)
+            # because this is a frozen dataclass, we have to use object.__setattr__
+            # instead of just using self.public_table = <new value>
+            object.__setattr__(
+                self, "public_table", coerce_spark_schema_or_fail(self.public_table)
+            )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -553,7 +557,7 @@ class AnalyticsDefault:
     """
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReplaceNullAndNan(QueryExpr):
     """Returns data with null and NaN expressions replaced by a default.
 
@@ -591,7 +595,7 @@ class ReplaceNullAndNan(QueryExpr):
         return visitor.visit_replace_null_and_nan(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReplaceInfinity(QueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
 
@@ -613,16 +617,20 @@ class ReplaceInfinity(QueryExpr):
         check_type("child", self.child, QueryExpr)
         check_type("replace_with", self.replace_with, Dict[str, Tuple[float, float]])
         # Convert ints to floats
-        self.replace_with = {
-            k: (float(v[0]), float(v[1])) for k, v in self.replace_with.items()
-        }
+        # note: because this dataclass is frozen, we have to use
+        # object.__setattr__ instead of just re-assigning the value
+        object.__setattr__(
+            self,
+            "replace_with",
+            {k: (float(v[0]), float(v[1])) for k, v in self.replace_with.items()},
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_replace_infinity(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DropNullAndNan(QueryExpr):
     """Returns data with rows that contain null or NaN value dropped.
 
@@ -652,7 +660,7 @@ class DropNullAndNan(QueryExpr):
         return visitor.visit_drop_null_and_nan(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DropInfinity(QueryExpr):
     """Returns data with rows that contain +inf/-inf dropped."""
 
@@ -694,7 +702,7 @@ class EnforceConstraint(QueryExpr):
         return visitor.visit_enforce_constraint(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByCount(QueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
@@ -725,7 +733,7 @@ class GroupByCount(QueryExpr):
         return visitor.visit_groupby_count(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByCountDistinct(QueryExpr):
     """Returns the count of distinct rows in each groupby domain value."""
 
@@ -761,7 +769,7 @@ class GroupByCountDistinct(QueryExpr):
         return visitor.visit_groupby_count_distinct(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByQuantile(QueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
@@ -808,8 +816,9 @@ class GroupByQuantile(QueryExpr):
             )
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
-            self.low = float(self.low)
-            self.high = float(self.high)
+            # We use __setattr__ here to bypass the dataclass being frozen
+            object.__setattr__(self, "low", float(self.low))
+            object.__setattr__(self, "high", float(self.high))
         if self.low >= self.high:
             raise ValueError(
                 f"Lower bound '{self.low}' must be less than "
@@ -821,7 +830,7 @@ class GroupByQuantile(QueryExpr):
         return visitor.visit_groupby_quantile(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByBoundedSum(QueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains.
 
@@ -868,8 +877,9 @@ class GroupByBoundedSum(QueryExpr):
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
-            self.low = float(self.low)
-            self.high = float(self.high)
+            # We use __setattr__ here to bypass the dataclass being frozen
+            object.__setattr__(self, "low", float(self.low))
+            object.__setattr__(self, "high", float(self.high))
         if self.low >= self.high:
             raise ValueError(
                 f"Lower bound '{self.low}' must be less than "
@@ -881,7 +891,7 @@ class GroupByBoundedSum(QueryExpr):
         return visitor.visit_groupby_bounded_sum(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByBoundedAverage(QueryExpr):
     """Returns bounded average of a column for each combination of groupby domains.
 
@@ -928,8 +938,9 @@ class GroupByBoundedAverage(QueryExpr):
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
-            self.low = float(self.low)
-            self.high = float(self.high)
+            # We use __setattr__ here to bypass the dataclass being frozen
+            object.__setattr__(self, "low", float(self.low))
+            object.__setattr__(self, "high", float(self.high))
         if self.low >= self.high:
             raise ValueError(
                 f"Lower bound '{self.low}' must be less than "
@@ -941,7 +952,7 @@ class GroupByBoundedAverage(QueryExpr):
         return visitor.visit_groupby_bounded_average(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByBoundedVariance(QueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains.
 
@@ -988,8 +999,9 @@ class GroupByBoundedVariance(QueryExpr):
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
-            self.low = float(self.low)
-            self.high = float(self.high)
+            # We use __setattr__ here to bypass the dataclass being frozen
+            object.__setattr__(self, "low", float(self.low))
+            object.__setattr__(self, "high", float(self.high))
         if self.low >= self.high:
             raise ValueError(
                 f"Lower bound '{self.low}' must be less than "
@@ -1001,7 +1013,7 @@ class GroupByBoundedVariance(QueryExpr):
         return visitor.visit_groupby_bounded_variance(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GroupByBoundedSTDEV(QueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains.
 
@@ -1048,8 +1060,9 @@ class GroupByBoundedSTDEV(QueryExpr):
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
-            self.low = float(self.low)
-            self.high = float(self.high)
+            # We use __setattr__ here to bypass the dataclass being frozen
+            object.__setattr__(self, "low", float(self.low))
+            object.__setattr__(self, "high", float(self.high))
 
         if self.low >= self.high:
             raise ValueError(
