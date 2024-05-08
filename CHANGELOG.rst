@@ -16,6 +16,11 @@ Changed
   :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change,
   the relevant ID space will automatically be added to the Builder when
   :meth:`~tmlt.analytics.session.Session.Builder.build` is called.
+- :class:`~.tmlt.analytics.keyset.KeySet` is now an abstract class, in order to
+  make some KeySet operations (column selection after cross-products) more
+  efficient. 
+  Behavior is unchanged for users of the :meth:`~.tmlt.analytics.keyset.KeySet.from_dict`
+  and :meth:`~.tmlt.analytics.keyset.KeySet.from_dataframe` constructors.
 
 .. _v0.9.0:
 

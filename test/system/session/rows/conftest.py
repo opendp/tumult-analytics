@@ -4,7 +4,6 @@
 # Copyright Tumult Labs 2024
 
 import datetime
-from typing import Any, List
 
 import pandas as pd
 import pytest
@@ -20,7 +19,7 @@ from tmlt.analytics._schema import (
     analytics_to_spark_schema,
 )
 from tmlt.analytics.binning_spec import BinningSpec
-from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     CountDistinctMechanism,
@@ -48,20 +47,12 @@ GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A",
 GET_GROUPBY_TWO_COLUMNS = lambda: SparkSession.builder.getOrCreate().createDataFrame(
     GROUPBY_TWO_COLUMNS
 )
-GROUPBY_ONE_COLUMN = pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
-GET_GROUPBY_ONE_COLUMN = lambda: SparkSession.builder.getOrCreate().createDataFrame(
-    GROUPBY_ONE_COLUMN
-)
+GROUPBY_ONE_COLUMN_DICT = {"A": ["0", "1", "2"]}
 GROUPBY_WITH_DUPLICATES = pd.DataFrame(
     [["0"], ["0"], ["1"], ["1"], ["2"], ["2"]], columns=["A"]
 )
 GET_GROUPBY_WITH_DUPLICATES = (
     lambda: SparkSession.builder.getOrCreate().createDataFrame(GROUPBY_WITH_DUPLICATES)
-)
-GROUPBY_EMPTY: List[Any] = []
-GROUPBY_EMPTY_SCHEMA = StructType()
-GET_GROUPBY_EMPTY = lambda: SparkSession.builder.getOrCreate().createDataFrame(
-    GROUPBY_EMPTY, schema=GROUPBY_EMPTY_SCHEMA
 )
 
 
@@ -138,21 +129,21 @@ EVALUATE_TESTS = [
     ),
     (  # Incomplete two-column marginal with a dataframe
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
+        .groupby(_MaterializedKeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
+            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
     ),
     (  # Incomplete two-column marginal with a dataframe
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
+        .groupby(_MaterializedKeySet(dataframe=GET_GROUPBY_TWO_COLUMNS))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
+            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_TWO_COLUMNS),
         ),
         pd.DataFrame(
             {"A": ["0", "0", "1"], "B": [0, 1, 1], "count_distinct": [2, 1, 0]}
@@ -160,59 +151,57 @@ EVALUATE_TESTS = [
     ),
     (  # One-column marginal with additional value
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_ONE_COLUMN))
+        .groupby(KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT))
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE_COLUMN),
+            groupby_keys=KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with additional value
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_ONE_COLUMN))
+        .groupby(KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE_COLUMN),
+            groupby_keys=KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
+        .groupby(_MaterializedKeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
         .count(),
         GroupByCount(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
+            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # One-column marginal with duplicate rows
         QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
+        .groupby(_MaterializedKeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES))
         .count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
+            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_WITH_DUPLICATES),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
     ),
     (  # empty public source
-        QueryBuilder("private").groupby(KeySet(dataframe=GET_GROUPBY_EMPTY)).count(),
+        QueryBuilder("private").groupby(KeySet.from_dict({})).count(),
         GroupByCount(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_EMPTY),
+            groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [4]}),
     ),
     (  # empty public source
-        QueryBuilder("private")
-        .groupby(KeySet(dataframe=GET_GROUPBY_EMPTY))
-        .count_distinct(),
+        QueryBuilder("private").groupby(KeySet.from_dict({})).count_distinct(),
         GroupByCountDistinct(
             child=PrivateSource("private"),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_EMPTY),
+            groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [4]}),
     ),

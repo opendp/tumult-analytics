@@ -43,7 +43,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -80,11 +80,7 @@ GROUPBY_TWO_SCHEMA = StructType(
 GET_GROUPBY_TWO = lambda: SparkSession.builder.getOrCreate().createDataFrame(
     GROUPBY_TWO_COLUMNS, schema=GROUPBY_TWO_SCHEMA
 )
-GROUPBY_ONE_COLUMN = pd.DataFrame([["0"], ["1"], ["2"]], columns=["A"])
-GROUPBY_ONE_SCHEMA = StructType([StructField("A", StringType(), False)])
-GET_GROUPBY_ONE = lambda: SparkSession.builder.getOrCreate().createDataFrame(
-    GROUPBY_ONE_COLUMN, schema=GROUPBY_ONE_SCHEMA
-)
+GROUPBY_ONE_DICT = {"A": ["0", "1", "2"]}
 
 
 QUERY_EXPR_COMPILER_TESTS = [
@@ -125,7 +121,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=PrivateSource("private"),
-                groupby_keys=KeySet(dataframe=GET_GROUPBY_TWO),
+                groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_TWO),
             )
         ],
         [pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]})],
@@ -134,7 +130,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=PrivateSource("private"),
-                groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
+                groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
             )
         ],
         [pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]})],
@@ -668,14 +664,14 @@ class TestQueryExprCompiler:
             (
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
-                    groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
+                    groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
             ),
             (
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
-                    groupby_keys=KeySet(dataframe=GET_GROUPBY_ONE),
+                    groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
                     columns_to_count=["B"],
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [2, 1, 0]}),

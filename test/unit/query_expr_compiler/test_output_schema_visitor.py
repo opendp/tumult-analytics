@@ -20,7 +20,7 @@ from tmlt.analytics._schema import (
     Schema,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -291,7 +291,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
                 augment=True,
                 max_rows=2,
             ),
-            groupby_keys=KeySet(dataframe=GET_GROUPBY_COLUMN_A),
+            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_A),
         ),
         "Column 'i' produced by grouping transformation is not in groupby columns",
     ),
@@ -381,12 +381,12 @@ class TestValidation:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -427,17 +427,17 @@ class TestValidation:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_B),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_B),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -547,12 +547,12 @@ class TestValidationWithNulls:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -593,17 +593,17 @@ class TestValidationWithNulls:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_B),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_B),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                KeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "

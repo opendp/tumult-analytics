@@ -24,7 +24,7 @@ from pyspark.sql.types import (
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
 
-from ..conftest import assert_frame_equal_with_sort
+from ...conftest import assert_frame_equal_with_sort
 
 
 @pytest.mark.parametrize(
@@ -96,16 +96,6 @@ def test_check_dict_schema_invalid(types: Dict[str, type], expected_err_msg: str
 
 
 ###TESTS FOR THE KEYSET CLASS###
-
-
-@pytest.mark.parametrize(
-    "df_in",
-    [(pd.DataFrame({"A": ["a1"]})), (pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))],
-)
-def test_init(spark, df_in: pd.DataFrame) -> None:
-    """Test that initialization works."""
-    keyset = KeySet(spark.createDataFrame(df_in))
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
 
 
 @pytest.mark.parametrize(
@@ -275,7 +265,7 @@ def test_from_dataframe_with_null(
     spark, df_in: pd.DataFrame, schema: StructType
 ) -> None:
     """Test KeySet.from_dataframe allows nulls."""
-    keyset = KeySet(spark.createDataFrame(df_in, schema=schema))
+    keyset = KeySet.from_dataframe(spark.createDataFrame(df_in, schema=schema))
     assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
 
 
@@ -330,7 +320,7 @@ def test_filter_str(
     expected_df: pd.DataFrame,
 ) -> None:
     """Test KeySet.filter works"""
-    keyset = KeySet(spark.createDataFrame(keyset_df))
+    keyset = KeySet.from_dataframe(spark.createDataFrame(keyset_df))
     filtered_keyset = keyset.filter(condition)
     assert_frame_equal_with_sort(filtered_keyset.dataframe().toPandas(), expected_df)
 
@@ -362,7 +352,7 @@ def test_type_coercion_from_dataframe(
     expected_schema: Dict[str, DataType],
 ) -> None:
     """Test KeySet correctly coerces types in input DataFrames."""
-    keyset = KeySet(spark.createDataFrame(df_in, schema=input_schema))
+    keyset = KeySet.from_dataframe(spark.createDataFrame(df_in, schema=input_schema))
     df_out = keyset.dataframe()
     for col in df_out.schema:
         assert col.dataType == expected_schema[col.name]
@@ -649,7 +639,7 @@ def test_schema(keyset: KeySet, expected: Schema) -> None:
 def test_eq(spark, other_df: pd.DataFrame, equal: bool) -> None:
     """Test the equality operator."""
     keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1]})
-    other = KeySet(spark.createDataFrame(other_df))
+    other = KeySet.from_dataframe(spark.createDataFrame(other_df))
     if equal:
         assert keyset == other
     else:

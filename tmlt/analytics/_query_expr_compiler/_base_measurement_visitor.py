@@ -965,7 +965,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                         "This may be because the dataset is empty or because the "
                         " ApproxDPBudget used was too small."
                     )
-                return KeySet(new_df.select(columns))
+                return KeySet.from_dataframe(new_df.select(columns))
 
             return PostProcess(keyset_measurement, process_function)
 
