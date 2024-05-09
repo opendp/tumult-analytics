@@ -223,6 +223,26 @@ class GetGroups(QueryExpr):
 
 
 @dataclass(frozen=True)
+class GetBounds(QueryExpr):
+    """Returns approximate upper and lower bounds of a column."""
+
+    child: QueryExpr
+    """The QueryExpr to get groups for."""
+
+    column: str
+    """The column to get bounds of."""
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("column", self.column, str)
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_get_bounds(self)
+
+
+@dataclass(frozen=True)
 class Rename(QueryExpr):
     """Returns the dataframe with columns renamed."""
 
@@ -1146,6 +1166,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_get_groups(self, expr: GetGroups) -> Any:
         """Visit a :class:`GetGroups`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_get_bounds(self, expr: GetBounds) -> Any:
+        """Visit a :class:`GetBounds`."""
         raise NotImplementedError
 
     @abstractmethod

@@ -1006,9 +1006,7 @@ class Session:
         return list(iter(noise_info))
 
     # pylint: disable=line-too-long
-    def evaluate(
-        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
-    ) -> DataFrame:
+    def evaluate(self, query_expr: QueryExpr, privacy_budget: PrivacyBudget) -> Any:
         """Answers a query within the given privacy budget and returns a Spark dataframe.
 
         The type of privacy budget that you use must match the type your Session was

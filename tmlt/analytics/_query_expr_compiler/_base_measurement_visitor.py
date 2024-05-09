@@ -31,6 +31,7 @@ from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.aggregations import (
     NoiseMechanism,
     create_average_measurement,
+    create_bound_selection_measurement,
     create_count_distinct_measurement,
     create_count_measurement,
     create_partition_selection_measurement,
@@ -55,6 +56,7 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.transformations.base import Transformation
+from tmlt.core.transformations.converters import UnwrapIfGroupedBy
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
@@ -93,6 +95,7 @@ from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
 from tmlt.analytics.query_expr import Filter as FilterExpr
 from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
 from tmlt.analytics.query_expr import (
+    GetBounds,
     GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
@@ -1667,3 +1670,83 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         )
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
+
+    # pylint: disable=no-self-use
+    def build_bound_selection_measurement(
+        self,
+        input_domain,
+        output_measure,
+        d_out,
+        bound_column,
+        threshold,
+        d_in,
+    ) -> Measurement:
+        """Helper method to build the appropriate bound selection Measurement."""
+        return create_bound_selection_measurement(
+            input_domain=input_domain,
+            output_measure=output_measure,
+            d_out=d_out,
+            bound_column=bound_column,
+            threshold=threshold,  # TODO: Make threshold optional.
+            d_in=d_in,
+        )
+
+    # pylint: enable=no-self-use
+
+    def visit_get_bounds(self, expr: GetBounds) -> Tuple[Measurement, NoiseInfo]:
+        """Create a measurement from a GetBounds query expression."""
+        # Peek at the schema, to see if there are errors there
+        expr.accept(OutputSchemaVisitor(self.catalog))
+
+        schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
+
+        # Check if we're trying to get the bounds of the ID column.
+        if schema.id_column and (schema.id_column == expr.column):
+            raise RuntimeError(
+                "get_bounds cannot be used on the privacy ID column"
+                f" ({schema.id_column}) of a table with the AddRowsWithID protected"
+                " change."
+            )
+
+        child_transformation, child_ref = self._truncate_table(
+            *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
+            grouping_columns=[],
+        )
+
+        transformation = get_table_from_ref(child_transformation, child_ref)
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+
+        # squares the sensitivity in zCDP, which is a worst-case analysis
+        # that we may be able to improve.
+        if isinstance(transformation.output_metric, IfGroupedBy):
+            transformation |= UnwrapIfGroupedBy(
+                transformation.output_domain, transformation.output_metric
+            )
+
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        assert isinstance(
+            transformation.output_metric,
+            (IfGroupedBy, HammingDistance, SymmetricDifference),
+        )
+
+        transformation |= SelectTransformation(
+            transformation.output_domain, transformation.output_metric, [expr.column]
+        )
+
+        mid_stability = transformation.stability_function(self.stability)
+        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+
+        agg = self.build_bound_selection_measurement(
+            input_domain=transformation.output_domain,
+            output_measure=self.output_measure,
+            d_out=self.budget.value,
+            bound_column=expr.column,
+            threshold=0.95,  # TODO: Make threshold optional.
+            d_in=mid_stability,
+        )
+
+        self._validate_measurement(agg, mid_stability)
+
+        measurement = transformation | agg
+        noise_info = _noise_from_measurement(measurement)
+        return measurement, noise_info

@@ -26,7 +26,11 @@ from tmlt.analytics.privacy_budget import (
     PureDPBudget,
     RhoZCDPBudget,
 )
-from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups, AddOneRow
+from tmlt.analytics.protected_change import (
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+)
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.query_expr import (
     AverageMechanism,
@@ -47,7 +51,7 @@ from tmlt.analytics.query_expr import (
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ....conftest import assert_frame_equal_with_sort
+from ....conftest import assert_frame_equal_with_sort, params
 from .conftest import EVALUATE_TESTS
 
 Row = Dict[str, Any]
@@ -107,6 +111,7 @@ class TestSession:
         actual_sdf = session.evaluate(
             query_expr, privacy_budget=PureDPBudget(float("inf"))
         )
+        assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     @pytest.mark.parametrize(
@@ -183,6 +188,7 @@ class TestSession:
         actual_sdf = session.evaluate(
             query_expr, privacy_budget=RhoZCDPBudget(float("inf"))
         )
+        assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     @pytest.mark.parametrize(
@@ -298,6 +304,7 @@ class TestSession:
             cache=False,
         )
         actual_sdf = session.evaluate(query_expr, privacy_budget=privacy_budget)
+        assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     @pytest.mark.parametrize(
@@ -416,7 +423,165 @@ class TestSession:
             {"A": [0, 0, 0, 0], "B": [0, 0, 1, 1], "C": ["0", "1", "0", "1"]}
         )
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
+        assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+
+    @params(
+        {
+            "positive": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(100)],
+                    columns=["X"],
+                )
+            },
+            "negative": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(-99, 0)],
+                    columns=["X"],
+                )
+            },
+            "positive_and_negative": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(-99, 100)],
+                    columns=["X"],
+                )
+            },
+            "floats": {
+                "data": pd.DataFrame(
+                    [[float(i) + 0.5] for i in range(-99, 100)],
+                    columns=["X"],
+                )
+            },
+        }
+    )
+    def test_get_bounds_inf_budget(self, spark, data):
+        """Test that the get_bounds produces reasonable bounds."""
+
+        sdf = spark.createDataFrame(data)
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(float("inf")),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
+        )
+
+        query = QueryBuilder("private").get_bounds("X")
+
+        lower, upper = session.evaluate(query, session.remaining_privacy_budget)
+        num_between = sdf.filter((sdf.X < upper) & (sdf.X > lower)).count()
+        assert num_between > (0.9 * sdf.count())
+        true_max = data["X"].max()
+        true_min = data["X"].min()
+        assert upper - lower < 4 * max(abs(true_max), abs(true_min))
+
+    @params(
+        {
+            "positive": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(100)],
+                    columns=["X"],
+                )
+            },
+            "negative": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(-99, 0)],
+                    columns=["X"],
+                )
+            },
+            "positive_and_negative": {
+                "data": pd.DataFrame(
+                    [[i] for i in range(-99, 100)],
+                    columns=["X"],
+                )
+            },
+            "floats": {
+                "data": pd.DataFrame(
+                    [[float(i) + 0.5] for i in range(-99, 100)],
+                    columns=["X"],
+                )
+            },
+        }
+    )
+    def test_get_bounds_inf_budget_sum(self, spark, data):
+        """Test that the bounds from get_bounds produce a reasonable sum."""
+
+        sdf = spark.createDataFrame(data)
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(float("inf")),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
+        )
+
+        query = QueryBuilder("private").get_bounds("X")
+
+        lower, upper = session.evaluate(query, session.remaining_privacy_budget)
+
+        sum_query = QueryBuilder("private").sum("X", low=lower, high=upper, name="sum")
+        got_sum = session.evaluate(
+            sum_query, session.remaining_privacy_budget
+        ).collect()[0]["sum"]
+
+        true_sum = data["X"].sum()
+
+        assert (true_sum < 0) == (got_sum < 0)
+        assert (0.9 * abs(true_sum) <= abs(got_sum)) and (
+            1.1 * abs(true_sum) >= abs(got_sum)
+        )
+
+    @params(
+        {
+            "str_column": {
+                "data": pd.DataFrame(
+                    [["0"], ["1"], ["1"]],
+                    columns=["str_column"],
+                ),
+                "column": "str_column",
+                "protected_change": AddOneRow(),
+                "error_type": ValueError,
+                "message": "Cannot get bounds for column 'str_column',"
+                " which is of type VARCHAR",
+            },
+            "missing_column": {
+                "data": pd.DataFrame(
+                    [[1], [0], [2]],
+                    columns=["int_column"],
+                ),
+                "column": "column_does_not_exist",
+                "protected_change": AddOneRow(),
+                "error_type": ValueError,
+                "message": "Cannot get bounds for column 'column_does_not_exist',"
+                " which does not exist",
+            },
+            "id_column": {
+                "data": pd.DataFrame(
+                    [[0, 10], [1, 20], [2, 30]],
+                    columns=["id_column", "int_column"],
+                ),
+                "column": "id_column",
+                "protected_change": AddRowsWithID("id_column"),
+                "error_type": RuntimeError,
+                "message": "get_bounds cannot be used on the privacy ID column",
+            },
+        }
+    )
+    def test_get_bounds_invalid_columns(
+        self, spark, data, column, error_type, message, protected_change
+    ):
+        """Test that get_bounds throws appropriate errors."""
+
+        sdf = spark.createDataFrame(data)
+        session = Session.from_dataframe(
+            privacy_budget=PureDPBudget(float("inf")),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=protected_change,
+        )
+
+        bad_query = QueryBuilder("private").get_bounds(column)
+
+        with pytest.raises(error_type, match=message):
+            session.evaluate(bad_query, session.remaining_privacy_budget)
 
     @pytest.mark.parametrize(
         "budget",

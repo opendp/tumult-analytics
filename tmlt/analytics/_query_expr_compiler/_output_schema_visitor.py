@@ -25,6 +25,7 @@ from tmlt.analytics.query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    GetBounds,
     GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
@@ -985,6 +986,29 @@ class OutputSchemaVisitor(QueryExprVisitor):
             )
 
         return input_schema
+
+    def visit_get_bounds(self, expr: GetBounds) -> Schema:
+        """Returns the resulting schema from GetBounds."""
+        input_schema = expr.child.accept(self)
+
+        if expr.column not in set(input_schema):
+            raise ValueError(
+                f"Cannot get bounds for column '{expr.column}', which does not exist"
+            )
+
+        column = input_schema[expr.column]
+        if column.column_type not in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+        ]:
+            raise ValueError(
+                f"Cannot get bounds for column '{expr.column}',"
+                f" which is of type {column.column_type.name}"
+            )
+
+        output_schema = Schema({"lower": column, "upper": column})
+
+        return output_schema
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCount.

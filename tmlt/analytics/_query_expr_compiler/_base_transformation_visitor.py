@@ -154,6 +154,7 @@ from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
 from tmlt.analytics.query_expr import Filter as FilterExpr
 from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
 from tmlt.analytics.query_expr import (
+    GetBounds,
     GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
@@ -1473,6 +1474,10 @@ class BaseTransformationVisitor(QueryExprVisitor):
     # None of the queries that produce measurements are implemented
     def visit_get_groups(self, expr: GetGroups) -> Any:
         """Visit a GetGroups query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_get_bounds(self, expr: GetBounds) -> Any:
+        """Visit a GetBounds query expression (raises an error)."""
         raise NotImplementedError
 
     def visit_groupby_count(self, expr: GroupByCount) -> Any:

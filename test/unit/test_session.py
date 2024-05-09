@@ -2429,7 +2429,7 @@ def test_automatic_partitions(
         # Else the expected_df is a range of values for a quantile query.
         else:
             for pair, values in expected_df.items():
-                filter_df = end_pd_df[end_pd_df["id"] == pair[0]]  # type: ignore
+                filter_df = end_pd_df[end_pd_df["id"] == pair[0]]
                 filter_df = filter_df[filter_df["A"] == pair[1]].reset_index()
                 test_val = filter_df.at[0, "agg_col"]
                 assert values[0] <= test_val <= values[1]
@@ -2488,7 +2488,7 @@ def test_automatic_partitions_with_ids(
         # Else the expected_df is a range of values for a quantile query.
         else:
             for pair, values in expected_df.items():
-                filter_df = end_pd_df[end_pd_df["id"] == pair[0]]  # type: ignore
+                filter_df = end_pd_df[end_pd_df["id"] == pair[0]]
                 filter_df = filter_df[filter_df["A"] == pair[1]].reset_index()
                 test_val = filter_df.at[0, "agg_col"]
                 assert values[0] <= test_val <= values[1]

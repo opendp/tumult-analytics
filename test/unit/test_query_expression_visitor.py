@@ -14,6 +14,7 @@ from tmlt.analytics.query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    GetBounds,
     GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
@@ -81,6 +82,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     def visit_get_groups(self, expr):
         return "GetGroups"
 
+    def visit_get_bounds(self, expr):
+        return "GetBounds"
+
     def visit_groupby_count(self, expr):
         return "GroupByCount"
 
@@ -139,6 +143,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
         (EnforceConstraint(PrivateSource("P"), MaxRowsPerID(5)), "EnforceConstraint"),
         (GetGroups(PrivateSource("P"), ["column"]), "GetGroups"),
+        (GetBounds(PrivateSource("P"), "column"), "GetBounds"),
         (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
         (
             GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),

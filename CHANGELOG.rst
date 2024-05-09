@@ -9,6 +9,10 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Added the :meth:`QueryBuilder.get_bounds <tmlt.analytics.query_builder.QueryBuilder.get_bounds>` function, for determining upper and lower bounds for a column in a differentially private way.
+
 Changed
 ~~~~~~~
 - If a :class:`~tmlt.analytics.session.Session.Builder` has only one
