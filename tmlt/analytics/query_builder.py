@@ -1612,10 +1612,7 @@ class QueryBuilder:
             by: A KeySet which defines the columns to group on and the possible values
                 for each column.
         """
-        if (
-            not isinstance(by, KeySet)
-            and config.features.auto_partition_selection is False
-        ):
+        if not (isinstance(by, KeySet) or config.features.auto_partition_selection):
             raise ValueError("A groupby must group on a KeySet. Set `by` to a KeySet")
 
         if isinstance(by, str):
@@ -1623,9 +1620,6 @@ class QueryBuilder:
             grouped_on: Union[KeySet, List[str]] = [by]
         else:
             grouped_on = by
-
-        if isinstance(by, list):
-            config.features.auto_partition_selection.raise_if_disabled()
 
         return GroupedQueryBuilder(
             source_id=self._source_id,
