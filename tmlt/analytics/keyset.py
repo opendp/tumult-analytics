@@ -43,6 +43,7 @@ from tmlt.analytics._schema import (
     Schema,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics._utils import dataframe_is_empty
 
 
 def _check_df_schema(types: spark_types.StructType):
@@ -548,12 +549,12 @@ class _ProductKeySet(KeySet):
             for col in df.columns:
                 domain_values = df.agg(sf.collect_list(col)).collect()[0][0]
                 # Workaround because collect_list doesn't put nulls in the output list
-                if not df.where(sf.col(col).isNull()).isEmpty():
+                if not dataframe_is_empty(df.where(sf.col(col).isNull())):
                     domain_values.append(None)
                 column_domains[col] = domain_values
         dataframe = compute_full_domain_df(column_domains)
         for keyset in multi_column_factors:
-            if dataframe.isEmpty():
+            if dataframe_is_empty(dataframe):
                 dataframe = keyset.dataframe()
             else:
                 dataframe = dataframe.crossJoin(keyset.dataframe())
