@@ -1003,7 +1003,8 @@ class OutputSchemaVisitor(QueryExprVisitor):
         ]:
             raise ValueError(
                 f"Cannot get bounds for column '{expr.column}',"
-                f" which is of type {column.column_type.name}"
+                f" which is of type {column.column_type.name}; only columns of"
+                f" numerical type are supported."
             )
 
         output_schema = Schema({"lower": column, "upper": column})
