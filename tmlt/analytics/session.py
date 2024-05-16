@@ -51,7 +51,6 @@ from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.dictionary import CreateDictFromValue
 from tmlt.core.transformations.identity import Identity
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
-from tmlt.core.utils.configuration import SparkConfigError, check_java11
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 from typeguard import check_type, typechecked
@@ -304,20 +303,6 @@ class Session:
             public_sources: The public data for the queries.
                 Provided as a dictionary {source_id: dataframe}
         """
-        # ensure the session is created with java 11
-        try:
-            check_java11()
-        except SparkConfigError as exc:
-            raise RuntimeError(
-                """It looks like the configuration of your Spark session is
-             incompatible with Tumult Analytics. When running Spark on Java 11 or
-             higher, you need to set up your Spark session with specific configuration
-             options *before* you start Spark. Tumult Analytics automatically sets
-             these options if you import it before you build your Spark session. For
-             troubleshooting information, see our Spark topic guide:
-             https://docs.tmlt.dev/analytics/latest/topic-guides/spark.html """
-            ) from exc
-
         check_type("accountant", accountant, PrivacyAccountant)
         check_type("public_sources", public_sources, Dict[str, DataFrame])
 

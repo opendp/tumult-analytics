@@ -140,7 +140,7 @@ test_dep_matrix:
       - PYTHON_VERSION: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         TEST_TYPE: ["oldest", "newest"]
       - PYTHON_VERSION: ["3.7"]
-        TEST_TYPE: ["pyspark3.1", "pyspark3.2"]
+        TEST_TYPE: ["pyspark3.2"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   rules:
     - if: '$NIGHTLY == "true"'

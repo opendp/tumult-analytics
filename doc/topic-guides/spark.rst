@@ -28,45 +28,6 @@ then before running Tumult Analytics code, you should create that Spark session:
 
 As long as this session is active, Tumult Analytics will use it.
 
-.. dropdown:: Trouble Using Java 11 or higher?
-    :container: + shadow
-    :title: font-weight-bold text-danger text-center
-    :body: bg-light
-    :animate: fade-in-slide-down
-    
-    When using Java 11, Spark requires that Java be passed some additional configuration options.
-
-    Not doing this before making calls to Tumult Analytics, or overwriting these configurations with your own, 
-    will result in Spark raising ``java.lang.UnsupportedOperationException: sun.misc.Unsafe`` or ``java.nio.DirectByteBuffer.(long, int) not available`` 
-    when evaluating queries. 
-    
-    Tumult Analytics attempts to set these options automatically, but if you are encountering issues, you may want to try:
-
-    .. code-block::
-
-        from pyspark.sql import SparkSession
-        from tmlt.analytics.utils import get_java_11_config
-
-        spark = SparkSession.builder.config(conf=get_java_11_config()).getOrCreate()
-
-    instead of:
-
-    .. code-block::
-
-        spark = SparkSession.builder.getOrCreate()
-
-    when initializing Spark. This is equivalent to:
-
-    .. code-block::
-
-        spark = (
-            SparkSession.builder
-            .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-            .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-            .getOrCreate()
-        )
-
-
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
 .. _hive-tips:

@@ -225,7 +225,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/1.18/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/version/1.2.0/", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
-    "pyspark": ("https://spark.apache.org/docs/3.0.0/api/python/", None),
+    "pyspark": ("https://spark.apache.org/docs/3.1.1/api/python/", None),
 }
 
 

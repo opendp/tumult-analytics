@@ -42,8 +42,6 @@ __version_tuple__ = (0, 0, 0)
 
 from typing import List
 
-from tmlt.core.utils.configuration import check_java11
-
 __all__: List[str] = []
 
 try:
@@ -52,5 +50,3 @@ try:
     import pyarrow_hotfix
 except ImportError:
     pass
-
-check_java11()

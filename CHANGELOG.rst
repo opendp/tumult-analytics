@@ -26,6 +26,12 @@ Changed
   Behavior is unchanged for users of the :meth:`~.tmlt.analytics.keyset.KeySet.from_dict`
   and :meth:`~.tmlt.analytics.keyset.KeySet.from_dataframe` constructors.
 
+Fixed
+~~~~~
+- Stopped trying to set extra options for Java 11 and removed error when options are not set. Removed ``get_java_11_config()``.
+- Updated minimum supported Spark version to 3.1.1 to prevent Java 11 error.
+
+
 .. _v0.9.0:
 
 0.9.0 - 2024-04-16

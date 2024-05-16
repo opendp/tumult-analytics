@@ -44,7 +44,7 @@ python = "^3.7.1, <3.12.0"
 #####################################################################
 # When upating Core, PySpark, Pandas or SymPy, remember to update
 # test_multi_deps in the Noxfile.
-"tmlt.core" = "^0.13.0"
+"tmlt.core" = "^0.14.0"
 pandas = [
   { version = ">=1.2.0,<1.4.0", python = "<3.8" },
   { version = ">=1.2.0,<2.0.0", python = ">=3.8,<3.10" },
@@ -52,8 +52,8 @@ pandas = [
   { version = ">=1.5.0,<2.0.0", python = ">=3.11" },
 ]
 pyspark = [
-  { version = "^3.0.0,<3.4.0", extras = ["sql"], python = "<3.8" },
-  { version = "^3.0.0,<3.6.0", extras = ["sql"], python = ">=3.8,<3.11" },
+  { version = "^3.1.1,<3.4.0", extras = ["sql"], python = "<3.8" },
+  { version = "^3.1.1,<3.6.0", extras = ["sql"], python = ">=3.8,<3.11" },
   { version = "^3.4.0,<3.6.0", extras = ["sql"], python = ">=3.11" },
 ]
 sympy = "^1.8,<1.10"
@@ -111,6 +111,8 @@ sphinxcontrib-images = "^0.9.4"
 # Needed for examples, and for testing examples
 notebook = "^6.1.6"
 nbconvert = "^6.0.7"
+# TODO: Remove this dependency when we update nbconvert to >= 7.1.0.
+lxml = { version = "5.1.0", extras = ["html-clean"] }
 # Needed for code snippets in tutorials, examples
 matplotlib = "^3.0.0"
 seaborn = "^0.11.1"

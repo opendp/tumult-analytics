@@ -9,7 +9,6 @@ import pandas as pd
 import tmlt.core
 from pyspark.sql import SparkSession
 from tmlt.core.utils import cleanup as core_cleanup
-from tmlt.core.utils import configuration
 
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
@@ -34,11 +33,6 @@ def remove_all_temp_tables():
     by the current Tumult Analytics session or previous sessions.
     """
     core_cleanup.remove_all_temp_tables()
-
-
-def get_java_11_config():
-    """Set Spark configuration for Java 11+ users."""
-    return configuration.get_java11_config()
 
 
 def check_installation():
