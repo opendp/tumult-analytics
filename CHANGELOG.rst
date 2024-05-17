@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.10.0:
+
+0.10.0 - 2024-05-17
+-------------------
 
 This release adds a new `get_bounds` aggregation.
 It also includes performance improvements for `KeySets`, and other quality-of-life improvements.
