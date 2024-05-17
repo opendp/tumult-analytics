@@ -9,6 +9,9 @@ Changelog
 Unreleased
 ----------
 
+This release adds a new `get_bounds` aggregation.
+It also includes performance improvements for `KeySets`, and other quality-of-life improvements.
+
 Added
 ~~~~~
 - Added the :meth:`QueryBuilder.get_bounds <tmlt.analytics.query_builder.QueryBuilder.get_bounds>` function, for determining upper and lower bounds for a column in a differentially private way.
