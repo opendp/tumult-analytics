@@ -9,6 +9,9 @@ Changelog
 Unreleased
 ----------
 
+Fixed
+~~~~~
+
 .. _v0.10.0:
 
 0.10.0 - 2024-05-17
