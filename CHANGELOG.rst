@@ -9,8 +9,8 @@ Changelog
 Unreleased
 ----------
 
-Fixed
-~~~~~
+This release contains no externally-visible changes from the previous version.
+
 
 Changed
 ~~~~~~~
