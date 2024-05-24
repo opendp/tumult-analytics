@@ -9,12 +9,7 @@ Changelog
 Unreleased
 ----------
 
-
 This release contains no externally-visible changes from the previous version.
-
-
-Changed
-~~~~~~~
 
 
 .. _v0.10.0:
@@ -22,8 +17,8 @@ Changed
 0.10.0 - 2024-05-17
 -------------------
 
-This release adds a new `get_bounds` aggregation.
-It also includes performance improvements for `KeySets`, and other quality-of-life improvements.
+This release adds a new :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` aggregation.
+It also includes performance improvements for :class:`~tmlt.analytics.keyset.KeySet`\ s, and other quality-of-life improvements.
 
 Added
 ~~~~~
@@ -36,11 +31,11 @@ Changed
   :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change,
   the relevant ID space will automatically be added to the Builder when
   :meth:`~tmlt.analytics.session.Session.Builder.build` is called.
-- :class:`~.tmlt.analytics.keyset.KeySet` is now an abstract class, in order to
+- :class:`~tmlt.analytics.keyset.KeySet` is now an abstract class, in order to
   make some KeySet operations (column selection after cross-products) more
-  efficient. 
-  Behavior is unchanged for users of the :meth:`~.tmlt.analytics.keyset.KeySet.from_dict`
-  and :meth:`~.tmlt.analytics.keyset.KeySet.from_dataframe` constructors.
+  efficient.
+  Behavior is unchanged for users of the :meth:`~tmlt.analytics.keyset.KeySet.from_dict`
+  and :meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` constructors.
 
 Fixed
 ~~~~~
@@ -60,7 +55,6 @@ If this is a problem, please `reach out to us <mailto:info@tmlt.io>`_.
 
 Changed
 ~~~~~~~
-
 - :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without converting the underlying dataframe to Pandas.
 - :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits`` arguments are now annotated as required.
 - The minimum supported version of Tumult Core is now 0.13.0.
@@ -95,7 +89,6 @@ It is **strongly recommended** that all users update to this version of Analytic
 
 Changed
 ~~~~~~~
-
 - Increased minimum supported version of Tumult Core to 0.11.5.
   As a result:
 
@@ -121,8 +114,7 @@ This is a maintenance release that addresses a performance regression for comple
 
 Added
 ~~~~~
-
--  Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
+- Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
 
 Changed
 ~~~~~~~
