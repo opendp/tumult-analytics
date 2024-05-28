@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.10.1:
+
+0.10.1 - 2024-05-28
+-------------------
 
 This release contains no externally-visible changes from the previous version.
 
