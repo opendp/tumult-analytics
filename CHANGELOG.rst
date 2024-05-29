@@ -9,6 +9,10 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- Column order is now preserved when selecting columns from a `~tmlt.analytics.keyset.KeySet`.
+
 .. _v0.10.1:
 
 0.10.1 - 2024-05-28

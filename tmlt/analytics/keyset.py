@@ -147,7 +147,7 @@ class KeySet(ABC):
             )
             keyset = _MaterializedKeySet(func)
             discrete_keysets.append(keyset)
-        return _ProductKeySet(discrete_keysets)
+        return _ProductKeySet(discrete_keysets, list(domains.keys()))
 
     @classmethod
     def from_dataframe(cls: Type[KeySet], dataframe: DataFrame) -> KeySet:
@@ -282,7 +282,7 @@ class KeySet(ABC):
             2  a2  b1
             3  a2  b2
         """
-        return _ProductKeySet([self, other])
+        return _ProductKeySet([self, other], self.columns() + other.columns())
 
     @abstractmethod
     def columns(self) -> List[str]:
@@ -422,7 +422,7 @@ class _MaterializedKeySet(KeySet):
 class _ProductKeySet(KeySet):
     """A KeySet that is the product of a list of other KeySets."""
 
-    def __init__(self, factors: Sequence[KeySet]):
+    def __init__(self, factors: Sequence[KeySet], column_order: List[str]):
         """Create a Product KeySet from a list of other KeySets.
 
         .. warning::
@@ -450,9 +450,14 @@ class _ProductKeySet(KeySet):
                         "Cannot multiply keysets together because "
                         f"they share a column: {col}"
                     )
+                if col not in column_order:
+                    raise ValueError(
+                        f"Specified column ordering {column_order} "
+                        f"does not contain column {col}"
+                    )
                 columns.add(col)
             self._factors.append(factor)
-        self._columns: List[str] = list(columns)
+        self._columns: List[str] = column_order
         self._dataframe: Optional[DataFrame] = None
         self._schema: Optional[Schema] = None
         self._size: Optional[int] = None
@@ -503,7 +508,7 @@ class _ProductKeySet(KeySet):
             else:
                 applicable_columns = tuple(set(keyset.columns()) & desired_column_set)
                 new_factors.append(keyset[applicable_columns])
-        return _ProductKeySet(new_factors)
+        return _ProductKeySet(new_factors, list(desired_columns))
 
     def filter(self, condition: Union[Column, str]) -> KeySet:
         """Filter this KeySet using some condition."""
@@ -516,10 +521,12 @@ class _ProductKeySet(KeySet):
             return self._dataframe
         # Use Spark to join together all results if the final dataframe is very large
         if self.size() > 10**6:
-            return reduce(
+            dataframe = reduce(
                 lambda acc, df: acc.crossJoin(df),
                 [factor.dataframe() for factor in self._factors],
             )
+            self._dataframe = dataframe.select(self._columns)
+            return self._dataframe
 
         # Get combined domains of all *single-column* keysets
         column_domains: Dict[
@@ -558,7 +565,7 @@ class _ProductKeySet(KeySet):
                 dataframe = keyset.dataframe()
             else:
                 dataframe = dataframe.crossJoin(keyset.dataframe())
-        self._dataframe = dataframe
+        self._dataframe = dataframe.select(self._columns)
         return self._dataframe
 
     def size(self) -> int:

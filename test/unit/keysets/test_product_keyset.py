@@ -4,9 +4,10 @@
 # Copyright Tumult Labs 2024
 
 
+import itertools
 import re
 from functools import reduce
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Sequence, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -289,3 +290,57 @@ def test_complex_filter(spark: SparkSession) -> None:
         columns=["A", "B"],
     )
     assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expect_df)
+
+
+@pytest.mark.parametrize(
+    "column_ordering",
+    list(itertools.permutations(["A", "B", "C", "D"])),
+)
+def test_getitem_ordering(spark: SparkSession, column_ordering: Sequence[str]) -> None:
+    """Test columns returned with __getitem__ are in the correct order."""
+    keyset_a = KeySet.from_dict(
+        {
+            "A": [0, 1, 2],
+        }
+    )
+    keyset_b = KeySet.from_dict(
+        {
+            "B": ["b1", "b2"],
+        }
+    )
+    keyset_c = KeySet.from_dataframe(
+        spark.createDataFrame(
+            pd.DataFrame(
+                [
+                    [10, 0],
+                    [9, 0],
+                ],
+                columns=["C", "D"],
+            ),
+        ),
+    )
+
+    product = keyset_a * keyset_b * keyset_c
+    expect_df = pd.DataFrame(
+        [
+            [0, "b1", 10, 0],
+            [0, "b1", 9, 0],
+            [0, "b2", 10, 0],
+            [0, "b2", 9, 0],
+            [1, "b1", 10, 0],
+            [1, "b1", 9, 0],
+            [1, "b2", 10, 0],
+            [1, "b2", 9, 0],
+            [2, "b1", 10, 0],
+            [2, "b1", 9, 0],
+            [2, "b2", 10, 0],
+            [2, "b2", 9, 0],
+        ],
+        columns=["A", "B", "C", "D"],
+    )
+
+    selected_keyset = product[column_ordering]
+    assert list(column_ordering) == selected_keyset.columns()
+    got_df = selected_keyset.dataframe()
+    assert_frame_equal_with_sort(got_df.toPandas(), expect_df)
+    assert list(column_ordering) == got_df.columns
