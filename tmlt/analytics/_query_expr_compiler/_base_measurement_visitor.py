@@ -113,7 +113,12 @@ from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
 from tmlt.analytics.query_expr import Rename as RenameExpr
 from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
+from tmlt.analytics.query_expr import (
+    StdevMechanism,
+    SumMechanism,
+    SuppressAggregates,
+    VarianceMechanism,
+)
 
 
 def _get_query_bounds(
@@ -1750,3 +1755,18 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         measurement = transformation | agg
         noise_info = _noise_from_measurement(measurement)
         return measurement, noise_info
+
+    def visit_suppress_aggregates(
+        self, expr: SuppressAggregates
+    ) -> Tuple[Measurement, NoiseInfo]:
+        """Create a measurement from a SuppressAggregates query expression."""
+        expr.accept(OutputSchemaVisitor(self.catalog))
+
+        child_measurement, noise_info = expr.child.accept(self)
+        assert isinstance(child_measurement, Measurement)
+
+        def suppression_function(df: DataFrame) -> DataFrame:
+            """Suppress rows where the column is less than the desired threshold."""
+            return df.filter(df[expr.column] >= expr.threshold)
+
+        return (PostProcess(child_measurement, suppression_function), noise_info)

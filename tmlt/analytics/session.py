@@ -114,7 +114,12 @@ from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
     AddRowsWithID,
     ProtectedChange,
 )
-from tmlt.analytics.query_builder import ColumnType, GroupedQueryBuilder, QueryBuilder
+from tmlt.analytics.query_builder import (
+    AggregatedQueryBuilder,
+    ColumnType,
+    GroupedQueryBuilder,
+    QueryBuilder,
+)
 from tmlt.analytics.query_expr import QueryExpr
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
@@ -523,7 +528,15 @@ class Session:
 
     def describe(
         self,
-        obj: Optional[Union[QueryExpr, QueryBuilder, GroupedQueryBuilder, str]] = None,
+        obj: Optional[
+            Union[
+                QueryExpr,
+                QueryBuilder,
+                GroupedQueryBuilder,
+                AggregatedQueryBuilder,
+                str,
+            ]
+        ] = None,
     ) -> None:
         """Describes this session, or one of its tables, or the result of a query.
 
@@ -587,7 +600,7 @@ class Session:
             print(self._describe_self())
         elif isinstance(obj, (QueryExpr, GroupedQueryBuilder)):
             print(self._describe_query_obj(obj))
-        elif isinstance(obj, QueryBuilder):
+        elif isinstance(obj, (QueryBuilder, AggregatedQueryBuilder)):
             print(self._describe_query_obj(obj.query_expr))
         elif isinstance(obj, str):
             print(self._describe_query_obj(QueryBuilder(obj).query_expr))
@@ -920,7 +933,9 @@ class Session:
         self._public_sources[source_id] = dataframe
 
     def _compile_and_get_info(
-        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
+        self,
+        query_expr: QueryExpr,
+        privacy_budget: PrivacyBudget,
     ) -> Tuple[Measurement, PrivacyBudget, NoiseInfo]:
         """Pre-processing needed for evaluate() and _noise_info()."""
         check_type("query_expr", query_expr, QueryExpr)
@@ -951,7 +966,9 @@ class Session:
         return measurement, adjusted_budget, noise_info
 
     def _noise_info(
-        self, query_expr: QueryExpr, privacy_budget: PrivacyBudget
+        self,
+        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
+        privacy_budget: PrivacyBudget,
     ) -> List[Dict[str, Any]]:
         """Get noise information about a query.
 
@@ -987,11 +1004,17 @@ class Session:
             >>> count_info # doctest: +NORMALIZE_WHITESPACE
             [{'noise_mechanism': <_NoiseMechanism.GEOMETRIC: 2>, 'noise_parameter': 2}]
         """
+        if isinstance(query_expr, AggregatedQueryBuilder):
+            query_expr = query_expr.query_expr
         _, _, noise_info = self._compile_and_get_info(query_expr, privacy_budget)
         return list(iter(noise_info))
 
     # pylint: disable=line-too-long
-    def evaluate(self, query_expr: QueryExpr, privacy_budget: PrivacyBudget) -> Any:
+    def evaluate(
+        self,
+        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
+        privacy_budget: PrivacyBudget,
+    ) -> Any:
         """Answers a query within the given privacy budget and returns a Spark dataframe.
 
         The type of privacy budget that you use must match the type your Session was
@@ -1044,6 +1067,8 @@ class Session:
             privacy_budget: The privacy budget used for the query.
         """
         # pylint: enable=line-too-long
+        if isinstance(query_expr, AggregatedQueryBuilder):
+            query_expr = query_expr.query_expr
         measurement, adjusted_budget, _ = self._compile_and_get_info(
             query_expr, privacy_budget
         )

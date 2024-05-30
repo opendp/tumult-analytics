@@ -9,6 +9,19 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Added a :class:`~tmlt.analytics.query_expr.SuppressAggregates` query type,
+  for suppressing aggregates less than a certain threshold. This is currently
+  only supported for post-processing :class:`~tmlt.analytics.query_expr.GroupByCount`
+  queries. These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder`
+  by calling :meth:`AggregatedQueryBuilder.suppress <tmlt.analytics.query_builder.AggregatedQueryBuilder.suppress>`
+  after building a GroupByCount query. As part of this change, query builders
+  now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder`
+  instead of a :class:`~tmlt.analytics.query_expr.QueryExpr`; the ``AggregatedQueryBuilder``
+  can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>`
+  so most existing code should not need to be migrated.
+
 Changed
 ~~~~~~~
 - Column order is now preserved when selecting columns from a `~tmlt.analytics.keyset.KeySet`.
@@ -50,7 +63,6 @@ Fixed
 ~~~~~
 - Stopped trying to set extra options for Java 11 and removed error when options are not set. Removed ``get_java_11_config()``.
 - Updated minimum supported Spark version to 3.1.1 to prevent Java 11 error.
-
 
 .. _v0.9.0:
 

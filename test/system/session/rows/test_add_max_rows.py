@@ -31,7 +31,7 @@ from tmlt.analytics.protected_change import (
     AddOneRow,
     AddRowsWithID,
 )
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics.query_builder import AggregatedQueryBuilder, QueryBuilder
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountMechanism,
@@ -69,22 +69,28 @@ class TestSession:
     groupby_with_duplicates_df: DataFrame
     groupby_empty_df: DataFrame
 
-    @pytest.mark.parametrize("query_expr,expected_expr,expected_df", EVALUATE_TESTS)
+    @pytest.mark.parametrize(
+        "query_expr_or_builder,expected_expr,expected_df", EVALUATE_TESTS
+    )
     def test_queries_privacy_budget_infinity_puredp(
         self,
-        query_expr: QueryExpr,
+        query_expr_or_builder: Union[QueryExpr, AggregatedQueryBuilder],
         expected_expr: Optional[QueryExpr],
         expected_df: pd.DataFrame,
     ):
         """Session :func:`evaluate` returns the correct results for eps=inf and PureDP.
 
         Args:
-            query_expr: The query to evaluate.
+            query_expr_or_builder: The query or builder to evaluate.
             expected_expr: Expected value for query_expr.
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            assert query_expr == expected_expr
+            if isinstance(query_expr_or_builder, QueryExpr):
+                assert query_expr_or_builder == expected_expr
+            else:
+                assert isinstance(query_expr_or_builder, AggregatedQueryBuilder)
+                assert query_expr_or_builder.query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
@@ -109,13 +115,13 @@ class TestSession:
             source_id="groupby_empty", dataframe=self.groupby_empty_df
         )
         actual_sdf = session.evaluate(
-            query_expr, privacy_budget=PureDPBudget(float("inf"))
+            query_expr_or_builder, privacy_budget=PureDPBudget(float("inf"))
         )
         assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
     @pytest.mark.parametrize(
-        "query_expr,expected_expr,expected_df",
+        "query_expr_or_builder,expected_expr,expected_df",
         EVALUATE_TESTS
         + [
             (  # Total with GAUSSIAN
@@ -149,19 +155,22 @@ class TestSession:
     )
     def test_queries_privacy_budget_infinity_rhozcdp(
         self,
-        query_expr: QueryExpr,
+        query_expr_or_builder: Union[QueryExpr, AggregatedQueryBuilder],
         expected_expr: Optional[QueryExpr],
         expected_df: pd.DataFrame,
     ):
         """Session :func:`evaluate` returns the correct results for eps=inf and RhoZCDP.
 
         Args:
-            query_expr: The query to evaluate.
+            query_expr_or_builder: The query or builder to evaluate.
             expected_expr: What to expect query_expr to be.
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            assert query_expr == expected_expr
+            if isinstance(query_expr_or_builder, QueryExpr):
+                assert query_expr_or_builder == expected_expr
+            else:
+                assert query_expr_or_builder.query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=RhoZCDPBudget(float("inf")),
             source_id="private",
@@ -186,7 +195,7 @@ class TestSession:
             source_id="groupby_empty", dataframe=self.groupby_empty_df
         )
         actual_sdf = session.evaluate(
-            query_expr, privacy_budget=RhoZCDPBudget(float("inf"))
+            query_expr_or_builder, privacy_budget=RhoZCDPBudget(float("inf"))
         )
         assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
@@ -250,7 +259,7 @@ class TestSession:
     )
     def test_noise_info(
         self,
-        query_expr: QueryExpr,
+        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
         session_budget: PrivacyBudget,
         query_budget: PrivacyBudget,
         expected: List[Dict[str, Any]],
@@ -272,7 +281,7 @@ class TestSession:
     )
     def test_private_join_privacy_budget_infinity(self, privacy_budget: PrivacyBudget):
         """Session :func:`evaluate` returns correct result for private join, eps=inf."""
-        query_expr = GroupByCount(
+        query_builder = GroupByCount(
             child=ReplaceNullAndNan(
                 replace_with={},
                 child=JoinPrivate(
@@ -303,7 +312,7 @@ class TestSession:
             source_id="private_2",
             cache=False,
         )
-        actual_sdf = session.evaluate(query_expr, privacy_budget=privacy_budget)
+        actual_sdf = session.evaluate(query_builder, privacy_budget=privacy_budget)
         assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
@@ -312,7 +321,7 @@ class TestSession:
     )
     def test_interactivity_puredp(self, mechanism: CountMechanism):
         """Test that interactivity works with PureDP."""
-        query_expr = GroupByCount(
+        query_builder = GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
@@ -325,9 +334,9 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-        session.evaluate(query_expr, privacy_budget=PureDPBudget(5))
+        session.evaluate(query_builder, privacy_budget=PureDPBudget(5))
         assert session.remaining_privacy_budget == PureDPBudget(5)
-        session.evaluate(query_expr, privacy_budget=PureDPBudget(5))
+        session.evaluate(query_builder, privacy_budget=PureDPBudget(5))
         assert session.remaining_privacy_budget == PureDPBudget(0)
 
     @pytest.mark.parametrize(
@@ -336,7 +345,7 @@ class TestSession:
     )
     def test_interactivity_zcdp(self, mechanism: CountMechanism):
         """Test that interactivity works with RhoZCDP."""
-        query_expr = GroupByCount(
+        query_builder = GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
@@ -349,9 +358,9 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-        session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
+        session.evaluate(query_builder, privacy_budget=RhoZCDPBudget(5))
         assert session.remaining_privacy_budget == RhoZCDPBudget(5)
-        session.evaluate(query_expr, privacy_budget=RhoZCDPBudget(5))
+        session.evaluate(query_builder, privacy_budget=RhoZCDPBudget(5))
         assert session.remaining_privacy_budget == RhoZCDPBudget(0)
 
     @pytest.mark.parametrize("columns", [(["A", "count"])])

@@ -1,10 +1,11 @@
 """Tests for MeasurementVisitor."""
-from test.conftest import create_empty_input
+from test.conftest import assert_frame_equal_with_sort, create_empty_input
 from typing import List, Optional, Union
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
@@ -46,7 +47,7 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PureDPBudget
+from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
@@ -74,7 +75,12 @@ from tmlt.analytics.query_expr import (
 from tmlt.analytics.query_expr import ReplaceInfinity as ReplaceInfExpr
 from tmlt.analytics.query_expr import ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.query_expr import StdevMechanism, SumMechanism, VarianceMechanism
+from tmlt.analytics.query_expr import (
+    StdevMechanism,
+    SumMechanism,
+    SuppressAggregates,
+    VarianceMechanism,
+)
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # SPDX-License-Identifier: Apache-2.0
@@ -1818,3 +1824,115 @@ class TestMeasurementVisitor:
         """Test that visiting transformations returns an error."""
         with pytest.raises(NotImplementedError):
             query.accept(self.visitor)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            SuppressAggregates(
+                child=GroupByCount(
+                    groupby_keys=KeySet.from_dict({}),
+                    child=PrivateSource("private"),
+                    output_column="count",
+                ),
+                column="count",
+                threshold=5.5,
+            ),
+            SuppressAggregates(
+                child=GroupByCount(
+                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
+                    child=PrivateSource("private"),
+                    output_column="count",
+                ),
+                column="count",
+                threshold=-10,
+            ),
+        ],
+    )
+    def test_visit_suppress_aggregates(self, query: SuppressAggregates) -> None:
+        """Test visit_suppress_aggregates."""
+        output_measures: List[Union[PureDP, RhoZCDP]] = [PureDP(), RhoZCDP()]
+        for output_measure in output_measures:
+            self.run_with_empty_data_and_check_schema(query, output_measure)
+
+    @pytest.mark.parametrize(
+        "query,output_measure,budget,expected_result",
+        [
+            (query, output_measure, budget, expected_result)
+            for (query, expected_result) in [
+                (
+                    SuppressAggregates(
+                        child=GroupByCount(
+                            child=PrivateSource("private_2"),
+                            groupby_keys=KeySet.from_dict(
+                                {"A": ["a0", "a1", "a2", "a3"]}
+                            ),
+                            output_column="count",
+                        ),
+                        column="count",
+                        threshold=0,
+                    ),
+                    pd.DataFrame(
+                        [
+                            ["a0", 0],
+                            ["a1", 1],
+                            ["a2", 2],
+                            ["a3", 3],
+                        ],
+                        columns=["A", "count"],
+                    ),
+                ),
+                (
+                    SuppressAggregates(
+                        child=GroupByCount(
+                            child=PrivateSource("private_2"),
+                            groupby_keys=KeySet.from_dict(
+                                {"A": ["a0", "a1", "a2", "a3"]},
+                            ),
+                            output_column="custom_count_name",
+                        ),
+                        column="custom_count_name",
+                        threshold=3,
+                    ),
+                    pd.DataFrame(
+                        [
+                            ["a3", 3],
+                        ],
+                        columns=["A", "custom_count_name"],
+                    ),
+                ),
+            ]
+            for output_measure, budget in [
+                (PureDP(), PureDPBudget(float("inf"))),
+                (RhoZCDP(), RhoZCDPBudget(float("inf"))),
+            ]
+        ],
+    )
+    def test_suppress_aggregates_correctness(
+        self,
+        spark: SparkSession,
+        query: SuppressAggregates,
+        output_measure: Union[PureDP, RhoZCDP],
+        budget: Union[PureDPBudget, RhoZCDPBudget],
+        expected_result: pd.DataFrame,
+    ) -> None:
+        """Test that measurement from visit_suppress_aggregates gets correct results."""
+        input_data = create_empty_input(self.visitor.input_domain)
+        input_data[NamedTable("private_2")] = spark.createDataFrame(
+            pd.DataFrame(
+                [
+                    ["a1", 1],
+                    ["a2", 1],
+                    ["a2", 2],
+                    ["a3", 1],
+                    ["a3", 2],
+                    ["a3", 3],
+                ],
+                columns=["A", "C"],
+            ),
+        )
+        self.visitor.output_measure = output_measure
+        self.visitor.budget = budget
+        self.visitor.adjusted_budget = budget
+        measurement, _ = query.accept(self.visitor)
+        got = measurement(input_data)
+        assert_frame_equal_with_sort(got.toPandas(), expected_result)
