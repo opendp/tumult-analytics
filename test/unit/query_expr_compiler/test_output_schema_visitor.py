@@ -42,6 +42,7 @@ from tmlt.analytics.query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+    SuppressAggregates,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -1534,3 +1535,37 @@ class TestValidationWithNulls:
         """Test visit_groupby_*."""
         schema = query.accept(self.visitor)
         assert schema == expected_schema
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            SuppressAggregates(
+                child=GroupByCount(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    output_column="count",
+                ),
+                column="count",
+                threshold=0.7,
+            ),
+            SuppressAggregates(
+                child=GroupByCount(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict(
+                        {
+                            "A": ["a1", "a2"],
+                            "D": [datetime.date(1999, 12, 31)],
+                        }
+                    ),
+                    output_column="custom_column_name",
+                ),
+                column="custom_column_name",
+                threshold=-10,
+            ),
+        ],
+    )
+    def test_visit_suppress_aggregates(self, query: SuppressAggregates) -> None:
+        """Test visit_suppress_aggregates."""
+        expected_schema = query.child.accept(self.visitor)
+        got_schema = query.accept(self.visitor)
+        assert expected_schema == got_schema

@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Un
 
 import pandas as pd
 import pytest
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
 
 from tmlt.analytics._schema import Schema
@@ -36,6 +36,7 @@ from tmlt.analytics.query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+    SuppressAggregates,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -532,3 +533,38 @@ def test_join_public_dataframe_validation_column_type(spark):
 
     with pytest.raises(ValueError, match="^Unsupported Spark data type.*"):
         JoinPublic(PrivateSource("a"), df)
+
+
+@pytest.mark.parametrize(
+    "child,column,threshold,expected_error_msg",
+    [
+        (
+            PrivateSource("P"),
+            "count",
+            0,
+            "SuppressAggregates is only supported on aggregates that are GroupByCounts",
+        ),
+        (
+            GroupByCount(PrivateSource("P"), KeySet.from_dict({})),
+            -17,
+            0,
+            "column must be str",
+        ),
+        (
+            GroupByCount(PrivateSource("P"), KeySet.from_dict({})),
+            "count",
+            "not an int",
+            "threshold must be either float or int",
+        ),
+    ],
+)
+def test_invalid_suppress_aggregates(
+    spark: SparkSession,  # pylint: disable=unused-argument
+    child: GroupByCount,
+    column: str,
+    threshold: int,
+    expected_error_msg: str,
+) -> None:
+    """Test that SuppressAggregates rejects invalid arguments."""
+    with pytest.raises(TypeError, match=expected_error_msg):
+        SuppressAggregates(child, column, threshold)

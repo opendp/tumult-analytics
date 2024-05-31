@@ -171,6 +171,7 @@ from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
 from tmlt.analytics.query_expr import Rename as RenameExpr
 from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
 from tmlt.analytics.query_expr import Select as SelectExpr
+from tmlt.analytics.query_expr import SuppressAggregates
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 
@@ -1506,4 +1507,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
     def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Any:
         """Visit a GroupByBoundedSTDEV query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Any:
+        """Visit a SuppressAggregates query expression (raises an error)."""
         raise NotImplementedError
