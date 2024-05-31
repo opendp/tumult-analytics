@@ -1095,38 +1095,6 @@ class GroupByBoundedSTDEV(QueryExpr):
         return visitor.visit_groupby_bounded_stdev(self)
 
 
-@dataclass(frozen=True)
-class SuppressAggregates(QueryExpr):
-    """Remove all counts that are less than the threshold."""
-
-    child: QueryExpr
-    """The aggregate on which to suppress small counts.
-
-    Currently, only GroupByCount is supported.
-    """
-
-    column: str
-    """The name of the column to suppress."""
-
-    threshold: float
-    """Threshold. All counts less than this will be suppressed."""
-
-    def __post_init__(self) -> None:
-        """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        if not isinstance(self.child, GroupByCount):
-            raise TypeError(
-                "SuppressAggregates is only supported on aggregates that are "
-                "GroupByCounts"
-            )
-        check_type("column", self.column, str)
-        check_type("threshold", self.threshold, float)
-
-    def accept(self, visitor: "QueryExprVisitor") -> Any:
-        """Visit this QueryExpr with visitor."""
-        return visitor.visit_suppress_aggregates(self)
-
-
 class QueryExprVisitor(ABC):
     """A base class for implementing visitors for :class:`QueryExpr`."""
 
@@ -1238,9 +1206,4 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Any:
         """Visit a :class:`GroupByBoundedSTDEV`."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Any:
-        """Visit a :class:`SuppressAggregates`."""
         raise NotImplementedError

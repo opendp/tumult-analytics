@@ -33,7 +33,6 @@ from tmlt.analytics.query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
-    SuppressAggregates,
 )
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -107,9 +106,6 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     def visit_groupby_bounded_stdev(self, expr):
         return "GroupByBoundedSTDEV"
 
-    def visit_suppress_aggregates(self, expr):
-        return "SuppressAggregates"
-
 
 @pytest.mark.parametrize(
     "expr,expected",
@@ -172,18 +168,6 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         (
             GroupByBoundedSTDEV(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
             "GroupByBoundedSTDEV",
-        ),
-        (
-            SuppressAggregates(
-                GroupByCount(
-                    PrivateSource("P"),
-                    KeySet.from_dict({}),
-                    output_column="count",
-                ),
-                column="count",
-                threshold=10,
-            ),
-            "SuppressAggregates",
         ),
     ],
 )

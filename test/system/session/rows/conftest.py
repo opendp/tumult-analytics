@@ -35,7 +35,6 @@ from tmlt.analytics.query_expr import (
     ReplaceNullAndNan,
     Select,
     SumMechanism,
-    SuppressAggregates,
 )
 
 # Shorthands for some values used in tests
@@ -606,29 +605,6 @@ EVALUATE_TESTS = [
         ),
         id="public_join_disambiguation",
         marks=pytest.mark.slow,
-    ),
-    pytest.param(
-        # Suppress aggregates on groupby count
-        QueryBuilder("private")
-        .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
-        .count()
-        .suppress(1),
-        SuppressAggregates(
-            child=GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
-            ),
-            column="count",
-            threshold=1,
-        ),
-        pd.DataFrame(
-            [
-                ["0", 0, 2],
-                ["0", 1, 1],
-                ["1", 0, 1],
-            ],
-            columns=["A", "B", "count"],
-        ),
     ),
 ]
 

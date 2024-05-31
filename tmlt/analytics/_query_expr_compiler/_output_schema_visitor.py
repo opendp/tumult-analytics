@@ -43,7 +43,6 @@ from tmlt.analytics.query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
-    SuppressAggregates,
 )
 
 
@@ -1202,7 +1201,3 @@ class OutputSchemaVisitor(QueryExprVisitor):
             {'A': 'VARCHAR', 'stdev': 'DECIMAL'}
         """
         return _validate_groupby(expr, self)
-
-    def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Schema:
-        """Returns the resulting schema from evaluating a SuppressAggregates."""
-        return expr.child.accept(self)
