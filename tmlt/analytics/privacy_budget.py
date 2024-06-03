@@ -9,6 +9,7 @@ For a full introduction to privacy budgets, see the
 
 import math
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Tuple, Union
 
 import sympy as sp
@@ -70,6 +71,7 @@ class PrivacyBudget(ABC):
         """Returns true if the privacy budget is infinite."""
 
 
+@dataclass(frozen=True, init=False, unsafe_hash=True)
 class PureDPBudget(PrivacyBudget):
     """A privacy budget under pure differential privacy.
 
@@ -77,6 +79,8 @@ class PureDPBudget(PrivacyBudget):
     associated value is the epsilon privacy parameter. The privacy definition can
     be found `here <https://en.wikipedia.org/wiki/Differential_privacy#Definition_of_%CE%B5-differential_privacy>`__.
     """  # pylint: disable=line-too-long
+
+    _epsilon: ExactNumber
 
     @typechecked
     def __init__(self, epsilon: Union[int, float, ExactNumber]):
@@ -94,7 +98,8 @@ class PureDPBudget(PrivacyBudget):
                 "Epsilon must be non-negative. "
                 f"Cannot construct a PureDPBudget with epsilon of {epsilon}."
             )
-        self._epsilon = _to_exact_number(epsilon)
+        # The class is frozen, so we need to subvert it to update epsilon.
+        object.__setattr__(self, "_epsilon", _to_exact_number(epsilon))
 
     @property
     def value(self) -> ExactNumber:
@@ -123,20 +128,8 @@ class PureDPBudget(PrivacyBudget):
         """Returns string representation of this PureDPBudget."""
         return f"PureDPBudget(epsilon={self.epsilon})"
 
-    def __eq__(self, other) -> bool:
-        """Returns whether or not a PureDPBudget is equivalent to another PrivacyBudget.
 
-        PureDPBudgets are considered equal to ApproxDPBudgets that have delta of 0 and
-        the same epsilon.
-        """
-        if isinstance(other, PureDPBudget):
-            return self._epsilon == other._epsilon
-        if isinstance(other, ApproxDPBudget):
-            if self._epsilon == other._epsilon and other._delta == 0:
-                return True
-        return False
-
-
+@dataclass(frozen=True, init=False, eq=False, unsafe_hash=False)
 class ApproxDPBudget(PrivacyBudget):
     """A privacy budget under approximate differential privacy.
 
@@ -144,6 +137,9 @@ class ApproxDPBudget(PrivacyBudget):
     associated privacy parameters are epsilon and delta. The formal definition can
     be found `here <https://desfontain.es/privacy/almost-differential-privacy.html#formal-definition>`__.
     """  # pylint: disable=line-too-long
+
+    _epsilon: ExactNumber
+    _delta: ExactNumber
 
     @typechecked
     def __init__(
@@ -173,8 +169,10 @@ class ApproxDPBudget(PrivacyBudget):
                 "Delta must be between 0 and 1 (inclusive). "
                 f"Cannot construct an ApproxDPBudget with delta of {delta}."
             )
-        self._epsilon = _to_exact_number(epsilon)
-        self._delta = _to_exact_number(delta)
+
+        # The class is frozen, so we need to subvert it to update epsilon and delta.
+        object.__setattr__(self, "_epsilon", _to_exact_number(epsilon))
+        object.__setattr__(self, "_delta", _to_exact_number(delta))
 
     @property
     def value(self) -> Tuple[ExactNumber, ExactNumber]:
@@ -213,27 +211,30 @@ class ApproxDPBudget(PrivacyBudget):
         return f"ApproxDPBudget(epsilon={self.epsilon}, delta={self.delta})"
 
     def __eq__(self, other) -> bool:
-        """Returns whether an ApproxDPBudget is equivalent to another privacy budget.
-
-        ApproxDPBudgets that have delta of 0 are considered equal to PureDPBudgets with the same epsilon.
-        ApproxDPBudgets that provide no privacy guarantee are considered equal (for example, if one has an
-        epsilon of float('inf') and the other has a delta of 1).
-        """
+        """Returns True if both ApproxDPBudgets are infinite or have equal values."""
         if isinstance(other, ApproxDPBudget):
-            are_both_infinite = self.is_infinite and other.is_infinite
-            return are_both_infinite or self.value == other.value
-        if isinstance(other, PureDPBudget):
-            if self._epsilon == other._epsilon and self._delta == 0:
+            if self.is_infinite and other.is_infinite:
                 return True
+            else:
+                return self.value == other.value
         return False
 
+    def __hash__(self):
+        """Hashes on the values, but infinite budgets hash to the same value."""
+        if self.is_infinite:
+            return hash((float("inf"), float("inf")))
+        return hash(self.value)
 
+
+@dataclass(frozen=True, init=False, unsafe_hash=True)
 class RhoZCDPBudget(PrivacyBudget):
     """A privacy budget under rho-zero-concentrated differential privacy.
 
     The definition of rho-zCDP can be found in
     `this <https://arxiv.org/pdf/1605.02065.pdf>`_ paper under Definition 1.1.
     """
+
+    _rho: ExactNumber
 
     @typechecked()
     def __init__(self, rho: Union[int, float, ExactNumber]):
@@ -251,7 +252,8 @@ class RhoZCDPBudget(PrivacyBudget):
                 "Rho must be non-negative. "
                 f"Cannot construct a RhoZCDPBudget with rho of {rho}."
             )
-        self._rho = _to_exact_number(rho)
+        # The class is frozen, so we need to subvert it to update rho.
+        object.__setattr__(self, "_rho", _to_exact_number(rho))
 
     @property
     def value(self) -> ExactNumber:
@@ -279,9 +281,3 @@ class RhoZCDPBudget(PrivacyBudget):
     def __repr__(self) -> str:
         """Returns string representation of this RhoZCDPBudget."""
         return f"RhoZCDPBudget(rho={self.rho})"
-
-    def __eq__(self, other) -> bool:
-        """Returns whether or not two RhoZCDPBudgets are equivalent."""
-        if isinstance(other, RhoZCDPBudget):
-            return self.value == other.value
-        return False

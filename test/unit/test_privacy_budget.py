@@ -4,7 +4,10 @@
 # Copyright Tumult Labs 2024
 # pylint: disable=pointless-string-statement
 
+from typing import List
+
 import pytest
+from tmlt.core.utils.exact_number import ExactNumber
 
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -61,9 +64,9 @@ def test_constructor_fail_nan():
 
 def test_constructor_success_nonnegative_int_ApproxDP():
     """Tests that construction succeeds with nonnegative ints."""
-    budget = ApproxDPBudget(2, 1)
+    budget = ApproxDPBudget(2, 0.1)
     assert budget.epsilon == 2
-    assert budget.delta == 1
+    assert budget.delta == 0.1
 
     budget = ApproxDPBudget(0, 0)
     assert budget.epsilon == 0
@@ -200,3 +203,129 @@ def test_constructor_fail_nan_ZCDP():
 def test_is_infinite(budget: PrivacyBudget, inf_bool: bool):
     """Tests the is_infinite function for each budget."""
     assert budget.is_infinite == inf_bool
+
+
+@pytest.mark.parametrize(
+    "budgets",
+    [
+        # Tests with normal budget values
+        [PureDPBudget(1)],
+        [ApproxDPBudget(0.5, 1e-10)],
+        [RhoZCDPBudget(1)],
+        # Tests with infinite budget values
+        [PureDPBudget(float("inf"))],
+        [ApproxDPBudget(float("inf"), 1)],
+        [
+            RhoZCDPBudget(float("inf")),
+        ],
+        # Tests that no budgets are confused with each other.
+        [PureDPBudget(1), ApproxDPBudget(1, 1e-10), RhoZCDPBudget(1)],
+        [
+            PureDPBudget(float("inf")),
+            ApproxDPBudget(float("inf"), 1),
+            RhoZCDPBudget(float("inf")),
+        ],
+        [PureDPBudget(1), PureDPBudget(2), PureDPBudget(3)],
+        [ApproxDPBudget(1, 1e-10), ApproxDPBudget(2, 1e-10), ApproxDPBudget(3, 1e-10)],
+        [ApproxDPBudget(1, 1e-10), ApproxDPBudget(1, 1e-11), ApproxDPBudget(1, 1e-12)],
+        [RhoZCDPBudget(1), RhoZCDPBudget(2), RhoZCDPBudget(3)],
+    ],
+)
+def test_hashing(budgets: List[PrivacyBudget]):
+    """Tests that each privacy budget is hashable."""
+    # Add each budget to a dictionary
+    budgets_dict = {budget: budget.value for budget in budgets}
+
+    # Check that the budgets are correctly mapped.
+    for budget in budgets:
+        assert budgets_dict[budget] == budget.value
+
+
+# pylint: disable=protected-access
+def test_PureDPBudget_immutability():
+    """Tests that the PureDPBudget is immutable."""
+
+    with pytest.raises(AttributeError):
+        PureDPBudget(1)._epsilon = 2  # type: ignore
+
+
+def test_ApproxDPBudget_immutability():
+    """Tests that the ApproxDPBudget is immutable."""
+
+    with pytest.raises(AttributeError):
+        ApproxDPBudget(1, 0.1)._epsilon = 2  # type: ignore
+    with pytest.raises(AttributeError):
+        ApproxDPBudget(1, 0.1)._delta = 0.2  # type: ignore
+
+
+def test_RhoZCDPBudget_immutability():
+    """Tests that the RhoZCDPBudget is immutable."""
+
+    with pytest.raises(AttributeError):
+        RhoZCDPBudget(1)._rho = 2  # type: ignore
+
+
+# pylint: enable=protected-access
+
+
+@pytest.mark.parametrize(
+    "budget_a, budget_b, equal",
+    [
+        # PureDPBudget Tests
+        (PureDPBudget(1), PureDPBudget(1), True),
+        (PureDPBudget(1), PureDPBudget(2), False),
+        (PureDPBudget(1), ApproxDPBudget(1, 1e-10), False),
+        (PureDPBudget(1), RhoZCDPBudget(1), False),
+        (PureDPBudget(1), ApproxDPBudget(1, 0), False),
+        # ApproxDPBudget Tests
+        (ApproxDPBudget(1, 1e-10), ApproxDPBudget(1, 1e-10), True),
+        (ApproxDPBudget(1, 1e-10), ApproxDPBudget(2, 1e-10), False),
+        (ApproxDPBudget(1, 1e-10), ApproxDPBudget(1, 1e-11), False),
+        (ApproxDPBudget(1, 1e-10), PureDPBudget(1), False),
+        (ApproxDPBudget(1, 1e-10), RhoZCDPBudget(1), False),
+        (ApproxDPBudget(1, 0), PureDPBudget(1), False),
+        # RhoZCDPBudget Tests
+        (RhoZCDPBudget(1), RhoZCDPBudget(1), True),
+        (RhoZCDPBudget(1), RhoZCDPBudget(2), False),
+        (RhoZCDPBudget(1), PureDPBudget(1), False),
+        (RhoZCDPBudget(1), ApproxDPBudget(1, 1e-10), False),
+        # Tests with infinite budgets
+        (PureDPBudget(float("inf")), PureDPBudget(float("inf")), True),
+        (PureDPBudget(1), PureDPBudget(float("inf")), False),
+        (PureDPBudget(float("inf")), PureDPBudget(1), False),
+        (ApproxDPBudget(float("inf"), 1), ApproxDPBudget(float("inf"), 1), True),
+        (ApproxDPBudget(1, 1), ApproxDPBudget(float("inf"), 1), True),
+        (ApproxDPBudget(float("inf"), 1), ApproxDPBudget(1, 1), True),
+        (ApproxDPBudget(0, 1), ApproxDPBudget(float("inf"), 1), True),
+        (ApproxDPBudget(float("inf"), 1), ApproxDPBudget(0, 1), True),
+        (RhoZCDPBudget(float("inf")), RhoZCDPBudget(float("inf")), True),
+        (RhoZCDPBudget(1), RhoZCDPBudget(float("inf")), False),
+        (RhoZCDPBudget(float("inf")), RhoZCDPBudget(1), False),
+        # Tests with different input types.
+        (PureDPBudget(1), PureDPBudget(ExactNumber("1.0")), True),
+        (PureDPBudget(1), PureDPBudget(1.0), True),
+        (PureDPBudget(1), PureDPBudget(1.1), False),
+        (
+            ApproxDPBudget(1, 1e-10),
+            ApproxDPBudget(
+                ExactNumber("1.0"), ExactNumber.from_float(1e-10, round_up=False)
+            ),
+            True,
+        ),
+        (
+            ApproxDPBudget(
+                ExactNumber("1.0"), ExactNumber.from_float(1e-10, round_up=False)
+            ),
+            ApproxDPBudget(1, 1e-10),
+            True,
+        ),
+        (ApproxDPBudget(1, 1e-10), ApproxDPBudget(1.0, 1e-11), False),
+        (ApproxDPBudget(1.1, 1e-10), ApproxDPBudget(1.0, 1e-10), False),
+        (RhoZCDPBudget(1), RhoZCDPBudget(ExactNumber("1.0")), True),
+        (RhoZCDPBudget(1), RhoZCDPBudget(1.0), True),
+        (RhoZCDPBudget(1), RhoZCDPBudget(1.1), False),
+    ],
+)
+def test_budget_equality(budget_a: PrivacyBudget, budget_b: PrivacyBudget, equal: bool):
+    """Tests that two budgets are equal if they have the same value."""
+    assert (budget_a == budget_b) == equal

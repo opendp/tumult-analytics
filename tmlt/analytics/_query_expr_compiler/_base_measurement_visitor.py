@@ -344,9 +344,7 @@ def _split_auto_partition_budget(
 
     epsilon, delta = budget.value
     half_epsilon = epsilon * ExactNumber("0.5")
-    return ApproxDPBudget(half_epsilon, delta), ApproxDPBudget(
-        half_epsilon, ExactNumber(0)
-    )
+    return ApproxDPBudget(half_epsilon, delta), ApproxDPBudget(half_epsilon, 0)
 
 
 class BaseMeasurementVisitor(QueryExprVisitor):

@@ -131,9 +131,8 @@ def test_immutability(spark):
         .with_parameter("b", "x")
         .with_parameter("c", {1: 2, 3: 4})
     )
-    privacy_budget, private_dfs, _, _, parameters = builder.build()
+    _, private_dfs, _, _, parameters = builder.build()
 
-    privacy_budget._epsilon = 2
     assert builder._privacy_budget == budget
 
     private_df, _ = private_dfs["df1"]

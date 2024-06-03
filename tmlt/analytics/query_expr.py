@@ -744,7 +744,7 @@ class GroupByCount(QueryExpr):
         if isinstance(self.groupby_keys, list):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountMechanism)
 
@@ -780,7 +780,7 @@ class GroupByCountDistinct(QueryExpr):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
         check_type("columns_to_count", self.columns_to_count, Optional[List[str]])
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountDistinctMechanism)
 
@@ -823,7 +823,7 @@ class GroupByQuantile(QueryExpr):
         if isinstance(self.groupby_keys, list):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("measure_column", self.measure_column, str)
         check_type("quantile", self.quantile, float)
         check_type("low", self.low, float)
@@ -888,7 +888,7 @@ class GroupByBoundedSum(QueryExpr):
         if isinstance(self.groupby_keys, list):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -949,7 +949,7 @@ class GroupByBoundedAverage(QueryExpr):
         if isinstance(self.groupby_keys, list):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -1010,7 +1010,7 @@ class GroupByBoundedVariance(QueryExpr):
         if isinstance(self.groupby_keys, list):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, list))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)

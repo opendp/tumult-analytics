@@ -25,6 +25,8 @@ Added
 Changed
 ~~~~~~~
 - Column order is now preserved when selecting columns from a :class:`~tmlt.analytics.keyset.KeySet`.
+- Made `~tmlt.analytics.privacy_budget.PureDPBudget`, `~tmlt.analytics.privacy_budget.ApproxDPBudget`, and `~tmlt.analytics.privacy_budget.RhoZCDPBudget` immutable classes.
+- Adjusted `~tmlt.analytics.privacy_budget.PureDPBudget` and `~tmlt.analytics.privacy_budget.ApproxDPBudget` so that they are no longer equal if the ApproxDPBudget has a delta of zero and the same epsilon as the PureDPBudget.
 
 .. _v0.10.1:
 
