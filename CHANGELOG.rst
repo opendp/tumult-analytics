@@ -16,6 +16,9 @@ Added
   These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling :meth:`AggregatedQueryBuilder.suppress <tmlt.analytics.query_builder.AggregatedQueryBuilder.suppress>` after building a GroupByCount query.
   As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics.query_expr.QueryExpr` when aggregating;
   the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
+- Made :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`, and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` immutable classes.
+- Adjusted :class:`~tmlt.analytics.privacy_budget.PureDPBudget` and :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` so that they are no longer equal if the ApproxDPBudget has a delta of zero and the same epsilon as the PureDPBudget.
+
 
 
 .. _v0.10.2:
@@ -26,8 +29,6 @@ Added
 Changed
 ~~~~~~~
 - Column order is now preserved when selecting columns from a :class:`~tmlt.analytics.keyset.KeySet`.
-- Made `~tmlt.analytics.privacy_budget.PureDPBudget`, `~tmlt.analytics.privacy_budget.ApproxDPBudget`, and `~tmlt.analytics.privacy_budget.RhoZCDPBudget` immutable classes.
-- Adjusted `~tmlt.analytics.privacy_budget.PureDPBudget` and `~tmlt.analytics.privacy_budget.ApproxDPBudget` so that they are no longer equal if the ApproxDPBudget has a delta of zero and the same epsilon as the PureDPBudget.
 
 .. _v0.10.1:
 
