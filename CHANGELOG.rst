@@ -9,6 +9,13 @@ Changelog
 Unreleased
 ----------
 
+This release introduces support in the query language for suppressing aggregates below a certain threshold, providing an easier and clearer way to express queries where small values must be dropped due to potentially-high noise.
+
+For macOS users, it also introduces native support for Apple silicon, allowing Tumult Analytics to be used on ARM-based Macs without the need for Rosetta.
+Take a look at the updated :ref:`installation guide <Installation instructions>` for more information about this.
+If you have an existing installation that uses Rosetta, ensure that you are using a supported native Python installation when switching over.
+Users with Intel-based Macs should not be affected.
+
 Added
 ~~~~~
 - Added a :class:`~tmlt.analytics.query_expr.SuppressAggregates` query type, for suppressing aggregates less than a certain threshold.
@@ -16,11 +23,13 @@ Added
   These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling :meth:`AggregatedQueryBuilder.suppress <tmlt.analytics.query_builder.AggregatedQueryBuilder.suppress>` after building a GroupByCount query.
   As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics.query_expr.QueryExpr` when aggregating;
   the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
-- Made :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`, and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` immutable classes.
-- Adjusted :class:`~tmlt.analytics.privacy_budget.PureDPBudget` and :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` so that they are no longer equal if the ApproxDPBudget has a delta of zero and the same epsilon as the PureDPBudget.
-- Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods for caching and uncaching a KeySet's underlying Spark dataframe. These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
+- Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods to :class:`~tmlt.analytics.keyset.KeySet` for caching and uncaching the underlying Spark dataframe.
+  These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
 
-
+Changed
+~~~~~~~
+- :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`, and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` are now immutable classes.
+- :class:`~tmlt.analytics.privacy_budget.PureDPBudget` and :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` are no longer considered equal if they have the same epsilon and the :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` has a delta of zero.
 
 .. _v0.10.2:
 
