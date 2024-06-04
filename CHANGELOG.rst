@@ -17,6 +17,7 @@ Added
   As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics.query_expr.QueryExpr` when aggregating;
   the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
 
+
 .. _v0.10.2:
 
 0.10.2 - 2024-05-31
