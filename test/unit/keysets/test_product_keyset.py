@@ -344,3 +344,27 @@ def test_getitem_ordering(spark: SparkSession, column_ordering: Sequence[str]) -
     got_df = selected_keyset.dataframe()
     assert_frame_equal_with_sort(got_df.toPandas(), expect_df)
     assert list(column_ordering) == got_df.columns
+
+
+# Defining KeySets for _ProductKeySet Equality Testing.
+DF_A = KeySet.from_dict({"A": [1, 2, 3]})
+DF_B = KeySet.from_dict({"B": ["a", "b", "c"]})
+DF_C = KeySet.from_dict({"C": [9, 8, 7], "D": ["D", "E", "F"]})
+DF_D = KeySet.from_dict({"E": [100, 200, 300], "F": ["G", "H", "I"]})
+
+
+@pytest.mark.parametrize(
+    "ks_a,ks_b,equal",
+    [
+        (DF_A * DF_B, DF_A * DF_B, True),
+        (DF_A * DF_B, DF_B * DF_A, True),
+        (DF_A * DF_B, DF_A * DF_C, False),
+        (DF_A * DF_B, DF_A * DF_D, False),
+        (DF_A * DF_C, DF_C * DF_A, True),
+        (DF_A * DF_C, DF_D * DF_A, False),
+        (DF_D * DF_C, DF_D * DF_C, True),
+    ],
+)
+def test_equality(ks_a: _ProductKeySet, ks_b: _ProductKeySet, equal: bool):
+    """Test custom equality function of two ProductKeySets."""
+    assert (ks_a == ks_b) == equal
