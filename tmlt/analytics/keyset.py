@@ -330,6 +330,14 @@ class KeySet(ABC):
     def size(self) -> int:
         """Get the size of this KeySet."""
 
+    def cache(self) -> None:
+        """Caches the KeySet's dataframe in memory."""
+        self.dataframe().cache()
+
+    def unpersist(self) -> None:
+        """Removes the KeySet's dataframe from memory."""
+        self.dataframe().unpersist()
+
 
 class _MaterializedKeySet(KeySet):
     """A class containing a set of values for specific columns.

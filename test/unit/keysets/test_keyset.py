@@ -644,3 +644,28 @@ def test_eq(spark, other_df: pd.DataFrame, equal: bool) -> None:
         assert keyset == other
     else:
         assert keyset != other
+
+
+def test_caching():
+    """Tests that cache and unpersist methods work."""
+    ks = KeySet.from_dict({"A": ["a1", "a2"]})
+
+    # Assert that the KeySet is lazily evaluated.
+    assert (
+        ks.dataframe().storageLevel.__repr__()
+        == "StorageLevel(False, False, False, False, 1)"
+    )
+
+    # Assert that caching adds the KeySet DataFrame to memory.
+    ks.cache()
+    assert (
+        ks.dataframe().storageLevel.__repr__()
+        == "StorageLevel(True, True, False, True, 1)"
+    )
+
+    # Assert that unpersisting removes the KeySet DataFrame from memory.
+    ks.unpersist()
+    assert (
+        ks.dataframe().storageLevel.__repr__()
+        == "StorageLevel(False, False, False, False, 1)"
+    )
