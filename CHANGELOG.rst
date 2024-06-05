@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.11.0:
+
+0.11.0 - 2024-06-05
+-------------------
 
 This release introduces support in the query language for suppressing aggregates below a certain threshold, providing an easier and clearer way to express queries where small values must be dropped due to potentially-high noise.
 
