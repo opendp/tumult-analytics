@@ -334,8 +334,8 @@ class KeySet(ABC):
         """Caches the KeySet's dataframe in memory."""
         self.dataframe().cache()
 
-    def unpersist(self) -> None:
-        """Removes the KeySet's dataframe from memory."""
+    def uncache(self) -> None:
+        """Removes the KeySet's dataframe from memory and disk."""
         self.dataframe().unpersist()
 
 

@@ -18,7 +18,7 @@ Added
   the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
 - Made :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`, and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` immutable classes.
 - Adjusted :class:`~tmlt.analytics.privacy_budget.PureDPBudget` and :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` so that they are no longer equal if the ApproxDPBudget has a delta of zero and the same epsilon as the PureDPBudget.
-- Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.unpersist` methods for caching and unpersisting a KeySet's underlying Spark dataframe. These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
+- Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods for caching and uncaching a KeySet's underlying Spark dataframe. These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
 
 
 

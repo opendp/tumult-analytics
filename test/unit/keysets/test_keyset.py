@@ -664,7 +664,7 @@ def test_caching():
     )
 
     # Assert that unpersisting removes the KeySet DataFrame from memory.
-    ks.unpersist()
+    ks.uncache()
     assert (
         ks.dataframe().storageLevel.__repr__()
         == "StorageLevel(False, False, False, False, 1)"
