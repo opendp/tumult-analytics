@@ -3636,7 +3636,7 @@ name = "tmlt-nox-utils"
 version = "0.0.0"
 description = "Tumult's internal nox utilities."
 optional = false
-python-versions = "^3.7.1, <3.12.0"
+python-versions = "^3.7.1"
 files = []
 develop = false
 
@@ -3644,7 +3644,7 @@ develop = false
 type = "git"
 url = "git@gitlab.com:tumult-labs/nox-utils.git"
 reference = "HEAD"
-resolved_reference = "fb11e72bfcee49b8c4b96c14cb43bebc61689c34"
+resolved_reference = "f6a27e974813a018e99d9a9b82bc4085ba7facbd"
 
 [[package]]
 name = "tomli"

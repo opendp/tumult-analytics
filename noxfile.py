@@ -93,6 +93,11 @@ AUDIT_SUPPRESSIONS = [
     #         have their own pip installations -- it is not a dependency of Analytics.
 ]
 
+# Dictionary mapping benchmark names to the corresponding timeouts
+BENCHMARK_TO_TIMEOUT = {
+    "keyset_joins": 4,
+}
+
 
 def install_overrides(session):
     """Custom logic run after installing the current package."""
@@ -134,6 +139,7 @@ _builder = SessionBuilder(
         "minimum_coverage": MIN_COVERAGE,
         "coverage_module": "tmlt.analytics",
         "parallel_tests": True,
+        "benchmark_to_timeout": BENCHMARK_TO_TIMEOUT,
     },
 )
 
@@ -159,6 +165,9 @@ _builder.test_dependency_matrix()
 _builder.docs_linkcheck()
 _builder.docs_doctest()
 _builder.docs()
+
+_builder.benchmark()
+_builder.benchmark_dependency_matrix()
 
 _builder.release_test()
 _builder.release_smoketest()

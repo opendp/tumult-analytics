@@ -140,3 +140,4 @@ safetab/tmlt/safetab/input-dir/
 
 # VS Code
 .vscode/
+benchmark_output
