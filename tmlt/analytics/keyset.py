@@ -577,7 +577,12 @@ class _ProductKeySet(KeySet):
         return self._dataframe
 
     def size(self) -> int:
-        """Get the size of this KeySet."""
+        """Get the size of this KeySet.
+
+        Note: A KeySet with an empty DataFrame will have a size of 1 because queries
+        with an empty KeySet will return one row with the query applied to the total
+        dataset.
+        """
         if self._size is not None:
             return self._size
         self._size = reduce(lambda acc, keyset: acc * keyset.size(), self._factors, 1)

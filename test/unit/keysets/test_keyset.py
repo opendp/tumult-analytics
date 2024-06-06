@@ -669,3 +669,44 @@ def test_caching():
         ks.dataframe().storageLevel.__repr__()
         == "StorageLevel(False, False, False, False, 1)"
     )
+
+
+@pytest.mark.parametrize(
+    "_,keyset,expected",
+    [
+        ("Empty Keyset (Non-Groupby Queries use these)", KeySet.from_dict({}), 1),
+        ("Single Item, Single Column", KeySet.from_dict({"A": [0]}), 1),
+        ("Single Item, Two Columns", KeySet.from_dict({"A": [0], "B": [1]}), 1),
+        ("Two Items, Two Columns", KeySet.from_dict({"A": [0], "B": [1, 2]}), 2),
+        ("Two Items, One Columns", KeySet.from_dict({"A": [0, 1]}), 2),
+    ],
+)
+def test_size_from_dict(_, keyset, expected):
+    """Tests that the expected KeySet size is returned."""
+    assert keyset.size() == expected
+
+
+@pytest.mark.parametrize(
+    "_,pd_df,expected_size,schema",
+    [
+        (
+            "Empty Keyset (Non-Groupby Queries use these)",
+            pd.DataFrame([], columns=["A"]),
+            0,
+            StructType([StructField("age", IntegerType(), True)]),
+        ),
+        ("Single Item, Single Column", pd.DataFrame({"A": [0]}), 1, None),
+        ("Single Item, Two Columns", pd.DataFrame({"A": [0], "B": [1]}), 1, None),
+        ("Two Items, Two Columns", pd.DataFrame({"A": [0, 1], "B": [1, 2]}), 2, None),
+        ("Two Items, One Columns", pd.DataFrame({"A": [0, 1]}), 2, None),
+    ],
+)
+def test_size_from_df(_, spark, pd_df, expected_size, schema):
+    """Tests that the expected KeySet size is returned."""
+    sdf = (
+        spark.createDataFrame(pd_df)
+        if not schema
+        else spark.createDataFrame(pd_df, schema=schema)
+    )
+    keyset = KeySet.from_dataframe(sdf)
+    assert keyset.size() == expected_size
