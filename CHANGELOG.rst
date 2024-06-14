@@ -9,8 +9,12 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+
 Changed
 ~~~~~~~
+
 
 .. _v0.11.0:
 

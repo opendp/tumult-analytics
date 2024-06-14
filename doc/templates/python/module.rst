@@ -2,6 +2,10 @@
 :orphan:
 {% endif %}
 
+{% if "tmlt.cfg.analytics" in obj.name %}
+:orphan:
+{% endif %}
+
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
     Copyright Tumult Labs 2024
