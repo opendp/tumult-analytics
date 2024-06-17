@@ -15,6 +15,8 @@ Added
 Changed
 ~~~~~~~
 
+Fixed
+~~~~~
 
 .. _v0.11.0:
 
