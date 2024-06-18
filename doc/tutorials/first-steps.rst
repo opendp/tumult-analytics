@@ -36,7 +36,6 @@ First, let's import some Python packages.
 
 .. testcode::
 
-   import os
    from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.privacy_budget import PureDPBudget

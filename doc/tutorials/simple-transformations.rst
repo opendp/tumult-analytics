@@ -20,8 +20,6 @@ As usual, we need to create a Session with our dataset.
 .. testcode::
 
     import matplotlib.pyplot as plt
-    import os
-    import pandas as pd
     import seaborn as sns
 
     from pyspark import SparkFiles

@@ -22,7 +22,6 @@ We import the same collection of packages as in the previous tutorial:
 
 .. testcode::
 
-    import os
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
     from tmlt.analytics.binning_spec import BinningSpec

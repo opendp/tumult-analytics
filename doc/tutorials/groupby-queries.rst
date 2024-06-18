@@ -66,7 +66,6 @@ infinite privacy budget—not to be used in production!
 
 .. testcode::
 
-   import os
    from pyspark import SparkFiles
    from pyspark.sql import SparkSession
    from tmlt.analytics.keyset import KeySet
@@ -573,7 +572,7 @@ members. We don't know all possible first names a priori, so building the KeySet
 We can solve this problem by using *approximate differential
 privacy* (Approx DP) in our Session, and using
 :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups` to collect a list of
-names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries. 
+names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries.
 
 For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals`.
 
@@ -716,4 +715,3 @@ count of distinct names in the dataset.
 
    Distinct names published with get_groups: 377
    Distinct names in the data: 7200
-
