@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.12.0:
+
+0.12.0 - 2024-06-18
+-------------------
 
 This release adds support for left public joins.
 
