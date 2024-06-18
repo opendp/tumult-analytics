@@ -957,6 +957,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                     join_cols=expr.join_columns if expr.join_columns else None,
                     metric=input_metric,
                     join_on_nulls=True,
+                    how=expr.how,
                 ),
                 lambda *args: None,
             )

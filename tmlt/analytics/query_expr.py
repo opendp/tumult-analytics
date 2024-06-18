@@ -488,6 +488,8 @@ class JoinPublic(QueryExpr):
     """A DataFrame or public source to join with."""
     join_columns: Optional[List[str]] = None
     """The columns used for joining the tables, or None to use all common columns."""
+    how: str = "inner"
+    """The type of join to perform. Must be either "inner" or "left"."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -506,6 +508,10 @@ class JoinPublic(QueryExpr):
             # instead of just using self.public_table = <new value>
             object.__setattr__(
                 self, "public_table", coerce_spark_schema_or_fail(self.public_table)
+            )
+        if self.how not in ["inner", "left"]:
+            raise ValueError(
+                f"Invalid join type '{self.how}': must be 'inner' or 'left'"
             )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -553,7 +559,11 @@ class JoinPublic(QueryExpr):
                 )
                 if not self_table.equals(other_table):  # type: ignore
                     return False
-        return self.join_columns == other.join_columns and self.child == other.child
+        return (
+            self.join_columns == other.join_columns
+            and self.child == other.child
+            and self.how == other.how
+        )
 
 
 class AnalyticsDefault:

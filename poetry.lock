@@ -3568,25 +3568,25 @@ test = ["flake8", "isort", "pytest"]
 
 [[package]]
 name = "tmlt-core"
-version = "0.14.1"
+version = "0.14.2"
 description = "Tumult's differential privacy primitives"
 optional = false
 python-versions = "<3.12,>=3.7.1"
 files = [
-    {file = "tmlt_core-0.14.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:3fb71f2121683ff9704332d51118655f579afca5701cfe2913dff519e2823ac5"},
-    {file = "tmlt_core-0.14.1-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:53eb1952bcbf42b25047a8e6a20c57fd347c53031268f76a4763c80b821e3a2c"},
-    {file = "tmlt_core-0.14.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f4789200f636e49ef4cae36b7fdd588440d89e6f3dc28b10473816023c9ea99a"},
-    {file = "tmlt_core-0.14.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:8145f77bbf924ded264c21e2ff7b72ed63151b90c998c8e0e2d37ca64a7d61eb"},
-    {file = "tmlt_core-0.14.1-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:f06e7869a0318c6a6dcb1e573ab9f1010c5582311e48d2ae86421871a5ca0bed"},
-    {file = "tmlt_core-0.14.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cab136c58c7d6bcbd8820444dcbf92dc635651deb575ec13e97475453bc8b693"},
-    {file = "tmlt_core-0.14.1-cp37-cp37m-macosx_12_0_x86_64.whl", hash = "sha256:0d1d67e715146b8643902b44dfdff8212d9fcf2fbc11961d70f039bb19c9fe4c"},
-    {file = "tmlt_core-0.14.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9c3f66ef40a6d9fa5473280d2207c42683b95655f492f1f3b66bd2971079a65e"},
-    {file = "tmlt_core-0.14.1-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:ed6be03706045ba944e4bdfb7d22f08755b38626f7b56a0cc898076861190c0a"},
-    {file = "tmlt_core-0.14.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7ef3e27366443f53af582534c4368d681a497a17bc29a90a71a33f7b135535a1"},
-    {file = "tmlt_core-0.14.1-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:04e9b43f689222a6beba927a932496adc393d7a9c9af4d826409f3a1d9160c66"},
-    {file = "tmlt_core-0.14.1-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:d47f777064fa3b023dc8f7f1bb0e8a645a87d1d5bfb203a678f326d7072d4578"},
-    {file = "tmlt_core-0.14.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d5156eb1587eb3402554d6f6cb013c97a6e1d225c46edf17ce720b156478c20a"},
-    {file = "tmlt_core-0.14.1.tar.gz", hash = "sha256:70698919ed67e786f1a3378274238cc0930d8380de76007fe98c9f1940c50b7c"},
+    {file = "tmlt_core-0.14.2-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:5faa7517d4dc94f5cf62839d47381cc45fb3043e5dd383342ac4827bada5196d"},
+    {file = "tmlt_core-0.14.2-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:56ee38b1947ecdb3498364bc2de00793147ced49254b24d94330645b0f09e645"},
+    {file = "tmlt_core-0.14.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:869421054f982962851f290761113b5727f93f0ece3a9eede8544fffbdacceda"},
+    {file = "tmlt_core-0.14.2-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:0bfa6ed511a3bcf0efe110c78b1c8cf84397391d6d9f278662abfde4fafb5ac0"},
+    {file = "tmlt_core-0.14.2-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:a99245032bbad42eb39842cabd426feaaf74d0e7da735c0ea2faf884693f053e"},
+    {file = "tmlt_core-0.14.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cea16aed9421032f0a2efb78f052fc2815ee0dc5d7cd92c998fd519e0429bc55"},
+    {file = "tmlt_core-0.14.2-cp37-cp37m-macosx_12_0_x86_64.whl", hash = "sha256:c9a008cc565e58ea922f77ef7dd6677d44d79f96525079b547d9a83707c27f95"},
+    {file = "tmlt_core-0.14.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e6461f70c80d111b93380b20814e3a7da364eaccd52b4f605528f280f98db131"},
+    {file = "tmlt_core-0.14.2-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:6984d3317406921d7acd77723e6197155adbcf16dcaeb3d4e36761b8703257e1"},
+    {file = "tmlt_core-0.14.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:efa7dba151dae77c498448c2eccecc39cd6a999430f47c143614311c3635d5c3"},
+    {file = "tmlt_core-0.14.2-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:13a50606d0b0d5a0a3627a14ab26a14fc2f9f9ea7355af15fb1b5449e7799dc6"},
+    {file = "tmlt_core-0.14.2-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:83ae143858c5ccb7deebff36fd887a560fde6f089eaf99d796b5efd68117cd0e"},
+    {file = "tmlt_core-0.14.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3d13958b0d00093ffda65388958b38a95b91bb7ce2e68f22f6acd9ea022a9d2a"},
+    {file = "tmlt_core-0.14.2.tar.gz", hash = "sha256:40ed0ca53c8314ac6a2dc97a3754efa6532f576c254118637e6c4f8d6af2ce58"},
 ]
 
 [package.dependencies]
@@ -3963,4 +3963,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7.1, <3.12.0"
-content-hash = "d6f4a4bd977cc7f6ca12556041a3a09ca8b4226cfa3bdb86bcf81401868c72e0"
+content-hash = "be90d74ebf3e2e843d7ad200ad435b99f926ec316776e38cc2eb099993505516"

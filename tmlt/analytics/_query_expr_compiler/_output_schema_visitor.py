@@ -7,6 +7,8 @@ from copy import deepcopy
 from typing import KeysView, List, Optional, Union, cast
 
 from pyspark.sql import SparkSession
+from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.utils.join import domain_after_join
 
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._schema import (
@@ -14,6 +16,7 @@ from tmlt.analytics._schema import (
     ColumnType,
     Schema,
     analytics_to_py_types,
+    analytics_to_spark_columns_descriptor,
     analytics_to_spark_schema,
     spark_schema_to_analytics_columns,
 )
@@ -52,6 +55,7 @@ def _output_schema_for_join(
     right_schema: Schema,
     join_columns: Optional[List[str]],
     join_id_space: Optional[str] = None,
+    how: str = "inner",
 ) -> Schema:
     """Return the resulting schema from joining two tables.
 
@@ -65,6 +69,7 @@ def _output_schema_for_join(
         right_schema: Schema for the right table.
         join_columns: The set of columns to join on.
         join_id_space: The ID space of the resulting join.
+        how: The type of join to perform. Default is "inner".
     """
     if left_schema.grouping_column is None:
         grouping_column = right_schema.grouping_column
@@ -106,11 +111,6 @@ def _output_schema_for_join(
             )
 
     join_column_schemas = {column: left_schema[column] for column in join_columns}
-    for column in join_column_schemas:
-        join_column_schemas[column].allow_null = (
-            left_schema[column].allow_null and right_schema[column].allow_null
-        )
-
     output_schema = {
         **join_column_schemas,
         **{
@@ -125,6 +125,21 @@ def _output_schema_for_join(
             if column not in join_columns
         },
     }
+    # Use Core's join utilities for determining whether a column can be null
+    # TODO: This could potentially be used more in this function
+    output_domain = domain_after_join(
+        left_domain=SparkDataFrameDomain(
+            analytics_to_spark_columns_descriptor(left_schema)
+        ),
+        right_domain=SparkDataFrameDomain(
+            analytics_to_spark_columns_descriptor(right_schema)
+        ),
+        on=join_columns,
+        how=how,
+        nulls_are_equal=True,
+    )
+    for column in output_schema:
+        output_schema[column].allow_null = output_domain.schema[column].allow_null
     return Schema(
         output_schema,
         grouping_column=grouping_column,
@@ -706,6 +721,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
             right_schema=right_schema,
             join_columns=expr.join_columns,
             join_id_space=input_schema.id_space,
+            how=expr.how,
         )
 
     def visit_replace_null_and_nan(self, expr: ReplaceNullAndNan) -> Schema:

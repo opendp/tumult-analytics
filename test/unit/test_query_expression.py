@@ -219,6 +219,14 @@ def test_invalid_join_columns(
             JoinPublic(PrivateSource("private"), "public", join_columns)
 
 
+def test_invalid_how():
+    """Tests that JoinPublic, JoinPublic error with invalid how."""
+    with pytest.raises(
+        ValueError, match="Invalid join type 'invalid': must be 'inner' or 'left'"
+    ):
+        JoinPublic(PrivateSource("private"), "public", ["A"], how="invalid")
+
+
 @pytest.mark.parametrize(
     "replace_with,expected_error_msg",
     [

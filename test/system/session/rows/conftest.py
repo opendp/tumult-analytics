@@ -522,6 +522,19 @@ EVALUATE_TESTS = [
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]}),
     ),
+    (  # GroupByCount JoinPublic
+        QueryBuilder("private")
+        .join_public("public", how="left")
+        .groupby(KeySet.from_dict({"A+B": [0, 1, 2]}))
+        .count(),
+        GroupByCount(
+            child=JoinPublic(
+                child=PrivateSource("private"), public_table="public", how="left"
+            ),
+            groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
+        ),
+        pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]}),
+    ),
     (  # GroupByCountDistinct JoinPublic
         QueryBuilder("private")
         .join_public("public")

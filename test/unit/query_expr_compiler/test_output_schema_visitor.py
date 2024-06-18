@@ -1010,7 +1010,32 @@ class TestValidationWithNulls:
                         ),
                     }
                 ),
-            )
+            ),
+            (
+                JoinPublic(
+                    child=PrivateSource("private"),
+                    public_table="groupby_column_a",
+                    how="left",
+                ),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "X": ColumnDescriptor(
+                            ColumnType.DECIMAL,
+                            allow_null=True,
+                            allow_nan=True,
+                            allow_inf=True,
+                        ),
+                        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+                        "NOTNULL": ColumnDescriptor(
+                            ColumnType.INTEGER,
+                            allow_null=False,
+                        ),
+                    }
+                ),
+            ),
         ],
     )
     def test_visit_join_public(

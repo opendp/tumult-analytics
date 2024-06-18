@@ -159,10 +159,11 @@ class QueryBuilder:
         self,
         public_table: Union[DataFrame, str],
         join_columns: Optional[Sequence[str]] = None,
+        how: str = "inner",
     ) -> "QueryBuilder":
         """Updates the current query to join with a dataframe or public source.
 
-        This operation is an inner join.
+        This operation is either an inner or left join.
 
         This operation performs a natural join between two tables. This means
         that the resulting table will contain all columns unique to each input
@@ -273,17 +274,42 @@ class QueryBuilder:
             0  0      1
             1  1      3
             2  2      2
+            >>> # The join can also be a left join. This is helpful if you want to keep
+            >>> # records which are not included in the table. One use for this is to
+            >>> # find the number of records which are or aren't not included in a
+            >>> # KeySet.
+            >>> from pyspark.sql import functions as sf
+            >>> my_keyset = KeySet.from_dict({"A": ["0"]})
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .join_public(
+            ...         my_keyset.dataframe().withColumn("Indicator", sf.lit(1)),
+            ...         how="left",
+            ...     )
+            ...     .groupby(KeySet.from_dict({"Indicator": [1, None]}))
+            ...     .count()
+            ... )
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.toPandas()  # pandas converts int to float if there are NaNs
+               Indicator  count
+            0        NaN      2
+            1        1.0      1
 
         Args:
             public_table: A dataframe or source ID for a public source to natural join
                           with private data.
             join_columns: The columns to join on. If ``join_columns`` is not specified,
                           the tables will be joined on all common columns.
+            how: The type of join to perform. Must be one of "inner" or "left".
         """
         self._query_expr = JoinPublic(
             child=self._query_expr,
             public_table=public_table,
             join_columns=list(join_columns) if join_columns is not None else None,
+            how=how,
         )
         return self
 
