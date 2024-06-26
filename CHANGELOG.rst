@@ -21,11 +21,6 @@ Added
 - Added support for left public joins to :meth:`~.join_public`, previously only inner joins were supported.
 
 
-Changed
-~~~~~~~
-
-Fixed
-~~~~~
 
 .. _v0.11.0:
 
