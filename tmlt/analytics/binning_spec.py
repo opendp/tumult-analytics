@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-import bisect
 import datetime
 import math
-from typing import Any, Generic, List, Optional, Sequence, TypeVar, Union, cast
+from bisect import bisect_left, bisect_right
+from dataclasses import dataclass
+from typing import Any, Generic, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 from tmlt.core.utils.type_utils import get_element_type
 
@@ -48,13 +49,13 @@ def _get_column_descriptor(
     return ColumnDescriptor(column_type, allow_null, allow_nan, allow_inf)
 
 
-def _edges_as_str(bin_edges: List[BinT]) -> List[str]:
+def _edges_as_str(bin_edges: Tuple[BinT]) -> Tuple[str, ...]:
     """Format the bin edges as strings."""
     if isinstance(bin_edges[0], float):
         # 17 is roughly the maximum number of decimal digits that can be encoded
         # in a double, so going for more than 17 digits of precision won't help.
         for precision in range(2, 17):
-            bin_edge_strs = [f"{e:.{precision}f}" for e in bin_edges]
+            bin_edge_strs = tuple(f"{e:.{precision}f}" for e in bin_edges)
             if len(bin_edge_strs) == len(set(bin_edge_strs)):
                 return bin_edge_strs
         raise RuntimeError(
@@ -75,18 +76,18 @@ def _edges_as_str(bin_edges: List[BinT]) -> List[str]:
             timespec = "seconds"
         else:
             timespec = "minutes"
-        return [
+        return tuple(
             e.isoformat(sep=" ", timespec=timespec) for e in bin_edges  # type: ignore
-        ]
+        )
     elif isinstance(bin_edges[0], str):
         # Use repr for strings so that they get quoted.
-        return [repr(e) for e in bin_edges]
+        return tuple(repr(e) for e in bin_edges)
     else:
-        return [str(e) for e in bin_edges]
+        return tuple(str(e) for e in bin_edges)
 
 
 def _default_bin_names(
-    bin_edges: List[BinT], right: bool, include_edges: bool
+    bin_edges: Tuple[BinT], right: bool, include_edges: bool
 ) -> List[str]:
     """Generate the default list of bin names from the list of bin edges."""
     bin_edge_strs = _edges_as_str(bin_edges)
@@ -114,6 +115,7 @@ def _default_bin_names(
             ]
 
 
+@dataclass(frozen=True, init=False, eq=False, repr=False)
 class BinningSpec(Generic[BinT, BinNameT]):
     """A spec object defining an operation where values are assigned to bins.
 
@@ -145,6 +147,14 @@ class BinningSpec(Generic[BinT, BinNameT]):
         >>> spec(11) is None
         True
     """
+
+    bin_edges: Tuple[BinT]
+    names: Sequence[Optional[BinNameT]]
+    right: bool
+    include_both_endpoints: bool
+    nan_bin: BinNameT
+    _input_type: ColumnType
+    _column_descriptor: ColumnDescriptor
 
     def __init__(
         self,
@@ -186,27 +196,30 @@ class BinningSpec(Generic[BinT, BinNameT]):
             raise ValueError(
                 "Bin edges must be sorted in ascending order, with no duplicates"
             )
-        self._bin_edges: List[BinT] = list(bin_edges)
-        self._input_type = ColumnType(input_type)
+
+        # The class is frozen, so we need to subvert it to update attributes.
+        object.__setattr__(self, "bin_edges", tuple(bin_edges))
+        object.__setattr__(self, "_input_type", ColumnType(input_type))
 
         if names is None:
-            # Assigning to self._bin_names doesn't typecheck because of a
+            # Assigning to self.names doesn't typecheck because of a
             # deficiency in mypy where making the names parameter optional
             # prevents it from inferring BinNameT correctly in the case where
             # names is None. If https://github.com/python/mypy/issues/3737 is
             # ever resolved, that should allow this to typecheck.
-            self._bin_names: List[BinNameT] = _default_bin_names(  # type: ignore
-                self._bin_edges, right, include_both_endpoints
+            new_bins_names = _default_bin_names(
+                self.bin_edges, right, include_both_endpoints
             )
+            object.__setattr__(self, "names", tuple(new_bins_names))
         else:
             if len(names) != num_bins:
                 raise ValueError(
                     "Number of bin names must be one less than the number of bin edges"
                 )
-            self._bin_names: List[BinNameT] = list(names)  # type: ignore
+            object.__setattr__(self, "names", tuple(names))
 
         try:
-            column_descriptor = _get_column_descriptor(self._bin_names, nan_bin)
+            column_descriptor = _get_column_descriptor(self.names, nan_bin)
         except ValueError as e:
             raise ValueError(f"Invalid bin names: {e}") from e
         # This typecheck cannot be done safely with isinstance because datetime
@@ -218,10 +231,43 @@ class BinningSpec(Generic[BinT, BinNameT]):
         ):
             raise ValueError("NaN bin name must have the same type as other bin names")
 
-        self._nan_bin: Optional[BinNameT] = nan_bin  # type: ignore
-        self._column_descriptor = column_descriptor
-        self._right = right
-        self._include_both_endpoints = include_both_endpoints
+        object.__setattr__(self, "nan_bin", nan_bin)
+        object.__setattr__(self, "_column_descriptor", column_descriptor)
+        object.__setattr__(self, "right", right)
+        object.__setattr__(self, "include_both_endpoints", include_both_endpoints)
+
+    def __eq__(self, other: Any):
+        """Adds equality comparison to the BinningSpec class."""
+        if not isinstance(other, BinningSpec):
+            raise TypeError(f"Cannot compare BinningSpec with {type(other)}")
+        return (
+            self.bin_edges == other.bin_edges
+            and self.names == other.names
+            and self.right == other.right
+            and self.include_both_endpoints == other.include_both_endpoints
+            and self.nan_bin == other.nan_bin
+        )
+
+    def __hash__(self):
+        """Hashes the bin spec on a tuple of its attributes."""
+        return hash(
+            (
+                self.bin_edges,
+                self.names,
+                self.right,
+                self.include_both_endpoints,
+                self.nan_bin,
+            )
+        )
+
+    def __repr__(self):
+        """Returns a string representation of the BinningSpec."""
+        return (
+            f"BinningSpec(bin_edges={list(self.bin_edges)}, "
+            f"names={self.names}, right={self.right}, "
+            f"include_both_endpoints={self.include_both_endpoints}, "
+            f"nan_bin={self.nan_bin})"
+        )
 
     @property
     def input_type(self) -> ColumnType:
@@ -241,16 +287,16 @@ class BinningSpec(Generic[BinT, BinNameT]):
         specified, is included. If ``include_null`` is true, the null bin is
         included as well; by default, it is not included.
         """
-        names = cast(List[Optional[BinNameT]], list(self._bin_names))
-        if self._nan_bin is not None:
-            names.append(self._nan_bin)
+        names = cast(List[Optional[BinNameT]], list(self.names))
+        if self.nan_bin is not None:
+            names.append(self.nan_bin)
         if include_null:
             names.append(None)
         # This conversion is a trick to deduplicate values in `names` while
         # preserving the order in which they first appeared.
         return list(dict.fromkeys(names))
 
-    def __call__(self, val: Optional[BinT]) -> Optional[BinNameT]:
+    def __call__(self, val: Optional[BinT]) -> Any:
         """Given a value to bin, return its bin name.
 
         In most cases this method only needs to be used internally, but it can
@@ -262,20 +308,21 @@ class BinningSpec(Generic[BinT, BinNameT]):
         if val is None:
             return None
         if isinstance(val, float) and math.isnan(val):
-            return self._nan_bin
+            return self.nan_bin
         # Note that "left" and "right" in the bisect methods refer to which side
         # of an equal value the value being searched for is considered to fall
-        # on. This is kind of opposite to the meaning of self._right, so
-        # bisect_left is used when self._right is True and vice versa.
-        if self._right:
-            if self._include_both_endpoints and val == self._bin_edges[0]:
-                return self._bin_names[0]
-            if val <= self._bin_edges[0] or val > self._bin_edges[-1]:
+        # on. This is kind of opposite to the meaning of self.right, so
+        # bisect_left is used when self.right is True and vice versa.
+        if self.right:
+            if self.include_both_endpoints and val == self.bin_edges[0]:
+                return self.names[0]
+            if val <= self.bin_edges[0] or val > self.bin_edges[-1]:
                 return None
-            return self._bin_names[bisect.bisect_left(self._bin_edges, val) - 1]
-        else:
-            if self._include_both_endpoints and val == self._bin_edges[-1]:
-                return self._bin_names[-1]
-            if val < self._bin_edges[0] or val >= self._bin_edges[-1]:
-                return None
-            return self._bin_names[bisect.bisect_right(self._bin_edges, val) - 1]
+            bin_position = bisect_left(self.bin_edges, val) - 1
+            return self.names[bin_position]
+        if self.include_both_endpoints and val == self.bin_edges[-1]:
+            return self.names[-1]
+        if val < self.bin_edges[0] or val >= self.bin_edges[-1]:
+            return None
+        bin_position = bisect_right(self.bin_edges, val) - 1
+        return self.names[bin_position]

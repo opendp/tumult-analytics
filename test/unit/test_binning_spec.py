@@ -3,52 +3,59 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+import copy
 import datetime
-from typing import Any, List
+from dataclasses import FrozenInstanceError
+from typing import Any, List, Tuple
 
 import pytest
 
 from tmlt.analytics._schema import ColumnDescriptor
-from tmlt.analytics.binning_spec import BinningSpec, _default_bin_names, _edges_as_str
+from tmlt.analytics.binning_spec import (
+    BinningSpec,
+    BinT,
+    _default_bin_names,
+    _edges_as_str,
+)
 from tmlt.analytics.query_builder import ColumnType
 
 
 @pytest.mark.parametrize(
     "bin_edges,expected_strs",
     [
-        ([0, 1, 2], ["0", "1", "2"]),
-        (["0", "1", "2"], ["'0'", "'1'", "'2'"]),
+        ((0, 1, 2), ("0", "1", "2")),
+        (("0", "1", "2"), ("'0'", "'1'", "'2'")),
         (
-            [datetime.date(2022, 1, 1), datetime.date(2022, 2, 1)],
-            ["2022-01-01", "2022-02-01"],
+            (datetime.date(2022, 1, 1), datetime.date(2022, 2, 1)),
+            ("2022-01-01", "2022-02-01"),
         ),
-        ([0.0, 0.1, 0.2], ["0.00", "0.10", "0.20"]),
-        ([0.0, 0.111111, 0.222222], ["0.00", "0.11", "0.22"]),
-        ([0.0, 0.000001, 0.000002], ["0.000000", "0.000001", "0.000002"]),
-        ([0.0, 1.000001], ["0.00", "1.00"]),
-        ([0.0, 0.999, 2.0], ["0.00", "1.00", "2.00"]),
-        ([0.0, 0.999, 1.0], ["0.000", "0.999", "1.000"]),
+        ((0.0, 0.1, 0.2), ("0.00", "0.10", "0.20")),
+        ((0.0, 0.111111, 0.222222), ("0.00", "0.11", "0.22")),
+        ((0.0, 0.000001, 0.000002), ("0.000000", "0.000001", "0.000002")),
+        ((0.0, 1.000001), ("0.00", "1.00")),
+        ((0.0, 0.999, 2.0), ("0.00", "1.00", "2.00")),
+        ((0.0, 0.999, 1.0), ("0.000", "0.999", "1.000")),
         (
-            [datetime.datetime(2022, 1, 1, 0), datetime.datetime(2022, 2, 1, 5)],
-            ["2022-01-01 00:00", "2022-02-01 05:00"],
+            (datetime.datetime(2022, 1, 1, 0), datetime.datetime(2022, 2, 1, 5)),
+            ("2022-01-01 00:00", "2022-02-01 05:00"),
         ),
         (
-            [
+            (
                 datetime.datetime(2022, 1, 1, 0),
                 datetime.datetime(2022, 2, 1, 5, 30, 15, 20000),
-            ],
-            ["2022-01-01 00:00:00.000", "2022-02-01 05:30:15.020"],
+            ),
+            ("2022-01-01 00:00:00.000", "2022-02-01 05:30:15.020"),
         ),
         (
-            [
+            (
                 datetime.datetime(2022, 1, 1, 0),
                 datetime.datetime(2022, 2, 1, 5, 30, 15, 1),
-            ],
-            ["2022-01-01 00:00:00.000000", "2022-02-01 05:30:15.000001"],
+            ),
+            ("2022-01-01 00:00:00.000000", "2022-02-01 05:30:15.000001"),
         ),
     ],
 )
-def test_edges_as_str(bin_edges: List, expected_strs: List[str]):
+def test_edges_as_str(bin_edges: Tuple[BinT], expected_strs: List[str]):
     """Conversion of bin edges to strings works as expected."""
     assert _edges_as_str(bin_edges) == expected_strs
 
@@ -451,3 +458,82 @@ def test_wrong_names_length(edges: List[Any], names: List[Any]):
         match="Number of bin names must be one less than the number of bin edges",
     ):
         BinningSpec(edges, names=names)
+
+
+@pytest.mark.parametrize(
+    "test_binspec",
+    [
+        BinningSpec([0, 2, 4]),
+        BinningSpec([0, 2, 4], names=["a", "b"]),
+        BinningSpec([0, 2, 4], names=["a", "b"], nan_bin="nan"),
+        BinningSpec(
+            [0, 2, 4],
+            names=["a", "b"],
+            right=False,
+            include_both_endpoints=True,
+            nan_bin="nan",
+        ),
+    ],
+)
+def test_hashable_and_equal(test_binspec):
+    """Checks that BinningSpec is hashable and equitable."""
+    assert BinningSpec([0, 1, 2]) != test_binspec
+    assert hash(BinningSpec([0, 1, 2])) != hash(test_binspec)
+    assert test_binspec == copy.deepcopy(test_binspec)
+    assert hash(test_binspec) == hash(copy.deepcopy(test_binspec))
+
+
+def test_immutable():
+    """Checks that each binning spec attribute is immutable."""
+    binspec = BinningSpec([0, 1, 2])
+
+    # pylint: disable=protected-access
+    with pytest.raises(FrozenInstanceError):
+        binspec.bin_edges = [0, 1, 2, 3]  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec.names = ["A", "B", "C", "D"]  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec.right = False  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec.include_both_endpoints = True  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec.nan_bin = "test"  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._bin_edges = [0, 1, 2, 3]  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._input_type = ColumnType.INTEGER  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._bin_names = ["U", "V", "X", "Y", "Z"]  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._nan_bin = False  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._column_descriptor = ColumnDescriptor(  # type: ignore
+            ColumnType.INTEGER, allow_nan=False, allow_null=False, allow_inf=False
+        )
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._right = True  # type: ignore
+
+    with pytest.raises(FrozenInstanceError):
+        binspec._both_endpoints = True  # type: ignore
+    # pylint: enable=protected-access
+
+
+def test_repr():
+    """Tests that the string representation of BinningSpec matches expectations."""
+    msg = str(BinningSpec([0, 1, 2]))
+    expected_msg = (
+        "BinningSpec(bin_edges=[0, 1, 2], names=('[0, 1]', '(1, 2]'), "
+        "right=True, include_both_endpoints=True, "
+        "nan_bin=None)"
+    )
+    assert msg == expected_msg
