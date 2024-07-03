@@ -8,6 +8,7 @@ Changelog
 
 Unreleased
 ----------
+This release makes some supporting classes immutable.
 
 
 Changed
