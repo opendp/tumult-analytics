@@ -9,10 +9,10 @@ Changelog
 Unreleased
 ----------
 
+
 Changed
 ~~~~~~~
 - Made :class:`~tmlt.analytics.binning_spec.BinningSpec` immutable.
-
 
 .. _v0.12.0:
 
