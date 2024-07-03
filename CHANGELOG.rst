@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.13.0:
+
+0.13.0 - 2024-07-03
+-------------------
 This release makes some supporting classes immutable.
 
 
