@@ -234,7 +234,7 @@ Let's inspect the result of the join to make sure it looks right:
 	- 'zip_code'          VARCHAR
 	- 'books_borrowed'    INTEGER
 	- 'favorite_genres'   VARCHAR
-	- 'date_joined'       TIMESTAMP
+	- 'date_joined'       DATE
 
 Using :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
 columns are part of the join and have the same name in both tables. Like with

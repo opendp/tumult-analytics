@@ -711,6 +711,8 @@ def sess_data(spark, request):
 @pytest.fixture(name="null_session_data", scope="class")
 def null_setup(spark, request):
     """Set up test data for sessions with nulls."""
+    # Since Spark gives back timestamps with microsecond accuracy, this
+    # dataframe needs to make that the default precision for column T.
     pdf = pd.DataFrame(
         [
             ["a0", 0, 0.0, datetime.date(2000, 1, 1), datetime.datetime(2020, 1, 1)],
@@ -721,7 +723,7 @@ def null_setup(spark, request):
             ["a5", 5, 5.0, datetime.date(2005, 1, 1), None],
         ],
         columns=["A", "I", "X", "D", "T"],
-    )
+    ).astype({"T": "datetime64[us]"})
 
     request.cls.pdf = pdf
 

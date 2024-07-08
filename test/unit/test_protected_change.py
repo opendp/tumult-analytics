@@ -19,7 +19,9 @@ from tmlt.analytics.protected_change import (
 def test_add_one_row():
     """For AddOneRow, max_rows = 1."""
     assert isinstance(AddOneRow(), AddMaxRows)
-    assert AddOneRow().max_rows == 1
+    # There appears to be a mypy bug where it doesn't recognize that this is
+    # allowed -- possibly https://github.com/python/mypy/issues/16694
+    assert AddOneRow().max_rows == 1  # type: ignore
 
 
 @pytest.mark.parametrize(

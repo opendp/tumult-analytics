@@ -160,6 +160,7 @@ nitpick_ignore = [
     ("py:class", "pydantic.json_schema.GenerateJsonSchema"),
     ("py:class", "pydantic.json_schema.JsonSchemaMode"),
     ("py:class", "pydantic.json_schema.JsonSchemaValue"),
+    ("py:class", "typing_extensions.Self"),
     ("py:exc", "ValidationError"),
     ("py:class", "BaseModel"),
     ("py:class", "pydantic.annotated_handlers.GetCoreSchemaHandler"),

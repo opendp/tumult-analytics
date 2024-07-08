@@ -103,7 +103,7 @@ Let's check that we initialized the Session as intended using the
          - 'zip_code'         VARCHAR
          - 'books_borrowed'   INTEGER
          - 'favorite_genres'  VARCHAR
-         - 'date_joined'      TIMESTAMP
+         - 'date_joined'      DATE
 
 Initializing a Session with a finite privacy budget gives a simple interface
 promise: all queries evaluated on this Session, *taken together*, will provide

@@ -63,7 +63,7 @@ contains those values:
     +-----+---+--------+
     | name|age|   grade|
     +-----+---+--------+
-    | null| 20|     4.0|
+    | NULL| 20|     4.0|
     |  bob| 30|     NaN|
     |carol| 40|Infinity|
     +-----+---+--------+
@@ -197,7 +197,7 @@ Session with an infinite budget to demonstrate this:
     +-----+-------+-----------+
     | name|  genre|checked_out|
     +-----+-------+-----------+
-    |Ambar|Unknown|       null|
+    |Ambar|Unknown|       NULL|
     |Tessa|Unknown|          3|
     +-----+-------+-----------+
 

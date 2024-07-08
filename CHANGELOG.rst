@@ -9,6 +9,14 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Added experimental support for Python 3.12 with Pandas 2.
+
+Removed
+~~~~~~~
+- Removed support for Python 3.7.
+
 .. _v0.13.0:
 
 0.13.0 - 2024-07-03

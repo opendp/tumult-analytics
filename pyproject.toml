@@ -39,29 +39,31 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = "^3.7.1, <3.12.0"
+python = "^3.8.0, <3.13"
 
 #####################################################################
 # When upating Core, PySpark, Pandas or SymPy, remember to update
 # test_multi_deps in the Noxfile.
-"tmlt.core" = "^0.14.2"
+
+"tmlt.core" = "^0.15.1"
 pandas = [
-  { version = ">=1.2.0,<1.4.0", python = "<3.8" },
   { version = ">=1.2.0,<2.0.0", python = ">=3.8,<3.10" },
   { version = ">=1.4.0,<2.0.0", python = ">=3.10,<3.11" },
-  { version = ">=1.5.0,<2.0.0", python = ">=3.11" },
+  { version = ">=1.5.0,<2.0.0", python = ">=3.11,<3.12" },
+  { version = "^2.2.0", python = ">=3.12" }
 ]
+# Excluding pyspark 3.3.0 due to known issue: https://issues.apache.org/jira/browse/SPARK-39612
 pyspark = [
-  { version = "^3.1.1,<3.4.0", extras = ["sql"], python = "<3.8" },
-  { version = "^3.1.1,<3.6.0", extras = ["sql"], python = ">=3.8,<3.11" },
-  { version = "^3.4.0,<3.6.0", extras = ["sql"], python = ">=3.11" },
+  { version = "^3.1.1,!=3.3.0,<3.6.0", extras = ["sql"], python = ">=3.8,<3.11" },
+  { version = "^3.4.0,<3.6.0", extras = ["sql"], python = ">=3.11,<3.12" },
+  { version = "^3.5.0,<3.6.0", extras = ["sql"], python = ">=3.12" },
 ]
 sympy = "^1.8,<1.10"
+
 #####################################################################
 
 typeguard = "^2.12.1,<2.13.0"
 typing-extensions = "^4.1.0"
-docutils = "<0.21"
 
 [tool.poetry.group.fix-lock.dependencies]
 # This is a hack to convince Poetry to allow different versions of various
@@ -86,13 +88,13 @@ scipy = [
 ]
 
 [tool.poetry.group.dev.dependencies]
-
 # Linters, formatters
 black = "^23.3"
 isort = { version = "^5.11", extras = ["pyproject"] }
 mypy = "^1.2, !=1.4.0" # 1.4.0 incompatible with typing extensions 3.10.0 https://github.com/python/mypy/issues/15487
 pydocstyle = { version = "^6.3", extras = ["toml"] }
-pylint = "^2.13"
+# TODO(#3251): pylint 2.14 requires significant cleanup to work
+pylint = "^2.13,<2.14"
 
 # CI, testing, docs
 pytest = "^7.1.2"
@@ -116,7 +118,17 @@ nbconvert = "^6.0.7"
 lxml = { version = "5.1.0", extras = ["html-clean"] }
 # Needed for code snippets in tutorials, examples
 matplotlib = "^3.0.0"
-seaborn = "^0.11.1"
+# Seaborn triggers a weird bug in poetry-plugin-export [0] where it gets
+# confused by transitive dependencies that show up in the lock multiple times
+# with different constraints. Explicitly splitting seaborn into two dependencies
+# depending on Python version works around this problem. Keep an eye on [1] to
+# see when the fix gets merged.
+# [0] https://github.com/python-poetry/poetry-plugin-export/issues/176
+# [1] https://github.com/python-poetry/poetry-plugin-export/pull/286
+seaborn = [
+  { version = "^0.11.1", python = "<3.12" },
+  { version = "^0.11.1", python = ">=3.12" }
+]
 
 # dunamai 1.19.0 introduces a breaking change that some of our dev dependencies don't seem
 # to handle yet. If we ever update them (scanpydoc is a particular problem I think), try
@@ -126,7 +138,7 @@ dunamai = "<1.19.0"
 [tool.poetry.group.scripting.dependencies]
 nox = "2022.8.7"
 nox_poetry = "1.0.1"
-"tmlt.nox_utils" = { git = "git@gitlab.com:tumult-labs/nox-utils.git",  rev = "f6a27e974813a018e99d9a9b82bc4085ba7facbd" }
+"tmlt.nox_utils" = { git = "git@gitlab.com:tumult-labs/nox-utils.git" }
 
 [tool.poetry.group.ci-tools.dependencies]
 requests = "^2.31.0"
