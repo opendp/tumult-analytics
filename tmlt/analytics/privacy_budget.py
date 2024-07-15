@@ -77,8 +77,8 @@ class PureDPBudget(PrivacyBudget):
 
     This privacy definition is also known as epsilon-differential privacy, and the
     associated value is the epsilon privacy parameter. The privacy definition can
-    be found `here <https://en.wikipedia.org/wiki/Differential_privacy#Definition_of_%CE%B5-differential_privacy>`__.
-    """  # pylint: disable=line-too-long
+    be found `here <https://en.wikipedia.org/wiki/Differential_privacy#Definition>`__.
+    """
 
     _epsilon: ExactNumber
 
