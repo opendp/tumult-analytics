@@ -130,43 +130,11 @@ nitpick_ignore = [
     #     __init__'s parameters are documented there for some reason. Once we
     #     fix that, it should be possible to remove this ignore.
     ("py:class", "tmlt.analytics._table_identifier.Identifier"),
-    # Expr in __init__ is resolved fine but not in type hint
-    ("py:class", "sympy.Expr"),
-    # Optional SparkSession in NoiseFreeQueryEvaluator __init__ is not resolved
-    ("py:class", "pyspark.sql.session.SparkSession"),
-    # Sphinx can't resolve DataFrame in KeySet.__init__
-    ("py:class", "pyspark.sql.dataframe.DataFrame"),
     # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
-    ("py:class", "Ellipsis"),
-    ("py:class", "DF"),
     ("py:class", "Row"),
     ("py:class", "BinT"),
     ("py:class", "tmlt.analytics.binning_spec.BinT"),
     ("py:class", "BinNameT"),
-    ("py:class", "Generic[BinT, BinNameT]"),
-    ("py:class", "tmlt.core.domains.spark_domains.SparkColumnsDescriptor"),
-    ("py:class", "sympy.core.expr.Expr"),
-    ("py:class", "Epsilon"),
-    ("py:class", "Delta"),
-    ("py:class", "Rho"),
-    ("py:class", "Transformation"),
-    ("py:class", "pydantic.BaseModel"),
-    ("py:class", "Model"),
-    ("py:class", "Literal"),
-    ("py:class", "IncEx"),
-    ("py:class", "pydantic.json_schema.GenerateJsonSchema"),
-    ("py:class", "pydantic.json_schema.JsonSchemaMode"),
-    ("py:class", "pydantic.json_schema.JsonSchemaValue"),
-    ("py:class", "typing_extensions.Self"),
-    ("py:exc", "ValidationError"),
-    ("py:class", "BaseModel"),
-    ("py:class", "pydantic.annotated_handlers.GetCoreSchemaHandler"),
-    ("py:class", "pydantic_core.CoreSchema"),
-    ("py:class", "pydantic.annotated_handlers.GetJsonSchemaHandler"),
-    ("py:class", "TupleGenerator"),
-    ("py:class", "AbstractSetIntStr"),
-    ("py:class", "MappingIntStrAny"),
-    ("py:class", "pydantic.fields.ComputedFieldInfo"),
 ]
 
 # Remove this after intersphinx can use core
