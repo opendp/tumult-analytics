@@ -19,17 +19,7 @@ from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.identity import Identity as IdentityTransformation
 
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
-from tmlt.analytics._query_expr_compiler._transformation_visitor import (
-    TransformationVisitor,
-)
-from tmlt.analytics._schema import Schema, analytics_to_spark_columns_descriptor
-from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
-from tmlt.analytics._table_reference import TableReference, lookup_domain
-from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -44,6 +34,16 @@ from tmlt.analytics.query_expr import (
     ReplaceNullAndNan,
     Select,
 )
+from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
+    OutputSchemaVisitor,
+)
+from tmlt.analytics._query_expr_compiler._transformation_visitor import (
+    TransformationVisitor,
+)
+from tmlt.analytics._schema import Schema, analytics_to_spark_columns_descriptor
+from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
+from tmlt.analytics._table_reference import TableReference, lookup_domain
+from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from .conftest import (

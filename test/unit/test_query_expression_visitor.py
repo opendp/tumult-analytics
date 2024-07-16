@@ -5,10 +5,7 @@
 
 import pytest
 
-from tmlt.analytics._schema import Schema
-from tmlt.analytics.constraints import MaxRowsPerID
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     EnforceConstraint,
@@ -35,6 +32,9 @@ from tmlt.analytics.query_expr import (
     Select,
     SuppressAggregates,
 )
+from tmlt.analytics._schema import Schema
+from tmlt.analytics.constraints import MaxRowsPerID
+from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 

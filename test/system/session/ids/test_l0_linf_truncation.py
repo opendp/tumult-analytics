@@ -9,6 +9,7 @@ from typing import List, Optional, Set, Tuple
 import pandas as pd
 import pytest
 
+from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics.constraints import (
     Constraint,
     MaxGroupsPerID,
@@ -18,7 +19,6 @@ from tmlt.analytics.constraints import (
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.query_expr import QueryExpr
 
 from ...conftest import closest_value
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP

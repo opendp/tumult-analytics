@@ -117,6 +117,30 @@ from tmlt.core.transformations.spark_transformations.select import (
 )
 
 from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._query_expr import AnalyticsDefault
+from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
+from tmlt.analytics._query_expr import DropNullAndNan, EnforceConstraint
+from tmlt.analytics._query_expr import Filter as FilterExpr
+from tmlt.analytics._query_expr import FlatMap as FlatMapExpr
+from tmlt.analytics._query_expr import (
+    GetBounds,
+    GetGroups,
+    GroupByBoundedAverage,
+    GroupByBoundedSTDEV,
+    GroupByBoundedSum,
+    GroupByBoundedVariance,
+    GroupByCount,
+    GroupByCountDistinct,
+    GroupByQuantile,
+)
+from tmlt.analytics._query_expr import JoinPrivate as JoinPrivateExpr
+from tmlt.analytics._query_expr import JoinPublic as JoinPublicExpr
+from tmlt.analytics._query_expr import Map as MapExpr
+from tmlt.analytics._query_expr import QueryExpr, QueryExprVisitor
+from tmlt.analytics._query_expr import Rename as RenameExpr
+from tmlt.analytics._query_expr import ReplaceInfinity, ReplaceNullAndNan
+from tmlt.analytics._query_expr import Select as SelectExpr
+from tmlt.analytics._query_expr import SuppressAggregates
 from tmlt.analytics._query_expr_compiler._constraint_propagation import (
     propagate_flat_map,
     propagate_join_private,
@@ -148,30 +172,6 @@ from tmlt.analytics._table_reference import (
 )
 from tmlt.analytics._transformation_utils import generate_nested_transformation
 from tmlt.analytics.constraints import Constraint, simplify_constraints
-from tmlt.analytics.query_expr import AnalyticsDefault
-from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
-from tmlt.analytics.query_expr import Filter as FilterExpr
-from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
-from tmlt.analytics.query_expr import (
-    GetBounds,
-    GetGroups,
-    GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
-    GroupByBoundedSum,
-    GroupByBoundedVariance,
-    GroupByCount,
-    GroupByCountDistinct,
-    GroupByQuantile,
-)
-from tmlt.analytics.query_expr import JoinPrivate as JoinPrivateExpr
-from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
-from tmlt.analytics.query_expr import Map as MapExpr
-from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
-from tmlt.analytics.query_expr import Rename as RenameExpr
-from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
-from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.query_expr import SuppressAggregates
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 

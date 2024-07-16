@@ -65,6 +65,40 @@ from tmlt.core.utils.exact_number import ExactNumber
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo, _noise_from_measurement
+from tmlt.analytics._query_expr import (
+    AverageMechanism,
+    CountDistinctMechanism,
+    CountMechanism,
+)
+from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
+from tmlt.analytics._query_expr import DropNullAndNan, EnforceConstraint
+from tmlt.analytics._query_expr import Filter as FilterExpr
+from tmlt.analytics._query_expr import FlatMap as FlatMapExpr
+from tmlt.analytics._query_expr import (
+    GetBounds,
+    GetGroups,
+    GroupByBoundedAverage,
+    GroupByBoundedSTDEV,
+    GroupByBoundedSum,
+    GroupByBoundedVariance,
+    GroupByCount,
+    GroupByCountDistinct,
+    GroupByQuantile,
+)
+from tmlt.analytics._query_expr import JoinPrivate as JoinPrivateExpr
+from tmlt.analytics._query_expr import JoinPublic as JoinPublicExpr
+from tmlt.analytics._query_expr import Map as MapExpr
+from tmlt.analytics._query_expr import PrivateSource as PrivateSourceExpr
+from tmlt.analytics._query_expr import QueryExpr, QueryExprVisitor
+from tmlt.analytics._query_expr import Rename as RenameExpr
+from tmlt.analytics._query_expr import ReplaceInfinity, ReplaceNullAndNan
+from tmlt.analytics._query_expr import Select as SelectExpr
+from tmlt.analytics._query_expr import (
+    StdevMechanism,
+    SumMechanism,
+    SuppressAggregates,
+    VarianceMechanism,
+)
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
@@ -84,40 +118,6 @@ from tmlt.analytics.privacy_budget import (
     PrivacyBudget,
     PureDPBudget,
     RhoZCDPBudget,
-)
-from tmlt.analytics.query_expr import (
-    AverageMechanism,
-    CountDistinctMechanism,
-    CountMechanism,
-)
-from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics.query_expr import DropNullAndNan, EnforceConstraint
-from tmlt.analytics.query_expr import Filter as FilterExpr
-from tmlt.analytics.query_expr import FlatMap as FlatMapExpr
-from tmlt.analytics.query_expr import (
-    GetBounds,
-    GetGroups,
-    GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
-    GroupByBoundedSum,
-    GroupByBoundedVariance,
-    GroupByCount,
-    GroupByCountDistinct,
-    GroupByQuantile,
-)
-from tmlt.analytics.query_expr import JoinPrivate as JoinPrivateExpr
-from tmlt.analytics.query_expr import JoinPublic as JoinPublicExpr
-from tmlt.analytics.query_expr import Map as MapExpr
-from tmlt.analytics.query_expr import PrivateSource as PrivateSourceExpr
-from tmlt.analytics.query_expr import QueryExpr, QueryExprVisitor
-from tmlt.analytics.query_expr import Rename as RenameExpr
-from tmlt.analytics.query_expr import ReplaceInfinity, ReplaceNullAndNan
-from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.query_expr import (
-    StdevMechanism,
-    SumMechanism,
-    SuppressAggregates,
-    VarianceMechanism,
 )
 
 

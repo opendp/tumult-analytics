@@ -11,18 +11,7 @@ from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.utils.join import domain_after_join
 
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    analytics_to_py_types,
-    analytics_to_spark_columns_descriptor,
-    analytics_to_spark_schema,
-    spark_schema_to_analytics_columns,
-)
-from tmlt.analytics.constraints import MaxGroupsPerID, MaxRowsPerGroupPerID
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     EnforceConstraint,
@@ -48,6 +37,17 @@ from tmlt.analytics.query_expr import (
     Select,
     SuppressAggregates,
 )
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    analytics_to_py_types,
+    analytics_to_spark_columns_descriptor,
+    analytics_to_spark_schema,
+    spark_schema_to_analytics_columns,
+)
+from tmlt.analytics.constraints import MaxGroupsPerID, MaxRowsPerGroupPerID
+from tmlt.analytics.keyset import KeySet
 
 
 def _output_schema_for_join(
@@ -288,23 +288,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         self._catalog = catalog
 
     def visit_private_source(self, expr: PrivateSource) -> Schema:
-        """Return the resulting schema from evaluating a PrivateSource.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = PrivateSource("private")
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER'}
-        """
+        """Return the resulting schema from evaluating a PrivateSource."""
         if expr.source_id not in self._catalog.tables:
             raise ValueError(f"Query references nonexistent table '{expr.source_id}'")
         table = self._catalog.tables[expr.source_id]
@@ -316,23 +300,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return table.schema
 
     def visit_rename(self, expr: Rename) -> Schema:
-        """Returns the resulting schema from evaluating a Rename.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import PrivateSource, Rename
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = Rename(PrivateSource("private"), {"B": "C"})
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'C': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a Rename."""
         input_schema = expr.child.accept(self)
         grouping_column = input_schema.grouping_column
         id_column = input_schema.id_column
@@ -363,23 +331,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         )
 
     def visit_filter(self, expr: Filter) -> Schema:
-        """Returns the resulting schema from evaluating a Filter.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import Filter, PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = Filter(PrivateSource("private"), 'B > 10')
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a Filter."""
         input_schema = expr.child.accept(self)
         spark = SparkSession.builder.getOrCreate()
         test_df = spark.createDataFrame(
@@ -392,23 +344,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return input_schema
 
     def visit_select(self, expr: Select) -> Schema:
-        """Returns the resulting schema from evaluating a Select.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import PrivateSource, Select
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = Select(PrivateSource("private"), ["A"])
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR'}
-        """
+        """Returns the resulting schema from evaluating a Select."""
         input_schema = expr.child.accept(self)
 
         grouping_column = input_schema.grouping_column
@@ -437,43 +373,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         )
 
     def visit_map(self, expr: Map) -> Schema:
-        """Returns the resulting schema from evaluating a Map.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import Map, PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={
-            ...         "A": ColumnType.VARCHAR,
-            ...         "B": ColumnType.INTEGER,
-            ...     },
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query1 = Map( # Augment = False example
-            ...     child=PrivateSource("private"),
-            ...     f=lambda row: {"C": row["B"] + 1, "D": "A"},
-            ...     schema_new_columns=Schema(
-            ...         {"C": ColumnType.INTEGER, "D": ColumnType.VARCHAR}
-            ...     ),
-            ...     augment=False,
-            ... )
-            >>> query1.accept(output_schema_visitor).column_types
-            {'C': 'INTEGER', 'D': 'VARCHAR'}
-            >>> query2 = Map( # Augment = True example
-            ...     child=PrivateSource("private"),
-            ...     f=lambda row: {"C": row["B"] + 1, "D": "A"},
-            ...     schema_new_columns=Schema(
-            ...         {"C": ColumnType.INTEGER, "D": ColumnType.VARCHAR}
-            ...     ),
-            ...     augment=True,
-            ... )
-            >>> query2.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER', 'D': 'VARCHAR'}
-        """
+        """Returns the resulting schema from evaluating a Map."""
         input_schema = expr.child.accept(self)
         # Make a deep copy -  that way we don't modify the schema that the
         # user provided
@@ -501,49 +401,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return new_columns
 
     def visit_flat_map(self, expr: FlatMap) -> Schema:
-        """Returns the resulting schema from evaluating a FlatMap.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType, Schema
-            >>> from tmlt.analytics.query_expr import FlatMap, PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query1 = FlatMap( # Augment = False example
-            ...     child=PrivateSource("private"),
-            ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
-            ...     augment=False,
-            ...     max_rows=2,
-            ... )
-            >>> query1.accept(output_schema_visitor).column_types
-            {'C': 'INTEGER'}
-            >>> query2 = FlatMap( # Augment = True example
-            ...     child=PrivateSource("private"),
-            ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     schema_new_columns=Schema({"C": ColumnType.INTEGER}),
-            ...     augment=True,
-            ...     max_rows=2,
-            ... )
-            >>> query2.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
-            >>> query3 = FlatMap( # Grouping example
-            ...     child=PrivateSource("private"),
-            ...     f=lambda row: [{"C": row["B"]}, {"C": row["B"] + 1}],
-            ...     schema_new_columns=Schema(
-            ...         {"C": ColumnType.INTEGER}, grouping_column="C",
-            ...     ),
-            ...     augment=True,
-            ...     max_rows=2,
-            ... )
-            >>> query3.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a FlatMap."""
         input_schema = expr.child.accept(self)
         if expr.schema_new_columns.grouping_column is not None:
             if input_schema.grouping_column:
@@ -587,7 +445,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return new_columns
 
     def visit_join_private(self, expr: JoinPrivate) -> Schema:
-        # pylint: disable=line-too-long
         """Returns the resulting schema from evaluating a JoinPrivate.
 
         The ordering of output columns are:
@@ -597,53 +454,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
         3. Columns that are only in the right table
         4. Columns that are in both tables, but not included in the join columns. These
            columns are included with _left and _right suffixes.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import (
-            ...     JoinPrivate, PrivateSource
-            ... )
-            >>> from tmlt.analytics.truncation_strategy import TruncationStrategy
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="left_source",
-            ...     col_types={
-            ...         "left_only": ColumnType.DECIMAL,
-            ...         "common1": ColumnType.INTEGER,
-            ...         "common2": ColumnType.VARCHAR,
-            ...         "common3": ColumnType.INTEGER
-            ...     },
-            ... )
-            >>> catalog.add_private_table(
-            ...     source_id="right_source",
-            ...     col_types={
-            ...         "common1": ColumnType.INTEGER,
-            ...         "common2": ColumnType.VARCHAR,
-            ...         "common3": ColumnType.INTEGER,
-            ...         "right_only": ColumnType.VARCHAR,
-            ...    },
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> # join_columns default behavior is ["common1", "common2", "common3"]
-            >>> query1 = JoinPrivate(
-            ...     child=PrivateSource("left_source"),
-            ...     right_operand_expr=PrivateSource("right_source"),
-            ...     truncation_strategy_left=TruncationStrategy.DropExcess(1),
-            ...     truncation_strategy_right=TruncationStrategy.DropExcess(1),
-            ... )
-            >>> query1.accept(output_schema_visitor).column_types
-            {'common1': 'INTEGER', 'common2': 'VARCHAR', 'common3': 'INTEGER', 'left_only': 'DECIMAL', 'right_only': 'VARCHAR'}
-            >>> query2 = JoinPrivate(
-            ...     child=PrivateSource("left_source"),
-            ...     right_operand_expr=PrivateSource("right_source"),
-            ...     truncation_strategy_left=TruncationStrategy.DropExcess(1),
-            ...     truncation_strategy_right=TruncationStrategy.DropExcess(1),
-            ...     join_columns=["common3"],
-            ... )
-            >>> query2.accept(output_schema_visitor).column_types
-            {'common3': 'INTEGER', 'left_only': 'DECIMAL', 'common1_left': 'INTEGER', 'common2_left': 'VARCHAR', 'common1_right': 'INTEGER', 'common2_right': 'VARCHAR', 'right_only': 'VARCHAR'}
         """
         left_schema = expr.child.accept(self)
         right_schema = expr.right_operand_expr.accept(self)
@@ -682,26 +492,6 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         Has analogous behavior to :meth:`OutputSchemaVisitor.visit_join_private`,
         where the private table is the left table.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.query_expr import JoinPublic, PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> catalog.add_public_table(
-            ...     "public", {"B": ColumnType.INTEGER, "C": ColumnType.DECIMAL}
-            ... )
-            >>> query = JoinPublic(
-            ...    child=PrivateSource("private"), public_table="public"
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'B': 'INTEGER', 'A': 'VARCHAR', 'C': 'DECIMAL'}
         """
         input_schema = expr.child.accept(self)
         if isinstance(expr.public_table, str):
@@ -1029,194 +819,31 @@ class OutputSchemaVisitor(QueryExprVisitor):
         return output_schema
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByCount.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByCount(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     output_column="count",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'count': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a GroupByCount."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_count_distinct(self, expr: GroupByCountDistinct) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByCountDistinct.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByCountDistinct(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     output_column="count_distinct",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'count_distinct': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a GroupByCountDistinct."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_quantile(self, expr: GroupByQuantile) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByQuantile.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByQuantile(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     measure_column="B",
-            ...     quantile=0.5,
-            ...     low=0,
-            ...     high=10,
-            ...     output_column="quantile",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'quantile': 'DECIMAL'}
-        """
+        """Returns the resulting schema from evaluating a GroupByQuantile."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_sum(self, expr: GroupByBoundedSum) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByBoundedSum.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByBoundedSum(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     measure_column="B",
-            ...     low=0,
-            ...     high=10,
-            ...     output_column="sum",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'sum': 'INTEGER'}
-        """
+        """Returns the resulting schema from evaluating a GroupByBoundedSum."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_average(self, expr: GroupByBoundedAverage) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByBoundedAverage.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByBoundedAverage(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     measure_column="B",
-            ...     low=0,
-            ...     high=10,
-            ...     output_column="average",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'average': 'DECIMAL'}
-        """
+        """Returns the resulting schema from evaluating a GroupByBoundedAverage."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_variance(self, expr: GroupByBoundedVariance) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByBoundedVariance.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByBoundedAverage(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     measure_column="B",
-            ...     low=0,
-            ...     high=10,
-            ...     output_column="variance",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'variance': 'DECIMAL'}
-        """
+        """Returns the resulting schema from evaluating a GroupByBoundedVariance."""
         return _validate_groupby(expr, self)
 
     def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Schema:
-        """Returns the resulting schema from evaluating a GroupByBoundedSTDEV.
-
-        ..
-            >>> from tmlt.analytics._schema import ColumnType
-            >>> from tmlt.analytics.keyset import KeySet
-            >>> from tmlt.analytics.query_expr import PrivateSource
-
-        Example:
-            >>> catalog = Catalog()
-            >>> catalog.add_private_table(
-            ...     source_id="private",
-            ...     col_types={"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
-            ... )
-            >>> output_schema_visitor = OutputSchemaVisitor(catalog)
-            >>> query = GroupByBoundedSTDEV(
-            ...     child=PrivateSource("private"),
-            ...     groupby_keys=KeySet.from_dict({"A": ["a1", "a2", "a3"]}),
-            ...     measure_column="B",
-            ...     low=0,
-            ...     high=10,
-            ...     output_column="stdev",
-            ... )
-            >>> query.accept(output_schema_visitor).column_types
-            {'A': 'VARCHAR', 'stdev': 'DECIMAL'}
-        """
+        """Returns the resulting schema from evaluating a GroupByBoundedSTDEV."""
         return _validate_groupby(expr, self)
 
     def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Schema:

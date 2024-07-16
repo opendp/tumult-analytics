@@ -12,13 +12,13 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
 from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 
+from tmlt.analytics._query_expr import AnalyticsDefault
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.protected_change import AddOneRow
 from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.query_expr import AnalyticsDefault
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 

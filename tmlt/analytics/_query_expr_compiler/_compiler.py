@@ -20,6 +20,7 @@ from tmlt.core.transformations.base import Transformation
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo
+from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
@@ -32,7 +33,6 @@ from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.privacy_budget import PrivacyBudget
-from tmlt.analytics.query_expr import QueryExpr
 
 DEFAULT_MECHANISM = "DEFAULT"
 """Constant used for DEFAULT noise mechanism"""
@@ -52,28 +52,28 @@ class QueryExprCompiler:
     view is handled when the noise scale is calculated.
 
     A QueryExprCompiler object compiles a list of
-    :class:`~tmlt.analytics.query_expr.QueryExpr` objects into
+    :class:`~tmlt.analytics._query_expr.QueryExpr` objects into
     a single  object (based on the privacy framework). The
     :class:`~tmlt.core.measurements.base.Measurement` object can be
     run with a private data source to obtain DP answers to supplied queries.
 
-    Supported :class:`~tmlt.analytics.query_expr.QueryExpr`\ s:
+    Supported :class:`~tmlt.analytics._query_expr.QueryExpr`\ s:
 
-    * :class:`~tmlt.analytics.query_expr.PrivateSource`
-    * :class:`~tmlt.analytics.query_expr.Filter`
-    * :class:`~tmlt.analytics.query_expr.FlatMap`
-    * :class:`~tmlt.analytics.query_expr.Map`
-    * :class:`~tmlt.analytics.query_expr.Rename`
-    * :class:`~tmlt.analytics.query_expr.Select`
-    * :class:`~tmlt.analytics.query_expr.JoinPublic`
-    * :class:`~tmlt.analytics.query_expr.JoinPrivate`
-    * :class:`~tmlt.analytics.query_expr.GroupByCount`
-    * :class:`~tmlt.analytics.query_expr.GroupByCountDistinct`
-    * :class:`~tmlt.analytics.query_expr.GroupByBoundedSum`
-    * :class:`~tmlt.analytics.query_expr.GroupByBoundedAverage`
-    * :class:`~tmlt.analytics.query_expr.GroupByBoundedSTDEV`
-    * :class:`~tmlt.analytics.query_expr.GroupByBoundedVariance`
-    * :class:`~tmlt.analytics.query_expr.GroupByQuantile`
+    * :class:`~tmlt.analytics._query_expr.PrivateSource`
+    * :class:`~tmlt.analytics._query_expr.Filter`
+    * :class:`~tmlt.analytics._query_expr.FlatMap`
+    * :class:`~tmlt.analytics._query_expr.Map`
+    * :class:`~tmlt.analytics._query_expr.Rename`
+    * :class:`~tmlt.analytics._query_expr.Select`
+    * :class:`~tmlt.analytics._query_expr.JoinPublic`
+    * :class:`~tmlt.analytics._query_expr.JoinPrivate`
+    * :class:`~tmlt.analytics._query_expr.GroupByCount`
+    * :class:`~tmlt.analytics._query_expr.GroupByCountDistinct`
+    * :class:`~tmlt.analytics._query_expr.GroupByBoundedSum`
+    * :class:`~tmlt.analytics._query_expr.GroupByBoundedAverage`
+    * :class:`~tmlt.analytics._query_expr.GroupByBoundedSTDEV`
+    * :class:`~tmlt.analytics._query_expr.GroupByBoundedVariance`
+    * :class:`~tmlt.analytics._query_expr.GroupByQuantile`
     """
 
     def __init__(self, output_measure: Union[PureDP, ApproxDP, RhoZCDP] = PureDP()):
@@ -231,16 +231,16 @@ class QueryExprCompiler:
         r"""Returns a transformation and reference for the query.
 
         Supported
-        :class:`~tmlt.analytics.query_expr.QueryExpr`\ s:
+        :class:`~tmlt.analytics._query_expr.QueryExpr`\ s:
 
-        * :class:`~tmlt.analytics.query_expr.Filter`
-        * :class:`~tmlt.analytics.query_expr.FlatMap`
-        * :class:`~tmlt.analytics.query_expr.JoinPrivate`
-        * :class:`~tmlt.analytics.query_expr.JoinPublic`
-        * :class:`~tmlt.analytics.query_expr.Map`
-        * :class:`~tmlt.analytics.query_expr.PrivateSource`
-        * :class:`~tmlt.analytics.query_expr.Rename`
-        * :class:`~tmlt.analytics.query_expr.Select`
+        * :class:`~tmlt.analytics._query_expr.Filter`
+        * :class:`~tmlt.analytics._query_expr.FlatMap`
+        * :class:`~tmlt.analytics._query_expr.JoinPrivate`
+        * :class:`~tmlt.analytics._query_expr.JoinPublic`
+        * :class:`~tmlt.analytics._query_expr.Map`
+        * :class:`~tmlt.analytics._query_expr.PrivateSource`
+        * :class:`~tmlt.analytics._query_expr.Rename`
+        * :class:`~tmlt.analytics._query_expr.Select`
 
         Args:
             query: A query representing a transformation to compile.

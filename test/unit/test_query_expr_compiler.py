@@ -34,18 +34,7 @@ from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler import QueryExprCompiler
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    analytics_to_spark_columns_descriptor,
-)
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
-from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountMechanism,
     Filter,
@@ -69,6 +58,17 @@ from tmlt.analytics.query_expr import (
     SumMechanism,
     VarianceMechanism,
 )
+from tmlt.analytics._query_expr_compiler import QueryExprCompiler
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    analytics_to_spark_columns_descriptor,
+)
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics._transformation_utils import get_table_from_ref
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
+from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ..conftest import assert_frame_equal_with_sort

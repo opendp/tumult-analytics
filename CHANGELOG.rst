@@ -13,9 +13,19 @@ Added
 ~~~~~
 - Added experimental support for Python 3.12 with Pandas 2.
 
+Changed
+~~~~~~~
+- Mechanism enums (e.g. :class:`~tmlt.analytics.query_builder.CountMechanism`) should now be imported from :mod:`tmlt.analytics.query_builder`.
+  The current QueryExpr module (``tmlt.analytics.query_expr``) will be removed from the public API in future releases.
+
 Removed
 ~~~~~~~
 - Removed support for Python 3.7.
+
+Deprecated
+~~~~~~~~~~
+- QueryExprs (previously in ``tmlt.analytics.query_expr``) will be removed from the Tumult Analytics public API in an upcoming release.
+  Queries should be created using :class:`~tmlt.analytics.query_builder.QueryBuilder` instead.
 
 .. _v0.13.0:
 
@@ -55,10 +65,10 @@ Users with Intel-based Macs should not be affected.
 
 Added
 ~~~~~
-- Added a :class:`~tmlt.analytics.query_expr.SuppressAggregates` query type, for suppressing aggregates less than a certain threshold.
-  This is currently only supported for post-processing :class:`~tmlt.analytics.query_expr.GroupByCount` queries.
+- Added a :class:`~tmlt.analytics._query_expr.SuppressAggregates` query type, for suppressing aggregates less than a certain threshold.
+  This is currently only supported for post-processing :class:`~tmlt.analytics._query_expr.GroupByCount` queries.
   These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling :meth:`AggregatedQueryBuilder.suppress <tmlt.analytics.query_builder.AggregatedQueryBuilder.suppress>` after building a GroupByCount query.
-  As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics.query_expr.QueryExpr` when aggregating;
+  As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics._query_expr.QueryExpr` when aggregating;
   the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
 - Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods to :class:`~tmlt.analytics.keyset.KeySet` for caching and uncaching the underlying Spark dataframe.
   These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
@@ -191,7 +201,7 @@ Added
 Changed
 ~~~~~~~
 - *Backwards-incompatible*: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
-- *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics.query_expr.FlatMap.max_rows`.
+- *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics._query_expr.FlatMap.max_rows`.
 - Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
 
 Fixed
@@ -279,7 +289,7 @@ Changed
 - *Backwards-incompatible*: The lower and upper bounds for quantile, sum, average, variance, and standard deviation queries can no longer be equal to one another.
   The lower bound must now be strictly less than the upper bound.
 - *Backwards-incompatible*: Renamed :meth:`QueryBuilder.filter()<tmlt.analytics.query_builder.QueryBuilder.filter>` ``predicate`` argument to ``condition``.
-- *Backwards-incompatible*: Renamed :class:`~tmlt.analytics.query_expr.Filter` query expression ``predicate`` property to ``condition``.
+- *Backwards-incompatible*: Renamed :class:`~tmlt.analytics._query_expr.Filter` query expression ``predicate`` property to ``condition``.
 - *Backwards-incompatible*: Renamed :meth:`KeySet.filter()<tmlt.analytics.keyset.KeySet.filter>` ``expr`` argument to ``condition``.
 
 Deprecated

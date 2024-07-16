@@ -32,29 +32,13 @@ from tmlt.core.utils.type_utils import assert_never
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo, _NoiseMechanism
-from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
-    _get_query_bounds,
-)
-from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    spark_schema_to_analytics_columns,
-)
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
 )
-from tmlt.analytics.query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
+from tmlt.analytics._query_expr import (
     DropNullAndNan,
     Filter,
     FlatMap,
@@ -72,15 +56,31 @@ from tmlt.analytics.query_expr import (
     QueryExpr,
     Rename,
 )
-from tmlt.analytics.query_expr import ReplaceInfinity as ReplaceInfExpr
-from tmlt.analytics.query_expr import ReplaceNullAndNan
-from tmlt.analytics.query_expr import Select as SelectExpr
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import ReplaceInfinity as ReplaceInfExpr
+from tmlt.analytics._query_expr import ReplaceNullAndNan
+from tmlt.analytics._query_expr import Select as SelectExpr
+from tmlt.analytics._query_expr import (
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
     VarianceMechanism,
 )
+from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
+    _get_query_bounds,
+)
+from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
+from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
+    OutputSchemaVisitor,
+)
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    spark_schema_to_analytics_columns,
+)
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # SPDX-License-Identifier: Apache-2.0

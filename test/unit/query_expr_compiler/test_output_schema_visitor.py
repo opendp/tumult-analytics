@@ -11,17 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    spark_schema_to_analytics_columns,
-)
-from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -44,6 +34,16 @@ from tmlt.analytics.query_expr import (
     Select,
     SuppressAggregates,
 )
+from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
+    OutputSchemaVisitor,
+)
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    spark_schema_to_analytics_columns,
+)
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ...conftest import params

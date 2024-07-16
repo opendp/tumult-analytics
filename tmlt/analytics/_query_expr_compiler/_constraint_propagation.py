@@ -8,13 +8,7 @@ from typing import List, Optional, Set, Union, cast
 import pandas as pd
 from pyspark.sql import DataFrame
 
-from tmlt.analytics.constraints import (
-    Constraint,
-    MaxGroupsPerID,
-    MaxRowsPerGroupPerID,
-    MaxRowsPerID,
-)
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -24,6 +18,12 @@ from tmlt.analytics.query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+)
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
 )
 
 

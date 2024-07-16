@@ -19,9 +19,8 @@ view.
 At any point, a QueryBuilder instance can have an aggregation like
 :meth:`~tmlt.analytics.query_builder.QueryBuilder.count` applied to it,
 potentially after a
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, yielding a
-:class:`~tmlt.analytics.query_expr.QueryExpr` object. This QueryExpr can then be
-passed to :func:`~tmlt.analytics.session.Session.evaluate` to obtain
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, yielding an
+object that can be passed to :func:`~tmlt.analytics.session.Session.evaluate` to obtain
 differentially private results to the query.
 """
 
@@ -36,12 +35,8 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pyspark.sql import DataFrame
 
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
-from tmlt.analytics.binning_spec import BinningSpec, BinT
-from tmlt.analytics.config import config
-from tmlt.analytics.constraints import Constraint
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
+    AnalyticsDefault,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -73,9 +68,15 @@ from tmlt.analytics.query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics.binning_spec import BinningSpec, BinT
+from tmlt.analytics.config import config
+from tmlt.analytics.constraints import Constraint
+from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-# Override exported names to include ColumnType and ColumnDescriptor.
+# Override exported names to include ColumnType and ColumnDescriptor, as well as
+# types from _query_expr.
 __all__ = [
     "Row",
     "QueryBuilder",
@@ -83,6 +84,12 @@ __all__ = [
     "AggregatedQueryBuilder",
     "ColumnDescriptor",
     "ColumnType",
+    "AnalyticsDefault",
+    "CountMechanism",
+    "CountDistinctMechanism",
+    "StdevMechanism",
+    "SumMechanism",
+    "VarianceMechanism",
 ]
 
 Row = Dict[str, Any]
@@ -531,8 +538,7 @@ class QueryBuilder:
             replace_with: A dictionary mapping column names to values used to
                 replace null and NaN values.
                 If None (or empty), all columns will have null and NaN
-                values replaced with Analytics defaults; see
-                :class:`tmlt.analytics.query_expr.AnalyticsDefault`.
+                values replaced with Analytics defaults; see :class:`AnalyticsDefault`.
         """
         if replace_with is None:
             replace_with = {}
@@ -609,8 +615,7 @@ class QueryBuilder:
             replace_with: A dictionary mapping column names to values used to
                 replace -inf and +inf.
                 If None (or empty), all columns will have infinite
-                values replaced with Analytics defaults; see
-                :class:`tmlt.analytics.query_expr.AnalyticsDefault`.
+                values replaced with Analytics defaults; see :class:`AnalyticsDefault`.
         """
         if replace_with is None:
             replace_with = {}

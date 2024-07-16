@@ -57,6 +57,7 @@ from tmlt.analytics._neighboring_relation import (
     Conjunction,
     NeighboringRelation,
 )
+from tmlt.analytics._query_expr import PrivateSource, QueryExpr
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -88,7 +89,6 @@ from tmlt.analytics.protected_change import (
     ProtectedChange,
 )
 from tmlt.analytics.query_builder import GroupedQueryBuilder, QueryBuilder
-from tmlt.analytics.query_expr import PrivateSource, QueryExpr
 from tmlt.analytics.session import Session
 
 from ..conftest import assert_frame_equal_with_sort
@@ -1843,7 +1843,7 @@ class TestInvalidSession:
             with pytest.raises(
                 TypeError,
                 match=(
-                    "type of query_expr must be tmlt.analytics.query_expr.QueryExpr;"
+                    "type of query_expr must be tmlt.analytics._query_expr.QueryExpr;"
                     " got list instead"
                 ),
             ):

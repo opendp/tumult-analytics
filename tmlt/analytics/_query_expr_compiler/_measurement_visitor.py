@@ -21,6 +21,7 @@ from tmlt.core.transformations.spark_transformations.select import (
 from tmlt.core.utils.misc import get_nonconflicting_string
 
 from tmlt.analytics._noise_info import NoiseInfo, _noise_from_measurement
+from tmlt.analytics._query_expr import GetGroups, QueryExpr
 from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
     BaseMeasurementVisitor,
 )
@@ -34,7 +35,6 @@ from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.privacy_budget import ApproxDPBudget
-from tmlt.analytics.query_expr import GetGroups, QueryExpr
 
 
 class MeasurementVisitor(BaseMeasurementVisitor):

@@ -17,22 +17,7 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
 
 from tmlt.analytics._noise_info import _NoiseMechanism
-from tmlt.analytics._schema import ColumnType, Schema
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import (
-    ApproxDPBudget,
-    PrivacyBudget,
-    PureDPBudget,
-    RhoZCDPBudget,
-)
-from tmlt.analytics.protected_change import (
-    AddMaxRowsInMaxGroups,
-    AddOneRow,
-    AddRowsWithID,
-)
-from tmlt.analytics.query_builder import AggregatedQueryBuilder, QueryBuilder
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountMechanism,
     FlatMap,
@@ -48,6 +33,21 @@ from tmlt.analytics.query_expr import (
     StdevMechanism,
     SumMechanism,
 )
+from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.privacy_budget import (
+    ApproxDPBudget,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+)
+from tmlt.analytics.protected_change import (
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+)
+from tmlt.analytics.query_builder import AggregatedQueryBuilder, QueryBuilder
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 

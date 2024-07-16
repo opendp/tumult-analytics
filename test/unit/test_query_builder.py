@@ -11,11 +11,7 @@ import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 
-from tmlt.analytics._schema import Schema
-from tmlt.analytics.binning_spec import BinningSpec
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -38,6 +34,10 @@ from tmlt.analytics.query_expr import (
     Select,
     SuppressAggregates,
 )
+from tmlt.analytics._schema import Schema
+from tmlt.analytics.binning_spec import BinningSpec
+from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ..conftest import assert_frame_equal_with_sort

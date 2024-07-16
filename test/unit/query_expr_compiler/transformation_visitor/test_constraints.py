@@ -11,6 +11,7 @@ from pyspark.sql import DataFrame
 from tmlt.core.metrics import SymmetricDifference
 
 from tmlt.analytics._catalog import Catalog
+from tmlt.analytics._query_expr import EnforceConstraint, PrivateSource
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -21,7 +22,6 @@ from tmlt.analytics.constraints import (
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
 )
-from tmlt.analytics.query_expr import EnforceConstraint, PrivateSource
 
 from .conftest import TestTransformationVisitor
 

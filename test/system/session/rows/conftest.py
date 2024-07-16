@@ -11,17 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    ColumnType,
-    Schema,
-    analytics_to_spark_columns_descriptor,
-    analytics_to_spark_schema,
-)
-from tmlt.analytics.binning_spec import BinningSpec
-from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
-from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.query_expr import (
+from tmlt.analytics._query_expr import (
     CountDistinctMechanism,
     CountMechanism,
     Filter,
@@ -37,6 +27,16 @@ from tmlt.analytics.query_expr import (
     SumMechanism,
     SuppressAggregates,
 )
+from tmlt.analytics._schema import (
+    ColumnDescriptor,
+    ColumnType,
+    Schema,
+    analytics_to_spark_columns_descriptor,
+    analytics_to_spark_schema,
+)
+from tmlt.analytics.binning_spec import BinningSpec
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
+from tmlt.analytics.query_builder import QueryBuilder
 
 # Shorthands for some values used in tests
 _DATE1 = datetime.date.fromisoformat("2022-01-01")

@@ -77,6 +77,7 @@ from tmlt.analytics._neighboring_relation import (
 from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
 from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
+from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     Schema,
@@ -120,7 +121,6 @@ from tmlt.analytics.query_builder import (
     GroupedQueryBuilder,
     QueryBuilder,
 )
-from tmlt.analytics.query_expr import QueryExpr
 
 __all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
 

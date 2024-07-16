@@ -54,10 +54,8 @@ related to Spark, see the entirety of that guide.
 ``PicklingError`` on map queries
 --------------------------------
 
-Functions used in
-:class:`~tmlt.analytics.query_expr.Map` or :class:`~tmlt.analytics.query_expr.FlatMap`
-queries cannot reference Spark objects, directly or indirectly. If they do,
-you might get errors like this:
+Functions used in :meth:`~tmlt.analytics.query_builder.QueryBuilder.map` or :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` queries cannot reference Spark objects, directly or indirectly.
+If they do, you might get errors like this:
 
     ``_pickle.PicklingError: Could not serialize object: RuntimeError: It appears that you are attempting to reference SparkContext from a broadcast variable, action, or transformation. SparkContext can only be used on the driver, not in code that it run on workers``
 

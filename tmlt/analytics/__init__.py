@@ -2,13 +2,17 @@
 
 .. _Tumult Labs: https://tmlt.io
 
-The library is broken up into a number of modules that provide different
-functionality. These modules fall into a few broad categories, described below.
+The library is broken up into a number of modules that enable complex differentially
+private queries to be defined and run. A typical workflow is for users to instantiate
+PySpark and read in their data; create a :class:`~.session.Session` object with
+private datasets, their corresponding privacy protection, and a privacy budget; define
+differentially private queries using a :class:`~.query_builder.QueryBuilder` object,
+and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 
 **For specifying privacy guarantees**:
 
 * :mod:`~.session` defines the :class:`~.session.Session`, an interactive
-  interface for making differentially private queries.
+  interface for evaluating differentially private queries.
 
 * :mod:`~.privacy_budget` contains types for representing privacy budgets.
 

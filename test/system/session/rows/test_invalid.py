@@ -16,6 +16,15 @@ from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 
+from tmlt.analytics._query_expr import (
+    FlatMap,
+    GroupByBoundedSum,
+    GroupByCount,
+    PrivateSource,
+    QueryExpr,
+    Rename,
+    ReplaceNullAndNan,
+)
 from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
@@ -26,15 +35,6 @@ from tmlt.analytics.privacy_budget import (
     RhoZCDPBudget,
 )
 from tmlt.analytics.protected_change import AddOneRow
-from tmlt.analytics.query_expr import (
-    FlatMap,
-    GroupByBoundedSum,
-    GroupByCount,
-    PrivateSource,
-    QueryExpr,
-    Rename,
-    ReplaceNullAndNan,
-)
 from tmlt.analytics.session import Session, _format_insufficient_budget_msg
 
 

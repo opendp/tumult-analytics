@@ -155,5 +155,5 @@ Exceptions
 This diagram shows the basic workflow for most Analytics operations. (Click
 to see full-size image.)
 
-.. thumbnail:: ../../../images/api_diagram.svg
+.. thumbnail:: ../../../images/tmlt_api_overview_diagram.svg
 {% endif %}
