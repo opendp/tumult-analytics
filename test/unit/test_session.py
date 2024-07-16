@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-# pylint: disable=no-self-use, unidiomatic-typecheck
+# pylint: disable=unidiomatic-typecheck
 
 import re
 from typing import Any, Dict, List, Tuple, Type, Union

@@ -115,8 +115,6 @@ class QueryExprCompiler:
         )
         return result
 
-    # pylint: enable=no-self-use
-
     def __call__(
         self,
         queries: Sequence[QueryExpr],

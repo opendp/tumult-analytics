@@ -93,22 +93,23 @@ black = "^23.3"
 isort = { version = "^5.11", extras = ["pyproject"] }
 mypy = "^1.2, !=1.4.0" # 1.4.0 incompatible with typing extensions 3.10.0 https://github.com/python/mypy/issues/15487
 pydocstyle = { version = "^6.3", extras = ["toml"] }
-# TODO(#3251): pylint 2.14 requires significant cleanup to work
-pylint = "^2.13,<2.14"
+pylint = "^3.2.5"
 
-# CI, testing, docs
+# Testing
 pytest = "^7.1.2"
 pytest-xdist = "^3.5.0"
-pytest-cov = "^4.1.0"
 coverage = "^6.5"
-pydata-sphinx-theme = "0.9.0"
-scanpydoc = "0.7.3" # 0.7.4 doesn't work
-sphinx = "^4.3.0"
-sphinx-autoapi = "^1.7.0"
-sphinx-autodoc-typehints = "1.12.0" # 1.13.0 doesn't work https://gitlab.com/tumult-labs/tumult/-/issues/1565
-sphinx-copybutton = "^0.4.0"
-sphinx-panels = "^0.6.0"
-sphinxcontrib-bibtex = "^1.0.0"
+pytest-cov = "^5.0"
+
+# Docs
+pydata-sphinx-theme = "^0.14.4"
+sphinx = "^7.1.0"
+sphinx-autoapi = "^3.1.1"
+sphinx-autodoc-typehints = "^2.0.1"
+sphinx-automodapi = "^0.17.0"
+sphinx-copybutton = "^0.5.2"
+sphinxcontrib-bibtex = "^2.6.2"
+sphinx-design = "^0.5.0"
 sphinxcontrib-images = "^0.9.4"
 
 # Needed for examples, and for testing examples
@@ -129,11 +130,6 @@ seaborn = [
   { version = "^0.11.1", python = "<3.12" },
   { version = "^0.11.1", python = ">=3.12" }
 ]
-
-# dunamai 1.19.0 introduces a breaking change that some of our dev dependencies don't seem
-# to handle yet. If we ever update them (scanpydoc is a particular problem I think), try
-# removing this pin.
-dunamai = "<1.19.0"
 
 [tool.poetry.group.scripting.dependencies]
 nox = "2022.8.7"
@@ -177,6 +173,11 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_unreachable = true
 
+[[tool.mypy.overrides]]
+module = "test.*"
+disallow_untyped_defs = false
+check_untyped_defs = true
+
 [tool.pylint.master]
 # See https://github.com/PyCQA/pylint/issues/1975#issuecomment-387924981
 extension-pkg-whitelist = ['numpy']
@@ -186,10 +187,14 @@ load-plugins = ['pylint.extensions.docparams']
 accept-no-param-doc = true
 
 [tool.pylint.'MESSAGES CONTROL']
-enable = ['useless-suppression']
+enable = [
+  # Note: there is a false positive on 'useless-suppression' when you
+  # use 'disable=line-too-long' at the end of a docstring.
+  # See: https://github.com/pylint-dev/pylint/issues/8301
+  'useless-suppression'
+]
 disable = [
   'arguments-differ',
-  'bad-continuation',
   'duplicate-code',
   'fixme',
   'invalid-name',
@@ -210,6 +215,12 @@ disable = [
   'too-many-return-statements',
   'too-many-statements',
   'unbalanced-tuple-unpacking',
+  'unnecessary-lambda-assignment',
+  'unsubscriptable-object',
+  # There are a lot of false positives for unsupported-binary-operation
+  # on Python 3.8 and 3.9;
+  # see: https://github.com/pylint-dev/pylint/issues/7381
+  'unsupported-binary-operation',
   # black and isort group tmlt.core separately from tmlt.analytics,
   # but pylint thinks they should both be grouped as 'tmlt'.
   'ungrouped-imports',

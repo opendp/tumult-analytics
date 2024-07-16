@@ -85,6 +85,7 @@ __all__ = [
     "ColumnDescriptor",
     "ColumnType",
     "AnalyticsDefault",
+    "AverageMechanism",
     "CountMechanism",
     "CountDistinctMechanism",
     "StdevMechanism",
@@ -158,7 +159,7 @@ class QueryBuilder:
         self._query_expr: QueryExpr = PrivateSource(source_id)
 
     @property
-    def query_expr(self):
+    def query_expr(self) -> QueryExpr:
         """Returns the query_expr being built."""
         return self._query_expr
 
@@ -2565,7 +2566,7 @@ class GroupedQueryBuilder:
         self._groupby_keys: Union[KeySet, List[str]] = groupby_keys
 
     @property
-    def query_expr(self):
+    def query_expr(self) -> QueryExpr:
         """Get the query expression being built."""
         return self._query_expr
 

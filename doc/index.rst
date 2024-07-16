@@ -36,66 +36,65 @@ To explore further, start with the :ref:`installation instructions <installation
 
 If you have any questions, feedback, or feature requests, please `let us know on Slack <https://tmlt.dev/slack>`__!
 
-.. panels::
-   :card: + intro-card text-center
-   :column: col-lg-6 col-md-6 col-sm-6 col-xs-12 p-2
+.. grid:: 1 2 2 2
+   :gutter: 2
 
-   ---
-   :img-top: /images/index_tutorials.svg
+   .. grid-item-card::
+      :img-top: /images/index_tutorials.svg
+      :class-img-top: intro-card-icon
+      :link: tutorials/index
+      :link-type: doc
+      :link-alt: Tutorials
+      :text-align: center
 
-   **Tutorials**
-   ^^^^^^^^^^^^^
+      **Tutorials**
+      ^^^^^^^^^^^^^
 
-   Tutorials are the place where new users can learn the basics of how to use
-   the library. No prior knowledge of differential privacy is required!
+      Tutorials are the place where new users can learn the basics of how to use
+      the library. No prior knowledge of differential privacy is required!
 
-   .. link-button:: tutorials/index
-       :type: ref
-       :text:
-       :classes: stretched-link
+   .. grid-item-card::
+      :img-top: /images/index_howto_guides.svg
+      :class-img-top: intro-card-icon
+      :link: howto-guides/index
+      :link-type: doc
+      :link-alt: How-to guides
+      :text-align: center
 
-   ---
-   :img-top: images/index_howto_guides.svg
+      **How-to guides**
+      ^^^^^^^^^^^^^^^^
 
-   **How-to guides**
-   ^^^^^^^^^^^^^^^^
+      How-to guides are step-by-step instructions on how to install and
+      troubleshoot the library locally or on a cloud platform.
 
-   How-to guides are step-by-step instructions on how to install and
-   troubleshoot the library locally or on a cloud platform.
+   .. grid-item-card::
+      :img-top: /images/index_topic_guides.svg
+      :class-img-top: intro-card-icon
+      :link: topic-guides/index
+      :link-type: doc
+      :link-alt: Topic guides
+      :text-align: center
 
-   .. link-button:: howto-guides/index
-       :type: ref
-       :text:
-       :classes: stretched-link
+      **Topic guides**
+      ^^^^^^^^^^^^^^^^
 
-   ---
-   :img-top: images/index_topic_guides.svg
+      Topic guides dive deeper into specific aspects of the library, and explain in
+      more detail how it works behind the scenes.
 
-   **Topic guides**
-   ^^^^^^^^^^^^^^^^
+   .. grid-item-card::
+      :img-top: /images/index_api.svg
+      :class-img-top: intro-card-icon
+      :link: reference/tmlt/analytics/index
+      :link-type: doc
+      :link-alt: API reference
+      :text-align: center
 
-   Topic guides dive deeper into specific aspects of the library, and explain in
-   more detail how it works behind the scenes.
+      **API reference**
+      ^^^^^^^^^^^^^^^^^
 
-   .. link-button:: topic-guides/index
-       :type: ref
-       :text:
-       :classes: stretched-link
-
-   ---
-   :img-top: images/index_api.svg
-
-   **API reference**
-   ^^^^^^^^^^^^^^^^^
-
-   The API reference contains a detailed description of the packages, classes,
-   and methods available in Tumult Analytics. It assumes that you have an
-   understanding of the key concepts.
-
-   .. link-button:: reference/tmlt/analytics/index
-       :type: ref
-       :text:
-       :classes: stretched-link
+      The API reference contains a detailed description of the packages, classes,
+      and methods available in Tumult Analytics. It assumes that you have an
+      understanding of the key concepts.
 
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
 Users who wish to learn more about the fundamentals of differential privacy can consult

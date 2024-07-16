@@ -10,7 +10,7 @@ import sys
 
 _logger = logging.getLogger(__name__)
 
-# Project information
+### Project information
 
 project = "Tumult Analytics"
 author = "Tumult Labs"
@@ -23,7 +23,7 @@ package_name = "tmlt.analytics"
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
 
 
-# Build information
+### Build information
 
 ci_tag = os.getenv("CI_COMMIT_TAG")
 ci_branch = os.getenv("CI_COMMIT_BRANCH")
@@ -39,35 +39,25 @@ linkcheck_ignore = [
     "https://docs.databricks.com/release-notes/runtime/releases.html",
 ]
 
-# Sphinx configuration
+### Sphinx configuration
 
 extensions = [
     "autoapi.extension",
-    "scanpydoc.elegant_typehints",
     "sphinxcontrib.images",
     "sphinx_copybutton",
+    "sphinx_design",
     "sphinx.ext.autodoc",
-    "sphinx.ext.coverage",
+    # smart_resolver fixes cases where an object is documented under a name
+    # different from its qualname, e.g. due to importing it in an __init__.
+    "sphinx_automodapi.smart_resolver",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
     "sphinx_autodoc_typehints",
-    "sphinx_panels",
 ]
 
-# Prevent sphinx_panels from loading bootstrap a second time
-panels_add_bootstrap_css = False
-# Change colors & contrast to inactive tab labels so they pass WCAG AA; all
-# other colors are the same as the defaults:
-#   https://sphinx-panels.readthedocs.io/en/latest/#tabbed-content
-panels_css_variables = {
-    "tabs-color-label-active": "hsla(231, 99%, 66%, 1)",
-    "tabs-color-label-inactive": "rgba(135, 138, 150, 1)",
-    "tabs-color-overline": "rgb(207, 236, 238)",
-    "tabs-color-underline": "rgb(207, 236, 238)",
-    "tabs-size-label": "1rem",
-}
+bibtex_bibfiles = []
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -85,7 +75,6 @@ napoleon_use_rtype = True
 # Autoapi settings
 autoapi_root = "reference"
 autoapi_dirs = ["../tmlt/"]
-autoapi_keep_files = False
 autoapi_template_dir = "../doc/templates"
 autoapi_add_toctree_entry = False
 autoapi_python_use_implicit_namespaces = True  # This is important for intersphinx
@@ -125,14 +114,22 @@ exclude_patterns = ["templates"]
 # covers them).
 doctest_test_doctest_blocks = ""
 
-# scanpydoc overrides to resolve target
-qualname_overrides = {
-    "sp.Expr": "sympy.core.expr.Expr",
-    "pyspark.sql.dataframe.DataFrame": "pyspark.sql.DataFrame",
-    "pyspark.sql.session.SparkSession": "pyspark.sql.SparkSession",
-}
-
 nitpick_ignore = [
+    # TODO(#3216): These private base classes are going away, ignore them for now.
+    ("py:obj", "tmlt.analytics.metrics._base.ScalarMetric"),
+    ("py:obj", "tmlt.analytics.metrics._base.MeasureColumnMetric"),
+    ("py:obj", "tmlt.analytics.metrics._base.SingleBaselineMetric"),
+    ("py:obj", "tmlt.analytics.metrics._base.MultiBaselineMetric"),
+    ("py:obj", "tmlt.analytics.metrics._base.GroupedMetric"),
+    # TODO(#1629): Schema is currently private, even though it appears in the
+    #     public docs in a couple of places. This ignore can be removed once it
+    #     is public.
+    ("py:class", "tmlt.analytics._schema.Schema"),
+    # TODO(#1357): We shouldn't be showing the types for these values at all,
+    #     but they're appearing at the end of class docstrings because
+    #     __init__'s parameters are documented there for some reason. Once we
+    #     fix that, it should be possible to remove this ignore.
+    ("py:class", "tmlt.analytics._table_identifier.Identifier"),
     # Expr in __init__ is resolved fine but not in type hint
     ("py:class", "sympy.Expr"),
     # Optional SparkSession in NoiseFreeQueryEvaluator __init__ is not resolved
@@ -215,9 +212,7 @@ html_js_files = ["js/version-banner.js"]
 html_logo = "_static/logo.png"
 html_favicon = "_static/favicon.ico"
 html_show_sourcelink = False
-html_sidebars = {
-    "**": ["package-name", "version-switcher", "search-field", "sidebar-nav-bs"]
-}
+html_sidebars = {"**": ["package-name", "version-switcher", "sidebar-nav-bs"]}
 
 # Intersphinx mapping
 

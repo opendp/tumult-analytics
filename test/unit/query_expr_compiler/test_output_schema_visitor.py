@@ -1045,7 +1045,6 @@ class TestValidationWithNulls:
         schema = self.visitor.visit_join_public(query)
         assert schema == expected_schema
 
-    # pylint: disable=no-self-use
     @params(
         {
             "all_allow_null": {

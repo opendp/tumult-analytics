@@ -14,7 +14,9 @@ from tmlt.core.utils.type_utils import get_element_type
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
 
 BinT = TypeVar("BinT", str, Union[int, float], datetime.date, datetime.datetime)
+"""The type of the value being binned."""
 BinNameT = TypeVar("BinNameT", str, int, float, datetime.date, datetime.datetime)
+"""The type of the bin name column."""
 
 
 def _get_column_descriptor(

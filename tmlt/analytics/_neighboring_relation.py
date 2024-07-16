@@ -1,7 +1,9 @@
 """Module containing supported variants of neighboring relations."""
-# pylint: disable=protected-access, no-self-use
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
+
+# pylint: disable=protected-access
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

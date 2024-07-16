@@ -1674,7 +1674,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_measurement(adaptive_groupby_agg, mid_stability)
         return transformation | adaptive_groupby_agg, noise_info
 
-    # pylint: disable=no-self-use
     def build_bound_selection_measurement(
         self,
         input_domain,
@@ -1693,8 +1692,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             threshold=threshold,  # TODO: Make threshold optional.
             d_in=d_in,
         )
-
-    # pylint: enable=no-self-use
 
     def visit_get_bounds(self, expr: GetBounds) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GetBounds query expression."""

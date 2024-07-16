@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-# pylint: disable= no-self-use
-
 from typing import Dict, Tuple, Type, Union
 from unittest.mock import Mock
 

@@ -1,7 +1,6 @@
 {% if not obj.display %}
-:orphan:
+:no-index:
 {% endif %}
-
 {% if "tmlt.cfg.analytics" in obj.name %}
 :orphan:
 {% endif %}
@@ -96,7 +95,7 @@ Data
 Functions
 =========
 
-{% if visible_functions|length >= 1 %}
+{% if visible_functions|length > 1 %}
 .. list-table::
 
    {% for obj_item in visible_functions %}
@@ -115,7 +114,7 @@ Functions
 Classes
 =======
 
-{% if visible_classes|length >= 1 %}
+{% if visible_classes|length > 1 %}
 .. list-table::
 
    {% for obj_item in visible_classes %}

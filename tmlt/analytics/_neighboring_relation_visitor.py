@@ -68,7 +68,7 @@ class _RelationIDVisitor(NeighboringRelationVisitor):
     ) -> Identifier:
         return NamedTable(relation.table)
 
-    def visit_str(self, s: str) -> Identifier:  # pylint: disable=no-self-use
+    def visit_str(self, s: str) -> Identifier:
         """Visit a string.
 
         Helper method for relations like AddRemoveKeys that need to get

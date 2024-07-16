@@ -652,21 +652,20 @@ def test_caching():
 
     # Assert that the KeySet is lazily evaluated.
     assert (
-        ks.dataframe().storageLevel.__repr__()
+        repr(ks.dataframe().storageLevel)
         == "StorageLevel(False, False, False, False, 1)"
     )
 
     # Assert that caching adds the KeySet DataFrame to memory.
     ks.cache()
     assert (
-        ks.dataframe().storageLevel.__repr__()
-        == "StorageLevel(True, True, False, True, 1)"
+        repr(ks.dataframe().storageLevel) == "StorageLevel(True, True, False, True, 1)"
     )
 
     # Assert that unpersisting removes the KeySet DataFrame from memory.
     ks.uncache()
     assert (
-        ks.dataframe().storageLevel.__repr__()
+        repr(ks.dataframe().storageLevel)
         == "StorageLevel(False, False, False, False, 1)"
     )
 

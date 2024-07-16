@@ -616,7 +616,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             simplify_constraints(propagate_map(expr, child_constraints)),
         )
 
-    def build_flat_map(  # pylint: disable=no-self-use
+    def build_flat_map(
         self,
         input_metric: Union[IfGroupedBy, SymmetricDifference],
         row_transformer: RowToRowsTransformation,
@@ -630,7 +630,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
         )
         return transformation
 
-    def build_grouping_flat_map(  # pylint: disable=no-self-use
+    def build_grouping_flat_map(
         self,
         inner_metric: Union[SumOf, RootSumOfSquared],
         row_transformer: RowToRowsTransformation,
@@ -761,7 +761,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             simplify_constraints(propagate_flat_map(expr, child_constraints)),
         )
 
-    def build_private_join_transformation(  # pylint: disable=no-self-use
+    def build_private_join_transformation(
         self,
         input_domain: DictDomain,
         left_key: Any,

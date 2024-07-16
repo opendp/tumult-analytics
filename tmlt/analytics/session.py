@@ -300,6 +300,8 @@ class Session:
         .. warning::
             This constructor is not intended to be used directly. Use
             :class:`Session.Builder` or ``from_`` constructors instead.
+
+        @nodoc
         """
         # pylint: disable=pointless-string-statement
         """

@@ -298,7 +298,6 @@ class TestSessionWithNulls:
         )
         assert_frame_equal_with_sort(result.toPandas(), expected)
 
-    # pylint: disable=no-self-use
     @params(
         {
             "both_allow_nulls": {

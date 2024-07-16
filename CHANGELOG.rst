@@ -201,7 +201,7 @@ Added
 Changed
 ~~~~~~~
 - *Backwards-incompatible*: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
-- *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to :attr:`~tmlt.analytics._query_expr.FlatMap.max_rows`.
+- *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to ``FlatMap.max_rows``.
 - Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
 
 Fixed

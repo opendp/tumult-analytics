@@ -3,13 +3,24 @@
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
     Copyright Tumult Labs 2024
+
+.. TODO(#3272): This prevents setting :canonical: on the copy of various docs
+       that appear in the deprecated query_expr module; once that module is removed,
+       this logic can go away.
+
+{% set is_duplicate_alias = "tmlt.analytics.query_expr." in obj.id and obj.name != "QueryExpr" and "QueryExpr" not in obj.bases %}
+
 .. py:{{ obj.type }}:: {{ obj.short_name }}{% if obj.args %}({{ obj.args }}){% endif %}
+
+   {% if obj.imported and not is_duplicate_alias %}
+   :canonical: {{ obj.obj["original_path"] }}
+   {% endif %}
 
    {% if obj.bases %}
 
    {% set visible_bases = obj.bases|reject("is_mixin_class")|reject("is_base_builder")|list %}
    {% if visible_bases %}
-   Bases: {% for base in visible_bases %}:class:`{{ base }}`{% if not loop.last %}, {% endif %}{% endfor %}
+   Bases: {% for base in visible_bases %}{{ base|link_objs }}{% if not loop.last %}, {% endif %}{% endfor %}
    {% endif %}
 
    {% endif %}
@@ -21,6 +32,7 @@
    {% set is_exception = obj.type is equalto ("exception") %}
    {% set visible_classes = obj.classes|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set visible_attributes = obj.attributes|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
+   {% set visible_properties = obj.properties|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set visible_methods = obj.methods|selectattr("is_private_member", "false")|selectattr("rendered")|list %}
    {% set num_visible_items = visible_classes|length + visible_attributes|length + visible_methods|length %}
 
@@ -44,6 +56,15 @@
       {% endfor %}
 
    {% endif %}
+   {% if visible_properties %}
+   .. list-table:: Properties
+
+      {% for property in visible_properties %}
+      * - :attr:`{{ property.name }}`
+        - {{ property.summary }}
+      {% endfor %}
+
+   {% endif %}
    {% if visible_methods %}
    .. list-table:: Methods
 
@@ -61,6 +82,10 @@
 
    {% for attribute in visible_attributes %}
    {{ attribute.rendered|indent(3) }}
+   {% endfor %}
+
+   {% for property in visible_properties %}
+   {{ property.rendered|indent(3) }}
    {% endfor %}
 
    {% if obj.methods | selectattr("short_name", "equalto", "__init__") | reject("nodoc") | list %}
