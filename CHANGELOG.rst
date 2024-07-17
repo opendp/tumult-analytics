@@ -9,14 +9,22 @@ Changelog
 Unreleased
 ----------
 
+Tumult Analytics 0.14.0 introduces experimental support for Python 3.12.
+Full support for Python 3.12 and Pandas 2 will not be available until the release of PySpark 4.0.
+In addition, Python 3.7 is no longer supported.
+
+In addition, this release deprecates the ``tmlt.analytics.query_expr`` module.
+Use of ``QueryExpr`` and its subtypes to create queries has been discouraged for a long time, and these types will be removed from the Tumult Analytics API in an upcoming release.
+Other types from this module have been moved into the ``tmlt.analytics.query_builder`` module, though they may be imported from either until the ``query_expr`` module is removed.
+
 Added
 ~~~~~
-- Added experimental support for Python 3.12 with Pandas 2.
+- Tumult Analytics now has experimental support for Python 3.12 using Pandas 2.
 
 Changed
 ~~~~~~~
 - Mechanism enums (e.g. :class:`~tmlt.analytics.query_builder.CountMechanism`) should now be imported from :mod:`tmlt.analytics.query_builder`.
-  The current QueryExpr module (``tmlt.analytics.query_expr``) will be removed from the public API in future releases.
+  The current query expression module (``tmlt.analytics.query_expr``) will be removed from the public API in an upcoming release.
 
 Removed
 ~~~~~~~
