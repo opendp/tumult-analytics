@@ -7,6 +7,7 @@ import datetime
 import logging
 import os
 import sys
+from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ copyright = "2024 Tumult Labs"
 # necessarily the name of the package as pip understands it.
 package_name = "tmlt.analytics"
 
-# TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove suppress_warnings setting
+# TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove
+#     suppress_warnings setting
 suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
 
 
@@ -28,7 +30,17 @@ suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"
 ci_tag = os.getenv("CI_COMMIT_TAG")
 ci_branch = os.getenv("CI_COMMIT_BRANCH")
 
-version = ci_tag or ci_branch or "HEAD"
+# For non-prerelease tags, make the version "vX.Y" to match how we show it in
+# the version switcher and the docs URLs. Sphinx's nomenclature around versions
+# can be a bit confusing -- "version" means sort of the documentation version
+# (for us, the minor release), while "release" is the full version number of the
+# package on which the docs were built.
+if ci_tag and "-" not in ci_tag:
+    release = ci_tag
+    version = "v" + ".".join(ci_tag.split(".")[:2])
+else:
+    release = version = ci_tag or ci_branch or "HEAD"
+
 commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
 build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 
@@ -236,6 +248,10 @@ def skip_members(app, what, name, obj, skip, options):
         return True
     return skip
 
-
 def setup(sphinx):
     sphinx.connect("autoapi-skip-member", skip_members)
+    # Write out the version and release numbers (using Sphinx's definitions of
+    # them) for use by later automation.
+    outdir = Path(sphinx.outdir)
+    (outdir / "_version").write_text(version)
+    (outdir / "_release").write_text(release)
