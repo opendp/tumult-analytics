@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.14.0:
+
+0.14.0 - 2024-07-18
+-------------------
 
 Tumult Analytics 0.14.0 introduces experimental support for Python 3.12.
 Full support for Python 3.12 and Pandas 2 will not be available until the release of PySpark 4.0.
