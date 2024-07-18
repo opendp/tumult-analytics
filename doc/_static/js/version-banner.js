@@ -15,10 +15,9 @@ function init() {
   fetch(banner_config_url)
     .then((resp) => {
       if (resp.status != 200) {
-        console.warn(
+        throw new Error(
           "Unable to fetch banner configuration, got status code " + resp.status
         );
-        return;
       }
       return resp.json();
     }).then((config) => {
@@ -33,6 +32,6 @@ function init() {
     }).catch((err) => console.log(err));
 }
 
-$(document).ready(function () {
+document.addEventListener("DOMContentLoaded", function () {
   init();
 });
