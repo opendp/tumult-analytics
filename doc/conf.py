@@ -149,7 +149,8 @@ html_theme_options = {
     "collapse_navigation": True,
     "navigation_depth": 4,
     "navbar_end": ["navbar-icon-links"],
-    "footer_items": ["copyright", "build-info", "sphinx-version"],
+    "footer_start": ["copyright", "build-info"],
+    "footer_end": ["sphinx-version", "theme-version"],
     "switcher": {
         "json_url": json_url,
         "version_match": version,
