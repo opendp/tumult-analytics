@@ -289,7 +289,11 @@ of wrangling and then visualize the result:
     # convert binned_age to categorical for ease of plotting
     genre_by_age["binned_age"] = pd.Categorical(genre_by_age["binned_age"], age_binspec.bins())
     age_counts = (
-        genre_by_age.groupby("binned_age").sum().rename(columns={"count": "age_count"})
+        genre_by_age
+        .drop(columns=["genre"])
+        .groupby("binned_age")
+        .sum()
+        .rename(columns={"count": "age_count"})
     )
     # compute percentage of each genre in each age group, replace negative values with 0
     genre_by_age_pct = genre_by_age.join(age_counts, on="binned_age")
