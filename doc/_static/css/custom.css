@@ -28,7 +28,8 @@ caption {
   padding: .4rem .8rem;
   overflow: hidden;
   border-radius: .2rem;
-  background-color: var(--pst-color-warning-highlight);
+  /* from --pst-color-warning */
+  background-color: rgba(238, 144, 64, .2);
   border-left: .2rem solid var(--pst-color-warning);
   box-shadow: 0 .2rem .5rem var(--pst-color-shadow), 0 0 .0625rem var(--pst-color-shadow);
 }
