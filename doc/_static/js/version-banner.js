@@ -2,7 +2,7 @@
 /* Copyright Tumult Labs 2024 */
 
 function injectBanner(content) {
-  var body = document.getElementsByClassName('bd-article-container')[0];
+  var body = document.getElementsByClassName('bd-article')[0];
   if (body) {
     body.prepend(content);
   } else {
