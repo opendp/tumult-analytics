@@ -1,6 +1,13 @@
 /* SPDX-License-Identifier: CC-BY-SA-4.0 */
 /* Copyright Tumult Labs 2024 */
 
+/* Override the color of hovered links, as the default is kind of out of place
+   and distracting. This makes it so the links don't change color when hovered,
+   but their underlines still become more prominent. */
+html[data-theme="light"] {
+  --pst-color-link-hover: var(--pst-color-primary);
+}
+
 caption {
     padding: 0px;
     caption-side: top;
@@ -21,8 +28,7 @@ caption {
   padding: .4rem .8rem;
   overflow: hidden;
   border-radius: .2rem;
-  /* from --pst-color-warning */
-  background-color: rgba(238, 144, 64, .2);
+  background-color: var(--pst-color-warning-highlight);
   border-left: .2rem solid var(--pst-color-warning);
   box-shadow: 0 .2rem .5rem var(--pst-color-shadow), 0 0 .0625rem var(--pst-color-shadow);
 }
