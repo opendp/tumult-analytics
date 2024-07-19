@@ -32,11 +32,3 @@ caption {
   border-left: .2rem solid var(--pst-color-warning);
   box-shadow: 0 .2rem .5rem var(--pst-color-shadow), 0 0 .0625rem var(--pst-color-shadow);
 }
-
-/* Makes the GitLab & Slack logos on the top right use a Tumult brand color. */
-#navbar-icon-links i.fa-slack:before {
-   color: #cc3d56;
-}
-#navbar-icon-links i.fa-gitlab:before {
-    color: #cc3d56;
-}
