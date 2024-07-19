@@ -158,6 +158,7 @@ json_url = "https://docs.tmlt.dev/analytics/versions.json"
 templates_path = ["_templates"]
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
+    "header_links_before_dropdown": 6,
     "collapse_navigation": True,
     "navigation_depth": 4,
     "navbar_end": ["navbar-icon-links"],
