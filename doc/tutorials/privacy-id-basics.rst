@@ -310,9 +310,8 @@ distinct IDs.
     |...|...|...|...|
     +--------------------+--------------------+----------+-----+
 
-When using `count_distinct` on the ID column, we no longer need to specify the
-`MaxRowsPerGroupPerID` constraint: Tumult Analytics understands that each ID can
-contribute at most once per group.
+When using :meth:`~tmlt.analytics.query_builder.QueryBuilder.count_distinct` on the ID column, we no longer need to specify the :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID` constraint:
+Tumult Analytics understands that each ID can contribute at most once per group.
 
 We can then display the results as a graph:
 
