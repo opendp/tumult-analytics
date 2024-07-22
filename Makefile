@@ -54,6 +54,8 @@ benchmark_output/
 dist/
 public/
 spark-warehouse/
+tmlt/**/spark-warehouse/
+test/**/spark-warehouse/
 examples/spark-warehouse/
 .mypy_cache/
 endef
