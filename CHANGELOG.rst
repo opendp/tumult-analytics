@@ -9,8 +9,7 @@ Changelog
 Unreleased
 ----------
 
-Removed
-~~~~~~~
+
 
 .. _v0.14.0:
 
