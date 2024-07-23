@@ -116,6 +116,7 @@ from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
 )
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import AnalyticsDefault
 from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
@@ -215,8 +216,14 @@ class BaseTransformationVisitor(QueryExprVisitor):
         output of the given transformation, but otherwise will be configured the same
         as the original visitor.
         """
-        assert isinstance(transformation.output_domain, DictDomain)
-        assert isinstance(transformation.output_metric, DictMetric)
+        if not isinstance(transformation.output_domain, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain, got {type(transformation.output_domain)}."
+            )
+        if not isinstance(transformation.output_metric, DictMetric):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric, got {type(transformation.output_metric)}."
+            )
         return self.__class__(
             transformation.output_domain,
             transformation.output_metric,
@@ -243,10 +250,9 @@ class BaseTransformationVisitor(QueryExprVisitor):
             expected_schema.grouping_column is not None
             and expected_schema.id_column is not None
         ):
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 "Output schema from a transformation had both an ID column "
-                "and a grouping column, which is not allowed. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+                "and a grouping column, which is not allowed."
             )
         if expected_schema.grouping_column is not None:
             expected_output_metric = IfGroupedBy(
@@ -263,17 +269,17 @@ class BaseTransformationVisitor(QueryExprVisitor):
             lookup_domain(transformation.output_domain, reference)
             != expected_output_domain
         ):
-            raise AssertionError(
-                "Unexpected output domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Expected output domain {expected_output_domain}, "
+                f"but got {lookup_domain(transformation.output_domain, reference)}."
             )
         if (
             lookup_metric(transformation.output_metric, reference)
             != expected_output_metric
         ):
-            raise AssertionError(
-                "Unexpected output metric. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Expected output metric {expected_output_metric}, "
+                f"but got {lookup_metric(transformation.output_metric, reference)}."
             )
 
     def inner_metric(self) -> Union[SumOf, RootSumOfSquared]:
@@ -299,26 +305,21 @@ class BaseTransformationVisitor(QueryExprVisitor):
         """Visit a child query and raise assertion errors if needed."""
         transformation, reference, constraints = child.accept(self)
         if not isinstance(transformation, Transformation):
-            raise AssertionError(
-                "Child query did not create a transformation. "
-                "This is probably a bug; please let us know about it so "
-                "we can fix it!"
-            )
+            raise AnalyticsInternalError("Child query did not create a transformation.")
         input_domain = lookup_domain(transformation.output_domain, reference)
         input_metric = lookup_metric(transformation.output_metric, reference)
         if not isinstance(input_domain, SparkDataFrameDomain):
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 "Child query has an invalid output domain. "
-                "This is probably a bug; please let us know about it so "
-                "we can fix it!"
+                f"Expected SparkDataFrameDomain, got {type(input_domain)}."
             )
         if not isinstance(
             input_metric, (IfGroupedBy, SymmetricDifference, HammingDistance)
         ):
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 "Child query does not have a recognized output metric. "
-                "This is probably a bug; please let us know about "
-                "it so we can fix it!"
+                f"Expected IfGroupedBy, SymmetricDifference, or HammingDistance, "
+                f"but got {type(input_metric)}."
             )
         return self.Output(transformation, reference, constraints)
 
@@ -337,10 +338,10 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     "Cannot convert this transformation to one with a "
-                    "SymmetricDifference output metric. This is probably "
-                    "a bug; please let us know about it so we can fix it!"
+                    "SymmetricDifference output metric. "
+                    f"Expected SparkDataFrameDomain, got {type(input_domain)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
@@ -375,9 +376,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
         try:
             constraints = self.table_constraints[ref.identifier]
         except KeyError as e:
-            raise AssertionError(
-                f"Table {ref.identifier} not present in constraints dictionary. "
-                "This is probably a bug; please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Table {ref.identifier} not present in constraints dictionary."
             ) from e
         return self.Output(transformation, ref, constraints)
 
@@ -389,14 +389,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(input_metric, (SymmetricDifference, IfGroupedBy)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             nonexistent_columns = set(expr.column_mapper) - set(input_domain.schema)
             if nonexistent_columns:
@@ -441,14 +439,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
@@ -489,16 +485,14 @@ class BaseTransformationVisitor(QueryExprVisitor):
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
 
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(
                 input_metric, (IfGroupedBy, SymmetricDifference, HammingDistance)
             ):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             nonexistent_columns = set(expr.columns) - set(input_domain.schema)
             if nonexistent_columns:
@@ -537,9 +531,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(input_domain)}."
             )
         transformer_input_domain = SparkRowDomain(input_domain.schema)
         # Any new column created by Map could contain a null value
@@ -576,9 +569,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
             if not isinstance(
                 input_metric, (IfGroupedBy, SymmetricDifference, HammingDistance)
             ):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
 
             return create_copy_and_transform_value(
@@ -655,9 +647,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(input_domain)}."
             )
         transformer_input_domain = SparkRowDomain(input_domain.schema)
         # Any new column created by FlatMap could contain a null value
@@ -696,9 +687,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 )
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             transformation: Transformation
             if expr.schema_new_columns.grouping_column is not None:
@@ -807,14 +797,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
         left_domain = lookup_domain(child_transformation.output_domain, left_ref)
         right_domain = lookup_domain(child_transformation.output_domain, right_ref)
         if not isinstance(left_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(left_domain)}."
             )
         if not isinstance(right_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(right_domain)}."
             )
 
         def get_truncation_params(
@@ -850,9 +838,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 [left_ref.identifier, right_ref.identifier],
             )
             if not isinstance(subset.output_domain, DictDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(subset.output_domain)}."
                 )
             join = self.build_private_join_transformation(
                 input_domain=subset.output_domain,
@@ -933,14 +920,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
             input_domain = lookup_domain(child_transformation.output_domain, child_ref)
             input_metric = lookup_metric(child_transformation.output_metric, child_ref)
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
 
             return create_copy_and_transform_value(
@@ -978,9 +963,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         child_domain = lookup_domain(child_transformation.output_domain, child_ref)
         if not isinstance(child_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(child_domain)}."
             )
 
         common_cols = set(child_domain.schema) & set(public_df_schema)
@@ -1058,16 +1042,14 @@ class BaseTransformationVisitor(QueryExprVisitor):
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         input_metric = lookup_metric(child_transformation.output_metric, child_ref)
         if not isinstance(input_domain, SparkDataFrameDomain):
-            raise AssertionError(
-                "Unrecognized input domain. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(input_domain)}."
             )
         if not isinstance(
             input_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
         ):
-            raise AssertionError(
-                "Unrecognized input metric. This is probably a bug; "
-                "please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                f"Unrecognized input metric {type(input_metric)}."
             )
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
@@ -1110,21 +1092,36 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 input_metric, input_domain
             )
             if replace_null:
-                assert isinstance(input_domain, SparkDataFrameDomain)
-                assert isinstance(
+                if not isinstance(input_domain, SparkDataFrameDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected input domain {type(input_domain)}, got"
+                        f" {type(input_domain)} instead."
+                    )
+                if not isinstance(
                     input_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
-                )
+                ):
+                    raise AnalyticsInternalError(
+                        f"Unrecognized input metric {type(input_metric)}."
+                    )
                 transformation |= ReplaceNullsTransformation(
                     input_domain=input_domain,
                     metric=input_metric,
                     replace_map=null_replace_map,
                 )
             if replace_nan:
-                assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-                assert isinstance(
+                if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {SparkDataFrameDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(
                     transformation.output_metric,
                     (IfGroupedBy, HammingDistance, SymmetricDifference),
-                )
+                ):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {IfGroupedBy}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= ReplaceNaNsTransformation(
                     input_domain=transformation.output_domain,
                     metric=transformation.output_metric,
@@ -1156,8 +1153,16 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 )
 
             if replace_nan:
-                assert isinstance(transformation.output_domain, DictDomain)
-                assert isinstance(transformation.output_metric, AddRemoveKeys)
+                if not isinstance(transformation.output_domain, DictDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {DictDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {AddRemoveKeys}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= ReplaceNaNsValueTransformation(
                     transformation.output_domain,
                     transformation.output_metric,
@@ -1168,8 +1173,16 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
             if (not replace_null) and (not replace_nan):
                 # Rename that essentially does nothing
-                assert isinstance(transformation.output_domain, DictDomain)
-                assert isinstance(transformation.output_metric, AddRemoveKeys)
+                if not isinstance(transformation.output_domain, DictDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {DictDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {AddRemoveKeys}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= RenameValueTransformation(
                     transformation.output_domain,
                     transformation.output_metric,
@@ -1212,16 +1225,14 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(
                 input_metric, (IfGroupedBy, HammingDistance, SymmetricDifference)
             ):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
@@ -1285,14 +1296,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
@@ -1362,14 +1371,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
-                raise AssertionError(
-                    "Unrecognized input domain. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input domain {type(input_domain)}."
                 )
             if not isinstance(input_metric, (IfGroupedBy, SymmetricDifference)):
-                raise AssertionError(
-                    "Unrecognized input metric. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    f"Unrecognized input metric {type(input_metric)}."
                 )
             transformation: Transformation = IdentityTransformation(
                 input_metric, input_domain
@@ -1381,10 +1388,18 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 )
 
             if nan_columns:
-                assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-                assert isinstance(
+                if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {SparkDataFrameDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(
                     transformation.output_metric, (IfGroupedBy, SymmetricDifference)
-                )
+                ):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {IfGroupedBy}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= DropNaNsTransformation(
                     transformation.output_domain,
                     transformation.output_metric,
@@ -1416,8 +1431,16 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 )
 
             if nan_columns:
-                assert isinstance(transformation.output_domain, DictDomain)
-                assert isinstance(transformation.output_metric, AddRemoveKeys)
+                if not isinstance(transformation.output_domain, DictDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {DictDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {AddRemoveKeys}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= DropNaNsValueTransformation(
                     transformation.output_domain,
                     transformation.output_metric,
@@ -1428,8 +1451,16 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
             if (not null_columns) and (not nan_columns):
                 # Rename that essentially does nothing
-                assert isinstance(transformation.output_domain, DictDomain)
-                assert isinstance(transformation.output_metric, AddRemoveKeys)
+                if not isinstance(transformation.output_domain, DictDomain):
+                    raise AnalyticsInternalError(
+                        f"Expected output domain {DictDomain}, got"
+                        f" {type(transformation.output_domain)} instead."
+                    )
+                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                    raise AnalyticsInternalError(
+                        f"Expected output metric {AddRemoveKeys}, got"
+                        f" {type(transformation.output_metric)} instead."
+                    )
                 transformation |= RenameValueTransformation(
                     transformation.output_domain,
                     transformation.output_metric,

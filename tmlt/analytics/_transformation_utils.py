@@ -35,6 +35,7 @@ from tmlt.core.transformations.spark_transformations.persist import (
     Unpersist as UnpersistTransformation,
 )
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._table_identifier import Identifier, TemporaryTable
 from tmlt.analytics._table_reference import TableReference, lookup_domain, lookup_metric
 
@@ -114,8 +115,14 @@ def rename_table(
     """
 
     def gen_transformation_dictmetric(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, DictMetric)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, DictMetric):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric but got {type(pm).__name__}."
+            )
         # Note: create_rename drops the original key, hence using this instead
         return create_copy_and_transform_value(
             input_domain=pd,
@@ -129,8 +136,14 @@ def rename_table(
         )
 
     def gen_transformation_ark(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, AddRemoveKeys)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, AddRemoveKeys):
+            raise AnalyticsInternalError(
+                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+            )
         # Note: No dataframe column is getting renamed here;
         # RenameValueTransformation is used to rename tables
         return RenameValueTransformation(pd, pm, base_ref.identifier, tgt, {})
@@ -151,8 +164,15 @@ def delete_table(
     """Deletes tables."""
 
     def gen_transformation(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, (DictMetric, AddRemoveKeys))
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, (DictMetric, AddRemoveKeys)):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric or AddRemoveKeys but got {type(pm).__name__}."
+            )
+
         # having temp tables around can cause problems,
         # so remove them along with the target table
         return SubsetTransformation(
@@ -192,8 +212,14 @@ def persist_table(
     """Persists tables."""
 
     def gen_transformation_dictmetric(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, DictMetric)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, DictMetric):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric but got {type(pm).__name__}."
+            )
         return create_copy_and_transform_value(
             pd,
             pm,
@@ -209,8 +235,14 @@ def persist_table(
         )
 
     def gen_transformation_ark(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, AddRemoveKeys)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, AddRemoveKeys):
+            raise AnalyticsInternalError(
+                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+            )
         return PersistValueTransformation(pd, pm, base_ref.identifier, tgt)
 
     transformation_generators: Dict[Type[Metric], Callable] = {
@@ -229,8 +261,14 @@ def unpersist_table(
     """Unpersists tables."""
 
     def gen_transformation_dictmetric(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, DictMetric)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, DictMetric):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric but got {type(pm).__name__}."
+            )
         return create_copy_and_transform_value(
             pd,
             pm,
@@ -246,8 +284,14 @@ def unpersist_table(
         )
 
     def gen_transformation_ark(pd, pm, tgt):
-        assert isinstance(pd, DictDomain)
-        assert isinstance(pm, AddRemoveKeys)
+        if not isinstance(pd, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(pd).__name__}."
+            )
+        if not isinstance(pm, AddRemoveKeys):
+            raise AnalyticsInternalError(
+                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+            )
         return UnpersistValueTransformation(pd, pm, base_ref.identifier, tgt)
 
     transformation_generators: Dict[Type[Metric], Callable] = {
@@ -267,14 +311,14 @@ def get_table_from_ref(
     for p in ref.path:
         domain = transformation.output_domain
         metric = transformation.output_metric
-        assert isinstance(domain, DictDomain), (
-            "Invalid transformation domain. This is probably a bug; please let us"
-            " know about it so we can fix it!"
-        )
-        assert isinstance(metric, (DictMetric, AddRemoveKeys)), (
-            "Invalid transformation domain. This is probably a bug; please let us"
-            " know about it so we can fix it!"
-        )
+        if not isinstance(domain, DictDomain):
+            raise AnalyticsInternalError(
+                f"Expected DictDomain but got {type(domain).__name__}."
+            )
+        if not isinstance(metric, (DictMetric, AddRemoveKeys)):
+            raise AnalyticsInternalError(
+                f"Expected DictMetric or AddRemoveKeys but got {type(metric).__name__}."
+            )
 
         transformation = transformation | GetValueTransformation(domain, metric, p)
     return transformation

@@ -55,6 +55,7 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 from typeguard import check_type, typechecked
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._base_builder import (
     BaseBuilder,
     DataFrameMixin,
@@ -171,8 +172,12 @@ def _format_insufficient_budget_msg(
         if is_exact_number_tuple(requested_budget) and is_exact_number_tuple(
             remaining_budget
         ):
-            assert isinstance(requested_budget, tuple)
-            assert isinstance(remaining_budget, tuple)
+            if not isinstance(requested_budget, tuple) or not isinstance(
+                remaining_budget, tuple
+            ):
+                raise AnalyticsInternalError(
+                    "Requested and remaining budgets must be tuples."
+                )
             remaining_epsilon = remaining_budget[0].to_float(round_up=True)
             requested_epsilon = requested_budget[0].to_float(round_up=True)
             requested_delta = requested_budget[1].to_float(round_up=True)
@@ -207,14 +212,19 @@ def _format_insufficient_budget_msg(
                     output += f"δ={delta_diff:.3e}"
 
         else:
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 "Unable to convert privacy budget of type"
-                f" {type(privacy_budget)} to float or floats. This is"
-                " probably a bug; please let us know about it so we can fix it!"
+                f" {type(privacy_budget)} to float or floats."
             )
     elif isinstance(privacy_budget, (PureDPBudget, RhoZCDPBudget)):
-        assert isinstance(requested_budget, ExactNumber)
-        assert isinstance(remaining_budget, ExactNumber)
+        if not isinstance(requested_budget, ExactNumber):
+            raise AnalyticsInternalError(
+                f"Requested budget must be an ExactNumber, not {type(requested_budget)}"
+            )
+        if not isinstance(remaining_budget, ExactNumber):
+            raise AnalyticsInternalError(
+                f"Remaining budget must be an ExactNumber, not {type(remaining_budget)}"
+            )
         if isinstance(privacy_budget, PureDPBudget):
             remaining_epsilon = remaining_budget.to_float(round_up=True)
             requested_epsilon = requested_budget.to_float(round_up=True)
@@ -236,10 +246,9 @@ def _format_insufficient_budget_msg(
             else:
                 output += f"\nDifference: 𝝆={approx_diff:.3e}"
     else:
-        raise AssertionError(
-            f"Unsupported budget types: {type(requested_budget)},"
-            f" {type(remaining_budget)}. This is probably a bug, please let us know"
-            " about it so we can fix it!"
+        raise AnalyticsInternalError(
+            f"Unsupported privacy budget types: {type(requested_budget)},"
+            f" {type(remaining_budget)}. "
         )
     return output
 
@@ -276,7 +285,10 @@ class Session:
                 )
             )
             # check list of ARK identifiers against session's ID spaces
-            assert isinstance(neighboring_relation, Conjunction)
+            if not isinstance(neighboring_relation, Conjunction):
+                raise AnalyticsInternalError(
+                    "Neighboring relation is not a Conjunction."
+                )
             for child in neighboring_relation.children:
                 if isinstance(child, AddRemoveKeys):
                     if child.id_space not in self._id_spaces:
@@ -629,10 +641,7 @@ class Session:
                 " `partition_and_create`) to finish."
             )
         else:
-            raise AssertionError(
-                f"Unrecognized accountant state {out}. This is probably a bug; please"
-                " let us know about it so we can fix it!"
-            )
+            raise AnalyticsInternalError(f"Unrecognized accountant state {out}. ")
         budget: PrivacyBudget = self.remaining_privacy_budget
         out.append(f"The session has a remaining privacy budget of {budget}.")
         if len(self._catalog.tables) == 0:
@@ -849,11 +858,11 @@ class Session:
             return None
         # Otherwise, the parent should be a TableCollection("id_space")
         parent_identifier = ref.parent.identifier
-        assert isinstance(parent_identifier, TableCollection), (
-            "Expected parent to be a table collection but got"
-            f" {parent_identifier} instead. This is probably a bug; please let us know"
-            " about it so we can fix it!"
-        )
+        if not isinstance(parent_identifier, TableCollection):
+            raise AnalyticsInternalError(
+                "Expected parent to be a table collection but got"
+                f" {parent_identifier} instead."
+            )
         return parent_identifier.name
 
     @property
@@ -1080,21 +1089,19 @@ class Session:
             isinstance(self._accountant.privacy_budget, tuple),
             isinstance(adjusted_budget.value, tuple),
         ):
-            raise ValueError(
+            raise AnalyticsInternalError(
                 "Expected type of adjusted_budget to match type of accountant's privacy"
                 f" budget ({type(self._accountant.privacy_budget)}), but instead"
-                f" received {type(adjusted_budget.value)}. This is probably a bug;"
-                " please let us know about it so we can fix it!"
+                f" received {type(adjusted_budget.value)}."
             )
 
         try:
             if not measurement.privacy_relation(
                 self._accountant.d_in, adjusted_budget.value
             ):
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     "With these inputs and this privacy budget, similar inputs will"
-                    " *not* produce similar outputs. This is probably a bug; please let"
-                    " us know about it so we can fix it!"
+                    " *not* produce similar outputs."
                 )
             try:
                 answers = self._accountant.measure(
@@ -1244,9 +1251,9 @@ class Session:
 
         domain = lookup_domain(self._input_domain, ref)
         if not isinstance(domain, SparkDataFrameDomain):
-            raise RuntimeError(
-                "Table domain is not SparkDataFrameDomain. This is probably a bug; "
-                "please let us know so we can fix it!"
+            raise AnalyticsInternalError(
+                "Expected domain to be a SparkDataFrameDomain, but got"
+                f" {type(domain)} instead."
             )
 
         unpersist_source: Transformation = Identity(
@@ -1612,10 +1619,8 @@ class Session:
 
         if isinstance(privacy_budget, PureDPBudget):
             if not isinstance(remaining_budget_value, ExactNumber):
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     f"Cannot understand remaining budget of {remaining_budget_value}."
-                    " This is probably a bug; please let us know about it so we can"
-                    " fix it!"
                 )
             return get_adjusted_budget(
                 privacy_budget,
@@ -1626,11 +1631,10 @@ class Session:
                 return ApproxDPBudget(float("inf"), 1)
             else:
                 if not is_exact_number_tuple(remaining_budget_value):
-                    raise AssertionError(
+                    raise AnalyticsInternalError(
                         "Remaining budget type for ApproxDP must be Tuple[ExactNumber,"
                         " ExactNumber], but instead received"
-                        f" {type(remaining_budget_value)}. This is probably a bug;"
-                        " please let us know about it so we can fix it!"
+                        f" {type(remaining_budget_value)}."
                     )
                 # mypy doesn't understand that we've already checked that this is a tuple
                 remaining_epsilon, remaining_delta = remaining_budget_value  # type: ignore
@@ -1643,10 +1647,8 @@ class Session:
                 )
         elif isinstance(privacy_budget, RhoZCDPBudget):
             if not isinstance(remaining_budget_value, ExactNumber):
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     f"Cannot understand remaining budget of {remaining_budget_value}."
-                    " This is probably a bug; please let us know about it so we can"
-                    " fix it!"
                 )
             return get_adjusted_budget(
                 privacy_budget,

@@ -8,6 +8,7 @@ from typing import List, Optional, Set, Union, cast
 import pandas as pd
 from pyspark.sql import DataFrame
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -85,9 +86,8 @@ def propagate_select(expr: Select, constraints: List[Constraint]) -> List[Constr
 def propagate_map(expr: Map, constraints: List[Constraint]) -> List[Constraint]:
     """Propagate a list of constraints through a Map transformation."""
     if not expr.augment and constraints:
-        raise AssertionError(
-            "Non-augmenting map applied to table with constraints. "
-            "This is probably a bug; please let us know about it so we can fix it!"
+        raise AnalyticsInternalError(
+            "Non-augmenting map applied to table with constraints."
         )
     # Map can only add columns to the existing rows, so existing constraints
     # remain valid.
@@ -99,9 +99,8 @@ def propagate_flat_map(
 ) -> List[Constraint]:
     """Propagate a list of constraints through a FlatMap transformation."""
     if not expr.augment and constraints:
-        raise AssertionError(
-            "Non-augmenting flat map applied to table with constraints. "
-            "This is probably a bug; please let us know about it so we can fix it!"
+        raise AnalyticsInternalError(
+            "Non-augmenting flat map applied to table with constraints."
         )
     # Because rows can be duplicated arbitrarily many times by flat maps,
     # MaxRowsPerID and MaxRowsPerGroupPerID constraints cannot be propagated

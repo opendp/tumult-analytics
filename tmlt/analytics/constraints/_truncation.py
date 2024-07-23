@@ -36,6 +36,7 @@ from tmlt.core.transformations.spark_transformations.truncation import (
 )
 from typeguard import check_type
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._table_identifier import TemporaryTable
 from tmlt.analytics._table_reference import TableReference, lookup_metric
 from tmlt.analytics._transformation_utils import (
@@ -117,8 +118,16 @@ class MaxRowsPerID(Constraint):
         if update_metric:
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
-            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-            assert isinstance(transformation.output_metric, IfGroupedBy)
+            if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerID to return a SparkDataFrameDomain, but got "
+                    f"{transformation.output_domain} instead."
+                )
+            if not isinstance(transformation.output_metric, IfGroupedBy):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerID to return an IfGroupedBy metric, but got "
+                    f"{transformation.output_metric} instead."
+                )
             transformation |= LimitRowsPerGroup(
                 transformation.output_domain,
                 SymmetricDifference(),
@@ -193,11 +202,24 @@ class MaxGroupsPerID(Constraint):
 
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
-            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-            assert isinstance(transformation.output_metric, IfGroupedBy)
-            assert isinstance(
+            if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+                raise AnalyticsInternalError(
+                    "Expected MaxGroupsPerID to return a SparkDataFrameDomain, but got "
+                    f"{transformation.output_domain} instead."
+                )
+            if not isinstance(transformation.output_metric, IfGroupedBy):
+                raise AnalyticsInternalError(
+                    "Expected MaxGroupsPerID to return an IfGroupedBy metric, but got "
+                    f"{transformation.output_metric} instead."
+                )
+            if not isinstance(
                 transformation.output_metric.inner_metric, SymmetricDifference
-            )
+            ):
+                raise AnalyticsInternalError(
+                    "Expected MaxGroupsPerID to return an IfGroupedBy with a "
+                    "SymmetricDifference inner metric, but got "
+                    f"{transformation.output_metric.inner_metric} instead."
+                )
 
             inner_metric: Union[SumOf, RootSumOfSquared]
             if use_l2:
@@ -281,14 +303,33 @@ class MaxRowsPerGroupPerID(Constraint):
         if update_metric:
             target_table = TemporaryTable()
             transformation = get_table_from_ref(child_transformation, child_ref)
-            assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-            assert isinstance(transformation.output_metric, IfGroupedBy)
-            assert isinstance(
+            if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerGroupPerID to return a SparkDataFrameDomain, "
+                    f"but got {transformation.output_domain} instead."
+                )
+            if not isinstance(transformation.output_metric, IfGroupedBy):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerGroupPerID to return an IfGroupedBy metric, "
+                    f"but got {transformation.output_metric} instead."
+                )
+            if not isinstance(
                 transformation.output_metric.inner_metric, (SumOf, RootSumOfSquared)
-            )
-            assert isinstance(
+            ):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerGroupPerID to return an IfGroupedBy with a "
+                    "SumOf or RootSumOfSquared inner metric, but got "
+                    f"{transformation.output_metric.inner_metric} instead."
+                )
+            if not isinstance(
                 transformation.output_metric.inner_metric.inner_metric, IfGroupedBy
-            )
+            ):
+                raise AnalyticsInternalError(
+                    "Expected MaxRowsPerGroupPerID to return an IfGroupedBy with a "
+                    "SumOf or RootSumOfSquared inner metric with an IfGroupedBy inner "
+                    "metric, but got a(n) "
+                    f"{transformation.output_metric.inner_metric.inner_metric} instead."
+                )
             transformation |= LimitRowsPerKeyPerGroup(
                 transformation.output_domain,
                 transformation.output_metric,

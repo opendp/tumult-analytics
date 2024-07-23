@@ -63,6 +63,7 @@ from tmlt.core.transformations.spark_transformations.select import (
 )
 from tmlt.core.utils.exact_number import ExactNumber
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo, _noise_from_measurement
 from tmlt.analytics._query_expr import (
@@ -192,15 +193,11 @@ def _constraint_stability(
         elif output_measure == RhoZCDP():
             return math.sqrt(constraints[0].max) * constraints[1].max
         else:
-            raise AssertionError(
-                f"Unknown output measure {output_measure}. "
-                "This is probably a bug; please let us know about it so we can fix it!"
-            )
+            raise AnalyticsInternalError(f"Unknown output measure {output_measure}.")
     else:
-        raise AssertionError(
+        raise AnalyticsInternalError(
             f"Constraints {constraints} are not a combination for which a stability "
-            "can be computed. This is probably a bug; please let us know about it "
-            "so we can fix it!"
+            "can be computed."
         )
 
 
@@ -249,10 +246,7 @@ def _generate_constrained_count_distinct(
         else None
     )
     if mechanism is None:
-        raise AssertionError(
-            f"Unknown mechanism {query.mechanism}. This is probably a bug; "
-            "please let us know about it so we can fix it!"
-        )
+        raise AnalyticsInternalError(f"Unknown mechanism {query.mechanism}.")
 
     if not groupby_columns:
         # No groupby is performed; this is equivalent to a MaxRowsPerID(1)
@@ -319,7 +313,10 @@ def _create_single_row_df_with_spark_schema(schema: StructType) -> DataFrame:
 
     # Create a DataFrame with a single row using the default values
     df = spark.createDataFrame([tuple(default_values)], schema=schema)
-    assert df.schema == schema
+    if df.schema != schema:
+        raise AnalyticsInternalError(
+            f"Failed to create a DataFrame with schema {schema}."
+        )
     return df
 
 
@@ -382,10 +379,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             return ApproxDPBudget(0, 0)
         if isinstance(self.budget, RhoZCDPBudget):
             return RhoZCDPBudget(0)
-        raise AssertionError(
-            f"Unknown budget type {type(self.budget)}. This is probably a bug; "
-            "please let us know about it so we can fix it!"
-        )
+        raise AnalyticsInternalError(f"Unknown budget type {type(self.budget)}.")
 
     @staticmethod
     def _build_groupby(
@@ -438,9 +432,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         Returns:
             A tuple of the groupby aggregation measurement and the noise info.
         """
-        assert keyset is not None
+        if keyset is None:
+            raise AnalyticsInternalError("No keyset provided.")
         if isinstance(keyset, KeySet):
-            assert keyset.dataframe().columns == columns
+            if keyset.dataframe().columns != columns:
+                raise AnalyticsInternalError(
+                    f"Keyset columns {keyset.dataframe().columns} do not match "
+                    f"columns {columns}."
+                )
 
         def perform_groupby_agg(
             queryable: Queryable,
@@ -544,9 +543,12 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 )
 
             for c in truncatable_constraints[0]:
-                assert isinstance(
+                if not isinstance(
                     c, (MaxRowsPerID, MaxGroupsPerID, MaxRowsPerGroupPerID)
-                )
+                ):
+                    raise AnalyticsInternalError(
+                        f"Unexpected constraint type {type(c)} in {c}."
+                    )
                 if isinstance(c, MaxGroupsPerID):
                     # Taking advantage of the L2 noise behavior only works for
                     # Sessions initialized with a RhoZCDP privacy budget,
@@ -649,10 +651,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 # Quantile has no mechanism
                 self.adjusted_budget = ApproxDPBudget(epsilon, 0)
             else:
-                raise AssertionError(
-                    f"Unknown mechanism {mechanism}. This is probably a bug; "
-                    "please let us know so we can fix it!"
-                )
+                raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
 
     def _pick_noise_for_count(
         self, query: Union[GroupByCount, GroupByCountDistinct]
@@ -686,9 +685,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             return NoiseMechanism.DISCRETE_GAUSSIAN
         else:
             # This should never happen
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 f"Did not recognize the requested mechanism {requested_mechanism}."
-                " This is probably a bug; please let us know about it so we can fix it!"
             )
 
     def _pick_noise_for_non_count(
@@ -774,9 +772,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # The requested_mechanism should be either LAPLACE or
         # GAUSSIAN, so something has gone awry
         else:
-            raise AssertionError(
+            raise AnalyticsInternalError(
                 f"Did not recognize requested mechanism {requested_mechanism}."
-                " This is probably a bug; please let us know about it so we can fix it!"
             )
 
     def _add_special_value_handling_to_query(
@@ -843,17 +840,18 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 )
             )
         else:
-            assert isinstance(self.adjusted_budget.value, ExactNumber)
+            if not isinstance(self.adjusted_budget.value, ExactNumber):
+                raise AnalyticsInternalError(
+                    "Privacy budget value should be an ExactNumber."
+                )
             privacy_function_budget_mismatch = (
                 measurement.privacy_function(mid_stability)
                 != self.adjusted_budget.value
             )
 
         if privacy_function_budget_mismatch:
-            raise AssertionError(
-                "Privacy function does not match per-query privacy budget. "
-                "This is probably a bug; please let us know so we can "
-                "fix it!"
+            raise AnalyticsInternalError(
+                "Privacy function does not match per-query privacy budget."
             )
 
     # these don't produce measurements, so they return an error
@@ -935,19 +933,16 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             columns: List[str] = keyset_or_columns
             # Check that the budget is ApproxDP and is nonzero.
             if not isinstance(budget, ApproxDPBudget):
-                raise AssertionError(
-                    "Automatic partition selection requires an ApproxDPBudget. "
-                    f"The budget provided was {budget}. This is probably a bug; "
-                    "please let us know about it so we can fix it!"
+                raise AnalyticsInternalError(
+                    "Automatic partition selection requires an ApproxDPBudget, "
+                    f"but the budget provided was {type(budget)}."
                 )
-            assert isinstance(budget, ApproxDPBudget)  # Assertion to help mypy later.
 
             if budget.epsilon <= 0 or budget.delta <= 0:
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     "Automatic partition selection requires an ApproxDPBudget with "
                     "epsilon and delta greater than 0. The budget provided was "
-                    f"{budget}. This is probably a bug; please let us know about it "
-                    "so we can fix it!"
+                    f"{budget}."
                 )
             select = SelectTransformation(input_domain, input_metric, columns)
             keyset_domain = SparkDataFrameDomain(
@@ -979,12 +974,23 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             columns = keyset_or_columns.dataframe().columns
 
             if isinstance(budget, PureDPBudget):
-                assert budget.epsilon == 0
+                if budget.epsilon != 0:
+                    raise AnalyticsInternalError(
+                        "Encountered a non-zero budget. "
+                        f"Provided budget value is {budget.epsilon}."
+                    )
             elif isinstance(budget, ApproxDPBudget):
-                assert budget.epsilon == 0
-                assert budget.delta == 0
+                if budget.epsilon != 0 or budget.delta != 0:
+                    raise AnalyticsInternalError(
+                        "Encountered a non-zero budget. "
+                        f"Provided budget values are {budget.epsilon}, {budget.delta}."
+                    )
             elif isinstance(budget, RhoZCDPBudget):
-                assert budget.rho == 0
+                if budget.rho != 0:
+                    raise AnalyticsInternalError(
+                        "Encountered a non-zero budget. "
+                        f"Provided budget value is {budget.rho}."
+                    )
             else:
                 raise AssertionError(f"Unrecognized budget type {type(budget)}")
             keyset_measurement = lambda _: keyset_or_columns  # type: ignore
@@ -1714,7 +1720,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected the output domain to be a SparkDataFrameDomain."
+            )
 
         # squares the sensitivity in zCDP, which is a worst-case analysis
         # that we may be able to improve.
@@ -1723,18 +1732,30 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 transformation.output_domain, transformation.output_metric
             )
 
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-        assert isinstance(
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected the output domain to be a SparkDataFrameDomain, "
+                f"but got {type(transformation.output_domain)} instead."
+            )
+        if not isinstance(
             transformation.output_metric,
             (IfGroupedBy, HammingDistance, SymmetricDifference),
-        )
+        ):
+            raise AnalyticsInternalError(
+                "Unrecognized metric type for GetBounds query."
+                f"Metric type is {type(transformation.output_metric)}."
+            )
 
         transformation |= SelectTransformation(
             transformation.output_domain, transformation.output_metric, [expr.column]
         )
 
         mid_stability = transformation.stability_function(self.stability)
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected the output domain to be a SparkDataFrameDomain, "
+                f"but got {type(transformation.output_domain)} instead."
+            )
 
         agg = self.build_bound_selection_measurement(
             input_domain=transformation.output_domain,
@@ -1758,7 +1779,11 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         child_measurement, noise_info = expr.child.accept(self)
-        assert isinstance(child_measurement, Measurement)
+        if not isinstance(child_measurement, Measurement):
+            raise AnalyticsInternalError(
+                "Expected child to return a Measurement, but got "
+                f"{type(child_measurement)} instead."
+            )
 
         def suppression_function(df: DataFrame) -> DataFrame:
             """Suppress rows where the column is less than the desired threshold."""

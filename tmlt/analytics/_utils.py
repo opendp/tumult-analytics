@@ -5,6 +5,22 @@
 from pyspark.sql import DataFrame
 
 
+class AnalyticsInternalError(AssertionError):
+    """Generic error to raise for internal analytics errors."""
+
+    def __init__(self, message: str):
+        """Initialize the error.
+
+        Args:
+            message: context-specific message describing the error.
+        """
+        common_message = (
+            "\n\nThis is probably a bug! Please let us know about it at:\n"
+            "https://gitlab.com/tumult-labs/analytics/-/issues/new\n"
+        )
+        super().__init__(message + common_message)
+
+
 def assert_is_identifier(identifier: str):
     """Check that the given ``identifier`` is a valid table name."""
     if not identifier.isidentifier():

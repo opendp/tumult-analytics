@@ -46,7 +46,9 @@ __version_tuple__ = (0, 0, 0)
 
 from typing import List
 
-__all__: List[str] = []
+from tmlt.analytics._utils import AnalyticsInternalError
+
+__all__: List[str] = ["AnalyticsInternalError"]
 
 try:
     # Addresses https://nvd.nist.gov/vuln/detail/CVE-2023-47248 for Python 3.7

@@ -10,6 +10,7 @@ from pyspark.sql import SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.utils.join import domain_after_join
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
 from tmlt.analytics._query_expr import (
     DropInfinity,
@@ -88,10 +89,7 @@ def _output_schema_for_join(
     if join_columns is not None and not join_columns:
         # This error case should be caught when constructing the query
         # expression, so it should never get here.
-        raise AssertionError(
-            "Empty list of join columns provided. This is probably a bug; "
-            "please let us know about it so we can fix it!"
-        )
+        raise AnalyticsInternalError("Empty list of join columns provided.")
 
     join_columns = (
         join_columns

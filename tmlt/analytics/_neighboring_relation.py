@@ -13,6 +13,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import DateType, IntegerType, LongType, StringType
 from typeguard import check_type
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 
 
@@ -274,9 +275,14 @@ class AddRemoveKeys(NeighboringRelation):
                             " StringType(), DateType(), IntegerType()."
                         )
                     if key_type is None:
-                        assert isinstance(
+                        if not isinstance(
                             df_field.dataType, (LongType, StringType, DateType)
-                        )
+                        ):
+                            raise AnalyticsInternalError(
+                                f"Key column '{key_column}' must have a type of"
+                                " LongType(), StringType(), or DateType(), but"
+                                f" has type {df_field.dataType}."
+                            )
                         key_type = df_field.dataType
                     else:
                         if not df_field.dataType == key_type:

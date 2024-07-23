@@ -20,6 +20,7 @@ from tmlt.core.transformations.spark_transformations.select import (
 )
 from tmlt.core.utils.misc import get_nonconflicting_string
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._noise_info import NoiseInfo, _noise_from_measurement
 from tmlt.analytics._query_expr import GetGroups, QueryExpr
 from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
@@ -103,7 +104,11 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected GetGroups to receive a SparkDataFrameDomain, but got "
+                f"{transformation.output_domain} instead."
+            )
 
         # squares the sensitivity in zCDP, which is a worst-case analysis
         # that we may be able to improve.
@@ -111,19 +116,30 @@ class MeasurementVisitor(BaseMeasurementVisitor):
             transformation |= UnwrapIfGroupedBy(
                 transformation.output_domain, transformation.output_metric
             )
-
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
-        assert isinstance(
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected GetGroups to receive a SparkDataFrameDomain, but got "
+                f"{transformation.output_domain} instead."
+            )
+        if not isinstance(
             transformation.output_metric,
             (IfGroupedBy, HammingDistance, SymmetricDifference),
-        )
+        ):
+            raise AnalyticsInternalError(
+                "Unrecognized metric in GetGroups transformation."
+                f"{transformation.output_metric} instead."
+            )
 
         transformation |= SelectTransformation(
             transformation.output_domain, transformation.output_metric, columns
         )
 
         mid_stability = transformation.stability_function(self.stability)
-        assert isinstance(transformation.output_domain, SparkDataFrameDomain)
+        if not isinstance(transformation.output_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                "Expected GetGroups to receive a SparkDataFrameDomain, but got "
+                f"{transformation.output_domain} instead."
+            )
         count_column = "count"
         if count_column in set(transformation.output_domain.schema):
             count_column = get_nonconflicting_string(

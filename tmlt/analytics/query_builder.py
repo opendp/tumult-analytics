@@ -35,6 +35,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pyspark.sql import DataFrame
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
     AnalyticsDefault,
     AverageMechanism,
@@ -544,7 +545,8 @@ class QueryBuilder:
         if replace_with is None:
             replace_with = {}
         # this assert is for mypy
-        assert replace_with is not None
+        if replace_with is None:
+            raise AnalyticsInternalError("replace_with parameter is None.")
         self._query_expr = ReplaceNullAndNan(
             child=self.query_expr, replace_with=replace_with
         )
@@ -621,7 +623,8 @@ class QueryBuilder:
         if replace_with is None:
             replace_with = {}
         # this assert is for mypy
-        assert replace_with is not None
+        if replace_with is None:
+            raise AnalyticsInternalError("replace_with parameter is None.")
         self._query_expr = ReplaceInfinity(
             child=self.query_expr, replace_with=replace_with
         )
@@ -726,7 +729,8 @@ class QueryBuilder:
         if columns is None:
             columns = []
         # this assert is for mypy
-        assert columns is not None
+        if columns is None:
+            raise AnalyticsInternalError("columns parameter is None.")
         self._query_expr = DropNullAndNan(child=self.query_expr, columns=columns)
         return self
 
@@ -816,7 +820,9 @@ class QueryBuilder:
         if columns is None:
             columns = []
         # this assert is for mypy
-        assert columns is not None
+        if columns is None:
+            raise AnalyticsInternalError("columns parameter is None.")
+
         self._query_expr = DropInfinity(child=self.query_expr, columns=columns)
         return self
 

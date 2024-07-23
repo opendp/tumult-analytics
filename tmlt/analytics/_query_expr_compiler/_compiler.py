@@ -18,6 +18,7 @@ from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric
 from tmlt.core.transformations.base import Transformation
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._query_expr import QueryExpr
@@ -109,10 +110,11 @@ class QueryExprCompiler:
     def query_schema(query: QueryExpr, catalog: Catalog) -> Schema:
         """Return the schema created by a given query."""
         result = query.accept(OutputSchemaVisitor(catalog=catalog))
-        assert isinstance(result, Schema), (
-            f"schema for this query is not a Schema but is instead a(n) {type(result)}."
-            " This is probably a bug; please let us know about it so we can fix it!"
-        )
+        if not isinstance(result, Schema):
+            raise AnalyticsInternalError(
+                "Schema for this query is not a Schema but is instead a(n) "
+                f"{type(result)}."
+            )
         return result
 
     def __call__(
@@ -162,10 +164,7 @@ class QueryExprCompiler:
         for query in queries:
             query_measurement, noise_info = query.accept(visitor)
             if not isinstance(query_measurement, Measurement):
-                raise AssertionError(
-                    "This query did not create a measurement. "
-                    "This is probably a bug; please let us know so we can fix it!"
-                )
+                raise AnalyticsInternalError("This query did not create a measurement.")
 
             if isinstance(visitor.adjusted_budget.value, tuple):
                 # TODO(#2754): add a log message.
@@ -183,16 +182,16 @@ class QueryExprCompiler:
                 )
 
             if privacy_function_budget_mismatch:
-                raise AssertionError(
+                raise AnalyticsInternalError(
                     "Query measurement privacy function does not match "
-                    "privacy budget value. This is probably a bug; "
-                    "please let us know so we can fix it!"
+                    "privacy budget value."
                 )
             measurements.append(query_measurement)
             noise_infos.append(noise_info)
 
         measurement = Composition(measurements)
-        assert len(noise_infos) == 1
+        if len(noise_infos) != 1:
+            raise AnalyticsInternalError("Noise info should be length one.")
         noise_info = noise_infos[0]
 
         if isinstance(visitor.adjusted_budget.value, tuple):
@@ -210,10 +209,8 @@ class QueryExprCompiler:
             )
 
         if privacy_function_budget_mismatch:
-            raise AssertionError(
-                "Measurement privacy function does not match "
-                "privacy budget. This is probably a bug; "
-                "please let us know so we can fix it!"
+            raise AnalyticsInternalError(
+                "Measurement privacy function does not match privacy budget value."
             )
         return measurement, noise_info
 
@@ -259,9 +256,8 @@ class QueryExprCompiler:
         )
         transformation, reference, constraints = query.accept(transformation_visitor)
         if not isinstance(transformation, Transformation):
-            raise AssertionError(
-                "Unable to create transformation. This is probably "
-                "a bug; please let us know about it so we can fix it!"
+            raise AnalyticsInternalError(
+                "Unable to create transformation for this query."
             )
         transformation_visitor.validate_transformation(
             query, transformation, reference, catalog
