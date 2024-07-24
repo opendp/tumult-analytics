@@ -2,9 +2,14 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
+# pylint: disable=no-member, protected-access
+# Disabling no-member because attributes of specific query types need to be referenced,
+# and the general QueryExpr type doesn't have the attribute.
+# Disabling protected-access to access the _query_expr attribute of Query regularly.
 
 import datetime
 import re
+from dataclasses import FrozenInstanceError
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
@@ -37,7 +42,12 @@ from tmlt.analytics._query_expr import (
 from tmlt.analytics._schema import Schema
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
+from tmlt.analytics.query_builder import (
+    ColumnDescriptor,
+    ColumnType,
+    Query,
+    QueryBuilder,
+)
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ..conftest import assert_frame_equal_with_sort
@@ -64,15 +74,17 @@ def test_join_public(join_columns: Optional[List[str]]):
         .join_public(join_table, join_columns)
         .groupby(KeySet.from_dict({"A + B": ["0", "1", "2"]}))
         .count()
-        .query_expr
     )
 
-    assert query.child.join_columns == join_columns
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+
+    assert query_expr.child.join_columns == join_columns  # type: ignore
 
     # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query_expr, GroupByCount)
 
-    join_expr = query.child
+    join_expr = query_expr.child
     assert isinstance(join_expr, JoinPublic)
     assert join_expr.public_table == join_table
 
@@ -91,15 +103,17 @@ def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
         .join_public(join_table, join_columns)
         .groupby(KeySet.from_dict({"A + B": ["0", "1", "2"]}))
         .count()
-        .query_expr
     )
 
-    assert query.child.join_columns == join_columns
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+
+    assert query_expr.child.join_columns == join_columns  # type: ignore
 
     # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query_expr, GroupByCount)
 
-    join_expr = query.child
+    join_expr = query_expr.child
     assert isinstance(join_expr, JoinPublic)
     assert isinstance(join_expr.public_table, DataFrame)
     assert_frame_equal_with_sort(
@@ -124,10 +138,12 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
         )
         .groupby(KeySet.from_dict({"A": ["1", "2"]}))
         .count()
-        .query_expr
     )
-    assert isinstance(query, GroupByCount)
-    private_join_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+
+    assert isinstance(query_expr, GroupByCount)
+    private_join_expr = query_expr.child
     assert isinstance(private_join_expr, JoinPrivate)
     assert private_join_expr.join_columns == join_columns
     assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
@@ -140,7 +156,7 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
     assert isinstance(right_operand_expr, PrivateSource)
     assert right_operand_expr.source_id == "private_2"
 
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query_expr, GroupByCount)
 
 
 def test_join_private_str() -> None:
@@ -155,11 +171,13 @@ def test_join_private_str() -> None:
         )
         .groupby(KeySet.from_dict({"A": ["1", "2"]}))
         .count()
-        .query_expr
     )
 
-    assert isinstance(query, GroupByCount)
-    private_join_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+
+    assert isinstance(query_expr, GroupByCount)
+    private_join_expr = query_expr.child
     assert isinstance(private_join_expr, JoinPrivate)
     assert private_join_expr.join_columns is None
     assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
@@ -172,7 +190,7 @@ def test_join_private_str() -> None:
     assert isinstance(right_operand_expr, PrivateSource)
     assert right_operand_expr.source_id == "private_2"
 
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query_expr, GroupByCount)
 
 
 def test_rename():
@@ -183,13 +201,15 @@ def test_rename():
         .rename(column_mapper)
         .groupby(KeySet.from_dict({"Z": ["1", "2"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    rename_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    rename_expr = query_expr.child
     assert isinstance(rename_expr, Rename)
     assert rename_expr.column_mapper == column_mapper
 
@@ -203,10 +223,13 @@ def test_filter():
     condition = "A == '0'"
     query = root_builder().filter(condition).count()
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    filter_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    filter_expr = query_expr.child
     assert isinstance(filter_expr, Filter)
     assert filter_expr.condition == condition
 
@@ -223,13 +246,15 @@ def test_select():
         .select(columns)
         .groupby(KeySet.from_dict({"Z": ["1", "2"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    select_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    select_expr = query_expr.child
     assert isinstance(select_expr, Select)
     assert select_expr.columns == columns
 
@@ -276,13 +301,14 @@ def test_map_augment_is_false():
         .map(double_row, new_column_types={"C": "VARCHAR"}, augment=False)
         .groupby(KeySet.from_dict({"C": ["0", "1"]}))
         .count()
-        .query_expr
     )
 
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
     # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query_expr, GroupByCount)
 
-    map_expr = query.child
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
     assert getattr(map_expr, "f") is double_row
     assert map_expr.schema_new_columns.column_types == {"C": "VARCHAR"}
@@ -305,13 +331,15 @@ def test_map_augment_is_true():
         .map(double_row, new_column_types={"C": "VARCHAR"}, augment=True)
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    map_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
     assert getattr(map_expr, "f") is double_row
     assert map_expr.schema_new_columns.column_types == {"C": "VARCHAR"}
@@ -389,13 +417,15 @@ def test_flat_map_augment_is_false():
         )
         .groupby(KeySet.from_dict({"C": ["0", "1"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    flat_map_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    flat_map_expr = query_expr.child
     assert isinstance(flat_map_expr, FlatMap)
     assert getattr(flat_map_expr, "f") is duplicate_rows
     assert flat_map_expr.max_rows == 2
@@ -427,13 +457,15 @@ def test_flat_map_augment_is_true():
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    flat_map_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    flat_map_expr = query_expr.child
     assert isinstance(flat_map_expr, FlatMap)
     assert getattr(flat_map_expr, "f") is duplicate_rows
     assert flat_map_expr.max_rows == 2
@@ -471,13 +503,15 @@ def test_flat_map_grouping_is_true():
         )
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["0", "1"]}))
         .count()
-        .query_expr
     )
 
-    # Check query expression
-    assert isinstance(query, GroupByCount)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    flat_map_expr = query.child
+    # Check query expression
+    assert isinstance(query_expr, GroupByCount)
+
+    flat_map_expr = query_expr.child
     assert isinstance(flat_map_expr, FlatMap)
     assert flat_map_expr.schema_new_columns == Schema(
         {
@@ -493,8 +527,10 @@ def test_bin_column():
     """QueryBuilder.bin_column works as expected."""
     spec = BinningSpec([0, 5, 10])
     query = root_builder().bin_column("A", spec).count()
-    assert isinstance(query, GroupByCount)
-    map_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
     assert map_expr.schema_new_columns == Schema(
         {
@@ -518,8 +554,10 @@ def test_bin_column_options():
     """QueryBuilder.bin_column works as expected with options."""
     spec = BinningSpec([0.0, 1.0, 2.0], names=[0, 1])
     query = root_builder().bin_column("A", spec, name="rounded").count()
-    assert isinstance(query, GroupByCount)
-    map_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
     assert map_expr.schema_new_columns == Schema(
         {
@@ -542,9 +580,11 @@ def test_histogram():
     spec = BinningSpec([0, 5, 10])
 
     query = root_builder().histogram("A", spec)
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
 
-    assert isinstance(query, GroupByCount)
-    map_expr = query.child
+    assert isinstance(query_expr, GroupByCount)
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
 
     assert map_expr.schema_new_columns == Schema(
@@ -568,9 +608,10 @@ def test_histogram_options():
     """QueryBuilder.histogram works as expected, with options."""
 
     query = root_builder().histogram("A", [0, 5, 10], name="New")
-
-    assert isinstance(query, GroupByCount)
-    map_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    map_expr = query_expr.child
     assert isinstance(map_expr, Map)
 
     assert map_expr.schema_new_columns == Schema(
@@ -615,8 +656,10 @@ def test_replace_null_and_nan(
 ) -> None:
     """QueryBuilder.replace_null_and_nan works as expected."""
     query = root_builder().replace_null_and_nan(replace_with).count()
-    assert isinstance(query, GroupByCount)
-    replace_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    replace_expr = query_expr.child
     assert isinstance(replace_expr, ReplaceNullAndNan)
 
     root_expr = replace_expr.child
@@ -646,11 +689,13 @@ def test_replace_infinity(
 ) -> None:
     """QueryBuilder.replace_infinity works as expected."""
     query = root_builder().replace_infinity(replace_with).count()
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
     # You want to use both of these assert statements:
     # - `self.assertIsInstance` will print a helpful error message if it isn't true
     # - `assert isinstance` tells mypy what type this has
-    assert isinstance(query, GroupByCount)
-    replace_expr = query.child
+    assert isinstance(query_expr, GroupByCount)
+    replace_expr = query_expr.child
     assert isinstance(replace_expr, ReplaceInfinity)
 
     root_expr = replace_expr.child
@@ -667,8 +712,10 @@ def test_replace_infinity(
 def test_drop_null_and_nan(columns: Optional[List[str]]) -> None:
     """QueryBuilder.drop_null_and_nan works as expected."""
     query = root_builder().drop_null_and_nan(columns).count()
-    assert isinstance(query, GroupByCount)
-    drop_expr = query.child
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    drop_expr = query_expr.child
     assert isinstance(drop_expr, DropNullAndNan)
 
     root_expr = drop_expr.child
@@ -685,8 +732,12 @@ def test_drop_null_and_nan(columns: Optional[List[str]]) -> None:
 def test_drop_infinity(columns: Optional[List[str]]) -> None:
     """QueryBuilder.drop_infinity works as expected."""
     query = root_builder().drop_infinity(columns).count()
-    assert isinstance(query, GroupByCount)
-    drop_expr = query.child
+
+    assert isinstance(query, Query)
+    query_expr = query._query_expr
+
+    assert isinstance(query_expr, GroupByCount)
+    drop_expr = query_expr.child
     assert isinstance(drop_expr, DropInfinity)
 
     root_expr = drop_expr.child
@@ -765,8 +816,10 @@ class TestAggregations:
     def test_count_ungrouped(self, spark, name: Optional[str], expected_name: str):
         """Query returned by ungrouped count is correct."""
         query = root_builder().count(name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
         self.assert_count_query_correct(
-            query, self._keys_from_pandas(spark, pd.DataFrame()), expected_name
+            query_expr, self._keys_from_pandas(spark, pd.DataFrame()), expected_name
         )
 
     @pytest.mark.parametrize(
@@ -782,8 +835,10 @@ class TestAggregations:
     ):
         """Query returned by groupby with KeySet and count is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
-        query = root_builder().groupby(keys).count(name).query_expr
-        self.assert_count_query_correct(query, keys, expected_name)
+        query = root_builder().groupby(keys).count(name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        self.assert_count_query_correct(query_expr, keys, expected_name)
 
     def assert_count_distinct_query_correct(
         self,
@@ -812,9 +867,14 @@ class TestAggregations:
         self, spark, name: Optional[str], expected_name: str, columns: List[str]
     ):
         """Query returned by ungrouped count_distinct is correct."""
-        query: QueryExpr = root_builder().count_distinct(columns=columns, name=name)
+        query = root_builder().count_distinct(columns=columns, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
         self.assert_count_distinct_query_correct(
-            query, self._keys_from_pandas(spark, pd.DataFrame()), columns, expected_name
+            query_expr,
+            self._keys_from_pandas(spark, pd.DataFrame()),
+            columns,
+            expected_name,
         )
 
     @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
@@ -869,13 +929,12 @@ class TestAggregations:
     ):
         """Query returned by groupby with KeySet and count_distinct is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
-        query = (
-            root_builder()
-            .groupby(keys)
-            .count_distinct(columns=columns, name=name)
-            .query_expr
+        query = root_builder().groupby(keys).count_distinct(columns=columns, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        self.assert_count_distinct_query_correct(
+            query_expr, keys, columns, expected_name
         )
-        self.assert_count_distinct_query_correct(query, keys, columns, expected_name)
 
     def assert_common_query_fields_correct(
         self,
@@ -913,10 +972,12 @@ class TestAggregations:
         query: QueryExpr = root_builder().quantile(
             column="B", quantile=quantile, low=0.0, high=1.0, name=name
         )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == quantile
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == quantile
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -927,11 +988,13 @@ class TestAggregations:
     ):
         """Query returned by an ungrouped min is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().min(column="B", low=0.0, high=1.0, name=name)
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 0.0
+        query = root_builder().min(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 0.0
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -942,11 +1005,13 @@ class TestAggregations:
     ):
         """Query returned by an ungrouped max is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().max(column="B", low=0.0, high=1.0, name=name)
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 1.0
+        query = root_builder().max(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 1.0
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -957,13 +1022,14 @@ class TestAggregations:
     ):
         """Query returned by an ungrouped median is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().median(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 0.5
+        query = root_builder().median(column="B", low=0.0, high=1.0, name=name)
+
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 0.5
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -991,12 +1057,13 @@ class TestAggregations:
             root_builder()
             .groupby(keys)
             .quantile(column="B", quantile=quantile, low=0.0, high=1.0, name=name)
-            .query_expr
         )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == quantile
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == quantile
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1013,15 +1080,14 @@ class TestAggregations:
         """Query returned by groupby with KeySet and min is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
         query = (
-            root_builder()
-            .groupby(keys)
-            .min(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
+            root_builder().groupby(keys).min(column="B", low=0.0, high=1.0, name=name)
         )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 0.0
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 0.0
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1038,15 +1104,14 @@ class TestAggregations:
         """Query returned by groupby with KeySet and max is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
         query = (
-            root_builder()
-            .groupby(keys)
-            .max(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
+            root_builder().groupby(keys).max(column="B", low=0.0, high=1.0, name=name)
         )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 1.0
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 1.0
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1066,12 +1131,13 @@ class TestAggregations:
             root_builder()
             .groupby(keys)
             .median(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
         )
-        assert isinstance(query, GroupByQuantile)
-        assert query.quantile == 0.5
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByQuantile)
+        assert query_expr.quantile == 0.5
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1080,10 +1146,12 @@ class TestAggregations:
     def test_sum_ungrouped(self, spark, name: Optional[str], expected_name: str):
         """Query returned by ungrouped sum is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().sum(column="B", low=0.0, high=1.0, name=name)
-        assert isinstance(query, GroupByBoundedSum)
+        query = root_builder().sum(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedSum)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1100,26 +1168,25 @@ class TestAggregations:
         """Query returned by groupby with KeySet and sum is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
         query = (
-            root_builder()
-            .groupby(keys)
-            .sum(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
+            root_builder().groupby(keys).sum(column="B", low=0.0, high=1.0, name=name)
         )
-        assert isinstance(query, GroupByBoundedSum)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedSum)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize("name,expected_name", [(None, "B_average"), ("M", "M")])
     def test_average_ungrouped(self, spark, name: Optional[str], expected_name: str):
         """Query returned by ungrouped average is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().average(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedAverage)
+        query = root_builder().average(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedAverage)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1139,11 +1206,12 @@ class TestAggregations:
             root_builder()
             .groupby(keys)
             .average(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
         )
-        assert isinstance(query, GroupByBoundedAverage)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedAverage)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1152,12 +1220,12 @@ class TestAggregations:
     def test_variance_ungrouped(self, spark, name: Optional[str], expected_name: str):
         """Query returned by ungrouped variance is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().variance(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedVariance)
+        query = root_builder().variance(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedVariance)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1177,23 +1245,24 @@ class TestAggregations:
             root_builder()
             .groupby(keys)
             .variance(column="B", low=0.0, high=1.0, name=name)
-            .query_expr
         )
-        assert isinstance(query, GroupByBoundedVariance)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedVariance)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize("name,expected_name", [(None, "B_stdev"), ("std", "std")])
     def test_stdev_ungrouped(self, spark, name: Optional[str], expected_name: str):
         """Query returned by ungrouped stdev is correct."""
         keys = self._keys_from_pandas(spark, pd.DataFrame())
-        query: QueryExpr = root_builder().stdev(
-            column="B", low=0.0, high=1.0, name=name
-        )
-        assert isinstance(query, GroupByBoundedSTDEV)
+        query = root_builder().stdev(column="B", low=0.0, high=1.0, name=name)
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedSTDEV)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1211,10 +1280,12 @@ class TestAggregations:
         keys = self._keys_from_pandas(spark, keys_df)
         query = (
             root_builder().groupby(keys).stdev(column="B", low=0.0, high=1.0, name=name)
-        ).query_expr
-        assert isinstance(query, GroupByBoundedSTDEV)
+        )
+        assert isinstance(query, Query)
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByBoundedSTDEV)
         self.assert_common_query_fields_correct(
-            query, keys, "B", 0.0, 1.0, expected_name
+            query_expr, keys, "B", 0.0, 1.0, expected_name
         )
 
     @pytest.mark.parametrize(
@@ -1232,5 +1303,25 @@ class TestAggregations:
         keys = self._keys_from_pandas(spark, keys_df)
         builder = root_builder().groupby(keys).count()
         suppress_aggregates_query = builder.suppress(threshold)
-        assert isinstance(suppress_aggregates_query, SuppressAggregates)
-        assert suppress_aggregates_query.column == builder.query_expr.output_column
+        assert isinstance(suppress_aggregates_query, Query)
+        query_expr = suppress_aggregates_query._query_expr
+        assert isinstance(query_expr, SuppressAggregates)
+        assert query_expr.column == builder._query_expr.output_column
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        QueryBuilder("testdf").count(),
+        QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+        QueryBuilder("testdf")
+        .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+        .count()
+        .suppress(1),
+    ],
+)
+def test_query_immutability(query: Query):
+    """Tests that Query objects are immutable."""
+
+    with pytest.raises(FrozenInstanceError):
+        query._query_expr = QueryBuilder("testdf").count()._query_expr  # type: ignore

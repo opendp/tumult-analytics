@@ -14,16 +14,6 @@ from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 
-from tmlt.analytics._query_expr import (
-    FlatMap,
-    GroupByBoundedSum,
-    GroupByCount,
-    PrivateSource,
-    QueryExpr,
-    Rename,
-    ReplaceNullAndNan,
-)
-from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
@@ -33,6 +23,7 @@ from tmlt.analytics.privacy_budget import (
     RhoZCDPBudget,
 )
 from tmlt.analytics.protected_change import AddOneRow
+from tmlt.analytics.query_builder import Query, QueryBuilder
 from tmlt.analytics.session import Session, _format_insufficient_budget_msg
 
 
@@ -45,13 +36,12 @@ class TestInvalidSession:
     sdf_input_domain: SparkDataFrameDomain
 
     @pytest.mark.parametrize(
-        "query_expr,error_type,expected_error_msg",
+        "query,error_type,expected_error_msg",
         [
             (
-                GroupByCount(
-                    child=PrivateSource("private_source_not_in_catalog"),
-                    groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
-                ),
+                QueryBuilder("private_source_not_in_catalog")
+                .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
+                .count(),
                 ValueError,
                 "Query references nonexistent table 'private_source_not_in_catalog'",
             )
@@ -59,7 +49,7 @@ class TestInvalidSession:
     )
     def test_invalid_queries_evaluate(
         self,
-        query_expr: QueryExpr,
+        query: Query,
         error_type: Type[Exception],
         expected_error_msg: str,
     ):
@@ -76,9 +66,9 @@ class TestInvalidSession:
         mock_accountant.privacy_budget = ExactNumber(float("inf"))
 
         session = Session(accountant=mock_accountant, public_sources={})
-        session.create_view(PrivateSource("private"), "view", cache=False)
+        session.create_view(QueryBuilder("private"), "view", cache=False)
         with pytest.raises(error_type, match=expected_error_msg):
-            session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
+            session.evaluate(query, privacy_budget=PureDPBudget(float("inf")))
 
     @pytest.mark.parametrize(
         "requested,remaining,budget_type,expected_msg",
@@ -170,9 +160,10 @@ class TestInvalidSession:
                 f"must use PureDP, ApproxDP, or RhoZCDP, found {output_measure}"
             )
 
-        query_expr = GroupByCount(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
+        query_expr = (
+            QueryBuilder("private")
+            .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
+            .count()
         )
         session = Session.from_dataframe(
             privacy_budget=one_budget,
@@ -207,15 +198,16 @@ class TestInvalidSession:
             protected_change=AddOneRow(),
         )
 
-        grouping_flatmap = FlatMap(
-            child=PrivateSource("private"),
+        grouping_flatmap = QueryBuilder("private").flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
+            new_column_types={"Repeat": "INTEGER"},
+            grouping=True,
             augment=True,
             max_rows=1,
         )
+
         session.create_view(
-            Rename(child=grouping_flatmap, column_mapper={"Repeat": "repeated"}),
+            grouping_flatmap.rename({"Repeat": "repeated"}),
             "grouping_flatmap_renamed",
             cache=False,
         )
@@ -227,16 +219,14 @@ class TestInvalidSession:
                 r"groupby columns \['A'\]"
             ),
         ):
+            invalid_query = (
+                QueryBuilder("grouping_flatmap_renamed")
+                .replace_null_and_nan(replace_with={})
+                .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+                .sum("X", 0, 3)
+            )
             session.evaluate(
-                query_expr=GroupByBoundedSum(
-                    child=ReplaceNullAndNan(
-                        replace_with={}, child=PrivateSource("grouping_flatmap_renamed")
-                    ),
-                    groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                    measure_column="X",
-                    low=0,
-                    high=3,
-                ),
+                query_expr=invalid_query,
                 privacy_budget=PureDPBudget(10),
             )
 
@@ -249,19 +239,20 @@ class TestInvalidSession:
             protected_change=AddOneRow(),
         )
 
-        grouping_flatmap = FlatMap(
-            child=PrivateSource("private"),
+        grouping_flatmap = QueryBuilder("private").flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            schema_new_columns=Schema({"Repeat": "INTEGER"}, grouping_column="Repeat"),
+            new_column_types={"Repeat": "INTEGER"},
+            grouping=True,
             augment=True,
             max_rows=1,
         )
+
         session.create_view(grouping_flatmap, "grouping_flatmap", cache=False)
 
-        grouping_flatmap_2 = FlatMap(
-            child=PrivateSource("grouping_flatmap"),
+        grouping_flatmap_2 = QueryBuilder("grouping_flatmap").flat_map(
             f=lambda row: [{"i": row["X"]} for _ in range(row["Repeat"])],
-            schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
+            new_column_types={"i": "INTEGER"},
+            grouping=True,
             augment=True,
             max_rows=2,
         )

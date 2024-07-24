@@ -94,16 +94,17 @@ Let's check that we initialized the Session as intended using the
    The session has a remaining privacy budget of PureDPBudget(epsilon=2.5).
    The following private tables are available:
    Table 'members' (no constraints):
-      Columns:
-         - 'id'               INTEGER
-         - 'name'             VARCHAR
-         - 'age'              INTEGER
-         - 'gender'           VARCHAR
-         - 'education_level'  VARCHAR
-         - 'zip_code'         VARCHAR
-         - 'books_borrowed'   INTEGER
-         - 'favorite_genres'  VARCHAR
-         - 'date_joined'      DATE
+   Column Name      Column Type    Nullable
+   ---------------  -------------  ----------
+   id               INTEGER        True
+   name             VARCHAR        True
+   age              INTEGER        True
+   gender           VARCHAR        True
+   education_level  VARCHAR        True
+   zip_code         VARCHAR        True
+   books_borrowed   INTEGER        True
+   favorite_genres  VARCHAR        True
+   date_joined      DATE           True
 
 Initializing a Session with a finite privacy budget gives a simple interface
 promise: all queries evaluated on this Session, *taken together*, will provide

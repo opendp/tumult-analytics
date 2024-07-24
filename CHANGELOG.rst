@@ -9,10 +9,24 @@ Changelog
 Unreleased
 ----------
 
-
 Changed
 ~~~~~~~
+- The :class:`~tmlt.analytics.query_builder.QueryBuilder` has been refactored to return :class:`~tmlt.analytics.query_builder.Query` instead of ``QueryExpr`` or ``AggregatedQueryBuilder`` when a query is created.
+- GroupbyCount queries now return :class:`~tmlt.analytics.query_builder.GroupbyCountQuery`, a subclass of :class:`~tmlt.analytics.query_builder.Query` that has the :meth:`~tmlt.analytics.query_builder.GroupbyCountQuery.suppress` post-process method.
+- :meth:`~tmlt.analytics.session.Session.evaluate` now accepts :class:`~tmlt.analytics.query_builder.Query` objects instead of ``QueryExpr`` objects.
+- :meth:`~tmlt.analytics.session.Session.create_view` now accepts :class:`~tmlt.analytics.query_builder.Query` and :class:`tmlt.analytics.query_builder.QueryBuilder` objects instead of ``QueryExpr`` objects.
 - Replaced asserts with custom exceptions in cases where internal errors are detected. Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
+
+Removed
+~~~~~~~
+- QueryExprs (previously in ``tmlt.analytics.query_expr``) have been removed from the Tumult Analytics public API.
+  Queries should be created using :class:`~tmlt.analytics.query_builder.QueryBuilder`, which returns a new :class:`~tmlt.analytics.query_builder.Query` when a query is created.
+- Removed the ``query_expr`` attribute from the :class:`~tmlt.analytics.query_builder.QueryBuilder` class.
+
+Added
+~~~~~
+- Added a dependency on the library ``tabulate`` to improve table displays from :meth:`~tmlt.analytics.session.Session.describe`.
+
 
 
 
@@ -85,11 +99,11 @@ Users with Intel-based Macs should not be affected.
 
 Added
 ~~~~~
-- Added a :class:`~tmlt.analytics._query_expr.SuppressAggregates` query type, for suppressing aggregates less than a certain threshold.
-  This is currently only supported for post-processing :class:`~tmlt.analytics._query_expr.GroupByCount` queries.
-  These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling :meth:`AggregatedQueryBuilder.suppress <tmlt.analytics.query_builder.AggregatedQueryBuilder.suppress>` after building a GroupByCount query.
-  As part of this change, query builders now return an :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` instead of a :class:`~tmlt.analytics._query_expr.QueryExpr` when aggregating;
-  the :class:`~tmlt.analytics.query_builder.AggregatedQueryBuilder` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
+- Added a ``tmlt.analytics.query_expr.SuppressAggregates`` query type, for suppressing aggregates less than a certain threshold.
+  This is currently only supported for post-processing ``tmlt.analytics.query_expr.GroupByCount`` queries.
+  These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling ``AggregatedQueryBuilder.suppress`` after building a GroupByCount query.
+  As part of this change, query builders now return an ``tmlt.analytics.query_builder.AggregatedQueryBuilder`` instead of a ``tmlt.analytics.query_expr.QueryExpr`` when aggregating;
+  the ``tmlt.analytics.query_builder.AggregatedQueryBuilder`` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
 - Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods to :class:`~tmlt.analytics.keyset.KeySet` for caching and uncaching the underlying Spark dataframe.
   These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
 
@@ -309,7 +323,7 @@ Changed
 - *Backwards-incompatible*: The lower and upper bounds for quantile, sum, average, variance, and standard deviation queries can no longer be equal to one another.
   The lower bound must now be strictly less than the upper bound.
 - *Backwards-incompatible*: Renamed :meth:`QueryBuilder.filter()<tmlt.analytics.query_builder.QueryBuilder.filter>` ``predicate`` argument to ``condition``.
-- *Backwards-incompatible*: Renamed :class:`~tmlt.analytics._query_expr.Filter` query expression ``predicate`` property to ``condition``.
+- *Backwards-incompatible*: Renamed ``tmlt.analytics.query_expr.Filter`` query expression ``predicate`` property to ``condition``.
 - *Backwards-incompatible*: Renamed :meth:`KeySet.filter()<tmlt.analytics.keyset.KeySet.filter>` ``expr`` argument to ``condition``.
 
 Deprecated

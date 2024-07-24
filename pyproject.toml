@@ -65,6 +65,8 @@ sympy = "^1.8,<1.10"
 typeguard = "^2.12.1,<2.13.0"
 typing-extensions = "^4.1.0"
 tqdm = "^4.66.4"
+tabulate = "^0.8.9"
+types-tabulate = "^0.8.10"
 
 [tool.poetry.group.fix-lock.dependencies]
 # This is a hack to convince Poetry to allow different versions of various

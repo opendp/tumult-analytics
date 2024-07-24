@@ -1109,7 +1109,7 @@ class GroupByBoundedSTDEV(QueryExpr):
 class SuppressAggregates(QueryExpr):
     """Remove all counts that are less than the threshold."""
 
-    child: QueryExpr
+    child: GroupByCount
     """The aggregate on which to suppress small counts.
 
     Currently, only GroupByCount is supported.

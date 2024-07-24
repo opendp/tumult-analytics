@@ -104,15 +104,16 @@ regardless of how many books they've checked out. Let's take a look at our Sessi
     The session has a remaining privacy budget of PureDPBudget(epsilon=inf).
     The following private tables are available:
     Table 'checkouts' (no constraints):
-        Columns:
-            - 'checkout_date'     TIMESTAMP
-            - 'member_id'         INTEGER, ID column (in ID space default_id_space)
-            - 'title'             VARCHAR
-            - 'author'            VARCHAR
-            - 'isbn'              VARCHAR
-            - 'publication_date'  INTEGER
-            - 'publisher'         VARCHAR
-            - 'genres'            VARCHAR
+    Column Name       Column Type    ID Col    ID Space          Nullable
+    ----------------  -------------  --------  ----------------  ----------
+    checkout_date     TIMESTAMP      False                       True
+    member_id         INTEGER        True      default_id_space  True
+    title             VARCHAR        False                       True
+    author            VARCHAR        False                       True
+    isbn              VARCHAR        False                       True
+    publication_date  INTEGER        False                       True
+    publisher         VARCHAR        False                       True
+    genres            VARCHAR        False                       True
 
 We can see that our Session has a single table, ``checkouts``, with 7 columns, and that
 the 'member_id' column is marked as our ID column.

@@ -81,21 +81,23 @@ assumed to potentially contain NaN or infinite values.
 
 .. testcode::
     
-    query = QueryBuilder("private").map(
+    query = QueryBuilder("my_private_data").map(
         f=lambda row: {"new": row["B"]*1.5},
         new_column_types={"new": "DECIMAL"},
         augment=True,
-    ).query_expr
-    print(query.schema_new_columns)
+    )
+    session_with_nulls.describe(query)
 
 
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    Schema({'new': ColumnDescriptor(column_type=ColumnType.DECIMAL,
-                                    allow_null=True,
-                                    allow_nan=True,
-                                    allow_inf=True)})
+    Column Name    Column Type    Nullable    NaN Allowed    Infinity Allowed
+    -------------  -------------  ----------  -------------  ------------------
+    name           VARCHAR        True
+    age            INTEGER        True
+    grade          DECIMAL        True        True           True
+    new            DECIMAL        True        True           True
 
 If you pass in a full :py:class:`tmlt.analytics.query_builder.ColumnDescriptor`, then you can specify whether new
 columns can contain null, NaN, or infinite values:
@@ -109,21 +111,23 @@ columns can contain null, NaN, or infinite values:
         allow_nan=False,
         allow_inf=False,
     )}
-    query = QueryBuilder("private").map(
+    query = QueryBuilder("my_private_data").map(
         f=lambda row: {"new": row["B"]*1.5},
         new_column_types=new_column_types,
         augment=True,
-    ).query_expr
-    print(query.schema_new_columns)
+    )
+    session_with_nulls.describe(query)
 
 
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    Schema({'new': ColumnDescriptor(column_type=ColumnType.DECIMAL,
-                                    allow_null=False,
-                                    allow_nan=False,
-                                    allow_inf=False)})
+    Column Name    Column Type    Nullable    NaN Allowed    Infinity Allowed
+    -------------  -------------  ----------  -------------  ------------------
+    name           VARCHAR        True
+    age            INTEGER        True
+    grade          DECIMAL        True        True           True
+    new            DECIMAL        True        False          False
 
 If you do this, it is your responsibility to ensure that the mapping
 function does not create null, NaN, or infinite values. Tumult Analytics'

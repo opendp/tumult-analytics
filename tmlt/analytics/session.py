@@ -30,6 +30,7 @@ import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
 from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
+from tabulate import tabulate
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.base import Measurement
@@ -103,6 +104,7 @@ from tmlt.analytics._transformation_utils import (
 from tmlt.analytics._type_checking import is_exact_number_tuple
 from tmlt.analytics._utils import assert_is_identifier
 from tmlt.analytics.constraints import Constraint, MaxGroupsPerID
+from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
     PrivacyBudget,
@@ -117,9 +119,10 @@ from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
     ProtectedChange,
 )
 from tmlt.analytics.query_builder import (
-    AggregatedQueryBuilder,
     ColumnType,
+    GroupbyCountQuery,
     GroupedQueryBuilder,
+    Query,
     QueryBuilder,
 )
 
@@ -544,10 +547,9 @@ class Session:
         self,
         obj: Optional[
             Union[
-                QueryExpr,
                 QueryBuilder,
                 GroupedQueryBuilder,
-                AggregatedQueryBuilder,
+                Query,
                 str,
             ]
         ] = None,
@@ -558,7 +560,7 @@ class Session:
         Session and all of the tables it contains.
 
         If ``obj`` is a :class:`~tmlt.analytics.query_builder.QueryBuilder` or
-        :class:`~tmlt.analytics.query_expr.QueryExpr`, ``session.describe(obj)``
+        :class:`~tmlt.analytics.query_builder.Query`, ``session.describe(obj)``
         will describe the table that would result from that query if it were
         applied to the Session.
 
@@ -588,38 +590,46 @@ class Session:
             The session has a remaining privacy budget of PureDPBudget(epsilon=1).
             The following private tables are available:
             Table 'my_private_data' (no constraints):
-                Columns:
-                    - 'A'  VARCHAR
-                    - 'B'  INTEGER
-                    - 'X'  INTEGER
+            Column Name    Column Type    Nullable
+            -------------  -------------  ----------
+            A              VARCHAR        True
+            B              INTEGER        True
+            X              INTEGER        True
             >>> # describe a query object
             >>> query = QueryBuilder("my_private_data").drop_null_and_nan(["B", "X"])
             >>> sess.describe(query) # doctest: +NORMALIZE_WHITESPACE
-            Columns:
-                - 'A'  VARCHAR
-                - 'B'  INTEGER, not null
-                - 'X'  INTEGER, not null
+            Column Name    Column Type    Nullable
+            -------------  -------------  ----------
+            A              VARCHAR        True
+            B              INTEGER        False
+            X              INTEGER        False
             >>> # describe a table by name
             >>> sess.describe("my_private_data") # doctest: +NORMALIZE_WHITESPACE
-            Columns:
-                - 'A'  VARCHAR
-                - 'B'  INTEGER
-                - 'X'  INTEGER
+            Column Name    Column Type    Nullable
+            -------------  -------------  ----------
+            A              VARCHAR        True
+            B              INTEGER        True
+            X              INTEGER        True
 
         Args:
             obj: The table or query to be described, or None to describe the
                 whole Session.
         """
+        # pylint: disable=protected-access
         if obj is None:
             print(self._describe_self())
-        elif isinstance(obj, (QueryExpr, GroupedQueryBuilder)):
-            print(self._describe_query_obj(obj))
-        elif isinstance(obj, (QueryBuilder, AggregatedQueryBuilder)):
-            print(self._describe_query_obj(obj.query_expr))
+        elif isinstance(obj, GroupedQueryBuilder):
+            group_keys = obj._groupby_keys
+            query_expr = obj._query_expr
+            print(self._describe_query_obj(query_expr, group_keys))
+        elif isinstance(obj, (Query, GroupbyCountQuery, QueryBuilder)):
+            query_expr = obj._query_expr
+            print(self._describe_query_obj(query_expr))
         elif isinstance(obj, str):
-            print(self._describe_query_obj(QueryBuilder(obj).query_expr))
+            print(self._describe_query_obj(QueryBuilder(obj)._query_expr))
         else:
             assert_never(obj)
+        # pylint: enable=protected-access
 
     def _describe_self(self) -> str:
         """Describes the current state of this session."""
@@ -650,25 +660,24 @@ class Session:
             public_table_descs = []
             private_table_descs = []
             for name, table in self._catalog.tables.items():
-                column_strs = ["\t" + e for e in _describe_schema(table.schema)]
-                columns_desc = "\n".join(column_strs)
+                table_schema = _describe_schema(table.schema)
                 if isinstance(table, PublicTable):
-                    table_desc = f"Public table '{name}':\n" + columns_desc
+                    table_desc = f"Public table '{name}':\n" + table_schema
                     public_table_descs.append(table_desc)
                 elif isinstance(table, PrivateTable):
                     table_desc = f"Table '{name}':\n"
-                    table_desc += columns_desc
+                    table_desc += table_schema
 
                     constraints: Optional[
                         List[Constraint]
                     ] = self._table_constraints.get(NamedTable(name))
                     if not constraints:
                         table_desc = (
-                            f"Table '{name}' (no constraints):\n" + columns_desc
+                            f"Table '{name}' (no constraints):\n" + table_schema
                         )
                     else:
                         table_desc = (
-                            f"Table '{name}':\n" + columns_desc + "\n\tConstraints:\n"
+                            f"Table '{name}':\n" + table_schema + "\n\tConstraints:\n"
                         )
                         constraints_strs = [f"\t\t- {e}" for e in constraints]
                         table_desc += "\n".join(constraints_strs)
@@ -693,20 +702,18 @@ class Session:
         return "\n".join(out)
 
     def _describe_query_obj(
-        self, query_obj: Union[QueryExpr, GroupedQueryBuilder]
+        self,
+        query_obj: QueryExpr,
+        groupby_keys: Optional[Union[KeySet, List[str]]] = None,
     ) -> str:
         """Build a description of a query object."""
-        if isinstance(query_obj, GroupedQueryBuilder):
-            expr = query_obj._query_expr  # pylint: disable=protected-access
-        else:
-            expr = query_obj
         compiler = QueryExprCompiler(self._output_measure)
-        schema = compiler.query_schema(expr, self._catalog)
-        schema_desc = _describe_schema(schema)
+        schema = compiler.query_schema(query_obj, self._catalog)
+        description = _describe_schema(schema)
         constraints: Optional[List[Constraint]] = None
         try:
             constraints = compiler.build_transformation(
-                query=expr,
+                query=query_obj,
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
                 public_sources=self._public_sources,
@@ -718,22 +725,18 @@ class Session:
             # There are no constraints on measurements, so we can just
             # pass the schema description through.
             pass
-        description = "\n".join(schema_desc)
         if constraints:
             description += "\n\tConstraints:\n"
             constraints_strs = [f"\t\t- {e}" for e in constraints]
             description += "\n".join(constraints_strs)
-        if isinstance(query_obj, GroupedQueryBuilder):
-            ks_df = (
-                # pylint: disable=protected-access
-                query_obj._groupby_keys.dataframe()  # type: ignore
-                # pylint: enable=protected-access
-            )
-            if len(ks_df.columns) > 0:
-                description += "\nGrouped on columns "
-                col_strs = [f"'{col}'" for col in ks_df.columns]
-                description += ", ".join(col_strs)
-                description += f" ({ks_df.count()} groups)"
+        if isinstance(groupby_keys, list):
+            description += "\nGrouped on columns "
+            description += ", ".join(groupby_keys)
+        elif groupby_keys is not None and len(groupby_keys.schema()) > 0:
+            description += "\nGrouped on columns "
+            col_strs = [f"'{col}'" for col in groupby_keys.schema().columns]
+            description += ", ".join(col_strs)
+            description += f" ({groupby_keys.size()} groups)"
         return description
 
     @typechecked
@@ -978,7 +981,7 @@ class Session:
 
     def _noise_info(
         self,
-        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
+        query_expr: Union[QueryExpr, Query],
         privacy_budget: PrivacyBudget,
     ) -> List[Dict[str, Any]]:
         """Get noise information about a query.
@@ -1015,15 +1018,15 @@ class Session:
             >>> count_info # doctest: +NORMALIZE_WHITESPACE
             [{'noise_mechanism': <_NoiseMechanism.GEOMETRIC: 2>, 'noise_parameter': 2}]
         """
-        if isinstance(query_expr, AggregatedQueryBuilder):
-            query_expr = query_expr.query_expr
+        if isinstance(query_expr, Query):
+            query_expr = query_expr._query_expr  # pylint: disable=protected-access
         _, _, noise_info = self._compile_and_get_info(query_expr, privacy_budget)
         return list(iter(noise_info))
 
     # pylint: disable=line-too-long
     def evaluate(
         self,
-        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
+        query_expr: Query,
         privacy_budget: PrivacyBudget,
     ) -> Any:
         """Answers a query within the given privacy budget and returns a Spark dataframe.
@@ -1078,10 +1081,10 @@ class Session:
             privacy_budget: The privacy budget used for the query.
         """
         # pylint: enable=line-too-long
-        if isinstance(query_expr, AggregatedQueryBuilder):
-            query_expr = query_expr.query_expr
+        check_type("query_expr", query_expr, Query)
+        query = query_expr._query_expr  # pylint: disable=protected-access
         measurement, adjusted_budget, _ = self._compile_and_get_info(
-            query_expr, privacy_budget
+            query, privacy_budget
         )
         self._activate_accountant()
 
@@ -1137,7 +1140,10 @@ class Session:
     # pylint: disable=line-too-long
     @typechecked
     def create_view(
-        self, query_expr: Union[QueryExpr, QueryBuilder], source_id: str, cache: bool
+        self,
+        query_expr: QueryBuilder,
+        source_id: str,
+        cache: bool,
     ):
         """Creates a new view from a transformation and possibly cache it.
 
@@ -1205,16 +1211,12 @@ class Session:
         if source_id in self.private_sources or source_id in self.public_sources:
             raise ValueError(f"Table '{source_id}' already exists.")
 
-        if isinstance(query_expr, QueryBuilder):
-            query_expr = query_expr.query_expr
-
-        if not isinstance(query_expr, QueryExpr):
-            raise ValueError("query_expr must be of type QueryBuilder or QueryExpr.")
+        query = query_expr._query_expr  # pylint: disable=protected-access
 
         transformation, ref, constraints = QueryExprCompiler(
             self._output_measure
         ).build_transformation(
-            query=query_expr,
+            query=query,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             public_sources=self._public_sources,
@@ -1708,31 +1710,65 @@ class Session:
         self._accountant.retire()
 
 
-def _describe_schema(schema: Schema) -> List[str]:
+def _describe_schema(schema: Schema) -> str:
     """Get a list of strings to print that describe columns of a schema.
 
     This is a list so that it's easy to append tabs to each line.
     """
-    description = ["Columns:"]
-    # We actually care about the maximum length of the column name
-    # *as enclosed in quotes*,
-    # so we add 2 to account for the opening and closing quotation marks
-    column_length = (
-        max(len(column_name) for column_name in schema.column_descs.keys()) + 2
-    )
+    column_headers = ["Column Name", "Column Type"]
+
+    # Creates bools to track which column headers need to exist in the table.
+    decimal_cols = False
+    id_cols = bool(schema.id_column)
+    groupby_cols = bool(schema.grouping_column)
+    # Finalizes column headers.
     for column_name, cd in schema.column_descs.items():
-        quoted_column_name = f"'{column_name}'"
-        column_str = f"\t- {quoted_column_name:<{column_length}}  {cd.column_type}"
-        if column_name == schema.id_column:
-            column_str += f", ID column (in ID space {schema.id_space})"
-        if column_name == schema.grouping_column:
-            column_str += ", grouping column"
-        if not cd.allow_null:
-            column_str += ", not null"
         if cd.column_type == ColumnType.DECIMAL:
-            if not cd.allow_nan:
-                column_str += ", not NaN"
-            if not cd.allow_inf:
-                column_str += ", not infinity"
-        description.append(column_str)
-    return description
+            decimal_cols = True
+
+    # Adds ID Column Headers
+    if id_cols:
+        column_headers = column_headers + ["ID Col", "ID Space"]
+
+    # Adds Groupby Column Headers
+    if groupby_cols:
+        column_headers = column_headers + ["Grouping Column"]
+
+    # Adds nullable which always needs to be added
+    column_headers = column_headers + ["Nullable"]
+
+    # Adds decimal column headers
+    if decimal_cols:
+        column_headers = column_headers + ["NaN Allowed", "Infinity Allowed"]
+
+    table = []
+    for column_name, cd in schema.column_descs.items():
+        # Sets up the initial row.
+        row = [column_name, cd.column_type]
+
+        # Adds ID Info.
+        if id_cols and column_name == schema.id_column:
+            row.append("True")
+            row.append(schema.id_space)
+        elif id_cols:
+            row.append("False")
+            row.append("")
+
+        # Adds groupby info
+        if groupby_cols and column_name == schema.grouping_column:
+            row.append("True")
+        elif groupby_cols:
+            row.append("False")
+
+        # Adds nullable data.
+        row.append("True" if cd.allow_null else "False")
+
+        if decimal_cols and cd.column_type == ColumnType.DECIMAL:
+            row.append("True" if cd.allow_nan else "False")
+            row.append("True" if cd.allow_inf else "False")
+        elif decimal_cols:
+            row = row + ["", ""]
+
+        table.append(row)
+
+    return tabulate(table, headers=column_headers)

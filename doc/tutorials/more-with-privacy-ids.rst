@@ -217,24 +217,25 @@ Let's inspect the result of the join to make sure it looks right:
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    Columns:
-	- 'member_id'         INTEGER, ID column (in ID space member_id_space)
-	- 'checkout_date'     TIMESTAMP
-	- 'title'             VARCHAR
-	- 'author'            VARCHAR
-	- 'isbn'              VARCHAR
-	- 'publication_date'  INTEGER
-	- 'publisher'         VARCHAR
-	- 'genres'            VARCHAR
-	- 'genre'             VARCHAR
-	- 'name'              VARCHAR
-	- 'age'               INTEGER
-	- 'gender'            VARCHAR
-	- 'education_level'   VARCHAR
-	- 'zip_code'          VARCHAR
-	- 'books_borrowed'    INTEGER
-	- 'favorite_genres'   VARCHAR
-	- 'date_joined'       DATE
+    Column Name       Column Type    ID Col    ID Space         Nullable
+    ----------------  -------------  --------  ---------------  ----------
+    member_id         INTEGER        True      member_id_space  True
+    checkout_date     TIMESTAMP      False                      True
+    title             VARCHAR        False                      True
+    author            VARCHAR        False                      True
+    isbn              VARCHAR        False                      True
+    publication_date  INTEGER        False                      True
+    publisher         VARCHAR        False                      True
+    genres            VARCHAR        False                      True
+    genre             VARCHAR        False                      True
+    name              VARCHAR        False                      True
+    age               INTEGER        False                      True
+    gender            VARCHAR        False                      True
+    education_level   VARCHAR        False                      True
+    zip_code          VARCHAR        False                      True
+    books_borrowed    INTEGER        False                      True
+    favorite_genres   VARCHAR        False                      True
+    date_joined       DATE           False                      True
 
 Using :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
 columns are part of the join and have the same name in both tables. Like with

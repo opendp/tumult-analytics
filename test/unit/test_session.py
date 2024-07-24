@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-# pylint: disable=unidiomatic-typecheck
+# pylint: disable=unidiomatic-typecheck, protected-access
 
 import re
 from typing import Any, Dict, List, Tuple, Type, Union
@@ -23,6 +23,7 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+from tabulate import tabulate
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
@@ -57,7 +58,6 @@ from tmlt.analytics._neighboring_relation import (
     Conjunction,
     NeighboringRelation,
 )
-from tmlt.analytics._query_expr import PrivateSource, QueryExpr
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -88,7 +88,7 @@ from tmlt.analytics.protected_change import (
     AddRowsWithID,
     ProtectedChange,
 )
-from tmlt.analytics.query_builder import GroupedQueryBuilder, QueryBuilder
+from tmlt.analytics.query_builder import Query, QueryBuilder
 from tmlt.analytics.session import Session
 
 from ..conftest import assert_frame_equal_with_sort
@@ -456,18 +456,17 @@ class TestSession:
         with a single relation.
         """
 
-        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+        sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
             relation=relation,
         )
-        # pylint: disable=protected-access
+
         assert sess._input_domain == self.sdf_input_domain
         assert sess._input_metric == expected_metric
         assert sess._accountant.d_in == {NamedTable("private"): 6}
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
-        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "budget,relation,expected_metric,expected_output_measure",
@@ -498,12 +497,11 @@ class TestSession:
         with a single AddRemoveKeys relation.
         """
 
-        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+        sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
             relation=relation,
         )
-        # pylint: disable=protected-access
         assert sess._input_domain == DictDomain(
             {TableCollection("private"): self.sdf_input_domain}
         )
@@ -511,7 +509,6 @@ class TestSession:
         assert sess._accountant.d_in == {TableCollection("private"): 5}
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
-        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "budget,relation,expected_metric,expected_output_measure",
@@ -550,13 +547,12 @@ class TestSession:
         """Tests that :func:`Session._from_neighboring_relation` works as expected
         when passed a conjunction.
         """
-        sess = Session._from_neighboring_relation(  # pylint: disable=protected-access
+        sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf, "join_private": self.join_df},
             relation=relation,
         )
 
-        # pylint: disable=protected-access
         assert sess._input_domain == self.combined_input_domain
         assert sess._input_metric == expected_metric
         assert sess._accountant.d_in == {
@@ -565,7 +561,6 @@ class TestSession:
         }
         assert sess._accountant.privacy_budget == sp.oo
         assert sess._accountant.output_measure == expected_output_measure
-        # pylint: enable=protected-access
 
     def test_add_public_dataframe(self):
         """Tests that :func:`add_public_dataframe` works correctly."""
@@ -611,7 +606,7 @@ class TestSession:
                 ),
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"),
+                    query_expr=QueryBuilder("private").count(),
                     privacy_budget=ApproxDPBudget(10, 0.5),
                 )
 
@@ -634,7 +629,8 @@ class TestSession:
                 match="You need a non-zero privacy budget to evaluate a query.",
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(0)
+                    query_expr=QueryBuilder("private").count(),
+                    privacy_budget=PureDPBudget(0),
                 )
 
             # set output measures to RhoZCDP
@@ -645,7 +641,8 @@ class TestSession:
                 match="You need a non-zero privacy budget to evaluate a query.",
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"), privacy_budget=RhoZCDPBudget(0)
+                    query_expr=QueryBuilder("private").count(),
+                    privacy_budget=RhoZCDPBudget(0),
                 )
 
             # set output measures to ApproxDP
@@ -656,7 +653,7 @@ class TestSession:
                 match="You need a non-zero privacy budget to evaluate a query.",
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"),
+                    query_expr=QueryBuilder("private").count(),
                     privacy_budget=ApproxDPBudget(0, 0),
                 )
 
@@ -684,7 +681,8 @@ class TestSession:
                 ),
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"), privacy_budget=PureDPBudget(10)
+                    query_expr=QueryBuilder("private").count(),
+                    privacy_budget=PureDPBudget(10),
                 )
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
@@ -708,7 +706,7 @@ class TestSession:
                 ),
             ):
                 session.evaluate(
-                    query_expr=PrivateSource("private"),
+                    query_expr=QueryBuilder("private").count(),
                     privacy_budget=RhoZCDPBudget(10),
                 )
 
@@ -1129,23 +1127,47 @@ class TestSession:
                 accountant=mock_accountant,
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
-            # pylint: disable=line-too-long
-            expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
+            expected = (
+                f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
 The following private tables are available:
-Table 'private' (no constraints):
-\tColumns:
-\t\t- 'A'  VARCHAR
-\t\t- 'B'  INTEGER
-\t\t- 'X'  INTEGER
-The following public tables are available:
-Public table 'public1':
-\tColumns:
-\t\t- 'A'  VARCHAR
-\t\t- 'B'  INTEGER
-Public table 'public2':
-\tColumns:
-\t\t- 'X'                      DECIMAL
-\t\t- 'very_long_column_name'  VARCHAR"""
+Table 'private' (no constraints):\n"""
+                + tabulate(
+                    [
+                        ["A", "VARCHAR", "True"],
+                        ["B", "INTEGER", "True"],
+                        ["X", "INTEGER", "True"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                )
+                + """\nThe following public tables are available:
+Public table 'public1':\n"""
+                + tabulate(
+                    [["A", "VARCHAR", "True"], ["B", "INTEGER", "True"]],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                )
+                + """\nPublic table 'public2':\n"""
+                + tabulate(
+                    [
+                        ["X", "DECIMAL", "True", "True", "True"],
+                        ["very_long_column_name", "VARCHAR", "True", "", ""],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                )
+            )
             # pylint: enable=line-too-long
             session.describe()
             mock_print.assert_called_with(expected)
@@ -1175,28 +1197,49 @@ Public table 'public2':
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
 
-            # pylint: disable=protected-access
             session._table_constraints[NamedTable("private")] = [MaxRowsPerID(5)]
-            # pylint: enable=protected-access
-            # pylint: disable=line-too-long
-            expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
+            expected = (
+                f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
 The following private tables are available:
-Table 'private':
-\tColumns:
-\t\t- 'A'  VARCHAR
-\t\t- 'B'  INTEGER
-\t\t- 'X'  INTEGER
-\tConstraints:
-\t\t- MaxRowsPerID(max=5)
+Table 'private':\n"""
+                + tabulate(
+                    [
+                        ["A", "VARCHAR", "True"],
+                        ["B", "INTEGER", "True"],
+                        ["X", "INTEGER", "True"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                )
+                + """\n\tConstraints:\n\t\t- MaxRowsPerID(max=5)
 The following public tables are available:
-Public table 'public1':
-\tColumns:
-\t\t- 'A'  VARCHAR
-\t\t- 'B'  INTEGER
-Public table 'public2':
-\tColumns:
-\t\t- 'X'                      DECIMAL
-\t\t- 'very_long_column_name'  VARCHAR"""
+Public table 'public1':\n"""
+                + tabulate(
+                    [["A", "VARCHAR", "True"], ["B", "INTEGER", "True"]],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                )
+                + """\nPublic table 'public2':\n"""
+                + tabulate(
+                    [
+                        ["X", "DECIMAL", "True", "True", "True"],
+                        ["very_long_column_name", "VARCHAR", "True", "", ""],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                )
+            )
             session.describe()
             # pylint: enable=line-too-long
             mock_print.assert_called_with(expected)
@@ -1228,90 +1271,201 @@ Public table 'public2':
                 accountant=mock_accountant,
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
-            # pylint: disable=line-too-long
-            expected = f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
+            expected = (
+                f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
 The following private tables are available:
-Table 'private' (no constraints):
-\tColumns:
-\t\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
-\t\t- 'B'  INTEGER
-\t\t- 'X'  INTEGER
-The following public tables are available:
-Public table 'public1':
-\tColumns:
-\t\t- 'A'  VARCHAR
-\t\t- 'B'  INTEGER
-Public table 'public2':
-\tColumns:
-\t\t- 'X'                      DECIMAL
-\t\t- 'very_long_column_name'  VARCHAR"""
+Table 'private' (no constraints):\n"""
+                + tabulate(
+                    [
+                        ["A", "VARCHAR", "True", "identifier_A", "True"],
+                        ["B", "INTEGER", "False", "", "True"],
+                        ["X", "INTEGER", "False", "", "True"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "ID Col",
+                        "ID Space",
+                        "Nullable",
+                    ],
+                )
+                + """\nThe following public tables are available:
+Public table 'public1':\n"""
+                + tabulate(
+                    [["A", "VARCHAR", "True"], ["B", "INTEGER", "True"]],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                )
+                + """\nPublic table 'public2':\n"""
+                + tabulate(
+                    [
+                        ["X", "DECIMAL", "True", "True", "True"],
+                        ["very_long_column_name", "VARCHAR", "True", "", ""],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                )
+            )
             # pylint: enable=line-too-long
             session.describe()
             mock_print.assert_called_with(expected)
 
     @pytest.mark.parametrize(
-        "query,expected_output",
+        "name,query,expected_output,df,id_sess",
         [
-            pytest.param(
-                "private",
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER""",
-                id="table_name",
+            (
+                "Basic Query, varchar and int, no constraints",
+                QueryBuilder("private").count(name="Count"),
+                tabulate(
+                    [["Count", "INTEGER", "False"]],
+                    headers=["Column Name", "Column Type", "Nullable"],
+                ),
+                pd.DataFrame({"A": ["A", "B", "C"]}),
+                False,
             ),
-            pytest.param(
-                PrivateSource("private"),
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER""",
-                id="private_source_query",
+            (
+                "Basic Query, varchar and int, no constraints",
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+                .count(name="Count"),
+                tabulate(
+                    [["A", "VARCHAR", "True"], ["Count", "INTEGER", "False"]],
+                    headers=["Column Name", "Column Type", "Nullable"],
+                ),
+                pd.DataFrame({"A": ["A", "A", "B", "B", "C"], "B": [1, 2, 1, 2, 3]}),
+                False,
             ),
-            pytest.param(
-                QueryBuilder("private"),
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER""",
-                id="query_builder_private_source",
+            (
+                "Basic Query, with constraints",
+                QueryBuilder("private").enforce(MaxRowsPerID(5)).count(name="Count"),
+                tabulate(
+                    [["Count", "INTEGER", "False"]],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                    ],
+                ),
+                pd.DataFrame({"A": ["A", "B", "C"]}),
+                True,
             ),
-            pytest.param(
-                QueryBuilder("private").drop_null_and_nan(["A", "B", "X"]),
-                """Columns:
-\t- 'A'  VARCHAR, not null
-\t- 'B'  INTEGER, not null
-\t- 'X'  INTEGER, not null""",
-                id="query_builder_drop_null",
+            (
+                "Basic Query with Decimal",
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+                .sum(column="B", name="sum", low=0, high=5.5),
+                tabulate(
+                    [
+                        ["A", "VARCHAR", "True", "", ""],
+                        ["sum", "DECIMAL", "False", "False", "False"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                ),
+                pd.DataFrame(
+                    {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+                ),
+                False,
             ),
-            pytest.param(
-                QueryBuilder("private").count(),
-                """Columns:
-\t- 'count'  INTEGER, not null""",
+            (
+                "Groupby Query, with Decimal after enforce",
+                QueryBuilder("private")
+                .enforce(MaxRowsPerID(5))
+                .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+                .sum(column="B", name="sum", low=0, high=5.5),
+                tabulate(
+                    [
+                        ["A", "VARCHAR", "True", "", ""],
+                        ["sum", "DECIMAL", "False", "False", "False"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                ),
+                pd.DataFrame(
+                    {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+                ),
+                True,
+            ),
+            (
+                "Groupby Query, with Decimal after enforce",
+                QueryBuilder("private")
+                .map(
+                    f=lambda row: {"new": row["B"] * 1.5},
+                    new_column_types={"new": ColumnType.DECIMAL},
+                    augment=True,
+                )
+                .enforce(MaxRowsPerID(5)),
+                tabulate(
+                    [
+                        ["A", "VARCHAR", "True", "default_id_space", "True", "", ""],
+                        ["B", "DECIMAL", "False", "", "True", "True", "True"],
+                        ["new", "DECIMAL", "False", "", "True", "True", "True"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "ID Col",
+                        "ID Space",
+                        "Nullable",
+                        "NaN Allowed",
+                        "Infinity Allowed",
+                    ],
+                ),
+                pd.DataFrame(
+                    {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+                ),
+                True,
             ),
         ],
     )
     def test_describe_query(
-        self, spark, query: Union[str, QueryBuilder, QueryExpr], expected_output: str
+        self,
+        capsys,
+        spark: SparkSession,
+        name: str,
+        query: Query,
+        expected_output: str,
+        df: pd.DataFrame,
+        id_sess: bool,
     ):
         """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
-            mock_accountant.state = PrivacyAccountantState.ACTIVE
+        print("TEST NAME:", name)
+        sdf = spark.createDataFrame(df)
 
-            public_df_1 = spark.createDataFrame(
-                pd.DataFrame([["blah", 1], ["blah", 2]], columns=["A", "B"])
+        if id_sess:
+            sess = Session.from_dataframe(
+                privacy_budget=PureDPBudget(1),
+                source_id="private",
+                dataframe=sdf,
+                protected_change=AddRowsWithID(id_column="A"),
             )
-            public_df_2 = spark.createDataFrame(pd.DataFrame({"X": [1.1, 2.2, 3.3]}))
-            session = Session(
-                accountant=mock_accountant,
-                public_sources={"public1": public_df_1, "public2": public_df_2},
+        else:
+            sess = Session.from_dataframe(
+                privacy_budget=PureDPBudget(1),
+                source_id="private",
+                dataframe=sdf,
+                protected_change=AddOneRow(),
             )
-
-            session.describe(query)
-            mock_print.assert_called_with(expected_output)
+        sess.describe(query)
+        assert expected_output in capsys.readouterr().out
 
     @pytest.mark.parametrize(
         "constraints,expected_output",
@@ -1336,128 +1490,29 @@ Public table 'public2':
             )
             mock_accountant.state = PrivacyAccountantState.ACTIVE
             session = Session(accountant=mock_accountant, public_sources={})
-            # pylint: disable=protected-access
+
             session._table_constraints[NamedTable("private")] = constraints
-            # pylint: enable=protected-access
             expected = (
-                """Columns:
-\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER
-\tConstraints:\n"""
+                tabulate(
+                    [
+                        ["A", "VARCHAR", "True", "identifier_A", "True"],
+                        ["B", "INTEGER", "False", "", "True"],
+                        ["X", "INTEGER", "False", "", "True"],
+                    ],
+                    headers=[
+                        "Column Name",
+                        "Column Type",
+                        "ID Col",
+                        "ID Space",
+                        "Nullable",
+                    ],
+                )
+                + """\n\tConstraints:\n"""
                 + expected_output
             )
             session.describe("private")
             # pylint: enable=line-too-long
             mock_print.assert_called_with(expected)
-
-    @pytest.mark.parametrize(
-        "query,constraint_output,group_output",
-        [
-            (
-                QueryBuilder("private").enforce(MaxRowsPerID(5)),
-                "\t\t- MaxRowsPerID(max=5)",
-                "",
-            ),
-            (
-                QueryBuilder("private")
-                .enforce(MaxGroupsPerID("X", 5))
-                .enforce(MaxRowsPerGroupPerID("B", 1)),
-                "\t\t- MaxGroupsPerID(grouping_column='X', max=5)\n\t\t"
-                "- MaxRowsPerGroupPerID(grouping_column='B', max=1)",
-                "",
-            ),
-            (
-                QueryBuilder("private")
-                .enforce(MaxRowsPerID(5))
-                .groupby(KeySet.from_dict({})),
-                "\t\t- MaxRowsPerID(max=5)",
-                "",
-            ),
-            (
-                QueryBuilder("private")
-                .enforce(MaxRowsPerID(5))
-                .groupby(KeySet.from_dict({"A": ["0", "1"]})),
-                "\t\t- MaxRowsPerID(max=5)",
-                "\nGrouped on columns 'A' (2 groups)",
-            ),
-        ],
-    )
-    def test_describe_query_with_constraints(
-        self,
-        query: Union[QueryBuilder, GroupedQueryBuilder],
-        constraint_output: str,
-        group_output: str,
-    ):
-        """Test :func:`_describe` with a query with constraints."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            self._setup_accountant_with_id(
-                mock_accountant, privacy_budget=ExactNumber(10)
-            )
-            mock_accountant.state = PrivacyAccountantState.ACTIVE
-            session = Session(accountant=mock_accountant, public_sources={})
-            expected = (
-                """Columns:
-\t- 'A'  VARCHAR, ID column (in ID space identifier_A)
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER
-\tConstraints:\n"""
-                + constraint_output
-                + group_output
-            )
-            session.describe(query)
-            # pylint: enable=line-too-long
-            mock_print.assert_called_with(expected)
-
-    @pytest.mark.parametrize(
-        "query,expected_output",
-        [
-            pytest.param(
-                QueryBuilder("private").groupby(KeySet.from_dict({})),
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER""",
-                id="query_builder_groupby_empty",
-            ),
-            pytest.param(
-                QueryBuilder("private").groupby(KeySet.from_dict({"A": ["0", "1"]})),
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER
-Grouped on columns 'A' (2 groups)""",
-                id="query_builder_groupby_1_col",
-            ),
-            pytest.param(
-                QueryBuilder("private").groupby(
-                    KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]})
-                ),
-                """Columns:
-\t- 'A'  VARCHAR
-\t- 'B'  INTEGER
-\t- 'X'  INTEGER
-Grouped on columns 'A', 'B' (4 groups)""",
-                id="query_builder_groupby_multi_col",
-            ),
-        ],
-    )
-    def test_describe_grouped_query(
-        self, query: GroupedQueryBuilder, expected_output: str
-    ):
-        """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
-            self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
-            mock_accountant.state = PrivacyAccountantState.ACTIVE
-
-            session = Session(accountant=mock_accountant, public_sources={})
-
-            session.describe(query)
-            mock_print.assert_called_with(expected_output)
 
     def test_supported_spark_types(self, spark):
         """Session works with supported Spark data types."""
@@ -1519,7 +1574,7 @@ Grouped on columns 'A', 'B' (4 groups)""",
                 ),
             ):
                 session.create_view(
-                    query_expr=PrivateSource(source_id="private"),
+                    query_expr=QueryBuilder("private"),
                     source_id="new_view",
                     cache=False,
                 )
@@ -1794,7 +1849,7 @@ class TestInvalidSession:
                 session.add_public_dataframe(source_id, dataframe=self.sdf)
             # create_view
             with pytest.raises(exception_type, match=expected_error_msg):
-                session.create_view(PrivateSource("private"), source_id, cache=False)
+                session.create_view(QueryBuilder("private"), source_id, cache=False)
 
     def test_invalid_public_source(self):
         """Session raises an error adding a public source with duplicate source_id."""
@@ -1822,7 +1877,7 @@ class TestInvalidSession:
                 session.add_public_dataframe("public_df", dataframe=self.sdf)
 
     @pytest.mark.parametrize(
-        "query_expr", [(["filter private A == 0"]), ([PrivateSource("private")])]
+        "query_expr", [(["filter private A == 0"]), ([QueryBuilder("private")])]
     )
     def test_invalid_queries_evaluate(self, query_expr: Any):
         """evaluate raises error on invalid queries."""
@@ -1842,8 +1897,8 @@ class TestInvalidSession:
             session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(
                 TypeError,
-                match=(
-                    "type of query_expr must be tmlt.analytics._query_expr.QueryExpr;"
+                match=re.escape(
+                    "type of query_expr must be tmlt.analytics.query_builder.Query;"
                     " got list instead"
                 ),
             ):
@@ -1855,14 +1910,14 @@ class TestInvalidSession:
             (
                 "filter private A == 0",
                 TypeError,
-                'type of argument "query_expr" must be one of '
-                r"\(QueryExpr, QueryBuilder\); got str instead",
+                'type of argument "query_expr" must be '
+                "tmlt.analytics.query_builder.QueryBuilder; got str instead",
             )
         ],
     )
     def test_invalid_queries_create(
         self,
-        query_expr: QueryExpr,
+        query_expr,
         exception_type: Type[Exception],
         expected_error_msg: str,
     ):
@@ -2117,7 +2172,7 @@ class TestSessionBuilder:
             .with_privacy_budget(PureDPBudget(1))
         )
 
-        assert len(builder._id_spaces) == 0  # pylint: disable=protected-access
+        assert len(builder._id_spaces) == 0
 
         with pytest.raises(
             ValueError,
@@ -2141,7 +2196,7 @@ class TestSessionBuilder:
         builder = builder.with_id_space("random_id")
         with pytest.raises(ValueError, match="ID space 'random_id' already exists"):
             builder.with_id_space("random_id")
-        assert len(builder._id_spaces) == 2  # pylint: disable=protected-access
+        assert len(builder._id_spaces) == 2
         builder.build()
 
     def test_build_multiple_ids(self):
@@ -2275,7 +2330,7 @@ class TestSessionBuilder:
 
         # Build the session and verify that it worked.
         session = builder.build()
-        # pylint: disable=protected-access
+
         accountant = session._accountant
         assert isinstance(accountant, PrivacyAccountant)
         assert accountant.privacy_budget == expected_sympy_budget
@@ -2318,16 +2373,10 @@ class TestSessionBuilder:
                 schema=StructType([StructField("A", LongType(), nullable=nullable)]),
             ),
         )
-        actual_private_schema = (
-            builder._private_dataframes[  # pylint: disable=protected-access
-                "private_df"
-            ].dataframe.schema
-        )
-        actual_public_schema = (
-            builder._public_dataframes[  # pylint: disable=protected-access
-                "public_df"
-            ].schema
-        )
+        actual_private_schema = builder._private_dataframes[
+            "private_df"
+        ].dataframe.schema
+        actual_public_schema = builder._public_dataframes["public_df"].schema
         expected_schema = StructType([StructField("A", LongType(), nullable=nullable)])
         assert actual_private_schema == expected_schema
         assert actual_public_schema == expected_schema
@@ -2402,7 +2451,7 @@ EXPECTED_DFS = [
 )
 def test_automatic_partitions(
     input_data: pd.DataFrame,
-    dp_query: QueryExpr,
+    dp_query: Query,
     expected_df: Union[pd.DataFrame, Dict[Tuple[str, int], Tuple[float, float]]],
     protected_change: ProtectedChange,
 ):
@@ -2463,7 +2512,7 @@ with config.features.auto_partition_selection.enabled():
 )
 def test_automatic_partitions_with_ids(
     input_data: pd.DataFrame,
-    dp_query: QueryExpr,
+    dp_query: Query,
     expected_df: Any,
 ):
     """Tests automatic partition selection with the AddRowsWithID protected change."""
@@ -2515,7 +2564,7 @@ def test_automatic_partitions_with_ids(
 )
 def test_automatic_partition_selection_invalid_budget(
     input_data: pd.DataFrame,
-    dp_query: QueryExpr,
+    dp_query: Query,
     budget: ApproxDPBudget,
     expected_error: str,
 ):
@@ -2553,7 +2602,7 @@ def test_automatic_partition_selection_invalid_budget(
         )
     ),
 )
-def test_automatic_partition_null_keyset(query_expr: QueryExpr, expected_columns: List):
+def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: List):
     """Tests that automatic partition selection with null keyset raises a warning and
     completes with an output dataframe with len(0) but the correct schema."""
 
@@ -2581,3 +2630,154 @@ def test_automatic_partition_null_keyset(query_expr: QueryExpr, expected_columns
             )
             for col in expected_columns:
                 assert col in df_out.columns
+
+
+@pytest.mark.parametrize(
+    "name,query,expected_output,df,id_sess",
+    [
+        (
+            "Basic Query, varchar and int, no constraints",
+            QueryBuilder("private").count(name="Count"),
+            tabulate(
+                [["Count", "INTEGER", "False"]],
+                headers=["Column Name", "Column Type", "Nullable"],
+            ),
+            pd.DataFrame({"A": ["A", "B", "C"]}),
+            False,
+        ),
+        (
+            "Basic Query, varchar and int, no constraints",
+            QueryBuilder("private")
+            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+            .count(name="Count"),
+            tabulate(
+                [["A", "VARCHAR", "True"], ["Count", "INTEGER", "False"]],
+                headers=["Column Name", "Column Type", "Nullable"],
+            ),
+            pd.DataFrame({"A": ["A", "A", "B", "B", "C"], "B": [1, 2, 1, 2, 3]}),
+            False,
+        ),
+        (
+            "Basic Query, with constraints",
+            QueryBuilder("private").enforce(MaxRowsPerID(5)).count(name="Count"),
+            tabulate(
+                [["Count", "INTEGER", "False"]],
+                headers=[
+                    "Column Name",
+                    "Column Type",
+                    "Nullable",
+                ],
+            ),
+            pd.DataFrame({"A": ["A", "B", "C"]}),
+            True,
+        ),
+        (
+            "Basic Query with Decimal",
+            QueryBuilder("private")
+            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+            .sum(column="B", name="sum", low=0, high=5.5),
+            tabulate(
+                [
+                    ["A", "VARCHAR", "True", "", ""],
+                    ["sum", "DECIMAL", "False", "False", "False"],
+                ],
+                headers=[
+                    "Column Name",
+                    "Column Type",
+                    "Nullable",
+                    "NaN Allowed",
+                    "Infinity Allowed",
+                ],
+            ),
+            pd.DataFrame(
+                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+            ),
+            False,
+        ),
+        (
+            "Groupby Query, with Decimal after enforce",
+            QueryBuilder("private")
+            .enforce(MaxRowsPerID(5))
+            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+            .sum(column="B", name="sum", low=0, high=5.5),
+            tabulate(
+                [
+                    ["A", "VARCHAR", "True", "", ""],
+                    ["sum", "DECIMAL", "False", "False", "False"],
+                ],
+                headers=[
+                    "Column Name",
+                    "Column Type",
+                    "Nullable",
+                    "NaN Allowed",
+                    "Infinity Allowed",
+                ],
+            ),
+            pd.DataFrame(
+                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+            ),
+            True,
+        ),
+        (
+            "Groupby Query, with Decimal after enforce",
+            QueryBuilder("private")
+            .map(
+                f=lambda row: {"new": row["B"] * 1.5},
+                new_column_types={"new": ColumnType.DECIMAL},
+                augment=True,
+            )
+            .enforce(MaxRowsPerID(5)),
+            tabulate(
+                [
+                    ["A", "VARCHAR", "True", "default_id_space", "True", "", ""],
+                    ["B", "DECIMAL", "False", "", "True", "True", "True"],
+                    ["new", "DECIMAL", "False", "", "True", "True", "True"],
+                ],
+                headers=[
+                    "Column Name",
+                    "Column Type",
+                    "ID Col",
+                    "ID Space",
+                    "Nullable",
+                    "NaN Allowed",
+                    "Infinity Allowed",
+                ],
+            ),
+            pd.DataFrame(
+                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+            ),
+            True,
+        ),
+    ],
+)
+def test_describe_query_obj(
+    spark: SparkSession,
+    name: str,
+    query: Query,
+    expected_output: str,
+    df: pd.DataFrame,
+    id_sess: bool,
+):
+    """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
+    print("TEST NAME:", name)
+    sdf = spark.createDataFrame(df)
+
+    if id_sess:
+        sess = Session.from_dataframe(
+            privacy_budget=PureDPBudget(1),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddRowsWithID(id_column="A"),
+        )
+        print("TESTING WITH ID SESSION")
+    else:
+        sess = Session.from_dataframe(
+            privacy_budget=PureDPBudget(1),
+            source_id="private",
+            dataframe=sdf,
+            protected_change=AddOneRow(),
+        )
+    table = sess._describe_query_obj(query._query_expr)
+    print("EXPECTED TABLE:\n", expected_output, "\n")
+    print("RESULT TABLE:\n", table)
+    assert expected_output in table

@@ -31,7 +31,19 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from pyspark.sql import DataFrame
 
@@ -82,7 +94,6 @@ __all__ = [
     "Row",
     "QueryBuilder",
     "GroupedQueryBuilder",
-    "AggregatedQueryBuilder",
     "ColumnDescriptor",
     "ColumnType",
     "AnalyticsDefault",
@@ -92,10 +103,109 @@ __all__ = [
     "StdevMechanism",
     "SumMechanism",
     "VarianceMechanism",
+    "Query",
+    "GroupbyCountQuery",
 ]
 
 Row = Dict[str, Any]
 """Type alias for a dictionary with string keys."""
+
+
+@dataclass(frozen=True)
+class Query:
+    """Instances of the Query class represent expressions within Tumult Analytics.
+
+    A Query and its subclasses should not be directly constructed or deconstructed;
+    use :class:`~tmlt.analytics.query_builder.QueryBuilder` to create them.
+    A Query can be passed to :meth:`~tmlt.analytics.session.Session.evaluate` in order
+    to evaluate the query and obtain differentially private results.
+    """
+
+    _query_expr: QueryExpr
+
+
+class _QueryProtocol(Protocol):
+    @property
+    def _query_expr(self) -> QueryExpr:
+        ...
+
+
+class _PostProcessSuppressMixin:
+    """Adds a postprocess suppress method to child classes for supported Queries."""
+
+    def suppress(
+        self: _QueryProtocol,
+        threshold: float,
+    ) -> Query:
+        """Returns a SuppressAggregates query that is ready to be evaluated.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.protected_change import AddOneRow
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> my_private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
+            ...     )
+            ... )
+
+        Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
+            ... )
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
+            >>> sess.private_sources
+            ['my_private_data']
+            >>> sess.get_schema("my_private_data").column_types
+            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> # Building a groupby count query and suppressing results < 1
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .groupby(KeySet.from_dict({"A": ["0", "1", "2"]}))
+            ...     .count()
+            ...     .suppress(1)
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.sort("A").toPandas()
+               A  count
+            0  0      1
+            1  1      2
+
+        Args:
+            threshold: Threshold value. All results with a lower value in the
+                aggregated column will be suppressed.
+        """
+        if not isinstance(self._query_expr, GroupByCount):
+            raise NotImplementedError(
+                "Suppressing aggregates under a threshold is currently only "
+                f"supported for GroupByCount queries, not {type(self._query_expr)}"
+            )
+        query_expr = SuppressAggregates(
+            child=self._query_expr,
+            column=self._query_expr.output_column,
+            threshold=threshold,
+        )
+        return Query(query_expr)
+
+
+class GroupbyCountQuery(Query, _PostProcessSuppressMixin):
+    """Stores the plan for a differentially private groupby count calculation."""
 
 
 class QueryBuilder:
@@ -158,11 +268,6 @@ class QueryBuilder:
         """
         self._source_id: str = source_id
         self._query_expr: QueryExpr = PrivateSource(source_id)
-
-    @property
-    def query_expr(self) -> QueryExpr:
-        """Returns the query_expr being built."""
-        return self._query_expr
 
     def join_public(
         self,
@@ -394,8 +499,7 @@ class QueryBuilder:
             >>> sess.create_view(
             ...     QueryBuilder("my_private_data")
             ...     .select(["A", "X"])
-            ...     .rename({"X": "C"})
-            ...     .query_expr,
+            ...     .rename({"X": "C"}),
             ...     source_id="my_private_view",
             ...     cache=False
             ... )
@@ -548,7 +652,7 @@ class QueryBuilder:
         if replace_with is None:
             raise AnalyticsInternalError("replace_with parameter is None.")
         self._query_expr = ReplaceNullAndNan(
-            child=self.query_expr, replace_with=replace_with
+            child=self._query_expr, replace_with=replace_with
         )
         return self
 
@@ -626,7 +730,7 @@ class QueryBuilder:
         if replace_with is None:
             raise AnalyticsInternalError("replace_with parameter is None.")
         self._query_expr = ReplaceInfinity(
-            child=self.query_expr, replace_with=replace_with
+            child=self._query_expr, replace_with=replace_with
         )
         return self
 
@@ -728,10 +832,9 @@ class QueryBuilder:
         """
         if columns is None:
             columns = []
-        # this assert is for mypy
         if columns is None:
             raise AnalyticsInternalError("columns parameter is None.")
-        self._query_expr = DropNullAndNan(child=self.query_expr, columns=columns)
+        self._query_expr = DropNullAndNan(child=self._query_expr, columns=columns)
         return self
 
     def drop_infinity(self, columns: Optional[List[str]]) -> "QueryBuilder":
@@ -819,11 +922,10 @@ class QueryBuilder:
         """
         if columns is None:
             columns = []
-        # this assert is for mypy
         if columns is None:
             raise AnalyticsInternalError("columns parameter is None.")
 
-        self._query_expr = DropInfinity(child=self.query_expr, columns=columns)
+        self._query_expr = DropInfinity(child=self._query_expr, columns=columns)
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
@@ -1353,7 +1455,7 @@ class QueryBuilder:
         column: str,
         bin_edges: Union[Sequence[BinT], BinningSpec],
         name: Optional[str] = None,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a count query containing the frequency of values in specified column.
 
         ..
@@ -1420,7 +1522,7 @@ class QueryBuilder:
             name = column + "_binned"
 
         keys = KeySet.from_dict({name: spec.bins()})
-        return self.bin_column(column, spec, name).groupby(keys).count().query_expr
+        return self.bin_column(column, spec, name).groupby(keys).count()
 
     def enforce(self, constraint: Constraint) -> "QueryBuilder":
         """Enforce a :mod:`~tmlt.analytics.constraints.Constraint` on the current table.
@@ -1481,7 +1583,7 @@ class QueryBuilder:
         self._query_expr = EnforceConstraint(self._query_expr, constraint, options={})
         return self
 
-    def get_groups(self, columns: Optional[List[str]] = None) -> "QueryExpr":
+    def get_groups(self, columns: Optional[List[str]] = None) -> Query:
         """Returns a query that gets combinations of values in the listed columns.
 
         .. note::
@@ -1535,9 +1637,9 @@ class QueryBuilder:
                 :class:`~tmlt.analytics.protected_change.AddRowsWithID`.
         """
         query_expr = GetGroups(child=self._query_expr, columns=columns)
-        return query_expr
+        return Query(query_expr)
 
-    def get_bounds(self, column: str) -> "QueryExpr":
+    def get_bounds(self, column: str) -> Query:
         """Returns a query that gets approximate upper and lower bounds for a column.
 
         The bounds are chosen so that most of the values fall between them. They can
@@ -1587,7 +1689,7 @@ class QueryBuilder:
             column: Name of the column whose bounds we want to get.
         """
         query_expr = GetBounds(child=self._query_expr, column=column)
-        return query_expr
+        return Query(query_expr)
 
     def groupby(self, by: Union[KeySet, List[str], str]) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
@@ -1742,7 +1844,7 @@ class QueryBuilder:
         self,
         name: Optional[str] = None,
         mechanism: CountMechanism = CountMechanism.DEFAULT,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a count query ready to be evaluated.
 
         .. note::
@@ -1810,11 +1912,7 @@ class QueryBuilder:
             mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .count(name=name, mechanism=mechanism)
-            .query_expr
-        )
+        return self.groupby(KeySet.from_dict({})).count(name=name, mechanism=mechanism)
 
     def count_distinct(
         self,
@@ -1822,7 +1920,7 @@ class QueryBuilder:
         name: Optional[str] = None,
         mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
         cols: Optional[List[str]] = None,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a count_distinct query ready to be evaluated.
 
         .. note::
@@ -1899,10 +1997,8 @@ class QueryBuilder:
                 automatically selects an appropriate mechanism.
             cols: Deprecated; use ``columns`` instead.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .count_distinct(columns=columns, name=name, mechanism=mechanism, cols=cols)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).count_distinct(
+            columns=columns, name=name, mechanism=mechanism, cols=cols
         )
 
     def quantile(
@@ -1912,7 +2008,7 @@ class QueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a quantile query ready to be evaluated.
 
         .. note::
@@ -1978,15 +2074,13 @@ class QueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_quantile({quantile})"``.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .quantile(column=column, quantile=quantile, low=low, high=high, name=name)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).quantile(
+            column=column, quantile=quantile, low=low, high=high, name=name
         )
 
     def min(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a quantile query requesting a minimum value, ready to be evaluated.
 
         .. note::
@@ -2050,15 +2144,13 @@ class QueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_min"``.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .min(column=column, low=low, high=high, name=name)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).min(
+            column=column, low=low, high=high, name=name
         )
 
     def max(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a quantile query requesting a maximum value, ready to be evaluated.
 
         .. note::
@@ -2122,15 +2214,13 @@ class QueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_max"``.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .max(column=column, low=low, high=high, name=name)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).max(
+            column=column, low=low, high=high, name=name
         )
 
     def median(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a quantile query requesting a median value, ready to be evaluated.
 
         .. note::
@@ -2195,10 +2285,8 @@ class QueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_median"``.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .median(column=column, low=low, high=high, name=name)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).median(
+            column=column, low=low, high=high, name=name
         )
 
     def sum(
@@ -2208,7 +2296,7 @@ class QueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: SumMechanism = SumMechanism.DEFAULT,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a sum query ready to be evaluated.
 
         .. note::
@@ -2282,10 +2370,8 @@ class QueryBuilder:
             mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .sum(column=column, low=low, high=high, name=name, mechanism=mechanism)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).sum(
+            column=column, low=low, high=high, name=name, mechanism=mechanism
         )
 
     def average(
@@ -2295,7 +2381,7 @@ class QueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: AverageMechanism = AverageMechanism.DEFAULT,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns an average query ready to be evaluated.
 
         .. note::
@@ -2369,10 +2455,8 @@ class QueryBuilder:
             mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .average(column=column, low=low, high=high, name=name, mechanism=mechanism)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).average(
+            column=column, low=low, high=high, name=name, mechanism=mechanism
         )
 
     def variance(
@@ -2382,7 +2466,7 @@ class QueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: VarianceMechanism = VarianceMechanism.DEFAULT,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a variance query ready to be evaluated.
 
         .. note::
@@ -2456,10 +2540,8 @@ class QueryBuilder:
             mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .variance(column=column, low=low, high=high, name=name, mechanism=mechanism)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).variance(
+            column=column, low=low, high=high, name=name, mechanism=mechanism
         )
 
     def stdev(
@@ -2469,7 +2551,7 @@ class QueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: StdevMechanism = StdevMechanism.DEFAULT,
-    ) -> QueryExpr:
+    ) -> Query:
         """Returns a standard deviation query ready to be evaluated.
 
         .. note::
@@ -2543,10 +2625,8 @@ class QueryBuilder:
             mechanism: Choice of noise mechanism. By default, the framework
                 automatically selects an appropriate mechanism.
         """
-        return (
-            self.groupby(KeySet.from_dict({}))
-            .stdev(column=column, low=low, high=high, name=name, mechanism=mechanism)
-            .query_expr
+        return self.groupby(KeySet.from_dict({})).stdev(
+            column=column, low=low, high=high, name=name, mechanism=mechanism
         )
 
 
@@ -2571,17 +2651,12 @@ class GroupedQueryBuilder:
         self._query_expr: QueryExpr = query_expr
         self._groupby_keys: Union[KeySet, List[str]] = groupby_keys
 
-    @property
-    def query_expr(self) -> QueryExpr:
-        """Get the query expression being built."""
-        return self._query_expr
-
     def count(
         self,
         name: Optional[str] = None,
         mechanism: CountMechanism = CountMechanism.DEFAULT,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a count query.
+    ) -> GroupbyCountQuery:
+        """Returns a GroupedCountQuery with a count query.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2643,7 +2718,7 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return GroupbyCountQuery(query_expr)
 
     def count_distinct(
         self,
@@ -2651,8 +2726,8 @@ class GroupedQueryBuilder:
         name: Optional[str] = None,
         mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
         cols: Optional[List[str]] = None,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a count_distinct query.
+    ) -> Query:
+        """Returns a Query with a count_distinct query.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -2739,7 +2814,7 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return Query(query_expr)
 
     def quantile(
         self,
@@ -2748,8 +2823,8 @@ class GroupedQueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a quantile query.
+    ) -> Query:
+        """Returns a Query with a quantile query.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -2827,13 +2902,12 @@ class GroupedQueryBuilder:
             high=high,
             output_column=name,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return Query(query_expr)
 
-    # pylint: disable=line-too-long
     def min(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a quantile query requesting a minimum value.
+    ) -> Query:
+        """Returns a Query with a quantile query requesting a minimum value.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -2902,16 +2976,14 @@ class GroupedQueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_min"``.
         """
-        # pylint: enable=line-too-long
         if not name:
             name = f"{column}_min"
         return self.quantile(column=column, quantile=0, low=low, high=high, name=name)
 
-    # pylint: disable=line-too-long
     def max(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a quantile query requesting a maximum value.
+    ) -> Query:
+        """Returns a Query with a quantile query requesting a maximum value.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -2980,16 +3052,14 @@ class GroupedQueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_max"``.
         """
-        # pylint: enable=line-too-long
         if not name:
             name = f"{column}_max"
         return self.quantile(column=column, quantile=1, low=low, high=high, name=name)
 
-    # pylint: disable=line-too-long
     def median(
         self, column: str, low: float, high: float, name: Optional[str] = None
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a quantile query requesting a median value.
+    ) -> Query:
+        """Returns a Query with a quantile query requesting a median value.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -3055,7 +3125,6 @@ class GroupedQueryBuilder:
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_median"``.
         """
-        # pylint: enable=line-too-long
         if not name:
             name = f"{column}_median"
         return self.quantile(column=column, quantile=0.5, low=low, high=high, name=name)
@@ -3067,8 +3136,8 @@ class GroupedQueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: SumMechanism = SumMechanism.DEFAULT,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a sum query.
+    ) -> Query:
+        """Returns a Query with a sum query.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -3154,7 +3223,7 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return Query(query_expr)
 
     def average(
         self,
@@ -3163,8 +3232,8 @@ class GroupedQueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: AverageMechanism = AverageMechanism.DEFAULT,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with an average query.
+    ) -> Query:
+        """Returns a Query with an average query.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -3250,7 +3319,7 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return Query(query_expr)
 
     def variance(
         self,
@@ -3259,8 +3328,8 @@ class GroupedQueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: VarianceMechanism = VarianceMechanism.DEFAULT,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a variance query.
+    ) -> Query:
+        """Returns a Query with a variance query.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -3347,7 +3416,7 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
+        return Query(query_expr)
 
     def stdev(
         self,
@@ -3356,8 +3425,8 @@ class GroupedQueryBuilder:
         high: float,
         name: Optional[str] = None,
         mechanism: StdevMechanism = StdevMechanism.DEFAULT,
-    ) -> AggregatedQueryBuilder:
-        """Returns an AggregatedQueryBuilder with a standard deviation query.
+    ) -> Query:
+        """Returns a Query with a standard deviation query.
 
         .. note::
             If the column being measured contains NaN or null values, a
@@ -3443,94 +3512,4 @@ class GroupedQueryBuilder:
             output_column=name,
             mechanism=mechanism,
         )
-        return AggregatedQueryBuilder(query_expr)
-
-
-class AggregatedQueryBuilder:
-    """A query builder for post-processing aggregated data."""
-
-    def __init__(self, query_expr: QueryExpr) -> None:
-        """Constructor.
-
-        Do not construct directly; use the aggregation functions in
-        :class:`~GroupedQueryBuilder`.
-
-        Args:
-            query_expr: The aggregation query_expr.
-        """
-        self._query_expr = query_expr
-
-    @property
-    def query_expr(self) -> QueryExpr:
-        """Get the aggregated query expression (before post-processing)."""
-        return self._query_expr
-
-    def suppress(
-        self,
-        threshold: float,
-    ) -> SuppressAggregates:
-        """Returns a SuppressAggregates query that is ready to be evaluated.
-
-        ..
-            >>> from tmlt.analytics.privacy_budget import PureDPBudget
-            >>> from tmlt.analytics.protected_change import AddOneRow
-            >>> from tmlt.analytics.query_builder import QueryBuilder
-            >>> import tmlt.analytics.session
-            >>> import pandas as pd
-            >>> from pyspark.sql import SparkSession
-            >>> spark = SparkSession.builder.getOrCreate()
-            >>> my_private_data = spark.createDataFrame(
-            ...     pd.DataFrame(
-            ...         [["0", 1, 0], ["1", 0, 1], ["1", 2, 1]], columns=["A", "B", "X"]
-            ...     )
-            ... )
-
-        Example:
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=my_private_data,
-            ...     protected_change=AddOneRow(),
-            ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
-            >>> # Building a groupby count query and suppressing results < 1
-            >>> query = (
-            ...     QueryBuilder("my_private_data")
-            ...     .groupby(KeySet.from_dict({"A": ["0", "1", "2"]}))
-            ...     .count()
-            ...     .suppress(1)
-            ... )
-            >>> # Answering the query with infinite privacy budget
-            >>> answer = sess.evaluate(
-            ...     query,
-            ...     PureDPBudget(float("inf"))
-            ... )
-            >>> answer.sort("A").toPandas()
-               A  count
-            0  0      1
-            1  1      2
-
-        Args:
-            threshold: Threshold value. All results with a lower value in the
-                aggregated column will be suppressed.
-        """
-        if not isinstance(self._query_expr, GroupByCount):
-            raise NotImplementedError(
-                "Suppressing aggregates under a threshold is currently only "
-                f"supported for GroupByCount queries, not {type(self._query_expr)}"
-            )
-        query_expr = SuppressAggregates(
-            child=self._query_expr,
-            column=self._query_expr.output_column,
-            threshold=threshold,
-        )
-        return query_expr
+        return Query(query_expr)

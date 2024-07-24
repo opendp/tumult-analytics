@@ -18,16 +18,10 @@ from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountMechanism,
-    FlatMap,
-    GroupByBoundedAverage,
     GroupByBoundedSTDEV,
-    GroupByBoundedSum,
     GroupByCount,
-    JoinPrivate,
     PrivateSource,
     QueryExpr,
-    ReplaceNullAndNan,
-    Select,
     StdevMechanism,
     SumMechanism,
 )
@@ -45,7 +39,7 @@ from tmlt.analytics.protected_change import (
     AddOneRow,
     AddRowsWithID,
 )
-from tmlt.analytics.query_builder import AggregatedQueryBuilder, QueryBuilder
+from tmlt.analytics.query_builder import Query, QueryBuilder
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -72,7 +66,7 @@ class TestSession:
     )
     def test_queries_privacy_budget_infinity_puredp(
         self,
-        query_expr_or_builder: Union[QueryExpr, AggregatedQueryBuilder],
+        query_expr_or_builder: Query,
         expected_expr: Optional[QueryExpr],
         expected_df: pd.DataFrame,
     ):
@@ -84,11 +78,10 @@ class TestSession:
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            if isinstance(query_expr_or_builder, QueryExpr):
-                assert query_expr_or_builder == expected_expr
-            else:
-                assert isinstance(query_expr_or_builder, AggregatedQueryBuilder)
-                assert query_expr_or_builder.query_expr == expected_expr
+            # pylint: disable=protected-access
+            query_expr = query_expr_or_builder._query_expr
+            # pylint: enable=protected-access
+            assert query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",
@@ -153,7 +146,7 @@ class TestSession:
     )
     def test_queries_privacy_budget_infinity_rhozcdp(
         self,
-        query_expr_or_builder: Union[QueryExpr, AggregatedQueryBuilder],
+        query_expr_or_builder: Query,
         expected_expr: Optional[QueryExpr],
         expected_df: pd.DataFrame,
     ):
@@ -165,10 +158,11 @@ class TestSession:
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            if isinstance(query_expr_or_builder, QueryExpr):
-                assert query_expr_or_builder == expected_expr
-            else:
-                assert query_expr_or_builder.query_expr == expected_expr
+            # pylint: disable=protected-access
+            query_expr = query_expr_or_builder._query_expr
+            # pylint: enable=protected-access
+            assert query_expr == expected_expr
+
         session = Session.from_dataframe(
             privacy_budget=RhoZCDPBudget(float("inf")),
             source_id="private",
@@ -202,9 +196,7 @@ class TestSession:
         "query_expr,session_budget,query_budget,expected",
         [
             (
-                GroupByCount(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({}),
+                QueryBuilder("private").count(
                     mechanism=CountMechanism.LAPLACE,
                 ),
                 PureDPBudget(11),
@@ -217,13 +209,8 @@ class TestSession:
                 ],
             ),
             (
-                GroupByBoundedAverage(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({}),
-                    low=-111,
-                    high=234,
-                    mechanism=AverageMechanism.GAUSSIAN,
-                    measure_column="X",
+                QueryBuilder("private").average(
+                    "X", -111, 234, mechanism=AverageMechanism.GAUSSIAN
                 ),
                 RhoZCDPBudget(31),
                 RhoZCDPBudget(11),
@@ -257,7 +244,7 @@ class TestSession:
     )
     def test_noise_info(
         self,
-        query_expr: Union[QueryExpr, AggregatedQueryBuilder],
+        query_expr: Union[QueryExpr, Query],
         session_budget: PrivacyBudget,
         query_budget: PrivacyBudget,
         expected: List[Dict[str, Any]],
@@ -279,19 +266,17 @@ class TestSession:
     )
     def test_private_join_privacy_budget_infinity(self, privacy_budget: PrivacyBudget):
         """Session :func:`evaluate` returns correct result for private join, eps=inf."""
-        query_builder = GroupByCount(
-            child=ReplaceNullAndNan(
-                replace_with={},
-                child=JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
-                    truncation_strategy_left=TruncationStrategy.DropExcess(3),
-                    truncation_strategy_right=TruncationStrategy.DropExcess(3),
-                ),
-            ),
-            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+        query_builder = (
+            QueryBuilder("private")
+            .join_private(
+                "private_2",
+                truncation_strategy_left=TruncationStrategy.DropExcess(3),
+                truncation_strategy_right=TruncationStrategy.DropExcess(3),
+            )
+            .replace_null_and_nan(replace_with={})
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
         )
-
         expected_df = pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})
         session = Session.from_dataframe(
             privacy_budget=privacy_budget,
@@ -300,10 +285,9 @@ class TestSession:
             protected_change=AddOneRow(),
         )
         session.create_view(
-            query_expr=FlatMap(
-                child=PrivateSource("private"),
+            query_expr=QueryBuilder("private").flat_map(
                 f=lambda row: [{"C": 1 if row["A"] == "0" else 2}],
-                schema_new_columns=Schema({"C": "INTEGER"}),
+                new_column_types={"C": "INTEGER"},
                 augment=True,
                 max_rows=1,
             ),
@@ -319,10 +303,8 @@ class TestSession:
     )
     def test_interactivity_puredp(self, mechanism: CountMechanism):
         """Test that interactivity works with PureDP."""
-        query_builder = GroupByCount(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            output_column="total",
+        query_builder = QueryBuilder("private").count(
+            name="total",
             mechanism=mechanism,
         )
 
@@ -343,10 +325,8 @@ class TestSession:
     )
     def test_interactivity_zcdp(self, mechanism: CountMechanism):
         """Test that interactivity works with RhoZCDP."""
-        query_builder = GroupByCount(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            output_column="total",
+        query_builder = QueryBuilder("private").count(
+            name="total",
             mechanism=mechanism,
         )
 
@@ -601,11 +581,8 @@ class TestSession:
     )
     def test_zero_budget(self, budget: PrivacyBudget):
         """Test that a call to ``evaluate`` raises a ValueError if budget is 0."""
-        query_expr = GroupByCount(
-            child=PrivateSource("private"),
-            groupby_keys=KeySet.from_dict({}),
-            output_column="total",
-            mechanism=CountMechanism.DEFAULT,
+        query_expr = QueryBuilder("private").count(
+            name="total", mechanism=CountMechanism.DEFAULT
         )
         session = Session.from_dataframe(
             privacy_budget=budget,
@@ -650,23 +627,18 @@ class TestSession:
             protected_change=AddOneRow(),
         )
 
-        transformation_query = FlatMap(
-            child=PrivateSource("private"),
+        transformation_query = QueryBuilder("private").flat_map(
             f=lambda row: [{}, {}],
-            schema_new_columns=Schema({}),
+            new_column_types={},
             augment=True,
             max_rows=1,
         )
         session.create_view(transformation_query, "flatmap_transformation", cache=False)
 
-        sum_query = GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with={}, child=PrivateSource("flatmap_transformation")
-            ),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="X",
-            low=0,
-            high=3,
+        sum_query = (
+            QueryBuilder("flatmap_transformation")
+            .replace_null_and_nan(replace_with={})
+            .sum("X", 0, 3, name="sum")
         )
         actual = session.evaluate(sum_query, privacy_budget)
         assert_frame_equal_with_sort(actual.toPandas(), expected, rtol=1)
@@ -750,15 +722,15 @@ class TestSession:
             protected_change=AddOneRow(),
         )
 
-        transformation_query = ReplaceNullAndNan(
-            replace_with={},
-            child=FlatMap(
-                child=PrivateSource("private"),
+        transformation_query = (
+            QueryBuilder("private")
+            .flat_map(
                 f=lambda _: [{}, {}],
-                schema_new_columns=Schema({}),
+                new_column_types={},
                 augment=True,
                 max_rows=2,
-            ),
+            )
+            .replace_null_and_nan(replace_with={})
         )
         session1.create_view(transformation_query, "flatmap", True)
 
@@ -778,9 +750,7 @@ class TestSession:
         assert session3.get_schema("private1") == Schema(
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
-        query = GroupByCount(
-            child=PrivateSource("private0"), groupby_keys=KeySet.from_dict({})
-        )
+        query = QueryBuilder("private0").count()
         session2.evaluate(query, partition_budget)
 
     @pytest.mark.parametrize(
@@ -831,9 +801,7 @@ class TestSession:
         session3 = sessions["private1"]
 
         answer_session2 = session2.evaluate(
-            GroupByCount(
-                child=PrivateSource("private0"),
-                groupby_keys=KeySet.from_dict({}),
+            QueryBuilder("private0").count(
                 mechanism=mechanism,
             ),
             inf_budget,
@@ -842,9 +810,7 @@ class TestSession:
             answer_session2.toPandas(), pd.DataFrame({"count": [3]})
         )
         answer_session3 = session3.evaluate(
-            GroupByCount(
-                child=PrivateSource("private1"), groupby_keys=KeySet.from_dict({})
-            ),
+            QueryBuilder("private1").count(),
             inf_budget,
         )
         assert_frame_equal_with_sort(
@@ -892,15 +858,15 @@ class TestSession:
             protected_change=AddOneRow(),
         )
 
-        transformation_query1 = ReplaceNullAndNan(
-            replace_with={},
-            child=FlatMap(
-                child=PrivateSource("private"),
+        transformation_query1 = (
+            QueryBuilder("private")
+            .flat_map(
                 f=lambda row: [{}, {}],
-                schema_new_columns=Schema({}),
+                new_column_types={},
                 augment=True,
                 max_rows=2,
-            ),
+            )
+            .replace_null_and_nan(replace_with={})
         )
         root_session.create_view(transformation_query1, "transform1", cache=False)
 
@@ -924,15 +890,15 @@ class TestSession:
             {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
         )
 
-        transformation_query2 = ReplaceNullAndNan(
-            replace_with={},
-            child=FlatMap(
-                child=PrivateSource("private0"),
+        transformation_query2 = (
+            QueryBuilder("private0")
+            .flat_map(
                 f=lambda row: [{}, {}, {}],
-                schema_new_columns=Schema({}),
+                new_column_types={},
                 augment=True,
                 max_rows=2,
-            ),
+            )
+            .replace_null_and_nan(replace_with={})
         )
         sessionA0.create_view(transformation_query2, "transform2", cache=False)
 
@@ -1001,14 +967,12 @@ class TestSession:
         assert session3._accountant.state == PrivacyAccountantState.WAITING_FOR_SIBLING
 
         # This should work, but it should also retire session2
-        select_query3 = Select(columns=["A"], child=PrivateSource(source_id="private1"))
+        select_query3 = QueryBuilder("private1").select(columns=["A"])
         session3.create_view(select_query3, "select_view", cache=False)
         assert session2._accountant.state == PrivacyAccountantState.RETIRED
 
         # Now trying to do operations on session2 should raise an error
-        select_query2 = Select(  # type: ignore
-            columns=["A"], child=PrivateSource(source_id="private0")
-        )  # mypy thinks this is unreachable
+        select_query2 = QueryBuilder("private0").select(columns=["A"])  # type: ignore
         with pytest.raises(
             RuntimeError,
             match=(
@@ -1018,7 +982,7 @@ class TestSession:
             session2.create_view(select_query2, "select_view", cache=False)
 
         # This should work, but it should also retire session3
-        select_query1 = Select(columns=["A"], child=PrivateSource(source_id="private"))
+        select_query1 = QueryBuilder("private").select(columns=["A"])
         session1.create_view(select_query1, "select_view", cache=False)
         assert session3._accountant.state == PrivacyAccountantState.RETIRED
 
@@ -1104,10 +1068,9 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-        transformation_query1 = FlatMap(
-            child=PrivateSource("private"),
+        transformation_query1 = QueryBuilder("private").flat_map(
             f=lambda row: [{}, {}],
-            schema_new_columns=Schema({}),
+            new_column_types={},
             augment=True,
             max_rows=2,
         )
@@ -1116,10 +1079,9 @@ class TestSession:
         assert session._accountant.d_in[NamedTable("flatmap1")] == 2
         # pylint: enable=protected-access
 
-        transformation_query2 = FlatMap(
-            child=PrivateSource("flatmap1"),
+        transformation_query2 = QueryBuilder("flatmap1").flat_map(
             f=lambda row: [{}, {}],
-            schema_new_columns=Schema({}),
+            new_column_types={},
             augment=True,
             max_rows=3,
         )
@@ -1139,31 +1101,28 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-        transformation_query1 = FlatMap(
-            child=PrivateSource("private"),
+        transformation_query1 = QueryBuilder("private").flat_map(
             f=lambda row: [{}, {}],
-            schema_new_columns=Schema({}),
+            new_column_types={},
             augment=True,
             max_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
 
-        transformation_query2 = FlatMap(
-            child=PrivateSource("flatmap1"),
+        transformation_query2 = QueryBuilder("flatmap1").flat_map(
             f=lambda row: [{}, {}],
-            schema_new_columns=Schema({}),
+            new_column_types={},
             augment=True,
             max_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
         # Check that we can query on the view.
-        sum_query = GroupByBoundedSum(
-            child=ReplaceNullAndNan(replace_with={}, child=PrivateSource("flatmap2")),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="X",
-            low=0,
-            high=3,
+        sum_query = (
+            QueryBuilder("flatmap2")
+            .replace_null_and_nan(replace_with={})
+            .groupby(KeySet.from_dict({}))
+            .sum("X", low=0, high=3)
         )
         session.evaluate(query_expr=sum_query, privacy_budget=budget)
 
@@ -1188,31 +1147,27 @@ class TestSession:
             protected_change=AddOneRow(),
         )
 
-        transformation_query1 = FlatMap(
-            child=PrivateSource("private"),
+        transformation_query1 = QueryBuilder("private").flat_map(
             f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-            schema_new_columns=Schema({"Repeat": "INTEGER"}),
+            new_column_types={"Repeat": "INTEGER"},
             augment=True,
             max_rows=1,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
-        transformation_query2 = FlatMap(
-            child=PrivateSource("flatmap1"),
+        transformation_query2 = QueryBuilder("flatmap1").flat_map(
             f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-            schema_new_columns=Schema({"i": "INTEGER"}),
+            new_column_types={"i": "INTEGER"},
             augment=False,
             max_rows=2,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
 
         # Check that we can query on the view.
-        sum_query = GroupByBoundedSum(
-            child=ReplaceNullAndNan(replace_with={}, child=PrivateSource("flatmap2")),
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="i",
-            low=0,
-            high=3,
-            mechanism=mechanism,
+        sum_query = (
+            QueryBuilder("flatmap2")
+            .replace_null_and_nan(replace_with={})
+            .groupby(KeySet.from_dict({}))
+            .sum("i", low=0, high=3, mechanism=mechanism, name="sum")
         )
         answer = session.evaluate(sum_query, inf_budget).toPandas()
         expected = pd.DataFrame({"sum": [9]})
