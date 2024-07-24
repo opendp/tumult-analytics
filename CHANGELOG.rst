@@ -15,6 +15,7 @@ Changed
 - Replaced asserts with custom exceptions in cases where internal errors are detected. Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
 
 
+
 .. _v0.14.0:
 
 0.14.0 - 2024-07-18
