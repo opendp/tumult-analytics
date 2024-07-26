@@ -22,6 +22,7 @@ Removed
 - QueryExprs (previously in ``tmlt.analytics.query_expr``) have been removed from the Tumult Analytics public API.
   Queries should be created using :class:`~tmlt.analytics.query_builder.QueryBuilder`, which returns a new :class:`~tmlt.analytics.query_builder.Query` when a query is created.
 - Removed the ``query_expr`` attribute from the :class:`~tmlt.analytics.query_builder.QueryBuilder` class.
+- Removed support for Pandas 1.2 and 1.3 due to a known bug in Pandas versions below 1.4.
 
 Added
 ~~~~~
