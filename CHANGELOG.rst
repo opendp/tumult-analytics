@@ -9,6 +9,10 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Added a new transformation, :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id>`, which allows user-defined transformations to be applied to groups of rows sharing an ID on tables with the :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+
 
 .. _v0.15.0:
 

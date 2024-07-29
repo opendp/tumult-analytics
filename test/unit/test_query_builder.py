@@ -532,6 +532,13 @@ def test_flat_map_grouping_is_true():
     )
 
 
+def test_invalid_flat_map_by_id():
+    """QueryBuilder.flat_map_by_id raises an error when provided invalid parameters."""
+    # Empty column names aren't allowed
+    with pytest.raises(ValueError):
+        root_builder().flat_map_by_id(lambda rows: [{"": 1}], {"": ColumnType.INTEGER})
+
+
 def test_bin_column():
     """QueryBuilder.bin_column works as expected."""
     spec = BinningSpec([0, 5, 10])

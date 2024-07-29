@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from pyspark.sql import DataFrame
 from typeguard import check_type
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import FrozenDict, Schema
 from tmlt.analytics.config import config
@@ -438,6 +439,50 @@ class FlatMap(QueryExpr):
             self.max_rows == other.max_rows
             and self.schema_new_columns == other.schema_new_columns
             and self.augment == other.augment
+            and self.child == other.child
+        )
+
+
+@dataclass(frozen=True)
+class FlatMapByID(QueryExpr):
+    """Applies a flat map function to each group of rows with a common ID."""
+
+    child: QueryExpr
+    """The QueryExpr to apply the flat map on."""
+    f: Callable[[List[Row]], List[Row]]
+    """The flat map function."""
+    schema_new_columns: Schema
+    """The expected schema for new columns produced by ``f``.
+
+    ``schema_new_column`` must not have a grouping or ID column.
+    """
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        check_type("child", self.child, QueryExpr)
+        check_type("f", self.f, Callable[[List[Row]], List[Row]])
+        check_type("schema_new_columns", self.schema_new_columns, Schema)
+        if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:
+            raise AnalyticsInternalError(
+                "FlatMapByID new column schema must not have a grouping or ID column."
+            )
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Visit this QueryExpr with visitor."""
+        return visitor.visit_flat_map_by_id(self)
+
+    def __eq__(self, other: object) -> bool:
+        """Returns true iff self == other.
+
+        This uses the bytecode of self.f and other.f to determine if the two
+        functions are equal.
+        """
+        if not isinstance(other, FlatMapByID):
+            return False
+        if self.f != other.f and self.f.__code__.co_code != other.f.__code__.co_code:
+            return False
+        return (
+            self.schema_new_columns == other.schema_new_columns
             and self.child == other.child
         )
 
@@ -1182,6 +1227,11 @@ class QueryExprVisitor(ABC):
     @abstractmethod
     def visit_flat_map(self, expr: FlatMap) -> Any:
         """Visit a :class:`FlatMap`."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def visit_flat_map_by_id(self, expr: FlatMapByID) -> Any:
+        """Visit a :class:`FlatMapByID`."""
         raise NotImplementedError
 
     @abstractmethod

@@ -14,11 +14,13 @@ import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
     Filter,
     FlatMap,
+    FlatMapByID,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -195,6 +197,25 @@ def test_invalid_flatmap(
     """Tests that invalid FlatMap errors on post-init."""
     with pytest.raises((TypeError, ValueError), match=expected_error_msg):
         FlatMap(child, func, schema_new_columns, augment, max_rows)
+
+
+@pytest.mark.parametrize(
+    "schema_new_columns,expected_exc",
+    [
+        (Schema({"i": "INTEGER"}, grouping_column="i"), AnalyticsInternalError),
+        (Schema({"i": "INTEGER"}, id_column="i"), AnalyticsInternalError),
+    ],
+)
+def test_invalid_flat_map_by_id(
+    schema_new_columns: Schema, expected_exc: Type[Exception]
+):
+    """FlatMapByID raises an exception when given invalid parameters."""
+    with pytest.raises(expected_exc):
+        FlatMapByID(
+            PrivateSource("private"),
+            lambda rows: rows,
+            schema_new_columns=schema_new_columns,
+        )
 
 
 @pytest.mark.parametrize(

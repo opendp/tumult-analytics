@@ -59,6 +59,7 @@ from tmlt.analytics._query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    FlatMapByID,
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
@@ -1206,7 +1207,7 @@ class QueryBuilder:
                 its value for that row.
                 This function should return a dictionary, which should always
                 have the same keys regardless of input, and the values in that
-                dictionary should match the column type specified in
+                dictionary should match the column types specified in
                 ``new_column_types``. The function should not have any side effects
                 (in particular, f cannot raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
@@ -1320,7 +1321,7 @@ class QueryBuilder:
                 This function should return a list of dictionaries.
                 Those dictionaries should always
                 have the same keys regardless of input, and the values in those
-                dictionaries should match the column type specified in
+                dictionaries should match the column types specified in
                 ``new_column_types``. The function should not have any side effects
                 (in particular, ``f`` must not raise exceptions), and must be
                 deterministic (running it multiple times on a fixed input should
@@ -1375,6 +1376,117 @@ class QueryBuilder:
             ),
             augment=augment,
             max_rows=max_rows,
+        )
+        return self
+
+    def flat_map_by_id(
+        self,
+        f: Callable[[List[Row]], List[Row]],
+        new_column_types: Mapping[str, Union[str, ColumnDescriptor, ColumnType]],
+    ) -> "QueryBuilder":
+        """Apply a transformation to each group of records sharing an ID.
+
+        Transforms groups of records that all share a common ID into a new group
+        of records with that same ID based on a user-provided function. The
+        number of rows produced does not have to match the number of input
+        rows. The ID column is automatically added to the output of ``f``, but
+        all other input columns are lost unless ``f`` copies them into its
+        output.
+
+        Note that this transformation is only valid on tables with the
+        :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+
+        If you provide only a ColumnType for the new column types, Analytics
+        assumes that all new columns created may contain null values (and that
+        DECIMAL columns may contain NaN or infinite values).
+
+        ..
+            >>> from tmlt.analytics.constraints import MaxRowsPerID
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.protected_change import AddRowsWithID
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> import tmlt.analytics.session
+            >>> from tmlt.analytics.keyset import KeySet
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> my_private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1], ["1", 0], ["1", 1], ["1", 4]],
+            ...         columns=["id", "A"]
+            ...     )
+            ... )
+
+        Example:
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddRowsWithID("id"),
+            ... )
+            >>> my_private_data.toPandas()
+              id  A
+            0  0  1
+            1  1  0
+            2  1  1
+            3  1  4
+            >>> sess.get_column_types("my_private_data")
+            {'id': ColumnType.VARCHAR, 'A': ColumnType.INTEGER}
+            >>> # Using flat_map_by_id, each ID's records are pre-summed before
+            >>> # computing a total sum, allowing less data loss than truncating
+            >>> # and clamping each row individually without having to add
+            >>> # more noise.
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .flat_map_by_id(
+            ...         lambda rows: [{"per_id_sum": sum(r["A"] for r in rows)}],
+            ...         new_column_types={
+            ...             "per_id_sum": ColumnDescriptor(
+            ...                 ColumnType.INTEGER, allow_null=False,
+            ...             )
+            ...         },
+            ...     )
+            ...     .enforce(MaxRowsPerID(1))
+            ...     .sum("per_id_sum", low=0, high=5, name="sum")
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     PureDPBudget(float("inf"))
+            ... )
+            >>> answer.toPandas()
+               sum
+            0    6
+
+        Args:
+            f: The function to be applied to each group of rows.  The function's
+                input is a list of dictionaries, each with one key/value
+                pair per column.  This function should return a list of
+                dictionaries.  Those dictionaries must each have one key/value
+                pair for each column types specified in ``new_column_types``,
+                and the values' types must match the column types. The
+                function must not have any side effects (in particular, it must
+                not raise exceptions), and must be deterministic (running it
+                multiple times on a fixed input should always return the same
+                output).
+            new_column_types: Mapping from column names to types for the new
+                columns produced by ``f``. Using
+                :class:`~tmlt.analytics.query_builder.ColumnDescriptor` is
+                preferred. Note that while the result of this transformation
+                includes the ID column, the ID column must *not* be in
+                ``new_column_types``, and must *not* be included in the output
+                rows from ``f``.
+        """
+        self._query_expr = FlatMapByID(
+            child=self._query_expr,
+            f=f,
+            schema_new_columns=Schema(
+                dict(new_column_types),
+                default_allow_null=True,
+                default_allow_nan=True,
+                default_allow_inf=True,
+            ),
         )
         return self
 

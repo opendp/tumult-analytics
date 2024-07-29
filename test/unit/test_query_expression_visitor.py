@@ -11,6 +11,7 @@ from tmlt.analytics._query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    FlatMapByID,
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
@@ -58,6 +59,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
 
     def visit_flat_map(self, expr):
         return "FlatMap"
+
+    def visit_flat_map_by_id(self, expr):
+        return "FlatMapByID"
 
     def visit_join_private(self, expr):
         return "JoinPrivate"
@@ -124,6 +128,10 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
                 PrivateSource("P"), lambda r: [r], Schema({"A": "VARCHAR"}), True, 1
             ),
             "FlatMap",
+        ),
+        (
+            FlatMapByID(PrivateSource("P"), lambda rs: rs, Schema({"A": "VARCHAR"})),
+            "FlatMapByID",
         ),
         (
             JoinPrivate(

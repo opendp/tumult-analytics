@@ -44,6 +44,9 @@ from tmlt.core.transformations.spark_transformations.add_remove_keys import (
     FilterValue as FilterValueTransformation,
 )
 from tmlt.core.transformations.spark_transformations.add_remove_keys import (
+    FlatMapByKeyValue as FlatMapByKeyValueTransformation,
+)
+from tmlt.core.transformations.spark_transformations.add_remove_keys import (
     FlatMapValue as FlatMapValueTransformation,
 )
 from tmlt.core.transformations.spark_transformations.add_remove_keys import (
@@ -88,6 +91,7 @@ from tmlt.core.transformations.spark_transformations.map import (
 from tmlt.core.transformations.spark_transformations.map import GroupingFlatMap
 from tmlt.core.transformations.spark_transformations.map import Map as MapTransformation
 from tmlt.core.transformations.spark_transformations.map import (
+    RowsToRowsTransformation,
     RowToRowsTransformation,
     RowToRowTransformation,
 )
@@ -123,6 +127,7 @@ from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics._query_expr import DropNullAndNan, EnforceConstraint
 from tmlt.analytics._query_expr import Filter as FilterExpr
 from tmlt.analytics._query_expr import FlatMap as FlatMapExpr
+from tmlt.analytics._query_expr import FlatMapByID as FlatMapByIDExpr
 from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
@@ -755,6 +760,58 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 child_transformation, child_ref.parent, transformation_generators
             ),
             simplify_constraints(propagate_flat_map(expr, child_constraints)),
+        )
+
+    def visit_flat_map_by_id(self, expr: FlatMapByIDExpr) -> Output:
+        """Create a transformation from a FlatMapByID query expression."""
+        child_transformation, child_ref, _child_constraints = self._ensure_not_hamming(
+            *expr.child.accept(self)
+        )
+
+        input_domain = lookup_domain(child_transformation.output_domain, child_ref)
+        if not isinstance(input_domain, SparkDataFrameDomain):
+            raise AnalyticsInternalError(
+                f"Unrecognized input domain {type(input_domain)}."
+            )
+        transformer_input_domain = ListDomain(SparkRowDomain(input_domain.schema))
+
+        # Any new column created by FlatMap could contain a null value
+        new_columns_descriptor = {
+            # all of the Spark<Type>ColumnDescriptor classes are dataclasses,
+            # but the SparkColumnDescriptor base class isn't;
+            # hence the "type: ignore" here
+            k: dataclasses.replace(v, allow_null=True)  # type: ignore
+            for k, v in analytics_to_spark_columns_descriptor(
+                expr.schema_new_columns
+            ).items()
+        }
+
+        def gen_transformation_ark(parent_domain, parent_metric, target):
+            output_domain = ListDomain(SparkRowDomain(new_columns_descriptor))
+            row_transformer = RowsToRowsTransformation(
+                input_domain=transformer_input_domain,
+                output_domain=output_domain,
+                trusted_f=getattr(expr, "f"),
+            )
+            return FlatMapByKeyValueTransformation(
+                parent_domain,
+                parent_metric,
+                child_ref.identifier,
+                target,
+                row_transformer,
+            )
+
+        transformation_generators: Dict[Type[Metric], Callable] = {
+            AddRemoveKeys: gen_transformation_ark,
+        }
+        return self.Output(
+            *generate_nested_transformation(
+                child_transformation, child_ref.parent, transformation_generators
+            ),
+            # FlatMapByID does not preserve anything except the ID column from the
+            # original table, and each ID is not guaranteed to have the same number of
+            # records afterwards as it did before, so no constraints can be propagated.
+            [],
         )
 
     def build_private_join_transformation(

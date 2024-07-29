@@ -75,6 +75,7 @@ from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics._query_expr import DropNullAndNan, EnforceConstraint
 from tmlt.analytics._query_expr import Filter as FilterExpr
 from tmlt.analytics._query_expr import FlatMap as FlatMapExpr
+from tmlt.analytics._query_expr import FlatMapByID as FlatMapByIDExpr
 from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
@@ -885,6 +886,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
     def visit_flat_map(self, expr: FlatMapExpr) -> Any:
         """Visit a FlatMap query expression (raises an error)."""
+        raise NotImplementedError
+
+    def visit_flat_map_by_id(self, expr: FlatMapByIDExpr) -> Any:
+        """Visit a FlatMapByID query expression (raises an error)."""
         raise NotImplementedError
 
     def visit_join_private(self, expr: JoinPrivateExpr) -> Any:

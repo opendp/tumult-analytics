@@ -19,6 +19,7 @@ from tmlt.analytics._query_expr import (
     EnforceConstraint,
     Filter,
     FlatMap,
+    FlatMapByID,
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
@@ -442,14 +443,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
             if input_schema.id_column:
                 raise ValueError(
                     "Grouping flat map cannot be used on tables with "
-                    "the AddRowsWithID protected change"
+                    "the AddRowsWithID protected change."
                 )
             grouping_column = expr.schema_new_columns.grouping_column
         else:
             grouping_column = input_schema.grouping_column
 
-        # Make a deep copy - that way we don't modify the schema
-        # that the user provided
         new_columns = expr.schema_new_columns.column_descs
         # Any column created by the FlatMap could contain a null value
         for name in list(new_columns.keys()):
@@ -464,12 +463,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
         elif input_schema.grouping_column:
             raise ValueError(
                 "Flat map must set augment=True to ensure that "
-                f"grouping column '{input_schema.grouping_column}' is not lost"
+                f"grouping column '{input_schema.grouping_column}' is not lost."
             )
         elif input_schema.id_column:
             raise ValueError(
                 "Flat map must set augment=True to ensure that "
-                f"ID column '{input_schema.id_column}' is not lost"
+                f"ID column '{input_schema.id_column}' is not lost."
             )
 
         return Schema(
@@ -477,6 +476,34 @@ class OutputSchemaVisitor(QueryExprVisitor):
             grouping_column=grouping_column,
             id_column=expr.schema_new_columns.id_column,
             id_space=expr.schema_new_columns.id_space,
+        )
+
+    def visit_flat_map_by_id(self, expr: FlatMapByID) -> Schema:
+        """Returns the resulting schema from evaluating a FlatMapByID."""
+        input_schema = expr.child.accept(self)
+        id_column = input_schema.id_column
+        new_columns = expr.schema_new_columns.column_descs
+
+        if not id_column:
+            raise ValueError(
+                "Flat-map-by-ID may only be used on tables with ID columns."
+            )
+        if input_schema.grouping_column:
+            raise AnalyticsInternalError(
+                "Encountered table with both an ID column and a grouping column."
+            )
+        if id_column in new_columns:
+            raise ValueError(
+                "Flat-map-by-ID mapping function output cannot include ID column."
+            )
+
+        for name in list(new_columns.keys()):
+            new_columns[name] = replace(new_columns[name], allow_null=True)
+        return Schema(
+            {id_column: input_schema[id_column], **new_columns},
+            grouping_column=None,
+            id_column=id_column,
+            id_space=input_schema.id_space,
         )
 
     def visit_join_private(self, expr: JoinPrivate) -> Schema:
