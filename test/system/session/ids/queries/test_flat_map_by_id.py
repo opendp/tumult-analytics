@@ -239,6 +239,16 @@ def test_schema(
         (
             QueryBuilder("t")
             .flat_map_by_id(
+                lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else None}],
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+            )
+            .filter("v == CAST('inf' AS DOUBLE) OR v == CAST('-inf' AS DOUBLE)"),
+            pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
+            pd.DataFrame({"count": [0]}),
+        ),
+        (
+            QueryBuilder("t")
+            .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
                 {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
             )
@@ -259,10 +269,32 @@ def test_schema(
         (
             QueryBuilder("t")
             .flat_map_by_id(
+                lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+            )
+            .filter("v == CAST('inf' AS DOUBLE) OR v == CAST('-inf' AS DOUBLE)"),
+            pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
+            pd.DataFrame({"count": [0]}),
+        ),
+        (
+            QueryBuilder("t")
+            .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("inf")}],
                 {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
             )
-            .filter("v > 1000"),
+            .filter("v == CAST('inf' AS DOUBLE)"),
+            pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
+            pd.DataFrame({"count": [1]}),
+        ),
+        (
+            QueryBuilder("t")
+            .flat_map_by_id(
+                lambda rs: (
+                    len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("-inf")}]
+                ),
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+            )
+            .filter("v == CAST('-inf' AS DOUBLE)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
             pd.DataFrame({"count": [1]}),
         ),
