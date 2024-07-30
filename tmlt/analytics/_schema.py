@@ -8,12 +8,12 @@ for seamless transitions of the data representation type.
 # Copyright Tumult Labs 2024
 
 import datetime
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Iterator, List
+from typing import Any, Dict, Iterator, List
 from typing import Mapping as MappingType
-from typing import Optional, Union, cast
+from typing import NamedTuple, Optional, Tuple, Union, cast
 
 from pyspark.sql.types import (
     DataType,
@@ -38,6 +38,86 @@ from tmlt.core.domains.spark_domains import (
     SparkStringColumnDescriptor,
     SparkTimestampColumnDescriptor,
 )
+from typeguard import check_type
+
+
+class keyValuePair(NamedTuple):
+    """A key-value pair for the FrozenDict class."""
+
+    key: str
+    value: Hashable
+
+
+@dataclass(frozen=True)
+class FrozenDict:
+    """A mapping that is immutable and hashable.
+
+    This is needed to replace the mutable mappings in some QueryExprs.
+
+    Note: This will not have the same performance characteristics as a normal dict.
+    Mainly, really large FrozenDicts will be slower than dicts to access. This is not
+    a major concern at the moment though because all use cases have a key referring
+    to a single column, and we don't expect users to have dataframes with large
+    quantities of columns.
+    """
+
+    elements: Tuple[keyValuePair, ...]
+
+    def __post_init__(self) -> None:
+        """Checks arguments to constructor."""
+        check_type("child", self.elements, Tuple[keyValuePair, ...])
+
+    def __getitem__(self, key):
+        """Returns the value of the key if it exists, otherwise raise KeyError."""
+        for pair in self.elements:
+            if pair.key == key:
+                return pair.value
+        raise KeyError(key)
+
+    def __hash__(self):
+        """Hashes a FrozenDict based on the tuple of elements."""
+        return hash(self.elements)
+
+    def __eq__(self, other):
+        """Determines if two FrozenDicts are equal based on their elements."""
+        if not isinstance(other, FrozenDict):
+            return False
+        return self.elements == other.elements
+
+    def __len__(self) -> int:
+        """Returns the number of elements in the FrozenDict."""
+        return len(self.elements)
+
+    @staticmethod
+    def from_dict(dictionary: MappingType[str, Any]) -> "FrozenDict":
+        """Returns an FrozenDict from a dictionary."""
+        check_type("dictionary", dictionary, MappingType[str, Any])
+        elements = tuple(keyValuePair(key, value) for key, value in dictionary.items())
+        return FrozenDict(elements)
+
+    def __iter__(self):
+        """Returns each key in the FrozenDict."""
+        for element in self.elements:
+            yield element.key
+
+    def items(self) -> List[Tuple[str, Any]]:
+        """Returns a list of key-value pairs from the FrozenDict."""
+        return [(pair.key, pair.value) for pair in self.elements]
+
+    def keys(self) -> List[str]:
+        """Returns a list of keys from the FrozenDict."""
+        return [pair.key for pair in self.elements]
+
+    def values(self) -> List[Any]:
+        """Returns a list of values from the FrozenDict."""
+        return [pair.value for pair in self.elements]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Returns the value of the key if it exists, otherwise return the default."""
+        for pair in self.elements:
+            if pair.key == key:
+                return pair.value
+        return default
 
 
 class ColumnType(Enum):
@@ -63,7 +143,7 @@ class ColumnType(Enum):
         return "ColumnType." + self.name
 
 
-@dataclass
+@dataclass(frozen=True)
 class ColumnDescriptor:
     """Information about a column.
 
@@ -148,29 +228,30 @@ class Schema(Mapping):
                 f"use supported types {supported_types}."
             )
 
-        self._column_descs: Dict[str, ColumnDescriptor] = {}
+        updated_column_types: Dict[str, ColumnDescriptor] = {}
         for col, ty in column_descs.items():
             if isinstance(ty, ColumnDescriptor):
-                self._column_descs[col] = ty
+                updated_column_types[col] = ty
             elif isinstance(ty, ColumnType):
-                self._column_descs[col] = ColumnDescriptor(
+                updated_column_types[col] = ColumnDescriptor(
                     ty,
                     allow_null=default_allow_null,
                     allow_nan=default_allow_nan,
                     allow_inf=default_allow_inf,
                 )
             else:
-                self._column_descs[col] = ColumnDescriptor(
+                updated_column_types[col] = ColumnDescriptor(
                     column_type=ColumnType[ty],
                     allow_null=default_allow_null,
                     allow_nan=default_allow_nan,
                     allow_inf=default_allow_inf,
                 )
+        self._column_descs: FrozenDict = FrozenDict.from_dict(updated_column_types)
 
     @property
     def columns(self):
         """Return the names of the columns in the schema."""
-        return self._column_descs.keys()
+        return dict(self._column_descs).keys()
 
     @property
     def column_descs(self) -> Dict[str, ColumnDescriptor]:
@@ -240,6 +321,13 @@ class Schema(Mapping):
             out += f", id_space={self.id_space}"
         out += ")"
         return out
+
+    def __hash__(self) -> int:
+        """Hashes the schema based on the column_descs mapping.
+
+        This function is sound, it relies on the equality of schemas being complete.
+        """
+        return hash(self._column_descs)
 
 
 _SPARK_TO_ANALYTICS: Dict[DataType, ColumnType] = {

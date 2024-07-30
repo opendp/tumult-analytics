@@ -15,6 +15,7 @@ from tmlt.analytics._query_expr import EnforceConstraint, PrivateSource
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
+from tmlt.analytics._schema import FrozenDict
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.constraints import (
@@ -119,7 +120,9 @@ class TestConstraints(TestTransformationVisitor):
         """Test L1 truncation with updating metric."""
         constraint = MaxRowsPerID(constraint_max)
         query = EnforceConstraint(
-            PrivateSource("ids_duplicates"), constraint, options={"update_metric": True}
+            PrivateSource("ids_duplicates"),
+            constraint,
+            options=FrozenDict.from_dict({"update_metric": True}),
         )
         transformation, ref, constraints = query.accept(self.visitor)
         assert len(constraints) == 1
@@ -151,10 +154,10 @@ class TestConstraints(TestTransformationVisitor):
             EnforceConstraint(
                 PrivateSource("ids_duplicates"),
                 MaxGroupsPerID(grouping_col, group_max),
-                options={"update_metric": True},
+                options=FrozenDict.from_dict({"update_metric": True}),
             ),
             MaxRowsPerGroupPerID(grouping_col, row_max),
-            options={"update_metric": True},
+            options=FrozenDict.from_dict({"update_metric": True}),
         )
         transformation, ref, constraints = query.accept(self.visitor)
         assert len(constraints) == 2

@@ -704,7 +704,7 @@ class Session:
     def _describe_query_obj(
         self,
         query_obj: QueryExpr,
-        groupby_keys: Optional[Union[KeySet, List[str]]] = None,
+        groupby_keys: Optional[Union[KeySet, Tuple[str, ...]]] = None,
     ) -> str:
         """Build a description of a query object."""
         compiler = QueryExprCompiler(self._output_measure)
@@ -729,7 +729,7 @@ class Session:
             description += "\n\tConstraints:\n"
             constraints_strs = [f"\t\t- {e}" for e in constraints]
             description += "\n".join(constraints_strs)
-        if isinstance(groupby_keys, list):
+        if isinstance(groupby_keys, tuple):
             description += "\nGrouped on columns "
             description += ", ".join(groupby_keys)
         elif groupby_keys is not None and len(groupby_keys.schema()) > 0:

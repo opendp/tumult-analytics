@@ -46,6 +46,7 @@ from typing import (
 )
 
 from pyspark.sql import DataFrame
+from typeguard import check_type
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
@@ -81,7 +82,7 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
 from tmlt.analytics.binning_spec import BinningSpec, BinT
 from tmlt.analytics.config import config
 from tmlt.analytics.constraints import Constraint
@@ -122,6 +123,17 @@ class Query:
     """
 
     _query_expr: QueryExpr
+
+    def __hash__(self) -> int:
+        """Hashes the query based on the underlying query expression."""
+        return hash(self._query_expr)
+
+    def __eq__(self, other: Any):
+        """Determines query equitability based on the underlying query expression."""
+        if isinstance(other, Query):
+            return self._query_expr == other._query_expr
+        else:
+            return False
 
 
 class _QueryProtocol(Protocol):
@@ -422,7 +434,7 @@ class QueryBuilder:
         self._query_expr = JoinPublic(
             child=self._query_expr,
             public_table=public_table,
-            join_columns=list(join_columns) if join_columns is not None else None,
+            join_columns=tuple(join_columns) if join_columns is not None else None,
             how=how,
         )
         return self
@@ -561,7 +573,7 @@ class QueryBuilder:
             right_operand._query_expr,
             truncation_strategy_left,
             truncation_strategy_right,
-            list(join_columns) if join_columns is not None else None,
+            tuple(join_columns) if join_columns is not None else None,
         )
         return self
 
@@ -652,7 +664,8 @@ class QueryBuilder:
         if replace_with is None:
             raise AnalyticsInternalError("replace_with parameter is None.")
         self._query_expr = ReplaceNullAndNan(
-            child=self._query_expr, replace_with=replace_with
+            child=self._query_expr,
+            replace_with=FrozenDict.from_dict(replace_with),
         )
         return self
 
@@ -729,8 +742,12 @@ class QueryBuilder:
         # this assert is for mypy
         if replace_with is None:
             raise AnalyticsInternalError("replace_with parameter is None.")
+
+        check_type("replace_with", replace_with, Dict[str, Tuple[float, float]])
+
         self._query_expr = ReplaceInfinity(
-            child=self._query_expr, replace_with=replace_with
+            child=self._query_expr,
+            replace_with=FrozenDict.from_dict(replace_with),
         )
         return self
 
@@ -834,7 +851,9 @@ class QueryBuilder:
             columns = []
         if columns is None:
             raise AnalyticsInternalError("columns parameter is None.")
-        self._query_expr = DropNullAndNan(child=self._query_expr, columns=columns)
+        self._query_expr = DropNullAndNan(
+            child=self._query_expr, columns=tuple(columns)
+        )
         return self
 
     def drop_infinity(self, columns: Optional[List[str]]) -> "QueryBuilder":
@@ -925,7 +944,7 @@ class QueryBuilder:
         if columns is None:
             raise AnalyticsInternalError("columns parameter is None.")
 
-        self._query_expr = DropInfinity(child=self._query_expr, columns=columns)
+        self._query_expr = DropInfinity(child=self._query_expr, columns=tuple(columns))
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
@@ -983,7 +1002,10 @@ class QueryBuilder:
             column_mapper: A mapping of columns to new column names.
                 Columns not specified in the mapper will remain the same.
         """
-        self._query_expr = Rename(child=self._query_expr, column_mapper=column_mapper)
+        self._query_expr = Rename(
+            child=self._query_expr,
+            column_mapper=FrozenDict.from_dict(column_mapper),
+        )
         return self
 
     def filter(self, condition: str) -> "QueryBuilder":
@@ -1107,7 +1129,7 @@ class QueryBuilder:
         """
         self._query_expr = Select(
             child=self._query_expr,
-            columns=list(columns) if columns is not None else None,
+            columns=tuple(columns) if columns is not None else None,
         )
         return self
 
@@ -1447,7 +1469,9 @@ class QueryBuilder:
             name = f"{column}_binned"
         binning_fn = lambda row: {name: spec(row[column])}
         return self.map(
-            binning_fn, new_column_types={name: spec.column_descriptor}, augment=True
+            binning_fn,
+            new_column_types={name: spec.column_descriptor},
+            augment=True,
         )
 
     def histogram(
@@ -1580,7 +1604,9 @@ class QueryBuilder:
         Args:
             constraint: The constraint to enforce.
         """
-        self._query_expr = EnforceConstraint(self._query_expr, constraint, options={})
+        self._query_expr = EnforceConstraint(
+            self._query_expr, constraint, options=FrozenDict.from_dict({})
+        )
         return self
 
     def get_groups(self, columns: Optional[List[str]] = None) -> Query:
@@ -1636,7 +1662,8 @@ class QueryBuilder:
                 :class:`~tmlt.analytics.protected_change.ProtectedChange` of
                 :class:`~tmlt.analytics.protected_change.AddRowsWithID`.
         """
-        query_expr = GetGroups(child=self._query_expr, columns=columns)
+        cols = tuple(columns) if columns is not None else None
+        query_expr = GetGroups(child=self._query_expr, columns=cols)
         return Query(query_expr)
 
     def get_bounds(self, column: str) -> Query:
@@ -1830,7 +1857,9 @@ class QueryBuilder:
 
         if isinstance(by, str):
             # If a string was passed we'll treat it similarly to a list of cols.
-            grouped_on: Union[KeySet, List[str]] = [by]
+            grouped_on: Union[KeySet, Tuple[str, ...]] = tuple([by])
+        elif isinstance(by, list):
+            grouped_on = tuple(by)
         else:
             grouped_on = by
 
@@ -2649,7 +2678,7 @@ class GroupedQueryBuilder:
         """
         self._source_id: str = source_id
         self._query_expr: QueryExpr = query_expr
-        self._groupby_keys: Union[KeySet, List[str]] = groupby_keys
+        self._groupby_keys: Union[KeySet, Tuple[str]] = groupby_keys
 
     def count(
         self,
@@ -2809,7 +2838,7 @@ class GroupedQueryBuilder:
                 name = "count_distinct"
         query_expr = GroupByCountDistinct(
             child=self._query_expr,
-            columns_to_count=columns_to_count,
+            columns_to_count=tuple(columns_to_count) if columns_to_count else None,
             groupby_keys=self._groupby_keys,
             output_column=name,
             mechanism=mechanism,
@@ -2893,6 +2922,8 @@ class GroupedQueryBuilder:
         """
         if name is None:
             name = f"{column}_quantile({quantile})"
+        low = low if isinstance(low, float) else float(low)
+        high = high if isinstance(high, float) else float(high)
         query_expr = GroupByQuantile(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,

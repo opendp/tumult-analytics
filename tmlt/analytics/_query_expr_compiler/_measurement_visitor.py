@@ -84,9 +84,9 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         if expr.columns:
             columns = expr.columns
         else:
-            columns = [
+            columns = tuple(
                 col for col in schema.column_descs.keys() if col != schema.id_column
-            ]
+            )
 
         # Check if ID column is one of the columns in get_groups
         # Note: if get_groups columns is None or empty, all of the columns in the table
@@ -100,7 +100,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
-            grouping_columns=[],
+            grouping_columns=tuple(),
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -131,7 +131,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
             )
 
         transformation |= SelectTransformation(
-            transformation.output_domain, transformation.output_metric, columns
+            transformation.output_domain, transformation.output_metric, list(columns)
         )
 
         mid_stability = transformation.stability_function(self.stability)

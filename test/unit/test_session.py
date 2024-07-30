@@ -1958,8 +1958,12 @@ class TestInvalidSession:
 
             expected_schema = spark_schema_to_analytics_columns(self.sdf.schema)
             # We expect a transformation that will disallow NaNs on floats and infs
-            expected_schema["X"].allow_nan = False
-            expected_schema["X"].allow_inf = False
+            expected_schema["X"] = ColumnDescriptor(
+                expected_schema["X"].column_type,
+                allow_null=expected_schema["X"].allow_null,
+                allow_nan=False,
+                allow_inf=False,
+            )
 
             with pytest.raises(
                 KeyError,

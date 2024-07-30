@@ -32,7 +32,7 @@ from tmlt.analytics._query_expr import (
     Select,
     SuppressAggregates,
 )
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import FrozenDict, Schema
 from tmlt.analytics.constraints import MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -115,9 +115,9 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     "expr,expected",
     [
         (PrivateSource("P"), "PrivateSource"),
-        (Rename(PrivateSource("P"), {"A": "B"}), "Rename"),
+        (Rename(PrivateSource("P"), FrozenDict.from_dict({"A": "B"})), "Rename"),
         (Filter(PrivateSource("P"), "A<B"), "Filter"),
-        (Select(PrivateSource("P"), ["A"]), "Select"),
+        (Select(PrivateSource("P"), tuple("A")), "Select"),
         (Map(PrivateSource("P"), lambda r: r, Schema({"A": "VARCHAR"}), True), "Map"),
         (
             FlatMap(
@@ -136,17 +136,26 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         ),
         (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
         (
-            ReplaceNullAndNan(PrivateSource("P"), {"column": "default"}),
+            ReplaceNullAndNan(
+                PrivateSource("P"), FrozenDict.from_dict({"column": "default"})
+            ),
             "ReplaceNullAndNan",
         ),
         (
-            ReplaceInfinity(PrivateSource("P"), {"column": (-100.0, 100.0)}),
+            ReplaceInfinity(
+                PrivateSource("P"), FrozenDict.from_dict({"column": (-100.0, 100.0)})
+            ),
             "ReplaceInfinity",
         ),
-        (DropInfinity(PrivateSource("P"), ["column"]), "DropInfinity"),
-        (DropNullAndNan(PrivateSource("P"), ["column"]), "DropNullAndNan"),
-        (EnforceConstraint(PrivateSource("P"), MaxRowsPerID(5)), "EnforceConstraint"),
-        (GetGroups(PrivateSource("P"), ["column"]), "GetGroups"),
+        (DropInfinity(PrivateSource("P"), tuple("column")), "DropInfinity"),
+        (DropNullAndNan(PrivateSource("P"), tuple("column")), "DropNullAndNan"),
+        (
+            EnforceConstraint(
+                PrivateSource("P"), MaxRowsPerID(5), FrozenDict.from_dict({})
+            ),
+            "EnforceConstraint",
+        ),
+        (GetGroups(PrivateSource("P"), tuple("column")), "GetGroups"),
         (GetBounds(PrivateSource("P"), "column"), "GetBounds"),
         (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
         (

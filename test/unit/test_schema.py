@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
 
 """Unit tests for Schema."""
 
@@ -65,3 +65,58 @@ def test_schema_equality() -> None:
     assert schema_1 == schema_2
     assert schema_1 != schema_3
     assert schema_1 != schema_4
+
+
+def test_schema_hash() -> None:
+    """Makes sure that schema hash is consistent."""
+
+    columns_1 = {"a": "VARCHAR", "b": "INTEGER"}
+    columns_2 = {"a": "VARCHAR", "b": "INTEGER"}
+    columns_3 = {"y": "VARCHAR", "z": "INTEGER"}
+    columns_4 = {"a": "INTEGER", "b": "VARCHAR"}
+    columns_5 = {"z": "VARCHAR", "b": "INTEGER"}
+    schema_1 = Schema(columns_1)
+    schema_2 = Schema(columns_2)
+    schema_3 = Schema(columns_3)
+    schema_4 = Schema(columns_4)
+    schema_5 = Schema(columns_5)
+    assert hash(schema_1) == hash(schema_2)
+    assert hash(schema_1) != hash(schema_3)
+    assert hash(schema_1) != hash(schema_4)
+    assert hash(schema_1) != hash(schema_5)
+
+
+def test_FrozenDict():
+    """Tests that FrozenDict works like an immutable dict."""
+
+    a = FrozenDict.from_dict({"a": 1, "b": 2})
+    assert a["a"] == 1
+    assert a["b"] == 2
+
+    with pytest.raises(KeyError):
+        _ = a["c"]
+
+    with pytest.raises(TypeError):
+        a["a"] = 3  # type: ignore
+
+    b = FrozenDict.from_dict({"x": 1, "y": 2})
+    assert a != b
+    assert hash(a) != hash(b)
+
+    a_2 = FrozenDict.from_dict({"a": 1, "b": 2})
+    assert a == a_2
+    assert hash(a) == hash(a_2)
+
+    # Tests that the dict() method works on FrozenDict.
+    assert isinstance(dict(a), dict)
+    assert dict(a)["a"] == 1
+
+    # Tests that the iter is implemented correctly
+    assert set(a) == set(["a", "b"])
+
+    # Tests that items is implemented correctly
+    assert [("a", 1), ("b", 2)] == a.items()
+
+    # Tests the FrozenDict.get() method.
+    assert a.get("a") == 1
+    assert a.get("c", 10) == 10

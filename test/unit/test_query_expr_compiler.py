@@ -62,6 +62,7 @@ from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
+    FrozenDict,
     Schema,
     analytics_to_spark_columns_descriptor,
 )
@@ -207,7 +208,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByBoundedSum(
                 child=ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=FlatMap(
                         child=PrivateSource("private"),
                         f=lambda row: [{}, {}],
@@ -228,7 +229,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByBoundedSum(
                 child=ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=FlatMap(
                         child=FlatMap(
                             child=PrivateSource("private"),
@@ -255,7 +256,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByBoundedSum(
                 child=ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=FlatMap(
                         child=FlatMap(
                             child=PrivateSource("private"),
@@ -292,7 +293,10 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Rename
         [
             GroupByCount(
-                child=Rename(child=PrivateSource("private"), column_mapper={"A": "Z"}),
+                child=Rename(
+                    child=PrivateSource("private"),
+                    column_mapper=FrozenDict.from_dict({"A": "Z"}),
+                ),
                 groupby_keys=KeySet.from_dict({"Z": ["0", "1"]}),
             )
         ],
@@ -301,7 +305,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Select
         [
             GroupByCount(
-                child=Select(child=PrivateSource("private"), columns=["A"]),
+                child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
                 groupby_keys=KeySet.from_dict({}),
             )
         ],
@@ -311,7 +315,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=Map(
                         child=PrivateSource("private"),
                         f=lambda row: {"C": 2 * str(row["B"])},
@@ -344,7 +348,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 child=JoinPublic(
                     child=PrivateSource("private"),
                     public_table="public",
-                    join_columns=["A"],
+                    join_columns=tuple(["A"]),
                 ),
                 groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
             )
@@ -413,7 +417,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByBoundedSum(
                 ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=Map(
                         JoinPublic(PrivateSource("private"), "dtypes"),
                         lambda row: {"day": row["date"].day},
@@ -433,7 +437,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByBoundedSum(
                 ReplaceNullAndNan(
-                    replace_with={},
+                    replace_with=FrozenDict.from_dict({}),
                     child=Map(
                         JoinPublic(PrivateSource("private"), "dtypes"),
                         lambda row: {"minute": row["timestamp"].minute},
@@ -642,7 +646,7 @@ class TestQueryExprCompiler:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="distinct",
-                    columns_to_count=["B"],
+                    columns_to_count=tuple(["B"]),
                 ),
                 pd.DataFrame({"distinct": [2]}),
             ),
@@ -657,7 +661,7 @@ class TestQueryExprCompiler:
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                    columns_to_count=["B"],
+                    columns_to_count=tuple(["B"]),
                 ),
                 pd.DataFrame([["0", 2], ["1", 1]], columns=["A", "count_distinct"]),
             ),
@@ -672,7 +676,7 @@ class TestQueryExprCompiler:
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
-                    columns_to_count=["B"],
+                    columns_to_count=tuple(["B"]),
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [2, 1, 0]}),
             ),
@@ -914,7 +918,7 @@ class TestQueryExprCompiler:
             (  # Grouping flat map with LAPLACE
                 GroupByBoundedSum(
                     child=ReplaceNullAndNan(
-                        replace_with={},
+                        replace_with=FrozenDict.from_dict({}),
                         child=FlatMap(
                             child=FlatMap(
                                 child=PrivateSource("private"),
@@ -1004,7 +1008,7 @@ class TestQueryExprCompiler:
                 [
                     GroupByBoundedSum(
                         child=ReplaceNullAndNan(
-                            replace_with={},
+                            replace_with=FrozenDict.from_dict({}),
                             child=FlatMap(
                                 child=FlatMap(
                                     child=PrivateSource("private"),

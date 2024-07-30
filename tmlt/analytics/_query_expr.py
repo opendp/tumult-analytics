@@ -14,15 +14,15 @@ user-friendly features.
 
 import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql import DataFrame
 from typeguard import check_type
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import FrozenDict, Schema
 from tmlt.analytics.config import config
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
@@ -205,7 +205,7 @@ class GetGroups(QueryExpr):
     child: QueryExpr
     """The QueryExpr to get groups for."""
 
-    columns: Optional[List[str]] = None
+    columns: Optional[Tuple[str, ...]] = None
     """The columns used for geometric partition selection.
 
     If empty or none are provided, will use all of the columns in the table
@@ -215,7 +215,7 @@ class GetGroups(QueryExpr):
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, Optional[List[str]])
+        check_type("columns", self.columns, Optional[Tuple[str, ...]])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -248,7 +248,8 @@ class Rename(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to apply Rename to."""
-    column_mapper: Dict[str, str]
+    column_mapper: FrozenDict
+
     """The mapping of old column names to new column names.
 
     This mapping can contain all column names or just a subset. If it
@@ -259,7 +260,8 @@ class Rename(QueryExpr):
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("column_mapper", self.column_mapper, Dict[str, str])
+        check_type("column_mapper", self.column_mapper, FrozenDict)
+        check_type("column_mapper", dict(self.column_mapper), Dict[str, str])
         for k, v in self.column_mapper.items():
             if v == "":
                 raise ValueError(
@@ -301,13 +303,13 @@ class Select(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to apply the select on."""
-    columns: List[str]
+    columns: Tuple[str, ...]
     """The columns to select."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, List[str])
+        check_type("columns", self.columns, Tuple[str, ...])
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")
 
@@ -448,7 +450,7 @@ class JoinPrivate(QueryExpr):
     """Truncation strategy to be used for the left table."""
     truncation_strategy_right: Optional[TruncationStrategy.Type] = None
     """Truncation strategy to be used for the right table."""
-    join_columns: Optional[List[str]] = None
+    join_columns: Optional[Tuple[str, ...]] = None
     """The columns used for joining the tables, or None to use all common columns."""
 
     def __post_init__(self):
@@ -465,7 +467,7 @@ class JoinPrivate(QueryExpr):
             self.truncation_strategy_right,
             Optional[TruncationStrategy.Type],
         )
-        check_type("join_columns", self.join_columns, Optional[List[str]])
+        check_type("join_columns", self.join_columns, Optional[Tuple[str, ...]])
 
         if self.join_columns is not None:
             if len(self.join_columns) == 0:
@@ -486,7 +488,7 @@ class JoinPublic(QueryExpr):
     """The QueryExpr to join with public_df."""
     public_table: Union[DataFrame, str]
     """A DataFrame or public source to join with."""
-    join_columns: Optional[List[str]] = None
+    join_columns: Optional[Tuple[str, ...]] = None
     """The columns used for joining the tables, or None to use all common columns."""
     how: str = "inner"
     """The type of join to perform. Must be either "inner" or "left"."""
@@ -495,7 +497,7 @@ class JoinPublic(QueryExpr):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
         check_type("public_table", self.public_table, Union[DataFrame, str])
-        check_type("join_columns", self.join_columns, Optional[List[str]])
+        check_type("join_columns", self.join_columns, Optional[Tuple[str, ...]])
 
         if self.join_columns is not None:
             if len(self.join_columns) == 0:
@@ -601,9 +603,7 @@ class ReplaceNullAndNan(QueryExpr):
     child: QueryExpr
     """The QueryExpr to replace null/NaN values in."""
 
-    replace_with: Mapping[
-        str, Union[int, float, str, datetime.date, datetime.datetime]
-    ] = field(default_factory=dict)
+    replace_with: FrozenDict = FrozenDict.from_dict({})
     """New values to replace with, by column.
 
     If this dictionary is empty, *all* columns will be changed, with values
@@ -617,7 +617,7 @@ class ReplaceNullAndNan(QueryExpr):
         check_type(
             "replace_with",
             self.replace_with,
-            Mapping[str, Union[int, float, str, datetime.date, datetime.datetime]],
+            FrozenDict,
         )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -625,14 +625,14 @@ class ReplaceNullAndNan(QueryExpr):
         return visitor.visit_replace_null_and_nan(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False, eq=True)
 class ReplaceInfinity(QueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
 
     child: QueryExpr
     """The QueryExpr to replace +inf and -inf values in."""
 
-    replace_with: Dict[str, Tuple[float, float]] = field(default_factory=dict)
+    replace_with: FrozenDict = FrozenDict.from_dict({})
     """New values to replace with, by column. The first value for each column
     will be used to replace -infinity, and the second value will be used to
     replace +infinity.
@@ -642,18 +642,22 @@ class ReplaceInfinity(QueryExpr):
     :class:`~.AnalyticsDefault` class variables).
     """
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self, child: QueryExpr, replace_with: FrozenDict = FrozenDict.from_dict({})
+    ) -> None:
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("replace_with", self.replace_with, Dict[str, Tuple[float, float]])
-        # Convert ints to floats
-        # note: because this dataclass is frozen, we have to use
-        # object.__setattr__ instead of just re-assigning the value
-        object.__setattr__(
-            self,
-            "replace_with",
-            {k: (float(v[0]), float(v[1])) for k, v in self.replace_with.items()},
-        )
+        check_type("child", child, QueryExpr)
+        check_type("replace_with", replace_with, FrozenDict)
+        check_type("replace_with", dict(replace_with), Dict[str, Tuple[float, float]])
+
+        # Ensure that the values in replace_with are tuples of floats
+        updated_dict = {}
+        for col, val in replace_with.items():
+            updated_dict[col] = (float(val[0]), float(val[1]))
+
+        # Subverting the frozen dataclass to update the replace_with attribute
+        object.__setattr__(self, "replace_with", FrozenDict.from_dict(updated_dict))
+        object.__setattr__(self, "child", child)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -674,16 +678,16 @@ class DropNullAndNan(QueryExpr):
     child: QueryExpr
     """The QueryExpr in which to drop nulls/NaNs."""
 
-    columns: List[str] = field(default_factory=list)
+    columns: Tuple[str, ...] = tuple()
     """Columns in which to look for nulls and NaNs.
 
-    If this list is empty, *all* columns will be looked at - so if *any* column
+    If this tuple is empty, *all* columns will be looked at - so if *any* column
     contains a null or NaN value that row will be dropped."""
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, List[str])
+        check_type("columns", self.columns, Tuple[str, ...])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -697,16 +701,16 @@ class DropInfinity(QueryExpr):
     child: QueryExpr
     """The QueryExpr in which to drop +inf/-inf."""
 
-    columns: List[str] = field(default_factory=list)
+    columns: Tuple[str, ...] = tuple()
     """Columns in which to look for and infinite values.
 
-    If this list is empty, *all* columns will be looked at - so if *any* column
+    If this tuple is empty, *all* columns will be looked at - so if *any* column
     contains an infinite value, that row will be dropped."""
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, List[str])
+        check_type("columns", self.columns, Tuple[str, ...])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -721,7 +725,7 @@ class EnforceConstraint(QueryExpr):
     """The QueryExpr to which the constraint will be applied."""
     constraint: Constraint
     """A constraint to be enforced."""
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: FrozenDict = FrozenDict.from_dict({})
     """Options to be used when enforcing the constraint.
 
     Appropriate values here vary depending on the constraint. These options are
@@ -738,7 +742,7 @@ class GroupByCount(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     output_column: str = "count"
     """The name of the column to store the counts in."""
@@ -751,10 +755,10 @@ class GroupByCount(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountMechanism)
 
@@ -769,9 +773,9 @@ class GroupByCountDistinct(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
-    columns_to_count: Optional[List[str]] = None
+    columns_to_count: Optional[Tuple[str, ...]] = None
     """The columns that are compared when determining if two rows are distinct.
 
     If empty, will count all distinct rows.
@@ -786,11 +790,11 @@ class GroupByCountDistinct(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("columns_to_count", self.columns_to_count, Optional[List[str]])
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("columns_to_count", self.columns_to_count, Optional[Tuple[str, ...]])
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("output_column", self.output_column, str)
         check_type("mechanism", self.mechanism, CountDistinctMechanism)
 
@@ -811,7 +815,7 @@ class GroupByQuantile(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the quantile over."""
@@ -830,10 +834,10 @@ class GroupByQuantile(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
         check_type("quantile", self.quantile, float)
         check_type("low", self.low, float)
@@ -872,7 +876,7 @@ class GroupByBoundedSum(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the sum over."""
@@ -895,10 +899,10 @@ class GroupByBoundedSum(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -933,7 +937,7 @@ class GroupByBoundedAverage(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the average over."""
@@ -956,10 +960,10 @@ class GroupByBoundedAverage(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -994,7 +998,7 @@ class GroupByBoundedVariance(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the variance over."""
@@ -1017,10 +1021,10 @@ class GroupByBoundedVariance(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)
@@ -1055,7 +1059,7 @@ class GroupByBoundedSTDEV(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to measure."""
-    groupby_keys: Union[KeySet, List[str]]
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to compute the standard deviation over."""
@@ -1078,10 +1082,10 @@ class GroupByBoundedSTDEV(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, list):
+        if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, List[str]))
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
         check_type("low", self.low, float)
         check_type("high", self.high, float)

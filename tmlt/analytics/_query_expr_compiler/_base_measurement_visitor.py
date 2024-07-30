@@ -5,7 +5,7 @@ import warnings
 from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import sympy as sp
 from pyspark.sql import DataFrame, SparkSession
@@ -103,7 +103,7 @@ from tmlt.analytics._query_expr import (
 from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
     OutputSchemaVisitor,
 )
-from tmlt.analytics._schema import ColumnType, Schema
+from tmlt.analytics._schema import ColumnType, FrozenDict, Schema
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
@@ -169,7 +169,7 @@ def _get_truncatable_constraints(
 def _constraint_stability(
     constraints: Tuple[Constraint, ...],
     output_measure: Union[PureDP, ApproxDP, RhoZCDP],
-    grouping_columns: List[str],
+    grouping_columns: Sequence[str],
 ) -> float:
     """Compute the transformation stability of applying the given constraints.
 
@@ -229,7 +229,7 @@ def _generate_constrained_count_distinct(
     if isinstance(query.groupby_keys, KeySet):
         groupby_columns = query.groupby_keys.dataframe().columns
     else:
-        groupby_columns = query.groupby_keys
+        groupby_columns = list(query.groupby_keys)
 
     # For non-IDs cases or cases where columns other than the ID column must be
     # distinct, there's no optimization to make.
@@ -408,8 +408,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         input_metric: Union[IfGroupedBy, SymmetricDifference, HammingDistance],
         stability: Any,
         mechanism: NoiseMechanism,
-        columns: List[str],
-        keyset: Union[KeySet, List[str]],
+        columns: Tuple[str, ...],
+        keyset: Union[KeySet, Tuple[str, ...]],
         build_groupby_agg_from_groupby: Callable[[GroupBy], Measurement],
         keyset_budget: PrivacyBudget,
     ) -> Tuple[Measurement, NoiseInfo]:
@@ -435,7 +435,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         if keyset is None:
             raise AnalyticsInternalError("No keyset provided.")
         if isinstance(keyset, KeySet):
-            if keyset.dataframe().columns != columns:
+            if tuple(keyset.dataframe().columns) != columns:
                 raise AnalyticsInternalError(
                     f"Keyset columns {keyset.dataframe().columns} do not match "
                     f"columns {columns}."
@@ -522,7 +522,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         transformation: Transformation,
         reference: TableReference,
         constraints: List[Constraint],
-        grouping_columns: List[str],
+        grouping_columns: Tuple[str, ...],
     ) -> Tuple[Transformation, TableReference]:
         table_transformation = get_table_from_ref(transformation, reference)
         table_metric = table_transformation.output_metric
@@ -611,7 +611,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         epsilon, delta = self.budget.value
-        if isinstance(expr.groupby_keys, list) and not self.budget.is_infinite:
+        if isinstance(expr.groupby_keys, tuple) and not self.budget.is_infinite:
             # Automatic Partition Selection is being implemented. Validate the budget.
             if epsilon <= 0:
                 raise ValueError(
@@ -815,7 +815,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             # then drop those values
             # (but don't mutate the original query)
             new_child = DropNullAndNan(
-                child=query.child, columns=[query.measure_column]
+                child=query.child, columns=tuple([query.measure_column])
             )
             query = dataclasses.replace(query, child=new_child)
         # If infinite values are allowed...
@@ -823,7 +823,9 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             # then clamp them (to low/high values)
             new_child = ReplaceInfinity(
                 child=query.child,
-                replace_with={query.measure_column: (query.low, query.high)},
+                replace_with=FrozenDict.from_dict(
+                    {query.measure_column: (query.low, query.high)}
+                ),
             )
             query = dataclasses.replace(query, child=new_child)
         return query
@@ -917,7 +919,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         input_metric: Union[IfGroupedBy, SymmetricDifference, HammingDistance],
         stability: ExactNumber,
         budget: PrivacyBudget,
-        keyset_or_columns: Union[KeySet, List[str]],
+        keyset_or_columns: Union[KeySet, Tuple[str, ...]],
     ) -> Measurement:
         """Build a Measurement that returns a KeySet.
 
@@ -929,8 +931,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             keyset_or_columns: Either a KeySet object to return, if using a public
                 keyset, or the columns to get the keyset for.
         """
-        if isinstance(keyset_or_columns, list):
-            columns: List[str] = keyset_or_columns
+        if isinstance(keyset_or_columns, tuple):
+            columns: List[str] = list(keyset_or_columns)
             # Check that the budget is ApproxDP and is nonzero.
             if not isinstance(budget, ApproxDPBudget):
                 raise AnalyticsInternalError(
@@ -1033,7 +1035,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1117,7 +1119,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1160,7 +1162,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             transformation |= SelectTransformation(
                 mid_domain,
                 mid_metric,
-                list(set(expr.columns_to_count + groupby_columns)),
+                list(set(list(expr.columns_to_count) + groupby_columns)),
             )
             mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
             mid_metric = cast(
@@ -1239,7 +1241,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1335,7 +1337,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1431,7 +1433,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1527,7 +1529,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1623,7 +1625,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
-            groupby_cols = expr.groupby_keys.dataframe().columns
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
             query_budget = self.adjusted_budget
         else:
@@ -1716,7 +1718,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
-            grouping_columns=[],
+            grouping_columns=tuple(),
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)

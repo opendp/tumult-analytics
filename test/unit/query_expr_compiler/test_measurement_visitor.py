@@ -75,12 +75,14 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
+    FrozenDict,
     Schema,
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
+from tmlt.analytics.query_builder import Query, QueryBuilder
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # SPDX-License-Identifier: Apache-2.0
@@ -1100,7 +1102,7 @@ class TestMeasurementVisitor:
                 GroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
-                    columns_to_count=["A"],
+                    columns_to_count=tuple(["A"]),
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1177,13 +1179,11 @@ class TestMeasurementVisitor:
         "query,output_measure,noise_info",
         [
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({}),
+                QueryBuilder("private").quantile(
                     low=-100,
                     high=100,
-                    output_column="custom_output_column",
-                    measure_column="B",
+                    name="custom_output_column",
+                    column="B",
                     quantile=0.1,
                 ),
                 PureDP(),
@@ -1197,13 +1197,11 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({}),
+                QueryBuilder("private").quantile(
                     low=-100,
                     high=100,
-                    output_column="custom_output_column",
-                    measure_column="null_and_nan",
+                    name="custom_output_column",
+                    column="null_and_nan",
                     quantile=0.1,
                 ),
                 PureDP(),
@@ -1217,11 +1215,11 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-                    measure_column="X",
-                    output_column="quantile",
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"B": [0, 1]}))
+                .quantile(
+                    column="X",
+                    name="quantile",
                     low=123.345,
                     high=987.65,
                     quantile=0.25,
@@ -1237,11 +1235,11 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-                    measure_column="null_and_inf",
-                    output_column="quantile",
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"B": [0, 1]}))
+                .quantile(
+                    column="null_and_inf",
+                    name="quantile",
                     low=123.345,
                     high=987.65,
                     quantile=0.25,
@@ -1257,14 +1255,9 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
-                    quantile=0.5,
-                    measure_column="X",
-                    low=0,
-                    high=1,
-                ),
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["zero"]}))
+                .quantile(quantile=0.5, low=0, high=1, column="X"),
                 RhoZCDP(),
                 NoiseInfo(
                     [
@@ -1276,14 +1269,9 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
-                    quantile=0.5,
-                    measure_column="nan_and_inf",
-                    low=0,
-                    high=1,
-                ),
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["zero"]}))
+                .quantile(quantile=0.5, low=0, high=1, column="nan_and_inf"),
                 RhoZCDP(),
                 NoiseInfo(
                     [
@@ -1295,14 +1283,9 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByQuantile(
-                    child=PrivateSource("private"),
-                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
-                    quantile=0.5,
-                    measure_column="inf",
-                    low=0,
-                    high=1,
-                ),
+                QueryBuilder("private")
+                .groupby(KeySet.from_dict({"A": ["zero"]}))
+                .quantile(quantile=0.5, low=0, high=1, column="inf"),
                 RhoZCDP(),
                 NoiseInfo(
                     [
@@ -1317,13 +1300,15 @@ class TestMeasurementVisitor:
     )
     def test_visit_groupby_quantile(
         self,
-        query: GroupByQuantile,
+        query: Query,
         output_measure: Union[PureDP, RhoZCDP],
         noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_quantile."""
-        self.run_with_empty_data_and_check_schema(query, output_measure)
-        self.check_noise_info(query, output_measure, noise_info)
+        # pylint: disable=protected-access
+        self.run_with_empty_data_and_check_schema(query._query_expr, output_measure)
+        self.check_noise_info(query._query_expr, output_measure, noise_info)
+        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "query,output_measure,noise_info",
@@ -1785,9 +1770,14 @@ class TestMeasurementVisitor:
         "query",
         [
             (PrivateSource("private")),
-            (Rename(child=PrivateSource("private"), column_mapper={"A": "A2"})),
+            (
+                Rename(
+                    child=PrivateSource("private"),
+                    column_mapper=FrozenDict.from_dict({"A": "A2"}),
+                )
+            ),
             (Filter(child=PrivateSource("private"), condition="B > 2")),
-            (SelectExpr(child=PrivateSource("private"), columns=["A"])),
+            (SelectExpr(child=PrivateSource("private"), columns=tuple(["A"]))),
             (
                 Map(
                     child=PrivateSource("private"),

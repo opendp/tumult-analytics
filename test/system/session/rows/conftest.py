@@ -30,6 +30,7 @@ from tmlt.analytics._query_expr import (
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
+    FrozenDict,
     Schema,
     analytics_to_spark_columns_descriptor,
     analytics_to_spark_schema,
@@ -227,7 +228,7 @@ EVALUATE_TESTS = [
         .sum(column="X", low=0, high=3),
         GroupByBoundedSum(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{}, {}],
@@ -263,7 +264,7 @@ EVALUATE_TESTS = [
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -308,7 +309,7 @@ EVALUATE_TESTS = [
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -353,7 +354,7 @@ EVALUATE_TESTS = [
         .sum(column="i", low=0, high=3, mechanism=SumMechanism.LAPLACE),
         GroupByBoundedSum(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -444,7 +445,7 @@ EVALUATE_TESTS = [
     (  # GroupByCount Select
         QueryBuilder("private").select(["A"]).count(),
         GroupByCount(
-            child=Select(child=PrivateSource("private"), columns=["A"]),
+            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [4]}),
@@ -452,7 +453,7 @@ EVALUATE_TESTS = [
     (  # GroupByCountDistinct Select
         QueryBuilder("private").select(["A"]).count_distinct(),
         GroupByCountDistinct(
-            child=Select(child=PrivateSource("private"), columns=["A"]),
+            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [2]}),
@@ -469,7 +470,7 @@ EVALUATE_TESTS = [
         .count(),
         GroupByCount(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
@@ -496,7 +497,7 @@ EVALUATE_TESTS = [
         .count_distinct(),
         GroupByCountDistinct(
             child=ReplaceNullAndNan(
-                replace_with={},
+                replace_with=FrozenDict.from_dict({}),
                 child=Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
@@ -567,7 +568,7 @@ EVALUATE_TESTS = [
             child=JoinPublic(
                 child=PrivateSource("private"), public_table="join_dtypes"
             ),
-            columns_to_count=["DATE"],
+            columns_to_count=tuple(["DATE"]),
             output_column="count_distinct(DATE)",
             groupby_keys=KeySet.from_dict({}),
         ),

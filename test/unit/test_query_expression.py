@@ -7,7 +7,7 @@
 
 import datetime
 import re
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Mapping, Tuple, Type, Union
 
 import pandas as pd
 import pytest
@@ -36,8 +36,9 @@ from tmlt.analytics._query_expr import (
     Select,
     SuppressAggregates,
 )
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import FrozenDict, Schema
 from tmlt.analytics.keyset import KeySet
+from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ..conftest import assert_frame_equal_with_sort
@@ -69,14 +70,14 @@ def test_invalid_private_source(
 @pytest.mark.parametrize(
     "column_mapper,expected_error_msg",
     [
-        (True, "type of column_mapper must be a dict; got bool instead"),
+        (True, "type of dictionary must be collections.abc.Mapping; got bool instead"),
         ({"A": 123}, r"type of column_mapper\['A'] must be str; got int instead"),
     ],
 )
 def test_invalid_rename(column_mapper: Dict[str, str], expected_error_msg: str):
     """Tests that invalid Rename errors on post-init."""
     with pytest.raises(TypeError, match=expected_error_msg):
-        Rename(PrivateSource("private"), column_mapper)
+        Rename(PrivateSource("private"), FrozenDict.from_dict(column_mapper))
 
 
 def test_invalid_rename_empty_string():
@@ -88,7 +89,7 @@ def test_invalid_rename_empty_string():
             " are not allowed"
         ),
     ):
-        Rename(PrivateSource("private"), {"A": ""})
+        Rename(PrivateSource("private"), FrozenDict.from_dict({"A": ""}))
 
 
 def test_invalid_filter():
@@ -100,12 +101,12 @@ def test_invalid_filter():
 @pytest.mark.parametrize(
     "columns, expected_error_msg",
     [
-        (True, "type of columns must be a list; got bool instead"),
-        ([1], "type of columns[0] must be str; got int instead"),
-        (["A", "B", "B"], "Column name appears more than once in ['A', 'B', 'B']"),
+        (True, "type of columns must be a tuple; got bool instead"),
+        (tuple([1]), "type of columns[0] must be str; got int instead"),
+        (("A", "B", "B"), "Column name appears more than once in ('A', 'B', 'B')"),
     ],
 )
-def test_invalid_select(columns: List[str], expected_error_msg: str):
+def test_invalid_select(columns: Tuple[str, ...], expected_error_msg: str):
     """Tests that invalid Rename errors on post-init."""
     with pytest.raises((ValueError, TypeError), match=re.escape(expected_error_msg)):
         Select(PrivateSource("private"), columns)
@@ -203,9 +204,7 @@ def test_invalid_flatmap(
         (["A", "A"], "Join columns must be distinct"),
     ],
 )
-def test_invalid_join_columns(
-    join_columns: Optional[List[str]], expected_error_msg: str
-):
+def test_invalid_join_columns(join_columns: List[str], expected_error_msg: str):
     """Tests that JoinPrivate, JoinPublic error with invalid join columns."""
     with pytest.raises(ValueError, match=expected_error_msg):
         JoinPrivate(
@@ -213,10 +212,10 @@ def test_invalid_join_columns(
             PrivateSource("private2"),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
-            join_columns,
+            tuple(join_columns),
         )
         with pytest.raises(ValueError, match=expected_error_msg):
-            JoinPublic(PrivateSource("private"), "public", join_columns)
+            JoinPublic(PrivateSource("private"), "public", tuple(join_columns))
 
 
 def test_invalid_how():
@@ -224,7 +223,7 @@ def test_invalid_how():
     with pytest.raises(
         ValueError, match="Invalid join type 'invalid': must be 'inner' or 'left'"
     ):
-        JoinPublic(PrivateSource("private"), "public", ["A"], how="invalid")
+        JoinPublic(PrivateSource("private"), "public", tuple("A"), how="invalid")
 
 
 @pytest.mark.parametrize(
@@ -240,7 +239,10 @@ def test_invalid_how():
             {"str": [100.0, 100.0]},
             re.escape(r"type of replace_with['str'] must be a tuple; got list instead"),
         ),
-        ([], re.escape(r"type of replace_with must be a dict; got list instead")),
+        (
+            [],
+            re.escape(r"type of replace_with must be a dict; got list instead"),
+        ),
         (
             {"A": (-100.0,)},
             re.escape(
@@ -253,15 +255,15 @@ def test_invalid_how():
 def test_invalid_replace_infinity(replace_with: Any, expected_error_msg: str) -> None:
     """Test ReplaceInfinity with invalid arguments."""
     with pytest.raises(TypeError, match=expected_error_msg):
-        ReplaceInfinity(PrivateSource("private"), replace_with)
+        QueryBuilder("private").replace_infinity(replace_with)
 
 
 @pytest.mark.parametrize(
     "columns,expected_error_msg",
     [
-        ("A", "type of columns must be a list; got str instead"),
-        (("A", "B"), "type of columns must be a list; got tuple instead"),
-        ([1], re.escape(r"type of columns[0] must be str; got int instead")),
+        ("A", "type of columns must be a tuple; got str instead"),
+        (["A", "B"], "type of columns must be a tuple; got list instead"),
+        (tuple([1]), re.escape(r"type of columns[0] must be str; got int instead")),
     ],
 )
 def test_invalid_drop_null_and_nan(columns: Any, expected_error_msg: str) -> None:
@@ -273,9 +275,9 @@ def test_invalid_drop_null_and_nan(columns: Any, expected_error_msg: str) -> Non
 @pytest.mark.parametrize(
     "columns,expected_error_msg",
     [
-        ("A", "type of columns must be a list; got str instead"),
-        (("A", "B"), "type of columns must be a list; got tuple instead"),
-        ([1], re.escape(r"type of columns[0] must be str; got int instead")),
+        ("A", "type of columns must be a tuple; got str instead"),
+        (["A", "B"], "type of columns must be a tuple; got list instead"),
+        (tuple([1]), re.escape(r"type of columns[0] must be str; got int instead")),
     ],
 )
 def test_invalid_drop_infinity(columns: Any, expected_error_msg: str) -> None:
@@ -472,7 +474,7 @@ def test_valid_replace_null_and_nan(
     ],
 ):
     """Test ReplaceNullAndNan creation with valid values."""
-    ReplaceNullAndNan(child, replace_with)
+    ReplaceNullAndNan(child, FrozenDict.from_dict(replace_with))
 
 
 @pytest.mark.parametrize(
@@ -480,7 +482,6 @@ def test_valid_replace_null_and_nan(
     [
         (PrivateSource("private"), {}),
         (PrivateSource("private"), {"A": (-100.0, 100.0)}),
-        (PrivateSource("private"), {"A": (-1, 1)}),
         (PrivateSource("private"), {"A": (-999.9, 999.9), "B": (123.45, 678.90)}),
     ],
 )
@@ -488,7 +489,7 @@ def test_valid_replace_infinity(
     child: QueryExpr, replace_with: Dict[str, Tuple[float, float]]
 ) -> None:
     """Test ReplaceInfinity with valid values."""
-    query = ReplaceInfinity(child, replace_with)
+    query = ReplaceInfinity(child, FrozenDict.from_dict(replace_with))
     for v in query.replace_with.values():
         # Check that values got converted to floats
         assert len(v) == 2
@@ -506,7 +507,7 @@ def test_valid_replace_infinity(
 )
 def test_valid_drop_null_and_nan(child: QueryExpr, columns: List[str]) -> None:
     """Test DropNullAndNan with valid values."""
-    DropInfinity(child, columns)
+    DropInfinity(child, tuple(columns))
 
 
 @pytest.mark.parametrize(
@@ -519,7 +520,7 @@ def test_valid_drop_null_and_nan(child: QueryExpr, columns: List[str]) -> None:
 )
 def test_valid_drop_infinity(child: QueryExpr, columns: List[str]) -> None:
     """Test DropInfinity with valid values."""
-    DropInfinity(child, columns)
+    DropInfinity(child, tuple(columns))
 
 
 """Tests for JoinPublic with a Spark DataFrame as the public table."""

@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-from copy import deepcopy
-from typing import KeysView, List, Optional, Union, cast
+from dataclasses import replace
+from typing import KeysView, Optional, Tuple, Union, cast
 
 from pyspark.sql import SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -54,7 +54,7 @@ from tmlt.analytics.keyset import KeySet
 def _output_schema_for_join(
     left_schema: Schema,
     right_schema: Schema,
-    join_columns: Optional[List[str]],
+    join_columns: Optional[Tuple[str, ...]],
     join_id_space: Optional[str] = None,
     how: str = "inner",
 ) -> Schema:
@@ -94,7 +94,7 @@ def _output_schema_for_join(
     join_columns = (
         join_columns
         if join_columns
-        else sorted(common_columns, key=list(left_schema).index)
+        else tuple(sorted(common_columns, key=list(left_schema).index))
     )
 
     if not set(join_columns) <= common_columns:
@@ -132,12 +132,18 @@ def _output_schema_for_join(
         right_domain=SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(right_schema)
         ),
-        on=join_columns,
+        on=list(join_columns),
         how=how,
         nulls_are_equal=True,
     )
     for column in output_schema:
-        output_schema[column].allow_null = output_domain.schema[column].allow_null
+        col_schema = output_schema[column]
+        output_schema[column] = ColumnDescriptor(
+            column_type=col_schema.column_type,
+            allow_null=output_domain.schema[column].allow_null,
+            allow_nan=col_schema.allow_nan,
+            allow_inf=col_schema.allow_inf,
+        )
     return Schema(
         output_schema,
         grouping_column=grouping_column,
@@ -190,7 +196,7 @@ def _validate_groupby(
                     f"name in the input data has type "
                     f"'{input_column_desc.column_type.name}' instead."
                 )
-    elif isinstance(query.groupby_keys, list):
+    elif isinstance(query.groupby_keys, tuple):
         # Checks that the listed groupby columns exist in the schema
         for col in query.groupby_keys:
             if col not in input_schema:
@@ -373,12 +379,11 @@ class OutputSchemaVisitor(QueryExprVisitor):
     def visit_map(self, expr: Map) -> Schema:
         """Returns the resulting schema from evaluating a Map."""
         input_schema = expr.child.accept(self)
-        # Make a deep copy -  that way we don't modify the schema that the
-        # user provided
-        new_columns = deepcopy(expr.schema_new_columns)
+        new_columns = expr.schema_new_columns.column_descs
         # Any column created by Map could contain a null value
         for name in list(new_columns.keys()):
-            new_columns[name].allow_null = True
+            new_columns[name] = replace(new_columns[name], allow_null=True)
+
         if expr.augment:
             return Schema(
                 {**input_schema, **new_columns},
@@ -396,7 +401,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 "Map must set augment=True to ensure that "
                 f"ID column '{input_schema.id_column}' is not lost."
             )
-        return new_columns
+        return Schema(
+            new_columns,
+            grouping_column=expr.schema_new_columns.grouping_column,
+            id_column=expr.schema_new_columns.id_column,
+            id_space=expr.schema_new_columns.id_space,
+        )
 
     def visit_flat_map(self, expr: FlatMap) -> Schema:
         """Returns the resulting schema from evaluating a FlatMap."""
@@ -418,10 +428,10 @@ class OutputSchemaVisitor(QueryExprVisitor):
 
         # Make a deep copy - that way we don't modify the schema
         # that the user provided
-        new_columns = deepcopy(expr.schema_new_columns)
+        new_columns = expr.schema_new_columns.column_descs
         # Any column created by the FlatMap could contain a null value
         for name in list(new_columns.keys()):
-            new_columns[name].allow_null = True
+            new_columns[name] = replace(new_columns[name], allow_null=True)
         if expr.augment:
             return Schema(
                 {**input_schema, **new_columns},
@@ -440,7 +450,12 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 f"ID column '{input_schema.id_column}' is not lost"
             )
 
-        return new_columns
+        return Schema(
+            new_columns,
+            grouping_column=grouping_column,
+            id_column=expr.schema_new_columns.id_column,
+            id_space=expr.schema_new_columns.id_space,
+        )
 
     def visit_join_private(self, expr: JoinPrivate) -> Schema:
         """Returns the resulting schema from evaluating a JoinPrivate.
@@ -651,14 +666,14 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 f"Replacing null values in the ID column '{input_schema.id_column}' "
                 "is not allowed, so the ID column may still contain null values."
             )
-        columns = expr.columns.copy()
+        columns = expr.columns
         if len(columns) == 0:
-            columns = [
+            columns = tuple(
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan)
                 and not name in [input_schema.grouping_column, input_schema.id_column]
-            ]
+            )
         else:
             for name in columns:
                 if name not in input_schema.keys():
@@ -700,13 +715,13 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 "as it is an ID column"
             )
 
-        columns = expr.columns.copy()
+        columns = expr.columns
         if len(columns) == 0:
-            columns = [
+            columns = tuple(
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_inf) and not name == input_schema.grouping_column
-            ]
+            )
         else:
             for name in columns:
                 if name not in input_schema.keys():

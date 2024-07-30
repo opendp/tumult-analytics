@@ -40,6 +40,7 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
+    FrozenDict,
     Schema,
     spark_schema_to_analytics_columns,
 )
@@ -89,30 +90,36 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # JoinPublic on columns not common to both tables
         JoinPublic(
-            child=PrivateSource("private"), public_table="public", join_columns=["B"]
+            child=PrivateSource("private"),
+            public_table="public",
+            join_columns=tuple(["B"]),
         ),
         "Join columns must be common to both tables",
     ),
     (  # JoinPrivate on columns not common to both tables
         JoinPrivate(
             PrivateSource("private"),
-            Rename(PrivateSource("private"), {"B": "Q"}),
+            Rename(PrivateSource("private"), FrozenDict.from_dict({"B": "Q"})),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
-            join_columns=["B"],
+            join_columns=tuple(["B"]),
         ),
         "Join columns must be common to both tables",
     ),
     (  # JoinPublic on tables with no common columns
         JoinPublic(
-            child=Rename(PrivateSource("private"), {"A": "Q"}), public_table="public"
+            child=Rename(PrivateSource("private"), FrozenDict.from_dict({"A": "Q"})),
+            public_table="public",
         ),
         "Tables have no common columns to join on",
     ),
     (  # JoinPrivate on tables with no common columns
         JoinPrivate(
             PrivateSource("private"),
-            Rename(Select(PrivateSource("private"), ["A"]), {"A": "Z"}),
+            Rename(
+                Select(PrivateSource("private"), tuple(["A"])),
+                FrozenDict.from_dict({"A": "Z"}),
+            ),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
         ),
@@ -120,7 +127,9 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # JoinPublic on column with mismatched types
         JoinPublic(
-            child=PrivateSource("private"), public_table="public", join_columns=["A"]
+            child=PrivateSource("private"),
+            public_table="public",
+            join_columns=tuple(["A"]),
         ),
         (
             "Join columns must have identical types on both tables, "
@@ -130,10 +139,13 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # JoinPrivate on column with mismatched types
         JoinPrivate(
             PrivateSource("private"),
-            Rename(Rename(PrivateSource("private"), {"A": "Q"}), {"B": "A"}),
+            Rename(
+                Rename(PrivateSource("private"), FrozenDict.from_dict({"A": "Q"})),
+                FrozenDict.from_dict({"B": "A"}),
+            ),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
-            join_columns=["A"],
+            join_columns=tuple(["A"]),
         ),
         (
             "Join columns must have identical types on both tables, "
@@ -145,15 +157,21 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         "Invalid filter condition 'NONEXISTENT>1'.*",
     ),
     (  # Rename on non-existent column
-        Rename(child=PrivateSource("private"), column_mapper={"NONEXISTENT": "Z"}),
+        Rename(
+            child=PrivateSource("private"),
+            column_mapper=FrozenDict.from_dict({"NONEXISTENT": "Z"}),
+        ),
         "Nonexistent columns in rename query: {'NONEXISTENT'}",
     ),
     (  # Rename when column exists
-        Rename(child=PrivateSource("private"), column_mapper={"A": "B"}),
+        Rename(
+            child=PrivateSource("private"),
+            column_mapper=FrozenDict.from_dict({"A": "B"}),
+        ),
         "Cannot rename 'A' to 'B': column 'B' already exists",
     ),
     (  # Select non-existent column
-        Select(child=PrivateSource("private"), columns=["NONEXISTENT"]),
+        Select(child=PrivateSource("private"), columns=tuple(["NONEXISTENT"])),
         "Nonexistent columns in select query: {'NONEXISTENT'}",
     ),
     (  # Nested grouping FlatMap
@@ -208,38 +226,44 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
-            child=PrivateSource("private"), replace_with={"bad": "new_string"}
+            child=PrivateSource("private"),
+            replace_with=FrozenDict.from_dict({"bad": "new_string"}),
         ),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (
         # ReplaceNullAndNan with bad replacement type
         ReplaceNullAndNan(
-            child=PrivateSource("private"), replace_with={"B": "not_an_int"}
+            child=PrivateSource("private"),
+            replace_with=FrozenDict.from_dict({"B": "not_an_int"}),
         ),
         "Column 'B' cannot have nulls replaced with 'not_an_int', as .* type INTEGER",
     ),
     (
         # ReplaceInfinity with nonexistent column
         ReplaceInfinity(
-            child=PrivateSource("private"), replace_with={"wrong": (-1, 1)}
+            child=PrivateSource("private"),
+            replace_with=FrozenDict.from_dict({"wrong": (-1, 1)}),
         ),
         r"Column 'wrong' does not exist in this table, available columns are \[.*\]",
     ),
     (
         #  ReplaceInfinity with non-decimal column
-        ReplaceInfinity(child=PrivateSource("private"), replace_with={"A": (-1, 1)}),
+        ReplaceInfinity(
+            child=PrivateSource("private"),
+            replace_with=FrozenDict.from_dict({"A": (-1, 1)}),
+        ),
         r"Column 'A' has a replacement value provided.*of type VARCHAR \(not DECIMAL\) "
         "and so cannot contain infinite values",
     ),
     (
         # DropNullAndNan with column that doesn't exist
-        DropNullAndNan(child=PrivateSource("private"), columns=["bad"]),
+        DropNullAndNan(child=PrivateSource("private"), columns=tuple(["bad"])),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (
         # DropInfinity with column that doesn't exist
-        DropInfinity(child=PrivateSource("private"), columns=["bad"]),
+        DropInfinity(child=PrivateSource("private"), columns=tuple(["bad"])),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (  # Type mismatch for the measure column of GroupByQuantile
@@ -717,7 +741,10 @@ class TestValidationWithNulls:
         self, column_mapper: Dict[str, str], expected_schema: Schema
     ) -> None:
         """Test visit_rename."""
-        query = Rename(child=PrivateSource("private"), column_mapper=column_mapper)
+        query = Rename(
+            child=PrivateSource("private"),
+            column_mapper=FrozenDict.from_dict(column_mapper),
+        )
         schema = self.visitor.visit_rename(query)
         assert schema == expected_schema
 
@@ -755,7 +782,7 @@ class TestValidationWithNulls:
     )
     def test_visit_select(self, columns: List[str], expected_schema: Schema) -> None:
         """Test visit_select."""
-        query = Select(child=PrivateSource("private"), columns=columns)
+        query = Select(child=PrivateSource("private"), columns=tuple(columns))
         schema = self.visitor.visit_select(query)
         assert schema == expected_schema
 
@@ -1172,7 +1199,10 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                ReplaceNullAndNan(child=PrivateSource("private"), replace_with={}),
+                ReplaceNullAndNan(
+                    child=PrivateSource("private"),
+                    replace_with=FrozenDict.from_dict({}),
+                ),
                 Schema(
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
@@ -1193,7 +1223,8 @@ class TestValidationWithNulls:
             ),
             (
                 ReplaceNullAndNan(
-                    child=PrivateSource("private"), replace_with={"A": "", "B": 0}
+                    child=PrivateSource("private"),
+                    replace_with=FrozenDict.from_dict({"A": "", "B": 0}),
                 ),
                 Schema(
                     {
@@ -1216,13 +1247,15 @@ class TestValidationWithNulls:
             (
                 ReplaceNullAndNan(
                     child=PrivateSource("private"),
-                    replace_with={
-                        "A": "this_was_null",
-                        "B": 987,
-                        "X": -123.45,
-                        "D": datetime.date(2000, 1, 1),
-                        "T": datetime.datetime(2020, 1, 1),
-                    },
+                    replace_with=FrozenDict.from_dict(
+                        {
+                            "A": "this_was_null",
+                            "B": 987,
+                            "X": -123.45,
+                            "D": datetime.date(2000, 1, 1),
+                            "T": datetime.datetime(2020, 1, 1),
+                        }
+                    ),
                 ),
                 Schema(
                     {
@@ -1255,7 +1288,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                DropNullAndNan(child=PrivateSource("private"), columns=[]),
+                DropNullAndNan(child=PrivateSource("private"), columns=tuple()),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1298,7 +1331,9 @@ class TestValidationWithNulls:
                 ),
             ),
             (
-                DropNullAndNan(child=PrivateSource("private"), columns=["A", "X", "T"]),
+                DropNullAndNan(
+                    child=PrivateSource("private"), columns=tuple(["A", "X", "T"])
+                ),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1340,7 +1375,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                DropInfinity(child=PrivateSource("private"), columns=[]),
+                DropInfinity(child=PrivateSource("private"), columns=tuple()),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1383,7 +1418,7 @@ class TestValidationWithNulls:
                 ),
             ),
             (
-                DropInfinity(child=PrivateSource("private"), columns=["X"]),
+                DropInfinity(child=PrivateSource("private"), columns=tuple(["X"])),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1443,7 +1478,7 @@ class TestValidationWithNulls:
                     groupby_keys=KeySet.from_dict(
                         {"A": ["a1", "a2"], "NOTNULL": [1, 2]}
                     ),
-                    columns_to_count=["NOTNULL"],
+                    columns_to_count=tuple(["NOTNULL"]),
                     output_column="count_distinct",
                 ),
                 Schema(

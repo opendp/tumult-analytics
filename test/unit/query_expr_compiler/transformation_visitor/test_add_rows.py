@@ -52,6 +52,7 @@ from tmlt.analytics._query_expr_compiler._transformation_visitor import (
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
+    FrozenDict,
     Schema,
     analytics_to_spark_columns_descriptor,
 )
@@ -144,7 +145,10 @@ class TestAddRows(TestTransformationVisitor):
     )
     def test_visit_rename(self, mapper: Dict[str, str], expected_df: DataFrame) -> None:
         """Test visit_rename."""
-        query = Rename(column_mapper=mapper, child=PrivateSource(source_id="rows1"))
+        query = Rename(
+            column_mapper=FrozenDict.from_dict(mapper),
+            child=PrivateSource(source_id="rows1"),
+        )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
@@ -156,7 +160,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_invalid_rename(self) -> None:
         """Test visit_rename with an invalid query."""
         query = Rename(
-            column_mapper={"column_that_does_not_exist": "asdf"},
+            column_mapper=FrozenDict.from_dict({"column_that_does_not_exist": "asdf"}),
             child=PrivateSource(source_id="rows1"),
         )
         with pytest.raises(ValueError, match="Nonexistent columns in rename query"):
@@ -202,7 +206,7 @@ class TestAddRows(TestTransformationVisitor):
     )
     def test_visit_select(self, columns: List[str], expected_df: DataFrame) -> None:
         """Test visit_select."""
-        query = Select(columns=columns, child=PrivateSource(source_id="rows1"))
+        query = Select(columns=tuple(columns), child=PrivateSource(source_id="rows1"))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
@@ -213,7 +217,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_invalid_select(self) -> None:
         """Test visit_select with invalid query."""
         query = Select(
-            columns=["column_that_does_not_exist"],
+            columns=tuple(["column_that_does_not_exist"]),
             child=PrivateSource(source_id="rows1"),
         )
         with pytest.raises(ValueError, match="Nonexistent columns in select query"):
@@ -376,7 +380,7 @@ class TestAddRows(TestTransformationVisitor):
                     right_operand_expr=PrivateSource("rows1"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
-                    join_columns=["I"],
+                    join_columns=tuple(["I"]),
                 ),
                 pd.DataFrame(
                     [["0", 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -485,7 +489,7 @@ class TestAddRows(TestTransformationVisitor):
         query = JoinPublic(
             child=PrivateSource(source_id="rows1"),
             public_table=source_id,
-            join_columns=join_columns,
+            join_columns=tuple(join_columns) if join_columns else None,
         )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -575,7 +579,8 @@ class TestAddRows(TestTransformationVisitor):
     ):
         """Test visit_replace_null_and_nan."""
         query = ReplaceNullAndNan(
-            child=PrivateSource(source_id="rows_infs_nans"), replace_with=replace_with
+            child=PrivateSource(source_id="rows_infs_nans"),
+            replace_with=FrozenDict.from_dict(replace_with),
         )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -615,11 +620,13 @@ class TestAddRows(TestTransformationVisitor):
             ),
         ):
             invalid_replace_query = ReplaceNullAndNan(
-                child=flatmap_query, replace_with={"group": -10}
+                child=flatmap_query, replace_with=FrozenDict.from_dict({"group": -10})
             )
             invalid_replace_query.accept(self.visitor)
 
-        valid_replace_query = ReplaceNullAndNan(child=flatmap_query, replace_with={})
+        valid_replace_query = ReplaceNullAndNan(
+            child=flatmap_query, replace_with=FrozenDict.from_dict({})
+        )
         transformation, reference, constraints = valid_replace_query.accept(
             self.visitor
         )
@@ -660,7 +667,8 @@ class TestAddRows(TestTransformationVisitor):
     ):
         """Test visit_replace_infinity."""
         query = ReplaceInfinity(
-            child=PrivateSource(source_id="rows_infs_nans"), replace_with=replace_with
+            child=PrivateSource(source_id="rows_infs_nans"),
+            replace_with=FrozenDict.from_dict(replace_with),
         )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -698,9 +706,11 @@ class TestAddRows(TestTransformationVisitor):
                 " grouping column"
             ),
         ):
-            invalid_drop_query = DropNullAndNan(child=flatmap_query, columns=["group"])
+            invalid_drop_query = DropNullAndNan(
+                child=flatmap_query, columns=tuple(["group"])
+            )
             invalid_drop_query.accept(self.visitor)
-        valid_drop_query = DropNullAndNan(child=flatmap_query, columns=[])
+        valid_drop_query = DropNullAndNan(child=flatmap_query, columns=tuple())
         transformation, reference, constraints = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
@@ -733,9 +743,11 @@ class TestAddRows(TestTransformationVisitor):
                 "type is not DECIMAL"
             ),
         ):
-            invalid_drop_query = DropInfExpr(child=flatmap_query, columns=["group"])
+            invalid_drop_query = DropInfExpr(
+                child=flatmap_query, columns=tuple(["group"])
+            )
             invalid_drop_query.accept(self.visitor)
-        valid_drop_query = DropInfExpr(child=flatmap_query, columns=[])
+        valid_drop_query = DropInfExpr(child=flatmap_query, columns=tuple())
         transformation, reference, constraints = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
@@ -883,7 +895,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("rows"), query_columns)
+        query = DropNullAndNan(PrivateSource("rows"), tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []
@@ -910,7 +922,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         self, query_columns: List[str], expected_inf_cols: List[str]
     ) -> None:
         """Test generating transformations from a DropInfinity."""
-        query = DropInfExpr(child=PrivateSource("rows"), columns=query_columns)
+        query = DropInfExpr(child=PrivateSource("rows"), columns=tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []

@@ -406,7 +406,9 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 parent_metric,
                 child_ref.identifier,
                 target,
-                RenameTransformation(input_domain, input_metric, expr.column_mapper),
+                RenameTransformation(
+                    input_domain, input_metric, dict(expr.column_mapper)
+                ),
                 lambda *args: None,
             )
 
@@ -416,7 +418,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 parent_metric,
                 child_ref.identifier,
                 target,
-                expr.column_mapper,
+                dict(expr.column_mapper),
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
@@ -504,13 +506,17 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 parent_metric,
                 child_ref.identifier,
                 target,
-                SelectTransformation(input_domain, input_metric, expr.columns),
+                SelectTransformation(input_domain, input_metric, list(expr.columns)),
                 lambda *args: None,
             )
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
             return SelectValueTransformation(
-                parent_domain, parent_metric, child_ref.identifier, target, expr.columns
+                parent_domain,
+                parent_metric,
+                child_ref.identifier,
+                target,
+                list(expr.columns),
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
@@ -849,7 +855,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 right_truncation_strategy=r_trunc_strat,
                 left_truncation_threshold=l_trunc_threshold,
                 right_truncation_threshold=r_trunc_threshold,
-                join_cols=expr.join_columns,
+                join_cols=list(expr.join_columns) if expr.join_columns else None,
                 join_on_nulls=True,
             )
             create_dict = CreateDictFromValue(
@@ -871,7 +877,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 left_ref.identifier,
                 right_ref.identifier,
                 target,
-                expr.join_columns,
+                list(expr.join_columns) if expr.join_columns else None,
                 join_on_nulls=True,
             )
 
@@ -939,7 +945,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                     public_df_domain=SparkDataFrameDomain(
                         analytics_to_spark_columns_descriptor(public_df_schema)
                     ),
-                    join_cols=expr.join_columns if expr.join_columns else None,
+                    join_cols=list(expr.join_columns) if expr.join_columns else None,
                     metric=input_metric,
                     join_on_nulls=True,
                     how=expr.how,
@@ -957,7 +963,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 SparkDataFrameDomain(
                     analytics_to_spark_columns_descriptor(public_df_schema)
                 ),
-                expr.join_columns,
+                list(expr.join_columns) if expr.join_columns else None,
                 join_on_nulls=True,
             )
 
@@ -1215,7 +1221,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
         analytics_schema = Schema(
             spark_dataframe_domain_to_analytics_columns(input_domain)
         )
-        replace_with = expr.replace_with.copy()
+        replace_with = dict(expr.replace_with)
         if len(replace_with) == 0:
             replace_with = {
                 col: (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
@@ -1279,13 +1285,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             spark_dataframe_domain_to_analytics_columns(input_domain)
         )
 
-        columns = expr.columns.copy()
+        columns = expr.columns
         if len(columns) == 0:
-            columns = [
+            columns = tuple(
                 col
                 for col, cd in analytics_schema.column_descs.items()
                 if (cd.column_type == ColumnType.DECIMAL and cd.allow_inf)
-            ]
+            )
         else:
             for col in columns:
                 if analytics_schema.column_descs[col].column_type != ColumnType.DECIMAL:
@@ -1309,7 +1315,9 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 child_ref.identifier,
                 target,
                 DropInfTransformation(
-                    input_domain=input_domain, metric=input_metric, columns=columns
+                    input_domain=input_domain,
+                    metric=input_metric,
+                    columns=list(columns),
                 ),
                 lambda *args: None,
             )
@@ -1320,7 +1328,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 parent_metric,
                 child_ref.identifier,
                 target,
-                columns=columns,
+                columns=list(columns),
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
@@ -1357,13 +1365,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
                     " grouping column"
                 )
 
-        columns = expr.columns.copy()
+        columns = expr.columns
         if len(columns) == 0:
-            columns = [
+            columns = tuple(
                 col
                 for col, cd in analytics_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan) and not (col == grouping_column)
-            ]
+            )
 
         null_columns = [col for col in columns if analytics_schema[col].allow_null]
 

@@ -40,7 +40,11 @@ from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
-from tmlt.analytics._schema import Schema, analytics_to_spark_columns_descriptor
+from tmlt.analytics._schema import (
+    FrozenDict,
+    Schema,
+    analytics_to_spark_columns_descriptor,
+)
 from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.analytics._table_reference import TableReference, lookup_domain
 from tmlt.analytics._transformation_utils import get_table_from_ref
@@ -136,7 +140,7 @@ class TestAddKeys(TestTransformationVisitor):
         self, mapper: Dict[str, str], expected_df: DataFrame, grouping_column: str
     ) -> None:
         """Test generating transformations from a Rename."""
-        query = Rename(PrivateSource("ids1"), mapper)
+        query = Rename(PrivateSource("ids1"), FrozenDict.from_dict(mapper))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(
             transformation, reference, query, grouping_column
@@ -177,7 +181,7 @@ class TestAddKeys(TestTransformationVisitor):
     )
     def test_visit_select(self, columns: List[str], expected_df: DataFrame) -> None:
         """Test generating transformations from a Select."""
-        query = Select(PrivateSource(source_id="ids1"), columns)
+        query = Select(PrivateSource(source_id="ids1"), tuple(columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -314,7 +318,11 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    PrivateSource("ids1"), PrivateSource("ids2"), None, None, ["id"]
+                    PrivateSource("ids1"),
+                    PrivateSource("ids2"),
+                    None,
+                    None,
+                    tuple(["id"]),
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -323,7 +331,9 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    PrivateSource("ids1"), PrivateSource("ids2"), join_columns=["id"]
+                    PrivateSource("ids1"),
+                    PrivateSource("ids2"),
+                    join_columns=tuple(["id"]),
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -349,21 +359,21 @@ class TestAddKeys(TestTransformationVisitor):
                 PrivateSource("ids2"),
                 TruncationStrategy.DropExcess(1),
                 TruncationStrategy.DropExcess(1),
-                ["id"],
+                tuple(["id"]),
             ),
             JoinPrivate(
                 PrivateSource("ids1"),
                 PrivateSource("ids2"),
                 TruncationStrategy.DropExcess(1),
                 None,
-                ["id"],
+                tuple(["id"]),
             ),
             JoinPrivate(
                 PrivateSource("ids1"),
                 PrivateSource("ids2"),
                 None,
                 TruncationStrategy.DropExcess(1),
-                ["id"],
+                tuple(["id"]),
             ),
         ],
     )
@@ -389,7 +399,7 @@ class TestAddKeys(TestTransformationVisitor):
                 ),
             ),
             (
-                JoinPublic(PrivateSource("ids1"), "public", ["S"]),
+                JoinPublic(PrivateSource("ids1"), "public", tuple(["S"])),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "x"]],
                     columns=["id", "S", "I_left", "I_right", "F", "D", "T", "public"],
@@ -467,7 +477,9 @@ class TestAddKeys(TestTransformationVisitor):
         expected_df: DataFrame,
     ):
         """Test generating transformations from a ReplaceNullAndNan."""
-        query = ReplaceNullAndNan(PrivateSource("ids_infs_nans"), replace_with)
+        query = ReplaceNullAndNan(
+            PrivateSource("ids_infs_nans"), FrozenDict.from_dict(replace_with)
+        )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -508,7 +520,9 @@ class TestAddKeys(TestTransformationVisitor):
         self, replace_with: Dict[str, Tuple[float, float]], expected_df: DataFrame
     ):
         """Test generating transformations from a ReplaceInfinity."""
-        query = ReplaceInfinity(PrivateSource("ids_infs_nans"), replace_with)
+        query = ReplaceInfinity(
+            PrivateSource("ids_infs_nans"), FrozenDict.from_dict(replace_with)
+        )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -587,7 +601,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("ids"), query_columns)
+        query = DropNullAndNan(PrivateSource("ids"), tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []
@@ -615,7 +629,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         self, query_columns: List[str], expected_inf_cols: List[str]
     ) -> None:
         """Test generating transformations from a DropInfinity."""
-        query = DropInfinity(PrivateSource("ids"), query_columns)
+        query = DropInfinity(PrivateSource("ids"), tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []

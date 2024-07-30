@@ -39,7 +39,7 @@ from tmlt.analytics._query_expr import (
     Select,
     SuppressAggregates,
 )
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import FrozenDict, Schema
 from tmlt.analytics.binning_spec import BinningSpec
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.query_builder import (
@@ -79,7 +79,10 @@ def test_join_public(join_columns: Optional[List[str]]):
     assert isinstance(query, Query)
     query_expr = query._query_expr
 
-    assert query_expr.child.join_columns == join_columns  # type: ignore
+    if join_columns:
+        assert query_expr.child.join_columns == tuple(join_columns)  # type: ignore
+    else:
+        assert query_expr.child.join_columns is None  # type: ignore
 
     # Check query expression
     assert isinstance(query_expr, GroupByCount)
@@ -108,7 +111,10 @@ def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
     assert isinstance(query, Query)
     query_expr = query._query_expr
 
-    assert query_expr.child.join_columns == join_columns  # type: ignore
+    if join_columns:
+        assert query_expr.child.join_columns == tuple(join_columns)  # type: ignore
+    else:
+        assert query_expr.child.join_columns is None  # type: ignore
 
     # Check query expression
     assert isinstance(query_expr, GroupByCount)
@@ -145,7 +151,10 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
     assert isinstance(query_expr, GroupByCount)
     private_join_expr = query_expr.child
     assert isinstance(private_join_expr, JoinPrivate)
-    assert private_join_expr.join_columns == join_columns
+    if join_columns:
+        assert private_join_expr.join_columns == tuple(join_columns)
+    else:
+        assert private_join_expr.join_columns is None
     assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
         1
     )
@@ -211,7 +220,7 @@ def test_rename():
 
     rename_expr = query_expr.child
     assert isinstance(rename_expr, Rename)
-    assert rename_expr.column_mapper == column_mapper
+    assert rename_expr.column_mapper == FrozenDict.from_dict(column_mapper)
 
     root_expr = rename_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -256,7 +265,7 @@ def test_select():
 
     select_expr = query_expr.child
     assert isinstance(select_expr, Select)
-    assert select_expr.columns == columns
+    assert select_expr.columns == tuple(columns)
 
     root_expr = select_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -672,7 +681,10 @@ def test_replace_null_and_nan(
     if replace_with is not None:
         expected_replace_with = replace_with
 
-    assert replace_expr.replace_with == expected_replace_with
+    if expected_replace_with:
+        assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
+    else:
+        assert replace_expr.replace_with == FrozenDict.from_dict({})
 
 
 @pytest.mark.parametrize(
@@ -705,7 +717,7 @@ def test_replace_infinity(
     expected_replace_with: Dict[str, Tuple[float, float]] = {}
     if replace_with is not None:
         expected_replace_with = replace_with
-    assert replace_expr.replace_with == expected_replace_with
+    assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
 
 
 @pytest.mark.parametrize("columns", [([]), (None), (["A"]), (["A", "B"])])
@@ -725,7 +737,7 @@ def test_drop_null_and_nan(columns: Optional[List[str]]) -> None:
     expected_columns: List[str] = []
     if columns is not None:
         expected_columns = columns
-    assert drop_expr.columns == expected_columns
+    assert drop_expr.columns == tuple(expected_columns)
 
 
 @pytest.mark.parametrize("columns", [([]), (None), (["A"]), (["A", "B"])])
@@ -747,7 +759,7 @@ def test_drop_infinity(columns: Optional[List[str]]) -> None:
     expected_columns: List[str] = []
     if columns is not None:
         expected_columns = columns
-    assert drop_expr.columns == expected_columns
+    assert drop_expr.columns == tuple(expected_columns)
 
 
 class _TestAggregationsData:
@@ -844,12 +856,15 @@ class TestAggregations:
         self,
         query: QueryExpr,
         expected_groupby_keys: KeySet,
-        expected_columns: Optional[List[str]],
+        expected_columns: List[str],
         expected_output_column: str,
     ):
         """Confirm that a count_distinct query is constructed correctly."""
         assert isinstance(query, GroupByCountDistinct)
-        assert query.columns_to_count == expected_columns
+        if expected_columns:
+            assert query.columns_to_count == tuple(expected_columns)
+        else:
+            assert query.columns_to_count is None
         assert query.groupby_keys == expected_groupby_keys
         assert query.output_column == expected_output_column
 
