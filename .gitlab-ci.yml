@@ -166,6 +166,8 @@ docs:
   needs: ["package"]
   script:
     - nox -t docs
+    # Remove Sphinx build cache before saving, as it is large and isn't needed anymore.
+    - rm -r public/.doctrees
   artifacts:
     paths:
       - public/
