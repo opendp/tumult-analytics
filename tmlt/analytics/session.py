@@ -984,7 +984,12 @@ class Session:
         query_expr: Union[QueryExpr, Query],
         privacy_budget: PrivacyBudget,
     ) -> List[Dict[str, Any]]:
-        """Get noise information about a query.
+        """Returns information about the noise mechanism used by a query.
+
+        The underlying mechanism for a given query can vary depending on
+        the state of the session. Therefore, to get accurate noise information
+        for a given query, ``_noise_info`` should be called *before* query
+        evaluation.
 
         ..
             >>> from tmlt.analytics.keyset import KeySet
