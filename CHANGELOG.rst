@@ -16,6 +16,7 @@ Changed
 - :meth:`~tmlt.analytics.session.Session.evaluate` now accepts :class:`~tmlt.analytics.query_builder.Query` objects instead of ``QueryExpr`` objects.
 - :meth:`~tmlt.analytics.session.Session.create_view` now accepts :class:`~tmlt.analytics.query_builder.Query` and :class:`tmlt.analytics.query_builder.QueryBuilder` objects instead of ``QueryExpr`` objects.
 - Replaced asserts with custom exceptions in cases where internal errors are detected. Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
+- Updated to Tumult Core 0.16.1.
 
 Removed
 ~~~~~~~

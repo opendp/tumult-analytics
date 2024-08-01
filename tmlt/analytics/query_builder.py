@@ -1715,7 +1715,7 @@ class QueryBuilder:
         Args:
             column: Name of the column whose bounds we want to get.
         """
-        query_expr = GetBounds(child=self._query_expr, column=column)
+        query_expr = GetBounds(child=self._query_expr, measure_column=column)
         return Query(query_expr)
 
     def groupby(self, by: Union[KeySet, List[str], str]) -> "GroupedQueryBuilder":

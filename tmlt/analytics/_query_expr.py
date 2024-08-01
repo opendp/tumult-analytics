@@ -229,13 +229,13 @@ class GetBounds(QueryExpr):
     child: QueryExpr
     """The QueryExpr to get groups for."""
 
-    column: str
+    measure_column: str
     """The column to get bounds of."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
-        check_type("column", self.column, str)
+        check_type("measure_column", self.measure_column, str)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

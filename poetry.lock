@@ -3888,26 +3888,26 @@ test = ["pytest", "ruff"]
 
 [[package]]
 name = "tmlt-core"
-version = "0.15.2"
+version = "0.16.1"
 description = "Tumult's differential privacy primitives"
 optional = false
-python-versions = "<3.13,>=3.8"
+python-versions = "<3.13,>=3.8.0"
 files = [
-    {file = "tmlt_core-0.15.2-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:ebae6616ca3c89b9c72f6f1f07ece515bc3d7fe085ea567804c437681b7a9cc6"},
-    {file = "tmlt_core-0.15.2-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:6730fe248cc56bb28b2c558d9b28173998d0ead3255383749bd75bbd161e8bb2"},
-    {file = "tmlt_core-0.15.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ebacdf0107736f0c29fb04a8d91c60189551c8ef0e0aa00b0070a226b7855dc2"},
-    {file = "tmlt_core-0.15.2-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:3a818fad4a32eff9a9d52b7bf354f256f34301007e81c0794715ca43ef1ea25c"},
-    {file = "tmlt_core-0.15.2-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:1a94c0d8552036d28c456479b9bd3ce02648d7e5626d378cae273be5b1c6f46f"},
-    {file = "tmlt_core-0.15.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:22699a771a997b6047729cc648ea615d79c18d81fb311288b9379423c98c1871"},
-    {file = "tmlt_core-0.15.2-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:f0c402098ad31e5dd1ed14f6cb2e194185e212b49d84d2e9e02364a3969f6606"},
-    {file = "tmlt_core-0.15.2-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:1bc2530cd4a8f81627a01b78000da90c839d7f5e6d3f05fe5379da6d0ecb0b97"},
-    {file = "tmlt_core-0.15.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:49c419f3911c8d5576e78dbcfe21e8d3c675333634d7384aa76018da1c084e48"},
-    {file = "tmlt_core-0.15.2-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:2f82c0b7a318be643d79503b94a76689f48a370050df90f5af07decc17e06268"},
-    {file = "tmlt_core-0.15.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e1d77bacb3f36b8d1619e194b8441f1fa5c1fcab3807826be94a863734f1122"},
-    {file = "tmlt_core-0.15.2-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:66ed85f46379f212c07d819bb9ac3b85e2d3e8513fbe4ed1646e4fa26ea6b689"},
-    {file = "tmlt_core-0.15.2-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:c95be01274a0eb107251ee3c5c05015c3c9c89de497eeae59875cde2e1355aee"},
-    {file = "tmlt_core-0.15.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7a49db09d05d141c8ed9f897f26187c50987fadc3a82b0f5ae32107d93f91abc"},
-    {file = "tmlt_core-0.15.2.tar.gz", hash = "sha256:11e2b9745f55cd0018e806e80e868b41adb6ab2429a3a8bb29b4e724b4267b90"},
+    {file = "tmlt_core-0.16.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:7e79b19d8bb14fb39491e2c972855df1623a3e52b9402a516ecf6e1b4f062322"},
+    {file = "tmlt_core-0.16.1-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:47c68bbedcafc03434638dd13e3e700ab0ad60f727cb1afc07941c06c102fdbe"},
+    {file = "tmlt_core-0.16.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b5fe44d96d4f84262813ac71083f7ad374b70bccacf88d60a60c1c5df252c752"},
+    {file = "tmlt_core-0.16.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:12574de801f27227fc8ee6c0fc64ef2fb94015089083a5ac98eb225a88ee7ed1"},
+    {file = "tmlt_core-0.16.1-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:6f0db6696d485d8ca8e2c096cece22bc5ea5849ceff306b7a09ed9119986d206"},
+    {file = "tmlt_core-0.16.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ae561fa4f2347ec2cf194275bdfca1adda4e03634d097e11d09bb979edba8ebe"},
+    {file = "tmlt_core-0.16.1-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:50eaafdb621ff0ec425106a8d14740efaa2d82221b2c97ba1a4cfad61ce95580"},
+    {file = "tmlt_core-0.16.1-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:5f9c3f5ddd874bc99fad34e1b75cea702ad55a1289d96e6c99d34f6538c7c63b"},
+    {file = "tmlt_core-0.16.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ee5a6dc1d9302d9f3f860755cb61dc10743c2ae3439b4b3d1011d36ad8a48468"},
+    {file = "tmlt_core-0.16.1-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:90196a94d54092c3c4c78602765a63368733059e623059d823f7346dc57530b5"},
+    {file = "tmlt_core-0.16.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4115a8447b165f80abc58771f35097acc5fe88298690ebf5d7fb3c1893fee91e"},
+    {file = "tmlt_core-0.16.1-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:ec9ab8fb6c5db1325ff2e139ed460df7a3d02b6ee02e9fbfdc3559e078327947"},
+    {file = "tmlt_core-0.16.1-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:8d5d676a60ddca1a75b0d2f4017f923e292b8158f4ca1aeb93603644c78ee80e"},
+    {file = "tmlt_core-0.16.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eded7166910c5124639c8f67aff29e5d096b6f8a4f279464722103e074ba18b6"},
+    {file = "tmlt_core-0.16.1.tar.gz", hash = "sha256:cb09ec538325be8596d4c20ee204b0d93b431ea4107780d224b7a3784b87b9f8"},
 ]
 
 [package.dependencies]
@@ -3917,8 +3917,7 @@ numpy = [
     {version = ">=1.26.0,<2.0.0", markers = "python_version >= \"3.12\""},
 ]
 pandas = [
-    {version = ">=1.2.0,<2.0.0", markers = "python_version >= \"3.8\" and python_version < \"3.10\""},
-    {version = ">=1.4.0,<2.0.0", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
+    {version = ">=1.4.0,<2.0.0", markers = "python_version >= \"3.8\" and python_version < \"3.11\""},
     {version = ">=1.5.0,<2.0.0", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=2.2.0,<3.0.0", markers = "python_version >= \"3.12\""},
 ]
@@ -3946,7 +3945,6 @@ scipy = [
 setuptools = {version = ">=70.0.0,<71.0.0", markers = "python_version >= \"3.8\""}
 sympy = ">=1.8,<1.10"
 typeguard = ">=2.12.1,<2.13.0"
-typing_extensions = ">=4.1.0,<5.0.0"
 
 [[package]]
 name = "tmlt-nox-utils"
@@ -4221,4 +4219,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.0, <3.13"
-content-hash = "5b6f67ade15567dadf71a7b6c0d3bbd2d4d150d977875a6ac4917875edf5511b"
+content-hash = "b3c76b0e339ea1771a22f8312018bfffb253695153be2c26bd258ffe42c6440b"

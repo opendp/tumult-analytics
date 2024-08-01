@@ -31,7 +31,7 @@ from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.aggregations import (
     NoiseMechanism,
     create_average_measurement,
-    create_bound_selection_measurement,
+    create_bounds_measurement,
     create_count_distinct_measurement,
     create_count_measurement,
     create_partition_selection_measurement,
@@ -784,6 +784,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             GroupByBoundedSum,
             GroupByBoundedVariance,
             GroupByQuantile,
+            GetBounds,
         ],
     ):
         """Returns a new query that handles nulls, NaNs and infinite values.
@@ -818,16 +819,20 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 child=query.child, columns=tuple([query.measure_column])
             )
             query = dataclasses.replace(query, child=new_child)
-        # If infinite values are allowed...
-        if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
-            # then clamp them (to low/high values)
-            new_child = ReplaceInfinity(
-                child=query.child,
-                replace_with=FrozenDict.from_dict(
-                    {query.measure_column: (query.low, query.high)}
-                ),
-            )
-            query = dataclasses.replace(query, child=new_child)
+        if not isinstance(query, GetBounds):
+            # If infinite values are allowed...
+            if (
+                measure_desc.column_type == ColumnType.DECIMAL
+                and measure_desc.allow_inf
+            ):
+                # then clamp them (to low/high values)
+                new_child = ReplaceInfinity(
+                    child=query.child,
+                    replace_with=FrozenDict.from_dict(
+                        {query.measure_column: (query.low, query.high)}
+                    ),
+                )
+                query = dataclasses.replace(query, child=new_child)
         return query
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
@@ -1685,6 +1690,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     def build_bound_selection_measurement(
         self,
         input_domain,
+        input_metric,
         output_measure,
         d_out,
         bound_column,
@@ -1692,11 +1698,12 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         d_in,
     ) -> Measurement:
         """Helper method to build the appropriate bound selection Measurement."""
-        return create_bound_selection_measurement(
+        return create_bounds_measurement(
             input_domain=input_domain,
+            input_metric=input_metric,
             output_measure=output_measure,
             d_out=d_out,
-            bound_column=bound_column,
+            measure_column=bound_column,
             threshold=threshold,  # TODO: Make threshold optional.
             d_in=d_in,
         )
@@ -1706,15 +1713,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
 
-        schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
-
-        # Check if we're trying to get the bounds of the ID column.
-        if schema.id_column and (schema.id_column == expr.column):
-            raise RuntimeError(
-                "get_bounds cannot be used on the privacy ID column"
-                f" ({schema.id_column}) of a table with the AddRowsWithID protected"
-                " change."
-            )
+        expr = self._add_special_value_handling_to_query(expr)
+        expr.child.accept(OutputSchemaVisitor(self.catalog))
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
@@ -1749,7 +1749,9 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         transformation |= SelectTransformation(
-            transformation.output_domain, transformation.output_metric, [expr.column]
+            transformation.output_domain,
+            transformation.output_metric,
+            [expr.measure_column],
         )
 
         mid_stability = transformation.stability_function(self.stability)
@@ -1761,9 +1763,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         agg = self.build_bound_selection_measurement(
             input_domain=transformation.output_domain,
+            input_metric=transformation.output_metric,
             output_measure=self.output_measure,
             d_out=self.budget.value,
-            bound_column=expr.column,
+            bound_column=expr.measure_column,
             threshold=0.95,  # TODO: Make threshold optional.
             d_in=mid_stability,
         )

@@ -547,7 +547,7 @@ class TestSession:
                 ),
                 "column": "id_column",
                 "protected_change": AddRowsWithID("id_column"),
-                "error_type": RuntimeError,
+                "error_type": ValueError,
                 "message": "get_bounds cannot be used on the privacy ID column",
             },
         }

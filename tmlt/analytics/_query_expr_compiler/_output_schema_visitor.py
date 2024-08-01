@@ -811,20 +811,29 @@ class OutputSchemaVisitor(QueryExprVisitor):
         """Returns the resulting schema from GetBounds."""
         input_schema = expr.child.accept(self)
 
-        if expr.column not in set(input_schema):
+        if expr.measure_column not in set(input_schema):
             raise ValueError(
-                f"Cannot get bounds for column '{expr.column}', which does not exist"
+                f"Cannot get bounds for column '{expr.measure_column}', which "
+                "does not exist"
             )
 
-        column = input_schema[expr.column]
+        column = input_schema[expr.measure_column]
         if column.column_type not in [
             ColumnType.INTEGER,
             ColumnType.DECIMAL,
         ]:
             raise ValueError(
-                f"Cannot get bounds for column '{expr.column}',"
+                f"Cannot get bounds for column '{expr.measure_column}',"
                 f" which is of type {column.column_type.name}; only columns of"
                 f" numerical type are supported."
+            )
+
+        # Check if we're trying to get the bounds of the ID column.
+        if input_schema.id_column and (input_schema.id_column == expr.measure_column):
+            raise ValueError(
+                "get_bounds cannot be used on the privacy ID column"
+                f" ({input_schema.id_column}) of a table with the AddRowsWithID"
+                " protected change."
             )
 
         output_schema = Schema({"lower": column, "upper": column})
