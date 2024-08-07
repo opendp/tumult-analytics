@@ -48,7 +48,7 @@ def pyspark():
     quiet_py4j()
     print("Setting up spark session.")
     spark = (
-        SparkSession.builder.appName(__name__)
+        SparkSession.builder.appName("analytics-test")
         .master("local[4]")
         .config("spark.sql.warehouse.dir", "/tmp/hive_tables")
         .config("spark.hadoop.fs.defaultFS", "file:///")
@@ -62,6 +62,41 @@ def pyspark():
         .config("spark.sql.shuffle.partitions", "1")
         # Disable Spark UI / Console display
         .config("spark.ui.showConsoleProgress", "false")
+        .config("spark.ui.enabled", "false")
+        .config("spark.ui.dagGraph.retainedRootRDDs", "1")
+        .config("spark.ui.retainedJobs", "1")
+        .config("spark.ui.retainedStages", "1")
+        .config("spark.ui.retainedTasks", "1")
+        .config("spark.sql.ui.retainedExecutions", "1")
+        .config("spark.worker.ui.retainedExecutors", "1")
+        .config("spark.worker.ui.retainedDrivers", "1")
+        .getOrCreate()
+    )
+    # This is to silence pyspark logs.
+    spark.sparkContext.setLogLevel("OFF")
+    return spark
+
+
+@pytest.fixture(scope="function", name="spark_with_progress")
+def pyspark_with_progress():
+    """A context to execute pyspark tests, with spark.ui.showConsoleProgress enabled."""
+    quiet_py4j()
+    print("Setting up spark session.")
+    spark = (
+        SparkSession.builder.appName("analytics-test-with-progress")
+        .master("local[4]")
+        .config("spark.sql.warehouse.dir", "/tmp/hive_tables")
+        .config("spark.hadoop.fs.defaultFS", "file:///")
+        .config("spark.eventLog.enabled", "false")
+        .config("spark.driver.allowMultipleContexts", "true")
+        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
+        .config("spark.default.parallelism", "5")
+        .config("spark.memory.offHeap.enabled", "true")
+        .config("spark.memory.offHeap.size", "16g")
+        .config("spark.port.maxRetries", "30")
+        .config("spark.sql.shuffle.partitions", "1")
+        # Disable Spark UI / Console display
+        .config("spark.ui.showConsoleProgress", "true")
         .config("spark.ui.enabled", "false")
         .config("spark.ui.dagGraph.retainedRootRDDs", "1")
         .config("spark.ui.retainedJobs", "1")

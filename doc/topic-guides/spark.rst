@@ -28,6 +28,7 @@ then before running Tumult Analytics code, you should create that Spark session:
 
 As long as this session is active, Tumult Analytics will use it.
 
+
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
 .. _hive-tips:
@@ -122,7 +123,7 @@ performance problems, you will probably want to look at
 RAM usage
 ^^^^^^^^^
 
-By default, Spark allocates itself 1GB of RAM 
+By default, Spark allocates itself 1GB of RAM
 (see `Spark's configuration documentation <https://spark.apache.org/docs/latest/configuration.html#application-properties>`_).
 Tumult Analytics programs often need more RAM than this.
 Usually, a program needs more RAM because:
@@ -146,9 +147,9 @@ Saving results (to CSV or other formats)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Converting large Spark dataframes (10M rows or more) to Pandas dataframes can
-be very resource-intensive. We recommend using 
+be very resource-intensive. We recommend using
 :meth:`pyspark.sql.DataFrame.write` to save results
-to file, instead of using 
+to file, instead of using
 :meth:`pyspark.sql.DataFrame.toPandas` and then saving the Pandas
 dataframe.
 
