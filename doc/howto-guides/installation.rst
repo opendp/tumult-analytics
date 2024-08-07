@@ -14,7 +14,7 @@ Prerequisites
 |project| is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
 It is compatible with Python 3.8 through 3.11 (Python 3.9 and above on Apple silicon), and has experimental support for Python 3.12.
 Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://spark.apache.org/docs/3.1.1/index.html#downloading>`__, or Java 17 if PySpark 3.4 or later is used.
-
+Java 21 is not currently supported.
 
 Tumult Analytics supports the ``x86_64`` processor architecture, as well as Apple silicon.
 
@@ -37,7 +37,10 @@ If you encounter any issues during the installation process, please `let us know
 
        .. code-block:: bash
 
-           apt install default-jre-headless
+           apt install openjdk-17-jre-headless
+
+       Note that some newer releases, for example Ubuntu 24.04, default to Java 21.
+       Java 21 *is not supported* by Spark or by Tumult Analytics, so on such systems you may need to explicitly install an older Java version and configure it to be the default using ``update-alternatives``.
 
 
    .. tab-item:: Linux (Red Hat-based)
