@@ -13,6 +13,13 @@ import numpy as np
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import (
+    FloatType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+)
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
@@ -332,3 +339,23 @@ def create_empty_input(domain):  # pylint: disable=missing-type-doc
                 )
         return spark.createDataFrame([row], domain.spark_schema)
     raise ValueError(f"Unsupported domain type: {type(domain)}")
+
+
+def pyspark_schema_from_pandas(df: pd.DataFrame) -> StructType:
+    """Create a pyspark schema corresponding to a pandas dataframe."""
+
+    def convert_type(dtype):
+        if dtype == np.int64:
+            return IntegerType()
+        elif dtype == float:
+            return FloatType()
+        elif dtype == str:
+            return StringType()
+        raise NotImplementedError("Type not implemented yet.")
+
+    return StructType(
+        [
+            StructField(colname, convert_type(dtype))
+            for colname, dtype in df.dtypes.items()
+        ]
+    )
