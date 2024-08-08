@@ -38,11 +38,7 @@ from tmlt.core.transformations.spark_transformations.groupby import (
 from tmlt.core.utils.type_utils import get_element_type
 
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
-from tmlt.analytics._schema import (
-    ColumnDescriptor,
-    Schema,
-    spark_schema_to_analytics_columns,
-)
+from tmlt.analytics._schema import ColumnDescriptor, spark_schema_to_analytics_columns
 from tmlt.analytics._utils import dataframe_is_empty
 
 
@@ -251,9 +247,9 @@ class KeySet(ABC):
         return True
 
     @abstractmethod
-    def schema(self) -> Schema:
+    def schema(self) -> Dict[str, ColumnDescriptor]:
         # pylint: disable=line-too-long
-        """Returns a Schema based on the KeySet.
+        """Returns the KeySet's schema.
 
         Example:
             >>> domains = {
@@ -263,8 +259,8 @@ class KeySet(ABC):
             >>> keyset = KeySet.from_dict(domains)
             >>> schema = keyset.schema()
             >>> schema # doctest: +NORMALIZE_WHITESPACE
-            Schema({'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False),
-                    'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)})
+            {'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False),
+             'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)}
         """
         # pylint: enable=line-too-long
 
@@ -372,7 +368,7 @@ class _MaterializedKeySet(KeySet):
         else:
             self._dataframe = dataframe
             self._columns = None
-        self._schema: Optional[Schema] = None
+        self._schema: Optional[Dict[str, ColumnDescriptor]] = None
         self._size: Optional[int] = None
 
     def dataframe(self) -> DataFrame:
@@ -410,13 +406,11 @@ class _MaterializedKeySet(KeySet):
             )
         return _MaterializedKeySet(self.dataframe().select(*columns).dropDuplicates())
 
-    def schema(self) -> Schema:
+    def schema(self) -> Dict[str, ColumnDescriptor]:
         """Returns a Schema based on the KeySet."""
         if self._schema is not None:
             return self._schema
-        self._schema = Schema(
-            spark_schema_to_analytics_columns(self.dataframe().schema)
-        )
+        self._schema = spark_schema_to_analytics_columns(self.dataframe().schema)
         return self._schema
 
     def size(self) -> int:
@@ -467,19 +461,19 @@ class _ProductKeySet(KeySet):
             self._factors.append(factor)
         self._columns: List[str] = column_order
         self._dataframe: Optional[DataFrame] = None
-        self._schema: Optional[Schema] = None
+        self._schema: Optional[Dict[str, ColumnDescriptor]] = None
         self._size: Optional[int] = None
 
-    def schema(self) -> Schema:
+    def schema(self) -> Dict[str, ColumnDescriptor]:
         """Return a Schema for this KeySet."""
         if self._schema is not None:
             return self._schema
         analytics_columns: Dict[str, ColumnDescriptor] = {}
         for factor in self._factors:
             factor_schema = factor.schema()
-            for col_name in factor_schema.columns:
+            for col_name in factor_schema:
                 analytics_columns[col_name] = factor_schema[col_name]
-        self._schema = Schema(analytics_columns)
+        self._schema = analytics_columns
         return self._schema
 
     def columns(self) -> List[str]:

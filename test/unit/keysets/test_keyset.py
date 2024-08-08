@@ -21,8 +21,8 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
+from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
 
 from ...conftest import assert_frame_equal_with_sort
 
@@ -582,33 +582,29 @@ def test_crossproduct(other: KeySet, expected_df: pd.DataFrame) -> None:
     [
         (
             KeySet.from_dict({"A": ["a1", "a2"]}),
-            Schema({"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}),
+            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
         ),
         (
             KeySet.from_dict({"A": [0, 1, 2], "B": ["abc"]}),
-            Schema(
-                {
-                    "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                    "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                }
-            ),
+            {
+                "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            },
         ),
         (
             KeySet.from_dict(
                 {"A": ["abc"], "B": [0], "C": ["def"], "D": [-1000000000]}
             ),
-            Schema(
-                {
-                    "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                    "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                    "C": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                    "D": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                }
-            ),
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "C": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "D": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            },
         ),
     ],
 )
-def test_schema(keyset: KeySet, expected: Schema) -> None:
+def test_schema(keyset: KeySet, expected: Dict[str, ColumnDescriptor]) -> None:
     """Test KeySet.schema returns the expected schema."""
     assert keyset.schema() == expected
 

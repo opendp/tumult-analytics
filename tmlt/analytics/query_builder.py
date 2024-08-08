@@ -180,8 +180,8 @@ class _PostProcessSuppressMixin:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count query and suppressing results < 1
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -258,8 +258,8 @@ class QueryBuilder:
         2  1  2  1
         >>> sess.private_sources
         ['my_private_data']
-        >>> sess.get_schema("my_private_data").column_types
-        {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+        >>> sess.get_column_types("my_private_data")
+        {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
         >>> # Building a query
         >>> query = QueryBuilder("my_private_data").count()
         >>> # Answering the query with infinite privacy budget
@@ -506,8 +506,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.create_view(
             ...     QueryBuilder("my_private_data")
             ...     .select(["A", "X"])
@@ -626,8 +626,8 @@ class QueryBuilder:
             2     2  2.0  NaN
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'DECIMAL', 'X': 'DECIMAL'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.DECIMAL, 'X': ColumnType.DECIMAL}
             >>> # Building a query with a replace_null_and_nan transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -708,8 +708,8 @@ class QueryBuilder:
             2  a2  2.0  inf
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'DECIMAL', 'X': 'DECIMAL'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.DECIMAL, 'X': ColumnType.DECIMAL}
             >>> # Building a query with a replace_infinity transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -805,8 +805,8 @@ class QueryBuilder:
             2  a2  2.0  NaN
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'DECIMAL'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.DECIMAL}
             >>> # Count query on the original data
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -898,8 +898,8 @@ class QueryBuilder:
             2  a2  2  inf
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'DECIMAL'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.DECIMAL}
             >>> # Count query on the original data
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -979,8 +979,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a rename transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1054,8 +1054,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a filter transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1112,8 +1112,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Create a new view using a select query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1121,8 +1121,8 @@ class QueryBuilder:
             ... )
             >>> sess.create_view(query, "selected_data", cache=True)
             >>> # Inspect the schema of the resulting view
-            >>> sess.get_schema("selected_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER'}
+            >>> sess.get_column_types("selected_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER}
 
         Args:
             columns: The columns to select.
@@ -1174,14 +1174,14 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a map transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .map(
             ...         lambda row: {"new": row["B"]*2},
-            ...         new_column_types={"new": 'INTEGER'},
+            ...         new_column_types={"new": ColumnType.INTEGER},
             ...         augment=True
             ...     )
             ...     .groupby(KeySet.from_dict({"new": [0, 1, 2, 3, 4]}))
@@ -1284,16 +1284,15 @@ class QueryBuilder:
             3  1  3  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a flat map transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .flat_map(
             ...         lambda row: [{"i_B": i} for i in range(int(row["B"])+1)],
             ...         new_column_types={"i_B": ColumnDescriptor(
-            ...             ColumnType.INTEGER,
-            ...             allow_null=False,
+            ...             ColumnType.INTEGER, allow_null=False,
             ...         )},
             ...         augment=True,
             ...         grouping=False,
@@ -1772,8 +1771,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
 
         Answering a query with the exact groupby domain:
             >>> groupby_keys = KeySet.from_dict({"A": ["0", "1"]})
@@ -1931,8 +1930,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a count query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2009,8 +2008,8 @@ class QueryBuilder:
             3  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a count_distinct query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2098,8 +2097,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2170,8 +2169,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2240,8 +2239,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2310,8 +2309,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2394,8 +2393,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a sum query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2479,8 +2478,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building an average query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2564,8 +2563,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a variance query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2649,8 +2648,8 @@ class QueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a standard deviation query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2737,8 +2736,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2810,8 +2809,8 @@ class GroupedQueryBuilder:
             3  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count_distinct query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2913,8 +2912,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2998,8 +2997,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3074,8 +3073,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3150,8 +3149,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3236,8 +3235,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby sum query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3332,8 +3331,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby average query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3429,8 +3428,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby variance query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3525,8 +3524,8 @@ class GroupedQueryBuilder:
             2  1  2  1
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data")
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby standard deviation query
             >>> query = (
             ...     QueryBuilder("my_private_data")

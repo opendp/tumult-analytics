@@ -2079,16 +2079,14 @@ class TestInvalidSession:
                 schema=StructType([StructField("A", DoubleType(), nullable=nullable)]),
             ),
         )
-        expected_schema = Schema(
-            {
-                "A": ColumnDescriptor(
-                    ColumnType.DECIMAL,
-                    allow_null=nullable,
-                    allow_nan=True,
-                    allow_inf=True,
-                )
-            }
-        )
+        expected_schema = {
+            "A": ColumnDescriptor(
+                ColumnType.DECIMAL,
+                allow_null=nullable,
+                allow_nan=True,
+                allow_inf=True,
+            )
+        }
         assert session.get_schema("private_df") == expected_schema
         assert session.get_schema("public_df") == expected_schema
 

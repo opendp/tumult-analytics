@@ -25,7 +25,6 @@ from tmlt.analytics._query_expr import (
     StdevMechanism,
     SumMechanism,
 )
-from tmlt.analytics._schema import ColumnType, Schema
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
@@ -39,7 +38,12 @@ from tmlt.analytics.protected_change import (
     AddOneRow,
     AddRowsWithID,
 )
-from tmlt.analytics.query_builder import Query, QueryBuilder
+from tmlt.analytics.query_builder import (
+    ColumnDescriptor,
+    ColumnType,
+    Query,
+    QueryBuilder,
+)
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -680,14 +684,19 @@ class TestSession:
         assert session1.remaining_privacy_budget == partition_budget
         assert session2.remaining_privacy_budget == partition_budget
         assert session2.private_sources == ["private0"]
-        assert session2.get_schema("private0") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session2.get_schema("private0") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
+
         assert session3.remaining_privacy_budget == partition_budget
         assert session3.private_sources == ["private1"]
-        assert session3.get_schema("private1") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session3.get_schema("private1") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
     def test_partition_nonexistent_table(self):
         """Partitioning on a nonexistent table works correctly."""
@@ -749,14 +758,18 @@ class TestSession:
         assert session1.remaining_privacy_budget == remaining_budget
         assert session2.remaining_privacy_budget == partition_budget
         assert session2.private_sources == ["private0"]
-        assert session2.get_schema("private0") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session2.get_schema("private0") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
         assert session3.remaining_privacy_budget == partition_budget
         assert session3.private_sources == ["private1"]
-        assert session3.get_schema("private1") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session3.get_schema("private1") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
         query = QueryBuilder("private0").count()
         session2.evaluate(query, partition_budget)
 
@@ -888,14 +901,18 @@ class TestSession:
         assert root_session.remaining_privacy_budget == root_session_remaining_budget
         assert sessionA0.remaining_privacy_budget == column_A_partition_budget
         assert sessionA0.private_sources == ["private0"]
-        assert sessionA0.get_schema("private0") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert sessionA0.get_schema("private0") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
         assert sessionA1.remaining_privacy_budget == column_A_partition_budget
         assert sessionA1.private_sources == ["private1"]
-        assert sessionA1.get_schema("private1") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert sessionA1.get_schema("private1") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
         transformation_query2 = (
             QueryBuilder("private0")
@@ -920,14 +937,18 @@ class TestSession:
         assert sessionA0.remaining_privacy_budget == column_A_remaining_budget
         assert sessionA0B0.remaining_privacy_budget == column_B_partition_budget
         assert sessionA0B0.private_sources == ["private0"]
-        assert sessionA0B0.get_schema("private0") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert sessionA0B0.get_schema("private0") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
         assert sessionA0B1.remaining_privacy_budget == column_B_partition_budget
         assert sessionA0B1.private_sources == ["private1"]
-        assert sessionA0B1.get_schema("private1") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert sessionA0B1.get_schema("private1") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
@@ -959,14 +980,18 @@ class TestSession:
         assert session1.remaining_privacy_budget == partition_budget
         assert session2.remaining_privacy_budget == partition_budget
         assert session2.private_sources == ["private0"]
-        assert session2.get_schema("private0") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session2.get_schema("private0") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
         assert session3.remaining_privacy_budget == partition_budget
         assert session3.private_sources == ["private1"]
-        assert session3.get_schema("private1") == Schema(
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER, "X": ColumnType.INTEGER}
-        )
+        assert session3.get_schema("private1") == {
+            "A": ColumnDescriptor(ColumnType.VARCHAR),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "X": ColumnDescriptor(ColumnType.INTEGER),
+        }
 
         # pylint: disable=protected-access
         assert session1._accountant.state == PrivacyAccountantState.WAITING_FOR_CHILDREN

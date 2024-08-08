@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+from collections.abc import Collection
 from dataclasses import replace
-from typing import KeysView, Optional, Tuple, Union, cast
+from typing import Optional, Tuple, Union
 
 from pyspark.sql import SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -178,10 +179,8 @@ def _validate_groupby(
 
     if isinstance(query.groupby_keys, KeySet):
         # Checks that the KeySet is valid
-        groupby_columns: KeysView[str] = cast(
-            KeysView[str], query.groupby_keys.schema().keys()
-        )
-        schema: Schema = query.groupby_keys.schema()
+        schema = query.groupby_keys.schema()
+        groupby_columns: Collection[str] = schema.keys()
 
         for column_name, column_desc in schema.items():
             try:
@@ -202,11 +201,10 @@ def _validate_groupby(
         for col in query.groupby_keys:
             if col not in input_schema:
                 raise ValueError(f"Groupby column '{col}' is not in the input schema.")
-        groupby_columns = cast(KeysView[str], query.groupby_keys)
+        groupby_columns = query.groupby_keys
     else:
-        raise TypeError(
-            f"Unexpected groupby_keys type, {type(query.groupby_keys)}. "
-            "`groupby_keys` must be a KeySet."
+        raise AnalyticsInternalError(
+            f"Unexpected groupby_keys type: {type(query.groupby_keys)}."
         )
 
     grouping_column = input_schema.grouping_column

@@ -217,9 +217,9 @@ individual data sources, through
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    Schema({'name': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False),
-      'age': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False),
-      'grade': ColumnDescriptor(column_type=ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True)})
+    {'name': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=True, allow_nan=False, allow_inf=False),
+     'age': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False),
+     'grade': ColumnDescriptor(column_type=ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True)}
 
 As you can see, Schemas contain information about what columns are in the data, what their types are, and whether each column can contain null, NaN, or infinite values.
 

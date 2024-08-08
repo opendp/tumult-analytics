@@ -119,6 +119,7 @@ from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
     ProtectedChange,
 )
 from tmlt.analytics.query_builder import (
+    ColumnDescriptor,
     ColumnType,
     GroupbyCountQuery,
     GroupedQueryBuilder,
@@ -387,8 +388,8 @@ class Session:
             ... )
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
 
         Args:
             privacy_budget: The total privacy budget allocated to this session.
@@ -734,13 +735,13 @@ class Session:
             description += ", ".join(groupby_keys)
         elif groupby_keys is not None and len(groupby_keys.schema()) > 0:
             description += "\nGrouped on columns "
-            col_strs = [f"'{col}'" for col in groupby_keys.schema().columns]
+            col_strs = [f"'{col}'" for col in groupby_keys.schema()]
             description += ", ".join(col_strs)
             description += f" ({groupby_keys.size()} groups)"
         return description
 
     @typechecked
-    def get_schema(self, source_id: str) -> Schema:
+    def get_schema(self, source_id: str) -> Dict[str, ColumnDescriptor]:
         """Returns the schema for any data source.
 
         This includes information on whether the columns are nullable.
@@ -750,27 +751,19 @@ class Session:
                 are being retrieved.
         """
         ref = find_reference(source_id, self._input_domain)
-        id_space: Optional[str] = None
-        if source_id in self.private_sources:
-            id_space = self.get_id_space(source_id)
         if ref is not None:
             domain = lookup_domain(self._input_domain, ref)
-            return Schema(
-                spark_dataframe_domain_to_analytics_columns(domain), id_space=id_space
+            return spark_dataframe_domain_to_analytics_columns(domain)
+
+        try:
+            return spark_schema_to_analytics_columns(
+                self.public_source_dataframes[source_id].schema
             )
-        else:
-            try:
-                return Schema(
-                    spark_schema_to_analytics_columns(
-                        self.public_source_dataframes[source_id].schema
-                    ),
-                    id_space=id_space,
-                )
-            except KeyError:
-                raise KeyError(
-                    f"Table '{source_id}' does not exist. Available tables "
-                    f"are: {', '.join(self.private_sources + self.public_sources)}"
-                ) from None
+        except KeyError:
+            raise KeyError(
+                f"Table '{source_id}' does not exist. Available tables "
+                f"are: {', '.join(self.private_sources + self.public_sources)}"
+            ) from None
 
     @typechecked
     def get_column_types(self, source_id: str) -> Dict[str, ColumnType]:
@@ -778,10 +771,7 @@ class Session:
 
         This does *not* include information on whether the columns are nullable.
         """
-        return {
-            key: val.column_type
-            for key, val in self.get_schema(source_id).column_descs.items()
-        }
+        return {key: val.column_type for key, val in self.get_schema(source_id).items()}
 
     @typechecked
     def get_grouping_column(self, source_id: str) -> Optional[str]:
@@ -932,8 +922,8 @@ class Session:
             ... )
             >>> sess.public_sources
             ['my_public_data']
-            >>> sess.get_schema('my_public_data').column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'C': 'INTEGER'}
+            >>> sess.get_column_types("my_public_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'C': ColumnType.INTEGER}
 
         Args:
             source_id: The name of the public data source.
@@ -1011,8 +1001,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> count_query = QueryBuilder("my_private_data").count()
@@ -1060,8 +1050,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Evaluate Queries
@@ -1176,8 +1166,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> public_spark_data.toPandas()
                A  C
             0  0  0
@@ -1198,8 +1188,8 @@ class Session:
             ... )
             >>> sess.private_sources
             ['private_public_join', 'my_private_data']
-            >>> sess.get_schema("private_public_join").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'C': 'INTEGER'}
+            >>> sess.get_column_types("private_public_join") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'C': ColumnType.INTEGER}
             >>> # Delete the view
             >>> sess.delete_view("private_public_join")
             >>> sess.private_sources
@@ -1326,8 +1316,8 @@ class Session:
         Example:
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Partition the Session
@@ -1479,8 +1469,8 @@ class Session:
 
             >>> sess.private_sources
             ['my_private_data']
-            >>> sess.get_schema("my_private_data").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> sess.get_column_types("my_private_data") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.remaining_privacy_budget
             PureDPBudget(epsilon=1)
             >>> # Partition the Session
@@ -1494,14 +1484,14 @@ class Session:
             PureDPBudget(epsilon=0.25)
             >>> new_sessions["part0"].private_sources
             ['part0']
-            >>> new_sessions["part0"].get_schema("part0").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> new_sessions["part0"].get_column_types("part0") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> new_sessions["part0"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
             >>> new_sessions["part1"].private_sources
             ['part1']
-            >>> new_sessions["part1"].get_schema("part1").column_types # doctest: +NORMALIZE_WHITESPACE
-            {'A': 'VARCHAR', 'B': 'INTEGER', 'X': 'INTEGER'}
+            >>> new_sessions["part1"].get_column_types("part1") # doctest: +NORMALIZE_WHITESPACE
+            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> new_sessions["part1"].remaining_privacy_budget
             PureDPBudget(epsilon=0.75)
 

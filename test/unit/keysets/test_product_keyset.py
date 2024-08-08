@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
 
-from tmlt.analytics._schema import ColumnType, Schema
 from tmlt.analytics.keyset import KeySet, _ProductKeySet
+from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
 
 from ...conftest import assert_frame_equal_with_sort
 
@@ -49,35 +49,40 @@ def test_init_fails_with_duplicate_columns(spark: SparkSession) -> None:
 
 
 @pytest.mark.parametrize(
-    "factor_dfs,expected_col_types",
+    "factor_dfs,expected_schema",
     [
         (
             [pd.DataFrame({"A": ["a"]})],
-            {"A": ColumnType.VARCHAR},
+            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
         ),
         (
             [pd.DataFrame({"B": [1]})],
-            {"B": ColumnType.INTEGER},
+            {"B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
         ),
         (
             [pd.DataFrame({"A": ["a"]}), pd.DataFrame({"B": [1]})],
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            },
         ),
         (
             [pd.DataFrame({"A": ["a"], "B": [1]})],
-            {"A": ColumnType.VARCHAR, "B": ColumnType.INTEGER},
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            },
         ),
     ],
 )
 def test_schema(
     spark: SparkSession,
     factor_dfs: List[pd.DataFrame],
-    expected_col_types: Dict[str, ColumnType],
+    expected_schema: Dict[str, ColumnDescriptor],
 ) -> None:
     """Test that the schema of the _ProductKeySet is as expected."""
     factors = [KeySet.from_dataframe(spark.createDataFrame(df)) for df in factor_dfs]
     product_keyset = reduce(lambda a, b: a * b, factors)
-    expected_schema = Schema(expected_col_types, default_allow_null=True)
     got_schema = product_keyset.schema()
     assert got_schema == expected_schema
 

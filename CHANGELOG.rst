@@ -8,8 +8,8 @@ Changelog
 
 Unreleased
 ----------
-This release extends the :meth:`tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
-It also changes the object used to represent queries to the new :class:`~tmlt.analytics.query_builder.Query` class.
+This release extends the :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
+In addition, it changes the object used to represent queries to the new :class:`~tmlt.analytics.query_builder.Query` class, and updates the format in which table schemas are returned.
 
 
 Added
@@ -19,13 +19,17 @@ Added
 
 Changed
 ~~~~~~~
-- The :class:`~tmlt.analytics.query_builder.QueryBuilder` has been refactored to return :class:`~tmlt.analytics.query_builder.Query` instead of ``QueryExpr`` or ``AggregatedQueryBuilder`` when a query is created.
+- *Backwards-incompatible*: The :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` query now returns a dataframe when evaluated instead of a tuple.
+- *Backwards-incompatible*: The :meth:`Session.get_schema() <tmlt.analytics.session.Session.get_schema>` and :meth:`KeySet.schema() <tmlt.analytics.keyset.KeySet.schema>` methods now return a normal dictionary of column names to :class:`~tmlt.analytics.query_builder.ColumnDescriptor`\ s, rather than a specialized ``Schema`` type.
+  This brings them more in line with the rest of the Tumult Analytics API, but could impact code that used some functionality available through the ``Schema`` type.
+  Uses of these methods where the result is treated as a dictionary should not be impacted.
+- :class:`~tmlt.analytics.query_builder.QueryBuilder` now returns a :class:`~tmlt.analytics.query_builder.Query` object instead of a ``QueryExpr`` or ``AggregatedQueryBuilder`` when a query is created.
+  This should not affect code using :class:`~tmlt.analytics.query_builder.QueryBuilder` unless it directly inspects these objects.
 - GroupbyCount queries now return :class:`~tmlt.analytics.query_builder.GroupbyCountQuery`, a subclass of :class:`~tmlt.analytics.query_builder.Query` that has the :meth:`~tmlt.analytics.query_builder.GroupbyCountQuery.suppress` post-process method.
 - :meth:`~tmlt.analytics.session.Session.evaluate` now accepts :class:`~tmlt.analytics.query_builder.Query` objects instead of ``QueryExpr`` objects.
-- :meth:`~tmlt.analytics.session.Session.create_view` now accepts :class:`~tmlt.analytics.query_builder.Query` and :class:`tmlt.analytics.query_builder.QueryBuilder` objects instead of ``QueryExpr`` objects.
-- Replaced asserts with custom exceptions in cases where internal errors are detected. Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
+- Replaced asserts with custom exceptions in cases where internal errors are detected.
+  Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
 - Updated to Tumult Core 0.16.1.
-- :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` when evaluated returns a dataframe instead of a tuple.
 
 Removed
 ~~~~~~~

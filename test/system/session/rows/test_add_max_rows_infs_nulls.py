@@ -13,7 +13,7 @@ from pyspark.sql.types import StringType, StructField, StructType
 from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 
 from tmlt.analytics._query_expr import AnalyticsDefault
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import PureDPBudget
@@ -303,30 +303,30 @@ class TestSessionWithNulls:
             "both_allow_nulls": {
                 "public_schema": StructType([StructField("foo", StringType(), True)]),
                 "private_schema": StructType([StructField("foo", StringType(), True)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)
+                },
             },
             "none_allow_nulls": {
                 "public_schema": StructType([StructField("foo", StringType(), False)]),
                 "private_schema": StructType([StructField("foo", StringType(), False)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
             "public_only_nulls": {
                 "public_schema": StructType([StructField("foo", StringType(), True)]),
                 "private_schema": StructType([StructField("foo", StringType(), False)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
             "private_only_nulls": {
                 "public_schema": StructType([StructField("foo", StringType(), False)]),
                 "private_schema": StructType([StructField("foo", StringType(), True)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
         }
     )
@@ -357,30 +357,30 @@ class TestSessionWithNulls:
             "both_allow_nulls": {
                 "left_schema": StructType([StructField("foo", StringType(), True)]),
                 "right_schema": StructType([StructField("foo", StringType(), True)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)
+                },
             },
             "none_allow_nulls": {
                 "left_schema": StructType([StructField("foo", StringType(), False)]),
                 "right_schema": StructType([StructField("foo", StringType(), False)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
             "public_only_nulls": {
                 "left_schema": StructType([StructField("foo", StringType(), True)]),
                 "right_schema": StructType([StructField("foo", StringType(), False)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
             "private_only_nulls": {
                 "left_schema": StructType([StructField("foo", StringType(), False)]),
                 "right_schema": StructType([StructField("foo", StringType(), True)]),
-                "expected_schema": Schema(
-                    {"foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
+                "expected_schema": {
+                    "foo": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)
+                },
             },
         }
     )
