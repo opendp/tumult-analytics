@@ -454,9 +454,13 @@ class TestSession:
 
         query = QueryBuilder("private").get_bounds("X")
 
-        lower, upper = session.evaluate(query, session.remaining_privacy_budget)
+        got_get_bounds = session.evaluate(query, session.remaining_privacy_budget)
+        assert got_get_bounds.count() == 1
+        upper = got_get_bounds.first()["X_upper_bound"]
+        lower = got_get_bounds.first()["X_lower_bound"]
         num_between = sdf.filter((sdf.X < upper) & (sdf.X > lower)).count()
         assert num_between > (0.9 * sdf.count())
+
         true_max = data["X"].max()
         true_min = data["X"].min()
         assert upper - lower < 4 * max(abs(true_max), abs(true_min))
@@ -502,7 +506,10 @@ class TestSession:
 
         query = QueryBuilder("private").get_bounds("X")
 
-        lower, upper = session.evaluate(query, session.remaining_privacy_budget)
+        got_get_bounds = session.evaluate(query, session.remaining_privacy_budget)
+        assert got_get_bounds.count() == 1
+        upper = got_get_bounds.first()["X_upper_bound"]
+        lower = got_get_bounds.first()["X_lower_bound"]
 
         sum_query = QueryBuilder("private").sum("X", low=lower, high=upper, name="sum")
         got_sum = session.evaluate(

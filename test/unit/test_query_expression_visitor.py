@@ -156,7 +156,10 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
             "EnforceConstraint",
         ),
         (GetGroups(PrivateSource("P"), tuple("column")), "GetGroups"),
-        (GetBounds(PrivateSource("P"), "column"), "GetBounds"),
+        (
+            GetBounds(PrivateSource("P"), KeySet.from_dict({}), "A", "lower", "upper"),
+            "GetBounds",
+        ),
         (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
         (
             GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),

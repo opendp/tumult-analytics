@@ -12,6 +12,7 @@ Unreleased
 Added
 ~~~~~
 - Added a dependency on the library ``tabulate`` to improve table displays from :meth:`~tmlt.analytics.session.Session.describe`.
+- Added the ability to :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` after calling :meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, for determining upper and lower bounds for a column per group in a differentially private way.
 
 Changed
 ~~~~~~~
@@ -21,6 +22,7 @@ Changed
 - :meth:`~tmlt.analytics.session.Session.create_view` now accepts :class:`~tmlt.analytics.query_builder.Query` and :class:`tmlt.analytics.query_builder.QueryBuilder` objects instead of ``QueryExpr`` objects.
 - Replaced asserts with custom exceptions in cases where internal errors are detected. Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
 - Updated to Tumult Core 0.16.1.
+- :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` when evaluated returns a dataframe instead of a tuple.
 
 Removed
 ~~~~~~~

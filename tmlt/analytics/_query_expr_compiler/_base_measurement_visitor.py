@@ -584,6 +584,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             GroupByCount,
             GroupByCountDistinct,
             GroupByQuantile,
+            GetBounds,
         ],
     ) -> None:
         """Validate and set adjusted_budget for ApproxDP queries.
@@ -700,7 +701,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     ) -> NoiseMechanism:
         """Pick the noise mechanism for non-count queries.
 
-        GroupByQuantile only supports one noise mechanism, so it is not
+        GroupByQuantile and GetBounds only supports one noise mechanism, so it is not
         included here.
         """
         measure_column_type = query.child.accept(OutputSchemaVisitor(self.catalog))[
@@ -1254,7 +1255,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             keyset_budget, query_budget = _split_auto_partition_budget(
                 self.adjusted_budget
             )
-
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
 
@@ -1689,36 +1689,54 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
     def build_bound_selection_measurement(
         self,
-        input_domain,
-        input_metric,
-        output_measure,
-        d_out,
-        bound_column,
-        threshold,
-        d_in,
+        input_domain: SparkDataFrameDomain,
+        input_metric: Union[IfGroupedBy, SymmetricDifference],
+        measure_column: str,
+        threshold: float,
+        lower_bound_column: str,
+        upper_bound_column: str,
+        stability: Any,
+        budget: PrivacyBudget,
+        groupby: GroupBy,
     ) -> Measurement:
         """Helper method to build the appropriate bound selection Measurement."""
         return create_bounds_measurement(
             input_domain=input_domain,
             input_metric=input_metric,
-            output_measure=output_measure,
-            d_out=d_out,
-            measure_column=bound_column,
+            measure_column=measure_column,
             threshold=threshold,  # TODO: Make threshold optional.
-            d_in=d_in,
+            lower_bound_column=lower_bound_column,
+            upper_bound_column=upper_bound_column,
+            d_in=stability,
+            d_out=budget.value,
+            output_measure=self.output_measure,
+            groupby_transformation=groupby,
         )
 
     def visit_get_bounds(self, expr: GetBounds) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GetBounds query expression."""
+        self._validate_approxDP_and_adjust_budget(expr)
+
         # Peek at the schema, to see if there are errors there
         expr.accept(OutputSchemaVisitor(self.catalog))
 
         expr = self._add_special_value_handling_to_query(expr)
-        expr.child.accept(OutputSchemaVisitor(self.catalog))
+        if isinstance(expr.groupby_keys, KeySet):
+            groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
+            keyset_budget = self._get_zero_budget()
+            query_budget = self.adjusted_budget
+        else:
+            groupby_cols = expr.groupby_keys
+            keyset_budget, query_budget = _split_auto_partition_budget(
+                self.adjusted_budget
+            )
+
+        # Peek at the schema, to see if there are errors there
+        expr.accept(OutputSchemaVisitor(self.catalog))
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
-            grouping_columns=tuple(),
+            grouping_columns=groupby_cols,
         )
 
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1748,10 +1766,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 f"Metric type is {type(transformation.output_metric)}."
             )
 
-        transformation |= SelectTransformation(
-            transformation.output_domain,
+        mid_domain = transformation.output_domain
+        mid_metric = cast(
+            Union[IfGroupedBy, SymmetricDifference],
             transformation.output_metric,
-            [expr.measure_column],
         )
 
         mid_stability = transformation.stability_function(self.stability)
@@ -1761,21 +1779,37 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 f"but got {type(transformation.output_domain)} instead."
             )
 
-        agg = self.build_bound_selection_measurement(
-            input_domain=transformation.output_domain,
-            input_metric=transformation.output_metric,
-            output_measure=self.output_measure,
-            d_out=self.budget.value,
-            bound_column=expr.measure_column,
-            threshold=0.95,  # TODO: Make threshold optional.
-            d_in=mid_stability,
+        def _build_groupby_agg_from_groupby(
+            groupby: GroupBy,
+        ) -> Measurement:
+            """Build a Measurement for a GetBounds query."""
+            return self.build_bound_selection_measurement(
+                input_domain=mid_domain,
+                input_metric=mid_metric,
+                measure_column=expr.measure_column,
+                threshold=0.95,  # TODO: Make threshold optional.
+                lower_bound_column=expr.lower_bound_column,
+                upper_bound_column=expr.upper_bound_column,
+                stability=mid_stability,
+                budget=query_budget,
+                groupby=groupby,
+            )
+
+        (
+            adaptive_groupby_agg,
+            noise_info,
+        ) = self._build_adaptive_groupby_agg_and_noise_info(
+            input_domain=mid_domain,
+            input_metric=mid_metric,
+            stability=transformation.stability_function(self.stability),
+            mechanism=self.default_mechanism,
+            columns=groupby_cols,
+            keyset=expr.groupby_keys,
+            build_groupby_agg_from_groupby=_build_groupby_agg_from_groupby,
+            keyset_budget=keyset_budget,
         )
-
-        self._validate_measurement(agg, mid_stability)
-
-        measurement = transformation | agg
-        noise_info = _noise_from_measurement(measurement)
-        return measurement, noise_info
+        self._validate_measurement(adaptive_groupby_agg, mid_stability)
+        return transformation | adaptive_groupby_agg, noise_info
 
     def visit_suppress_aggregates(
         self, expr: SuppressAggregates

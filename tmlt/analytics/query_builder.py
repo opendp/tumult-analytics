@@ -1666,12 +1666,25 @@ class QueryBuilder:
         query_expr = GetGroups(child=self._query_expr, columns=cols)
         return Query(query_expr)
 
-    def get_bounds(self, column: str) -> Query:
+    def get_bounds(
+        self,
+        column: str,
+        lower_bound_column: Optional[str] = None,
+        upper_bound_column: Optional[str] = None,
+    ) -> Query:
         """Returns a query that gets approximate upper and lower bounds for a column.
 
-        The bounds are chosen so that most of the values fall between them. They can
-        be used as the upper and lower bounds for any of the aggregations that require
-        bounds, like sum or quantile.
+        The bounds are selected to give good performance when used as upper and lower
+        bounds in other aggregations. They may not be close to the actual maximum and
+        minimum values, and are not designed to give a tight representation of the data
+        distribution. For any purpose other than providing a lower and upper bound to
+        other aggregations we suggest using the quantile aggregation instead.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
 
         .. note::
             The algorithm is approximate, and differentially private, so the bounds
@@ -1709,14 +1722,22 @@ class QueryBuilder:
             ...     query,
             ...     sess.remaining_privacy_budget
             ... )
-            >>> answer
-            (-128, 128)
+            >>> answer.toPandas()
+               X_upper_bound  X_lower_bound
+            0            128           -128
 
         Args:
             column: Name of the column whose bounds we want to get.
+            lower_bound_column: Name of the column to store the lower bound. Defaults to
+                ``f"{column}_lower_bound"``.
+            upper_bound_column: Name of the column to store the upper bound. Defaults to
+                ``f"{column}_upper_bound"``.
         """
-        query_expr = GetBounds(child=self._query_expr, measure_column=column)
-        return Query(query_expr)
+        return self.groupby(KeySet.from_dict({})).get_bounds(
+            column=column,
+            lower_bound_column=lower_bound_column,
+            upper_bound_column=upper_bound_column,
+        )
 
     def groupby(self, by: Union[KeySet, List[str], str]) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
@@ -3542,5 +3563,87 @@ class GroupedQueryBuilder:
             high=high,
             output_column=name,
             mechanism=mechanism,
+        )
+        return Query(query_expr)
+
+    def get_bounds(
+        self,
+        column: str,
+        lower_bound_column: Optional[str] = None,
+        upper_bound_column: Optional[str] = None,
+    ) -> Query:
+        """Returns an Query that gets approximate upper and lower bounds for a column.
+
+        The bounds are selected to give good performance when used as upper and lower
+        bounds in other aggregations. They may not be close to the actual maximum and
+        minimum values, and are not designed to give a tight representation of the data
+        distribution. For any purpose other than providing a lower and upper bound to
+        other aggregations we suggest using the quantile aggregation instead.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
+            first. If the column being measured contains infinite values, a
+            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
+
+        .. note::
+            The algorithm is approximate, and differentially private, so the bounds
+            may not be tight, and not all input values may fall between them.
+
+        ..
+            >>> from tmlt.analytics.privacy_budget import PureDPBudget
+            >>> from tmlt.analytics.protected_change import AddOneRow
+            >>> from tmlt.analytics.query_builder import QueryBuilder
+            >>> import tmlt.analytics.session
+            >>> import pandas as pd
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+
+        Example:
+            >>> my_private_data = spark.createDataFrame(
+            ...     pd.DataFrame(
+            ...         [["0", 1, 0], ["1", 0, 10], ["1", 2, 10], ["2", 2, 1]],
+            ...         columns=["A", "B", "X"]
+            ...     )
+            ... )
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=PureDPBudget(float('inf')),
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
+            ... )
+            >>> # Building a get_groups query
+            >>> query = (
+            ...     QueryBuilder("my_private_data")
+            ...     .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            ...     .get_bounds(column="X")
+            ... )
+            >>> # Answering the query with infinite privacy budget
+            >>> answer = sess.evaluate(
+            ...     query,
+            ...     sess.remaining_privacy_budget
+            ... )
+            >>> answer.sort("A").toPandas()
+               A  X_upper_bound  X_lower_bound
+            0  0              1             -1
+            1  1             16            -16
+
+        Args:
+            column: Name of the column whose bounds we want to get.
+            lower_bound_column: Name of the column to store the lower bound. Defaults to
+                ``f"{column}_lower_bound"``.
+            upper_bound_column: Name of the column to store the upper bound. Defaults to
+                ``f"{column}_upper_bound"``.
+        """
+        if lower_bound_column is None:
+            lower_bound_column = f"{column}_lower_bound"
+        if upper_bound_column is None:
+            upper_bound_column = f"{column}_upper_bound"
+        query_expr = GetBounds(
+            child=self._query_expr,
+            groupby_keys=self._groupby_keys,
+            measure_column=column,
+            lower_bound_column=lower_bound_column,
+            upper_bound_column=upper_bound_column,
         )
         return Query(query_expr)

@@ -161,6 +161,7 @@ def _validate_groupby(
         GroupByCount,
         GroupByCountDistinct,
         GroupByQuantile,
+        GetBounds,
     ],
     output_schema_visitor: "OutputSchemaVisitor",
 ) -> Schema:
@@ -225,6 +226,10 @@ def _validate_groupby(
 
     if isinstance(query, (GroupByCount, GroupByCountDistinct)):
         output_column_type = ColumnType.INTEGER
+    elif isinstance(query, GetBounds):
+        # Measure column type check not needed, since we check it early in
+        # OutputSchemaVisitor.visit_get_bounds
+        output_column_type = input_schema[query.measure_column].column_type
     elif isinstance(query, GroupByQuantile):
         if input_schema[query.measure_column].column_type not in [
             ColumnType.INTEGER,
@@ -265,18 +270,37 @@ def _validate_groupby(
             "Unexpected QueryExpr type. This should not happen and is"
             "probably a bug; please let us know so we can fix it!"
         )
-    output_schema = Schema(
-        {
-            **{column: input_schema[column] for column in groupby_columns},
-            **{
-                query.output_column: ColumnDescriptor(
-                    output_column_type, allow_null=False
-                )
+    if isinstance(query, GetBounds):
+        output_schema = Schema(
+            {
+                **{column: input_schema[column] for column in groupby_columns},
+                **{
+                    query.lower_bound_column: ColumnDescriptor(
+                        output_column_type, allow_null=False
+                    )
+                },
+                **{
+                    query.upper_bound_column: ColumnDescriptor(
+                        output_column_type, allow_null=False
+                    )
+                },
             },
-        },
-        grouping_column=None,
-        id_column=None,
-    )
+            grouping_column=None,
+            id_column=None,
+        )
+    else:
+        output_schema = Schema(
+            {
+                **{column: input_schema[column] for column in groupby_columns},
+                **{
+                    query.output_column: ColumnDescriptor(
+                        output_column_type, allow_null=False
+                    )
+                },
+            },
+            grouping_column=None,
+            id_column=None,
+        )
     return output_schema
 
 
@@ -835,10 +859,7 @@ class OutputSchemaVisitor(QueryExprVisitor):
                 f" ({input_schema.id_column}) of a table with the AddRowsWithID"
                 " protected change."
             )
-
-        output_schema = Schema({"lower": column, "upper": column})
-
-        return output_schema
+        return _validate_groupby(expr, self)
 
     def visit_groupby_count(self, expr: GroupByCount) -> Schema:
         """Returns the resulting schema from evaluating a GroupByCount."""

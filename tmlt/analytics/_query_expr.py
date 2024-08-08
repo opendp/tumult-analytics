@@ -228,14 +228,24 @@ class GetBounds(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr to get groups for."""
-
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
     """The column to get bounds of."""
+    lower_bound_column: str
+    """The name of the column to store the lower bound in."""
+    upper_bound_column: str
+    """The name of the column to store the upper bound in."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type("child", self.child, QueryExpr)
+        if isinstance(self.groupby_keys, tuple):
+            config.features.auto_partition_selection.raise_if_disabled()
+        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type("measure_column", self.measure_column, str)
+        check_type("lower_bound_column", self.lower_bound_column, str)
+        check_type("upper_bound_column", self.upper_bound_column, str)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

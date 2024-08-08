@@ -2412,6 +2412,11 @@ with config.features.auto_partition_selection.enabled():
         test_groupby.quantile(
             column="agg_col", name="agg_col", quantile=0.5, low=1, high=4
         ),
+        test_groupby.get_bounds(
+            column="agg_col",
+            lower_bound_column="lower_col",
+            upper_bound_column="upper_col",
+        ),
         # Adds a special test case for grouping on a string.
         QueryBuilder(source_id="testdf").groupby("id").count(name="agg_col"),
     ]
@@ -2434,6 +2439,11 @@ EXPECTED_DFS = [
         ("A", 1): (2, 3),
         ("B", 1): (2, 3),
     },
+    TEST_DATA_SIMPLE.groupby(GROUP_COLS)
+    .agg(max_value=("agg_col", "max"))
+    .rename(columns={"max_value": "upper_col"})
+    .assign(lower_col=lambda df: -df["upper_col"])
+    .reset_index(),
     # Deals with the special case of grouping on a string.
     TEST_DATA_SIMPLE.groupby("id").agg({"agg_col": "count"}).reset_index(),
 ]

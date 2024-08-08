@@ -16,6 +16,7 @@ from tmlt.analytics._query_expr import (
     DropNullAndNan,
     Filter,
     FlatMap,
+    GetBounds,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -44,6 +45,7 @@ from tmlt.analytics._schema import (
     Schema,
     spark_schema_to_analytics_columns,
 )
+from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -492,6 +494,14 @@ class TestValidation:
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
             ).accept(self.visitor)
+        with pytest.raises(exception_type, match=expected_error_msg):
+            GetBounds(
+                PrivateSource("private"),
+                groupby_keys,
+                "B",
+                "lower_bound",
+                "upper_bound",
+            ).accept(self.visitor)
 
 
 ###QUERY VALIDATION WITH NULLS###
@@ -657,6 +667,14 @@ class TestValidationWithNulls:
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
+            ).accept(self.visitor)
+        with pytest.raises(exception_type, match=expected_error_msg):
+            GetBounds(
+                PrivateSource("private"),
+                groupby_keys,
+                "B",
+                "lower_bound",
+                "upper_bound",
             ).accept(self.visitor)
 
     def test_visit_private_source(self) -> None:
@@ -1586,6 +1604,29 @@ class TestValidationWithNulls:
                     }
                 ),
             ),
+            (
+                GetBounds(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict(
+                        {"A": ["a1", "a2"], "D": [datetime.date(1999, 12, 31)]}
+                    ),
+                    measure_column="NOTNULL",
+                    lower_bound_column="lower_bound",
+                    upper_bound_column="upper_bound",
+                ),
+                Schema(
+                    {
+                        "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "lower_bound": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=False
+                        ),
+                        "upper_bound": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=False
+                        ),
+                    }
+                ),
+            ),
         ],
     )
     def test_visit_groupby_queries(
@@ -1594,6 +1635,26 @@ class TestValidationWithNulls:
         """Test visit_groupby_*."""
         schema = query.accept(self.visitor)
         assert schema == expected_schema
+
+    def test_visit_groupby_get_bounds_partition_selection(self) -> None:
+        """Test visit_get_bounds with auto partition selection enabled."""
+        expected_schema = Schema(
+            {
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "lower_bound": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                "upper_bound": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            }
+        )
+        with config.features.auto_partition_selection.enabled():
+            query = GetBounds(
+                child=PrivateSource("private"),
+                groupby_keys=tuple("A"),
+                measure_column="NOTNULL",
+                lower_bound_column="lower_bound",
+                upper_bound_column="upper_bound",
+            )
+            schema = query.accept(self.visitor)
+            assert schema == expected_schema
 
     @pytest.mark.parametrize(
         "query",
