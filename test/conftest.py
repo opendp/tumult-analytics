@@ -13,13 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import (
-    FloatType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
+from pyspark.sql.types import FloatType, LongType, StringType, StructField, StructType
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.numpy_domains import NumpyIntegerDomain
@@ -346,7 +340,7 @@ def pyspark_schema_from_pandas(df: pd.DataFrame) -> StructType:
 
     def convert_type(dtype):
         if dtype == np.int64:
-            return IntegerType()
+            return LongType()
         elif dtype == float:
             return FloatType()
         elif dtype == str:
