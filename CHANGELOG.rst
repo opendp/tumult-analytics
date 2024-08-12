@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.15.0:
+
+0.15.0 - 2024-08-12
+-------------------
 This release extends the :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
 In addition, it changes the object used to represent queries to the new :class:`~tmlt.analytics.query_builder.Query` class, and updates the format in which table schemas are returned.
 
