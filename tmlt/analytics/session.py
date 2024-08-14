@@ -103,7 +103,7 @@ from tmlt.analytics._transformation_utils import (
 )
 from tmlt.analytics._type_checking import is_exact_number_tuple
 from tmlt.analytics._utils import assert_is_identifier
-from tmlt.analytics.constraints import Constraint, MaxGroupsPerID
+from tmlt.analytics.constraints import Constraint, MaxGroupsPerID, MaxRowsPerID
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -1269,7 +1269,7 @@ class Session:
 
     def _create_partition_constraint(
         self,
-        constraint: MaxGroupsPerID,
+        constraint: Union[MaxGroupsPerID, MaxRowsPerID],
         child_transformation: Transformation,
         child_ref: TableReference,
     ) -> Tuple[Transformation, TableReference]:
@@ -1280,12 +1280,23 @@ class Session:
         It is pulled out to make it easier to override in subclasses which change the
         behavior of constraints, not for code maintainability.
         """
-        return constraint._enforce(  # pylint: disable=protected-access
-            child_transformation=child_transformation,
-            child_ref=child_ref,
-            update_metric=True,
-            use_l2=isinstance(self._output_measure, RhoZCDP),
-        )
+        if isinstance(constraint, MaxGroupsPerID):
+            return constraint._enforce(  # pylint: disable=protected-access
+                child_transformation=child_transformation,
+                child_ref=child_ref,
+                update_metric=True,
+                use_l2=isinstance(self._output_measure, RhoZCDP),
+            )
+        else:
+            if not isinstance(constraint, MaxRowsPerID):
+                raise AnalyticsInternalError(
+                    f"Expected MaxGroupsPerID or MaxRowsPerID constraints, but got {constraint} instead."
+                )
+            return constraint._enforce(  # pylint: disable=protected-access
+                child_transformation=child_transformation,
+                child_ref=child_ref,
+                update_metric=True,
+            )
 
     def _create_partition_transformation(
         self,
@@ -1354,7 +1365,7 @@ class Session:
                 f"Available private tables are: {', '.join(self.private_sources)}"
             )
         # Next we need to check if the table has ID columns. If so, it requires
-        # a MaxGroupsPerID constraint.
+        # a MaxGroupsPerID/MaxRowsPerID constraint.
         metric = lookup_metric(self._input_metric, table_ref)
         has_id_column = isinstance(metric, IfGroupedBy) and isinstance(
             metric.inner_metric, SymmetricDifference
@@ -1363,7 +1374,8 @@ class Session:
             domain=self._input_domain, metric=self._input_metric
         )
         if has_id_column:
-            # look for the expected constraint
+            constraint: Optional[Union[MaxGroupsPerID, MaxRowsPerID]] = None  # for mypy
+            # look for the MaxGroupsPerID constraint
             constraint = next(
                 (
                     c
@@ -1372,9 +1384,21 @@ class Session:
                 ),
                 None,
             )
+            # Note: If both, MaxRowsPerID and MaxGroupsPerID constraints are present, the MaxRowsPerID constraint
+            # is ignored and only MaxGroupsPerID constraint gets applied. See #2613 for more details.
+            if constraint is None:
+                # look for the MaxRowsPerID constraint
+                constraint = next(
+                    (
+                        c
+                        for c in self._table_constraints.get(table_ref.identifier, [])
+                        if isinstance(c, MaxRowsPerID)
+                    ),
+                    None,
+                )
             if constraint is None:
                 raise ValueError(
-                    "You must create a MaxGroupsPerID constraint before using"
+                    "You must create a MaxGroupsPerID or MaxRowsPerID constraint before using"
                     " partition_and_create on tables with the AddRowsWithID"
                     " protected change."
                 )
@@ -1382,6 +1406,7 @@ class Session:
             transformation, table_ref = self._create_partition_constraint(
                 constraint, transformation, table_ref
             )
+
         # Get the table we will split on from the dictionary
         transformation = get_table_from_ref(transformation, table_ref)
         if not isinstance(
@@ -1581,21 +1606,30 @@ class Session:
         new_sessions = {}
         for accountant, source in zip(new_accountants, new_sources):
             id_space = self.get_id_space(source_id)
-            if id_space is not None:
-                # Create the inner dictionary for the id space
+            if id_space is not None and isinstance(
+                accountant.input_metric, IfGroupedBy
+            ):
+                # Turns an IDs table into a partitioned IDs table - `MaxGroupsPerID`
+                # constraint
+
+                # Create the inner dictionary
                 nested_dict_transformation: Transformation = CreateDictFromValue(
                     input_domain=accountant.input_domain,
                     input_metric=accountant.input_metric,
                     key=NamedTable(source),
                     use_add_remove_keys=True,
                 )
-                # Create the outer dictionary
+                # Create the outer dictionary for the id space
                 nested_dict_transformation |= CreateDictFromValue(
                     input_domain=nested_dict_transformation.output_domain,
                     input_metric=nested_dict_transformation.output_metric,
                     key=TableCollection(id_space),
                 )
             else:
+                # Turns non-IDs table into a partitioned non-IDs table
+                # OR
+                # Turns IDs into a partitioned non-IDs table - `MaxRowsPerID` constraint
+
                 # Only has the outer dictionary
                 nested_dict_transformation = CreateDictFromValue(
                     input_domain=accountant.input_domain,
