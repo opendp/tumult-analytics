@@ -5,7 +5,7 @@
 
 from typing import Dict
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     DataType,
     DateType,
@@ -14,8 +14,6 @@ from pyspark.sql.types import (
     IntegerType,
     LongType,
     StringType,
-    StructField,
-    StructType,
     TimestampType,
 )
 
@@ -98,19 +96,11 @@ def coerce_spark_schema_or_fail(dataframe: DataFrame) -> DataFrame:
 
     _fail_if_dataframe_contains_unsupported_types(dataframe)
 
-    requires_coercion = any(
-        field.dataType in TYPE_COERCION_MAP for field in dataframe.schema
-    )
-    if not requires_coercion:
-        return dataframe
-    spark = SparkSession.builder.getOrCreate()
-    coerced_fields = []
     for field in dataframe.schema:
-        coerced_fields.append(
-            StructField(
+        if field.dataType in TYPE_COERCION_MAP:
+            dataframe = dataframe.withColumn(
                 field.name,
-                TYPE_COERCION_MAP.get(field.dataType, field.dataType),
-                nullable=field.nullable,
+                dataframe[field.name].cast(TYPE_COERCION_MAP[field.dataType]),
             )
-        )
-    return spark.createDataFrame(dataframe.rdd, schema=StructType(coerced_fields))
+
+    return dataframe
