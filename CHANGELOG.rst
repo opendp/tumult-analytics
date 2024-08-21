@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.16.0:
+
+0.16.0 - 2024-08-21
+-------------------
 This release adds a new :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id>` transformation, improved constraint support when using :meth:`~tmlt.analytics.session.Session.partition_and_create`, and performance improvements.
 
 Added
