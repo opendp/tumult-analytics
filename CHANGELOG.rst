@@ -8,6 +8,7 @@ Changelog
 
 Unreleased
 ----------
+This release adds a new :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id>` transformation, improved constraint support when using :meth:`~tmlt.analytics.session.Session.partition_and_create`, and performance improvements.
 
 Added
 ~~~~~
@@ -18,6 +19,11 @@ Fixed
 ~~~~~
 - Significantly improved the performance of coercing Session input dataframe columns to supported types.
 
+Changed
+~~~~~~~
+- :meth:`~tmlt.analytics.session.Session.partition_and_create` can now be used on a table with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change if a :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is present, converting the table being partitioned into one with an :class:`~tmlt.analytics.protected_change.AddMaxRows` protected change.
+  The behavior when using :meth:`~tmlt.analytics.session.Session.partition_and_create` on such a table with a :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint has not changed.
+  If both :class:`~tmlt.analytics.constraints.MaxRowsPerID` and :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraints are present, the :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is ignored and only the :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint gets applied.
 
 .. _v0.15.0:
 
@@ -45,9 +51,6 @@ Changed
 - Replaced asserts with custom exceptions in cases where internal errors are detected.
   Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
 - Updated to Tumult Core 0.16.1.
-- :meth:`~tmlt.analytics.session.Session.partition_and_create` can now be used on a table with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change if a :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is present, converting the table being partitioned into one with an :class:`~tmlt.analytics.protected_change.AddMaxRows` protected change.
-  The behavior when using :meth:`~tmlt.analytics.session.Session.partition_and_create` on such a table with a :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint has not changed.
-  If both :class:`~tmlt.analytics.constraints.MaxRowsPerID` and :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraints are present, the :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is ignored and only the :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint gets applied.
 
 Removed
 ~~~~~~~
