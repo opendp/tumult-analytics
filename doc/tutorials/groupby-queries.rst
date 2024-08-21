@@ -93,8 +93,9 @@ Introduction to KeySets
 -----------------------
 
 To specify the list of group-by keys in Tumult Analytics, we use the
-:class:`tmlt.analytics.keyset.KeySet` class. A KeySet specifies both the columns
-by which we are going to group by, and the possible values for those columns.
+:class:`~tmlt.analytics.keyset.KeySet` class. A KeySet specifies both the
+columns by which we are going to group by, and the possible values for those
+columns.
 
 The simple way to initialize a KeySet, especially when there are only a few
 possible values for a given column, is to use

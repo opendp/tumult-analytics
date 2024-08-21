@@ -1,10 +1,9 @@
 """A KeySet specifies a list of values for one or more columns.
 
-For example, a KeySet could specify the values ``["a1", "a2"]`` for column A
-and the values ``[0, 1, 2, 3]`` for column B.
-
-Currently, KeySets are used as a simpler way to specify domains for groupby
-transformations.
+They are used as input to the
+:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby` method to build
+group-by queries. An introduction to KeySets can be found in the
+:ref:`Group-by queries` tutorial.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -72,6 +71,9 @@ def _check_dict_schema(types: Dict[str, type]) -> None:
 
 class KeySet(ABC):
     """A class containing a set of values for specific columns.
+
+       An introduction to KeySet initialization and manipulation can be found in
+       the :ref:`Group-by queries` tutorial.
 
     .. warning::
         If a column has null values dropped or replaced, then Analytics
@@ -289,7 +291,7 @@ class KeySet(ABC):
         """Filter this KeySet using some condition.
 
         This method accepts the same syntax as
-        :meth:`~pyspark.sql.DataFrame.filter`: valid conditions are those that
+        :meth:`pyspark.sql.DataFrame.filter`: valid conditions are those that
         can be used in a `WHERE clause
         <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
         in Spark SQL. Examples of valid conditions include:

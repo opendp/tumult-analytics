@@ -167,6 +167,11 @@ class _PostProcessSuppressMixin:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -174,15 +179,6 @@ class _PostProcessSuppressMixin:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count query and suppressing results < 1
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -245,6 +241,11 @@ class QueryBuilder:
         ... )
 
     Example:
+        >>> my_private_data.toPandas()
+           A  B  X
+        0  0  1  0
+        1  1  0  1
+        2  1  2  1
         >>> budget = PureDPBudget(float("inf"))
         >>> sess = tmlt.analytics.session.Session.from_dataframe(
         ...     privacy_budget=budget,
@@ -252,15 +253,6 @@ class QueryBuilder:
         ...     dataframe=my_private_data,
         ...     protected_change=AddOneRow(),
         ... )
-        >>> my_private_data.toPandas()
-           A  B  X
-        0  0  1  0
-        1  1  0  1
-        2  1  2  1
-        >>> sess.private_sources
-        ['my_private_data']
-        >>> sess.get_column_types("my_private_data")
-        {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
         >>> # Building a query
         >>> query = QueryBuilder("my_private_data").count()
         >>> # Answering the query with infinite privacy budget
@@ -288,7 +280,7 @@ class QueryBuilder:
         join_columns: Optional[Sequence[str]] = None,
         how: str = "inner",
     ) -> "QueryBuilder":
-        """Updates the current query to join with a dataframe or public source.
+        """Joins the table with a DataFrame or a public source.
 
         This operation is either an inner or left join.
 
@@ -327,6 +319,9 @@ class QueryBuilder:
             :class:`~tmlt.analytics.protected_change.AddRowsWithID` must include the
             *privacy ID* column in the join columns.
 
+        An illustrated example can be found in the
+        :ref:`Simple transformations <Public joins>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -347,13 +342,6 @@ class QueryBuilder:
             ... )
 
         Example:
-            >>> budget = PureDPBudget(float("inf"))
-            >>> sess = tmlt.analytics.session.Session.from_dataframe(
-            ...     privacy_budget=budget,
-            ...     source_id="my_private_data",
-            ...     dataframe=my_private_data,
-            ...     protected_change=AddOneRow(),
-            ... )
             >>> my_private_data.toPandas()
                A  B  X
             0  0  1  0
@@ -365,6 +353,13 @@ class QueryBuilder:
             1  0  1
             2  1  1
             3  1  2
+            >>> budget = PureDPBudget(float("inf"))
+            >>> sess = tmlt.analytics.session.Session.from_dataframe(
+            ...     privacy_budget=budget,
+            ...     source_id="my_private_data",
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
+            ... )
             >>> # Create a query joining with public_data as a dataframe:
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -401,10 +396,10 @@ class QueryBuilder:
             0  0      1
             1  1      3
             2  2      2
-            >>> # The join can also be a left join. This is helpful if you want to keep
-            >>> # records which are not included in the table. One use for this is to
-            >>> # find the number of records which are or aren't not included in a
-            >>> # KeySet.
+            >>> # The join can also be a left join. This is helpful to keep
+            >>> # records which are not included in the table. One use for this
+            >>> # is to find the number of records which are or are not
+            >>> # included in a KeySet.
             >>> from pyspark.sql import functions as sf
             >>> my_keyset = KeySet.from_dict({"A": ["0"]})
             >>> query = (
@@ -448,34 +443,32 @@ class QueryBuilder:
         join_columns: Optional[Sequence[str]] = None,
     ) -> "QueryBuilder":
         # pylint: disable=protected-access
-        """Updates the current query to join with another :class:`QueryBuilder`.
+        """Join the table with another :class:`QueryBuilder`.
 
-        The current query can also join with a named private table (represented
-        as a string).
+        The current query can also be joined with a named private table
+        (represented as a string).
 
-        This operation is an inner join.
+        This operation is an inner, natural join, with the same behavior and
+        requirements as :func:`join_public`.
 
-        This operation is a natural join, with the same behavior and requirements as
-        :func:`join_public`.
-
-        For operations on tables with a
+        Private joins on tables with a
         :class:`~tmlt.analytics.protected_change.ProtectedChange` that protects
         adding or removing rows (e.g.
-        :class:`~tmlt.analytics.protected_change.AddMaxRows`), there is a key
-        difference: before the join is performed, each table is *truncated*
-        based on the corresponding
-        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.
+        :class:`~tmlt.analytics.protected_change.AddMaxRows`) require
+        truncation, which is specified using the two
+        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`
+        arguments.
 
         In contrast, operations on tables with a
         :class:`~tmlt.analytics.protected_change.AddRowsWithID`
         :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
         :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`, as no
-        truncation is necessary while performing the join.
+        truncation is necessary to perform the join. In this case, the join
+        columns must include the privacy ID columns of both tables, and these
+        privacy ID columns must have the same name, and be in the same ID space.
 
-        .. note::
-            Tables with a :class:`~tmlt.analytics.protected_change.ProtectedChange` of
-            :class:`~tmlt.analytics.protected_change.AddRowsWithID` must include the
-            *privacy ID* column in the join columns.
+        An example of a private join can be found in the
+        :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorial.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -492,6 +485,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -500,15 +498,6 @@ class QueryBuilder:
             ...     protected_change=AddOneRow(),
             ... )
             >>> from tmlt.analytics.query_builder import TruncationStrategy
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> sess.create_view(
             ...     QueryBuilder("my_private_data")
             ...     .select(["A", "X"])
@@ -584,7 +573,7 @@ class QueryBuilder:
             Mapping[str, Union[int, float, str, datetime.date, datetime.datetime]]
         ] = None,
     ) -> "QueryBuilder":
-        """Updates the current query to replace null and NaN values in some columns.
+        """Replaces null and NaN values in specified columns.
 
         .. note::
             Null values *cannot* be replaced in the ID column of a table initialized
@@ -595,7 +584,7 @@ class QueryBuilder:
 
         .. warning::
             If null values are replaced in a column, then Analytics will raise
-            an error if you use a KeySet with a null value for that column.
+            an error if a KeySet is used with a null value for that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -613,6 +602,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+                  A    B    X
+            0  None  0.0  0.0
+            1     1  NaN  1.1
+            2     2  2.0  NaN
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -620,15 +614,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-                  A    B    X
-            0  None  0.0  0.0
-            1     1  NaN  1.1
-            2     2  2.0  NaN
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.DECIMAL, 'X': ColumnType.DECIMAL}
             >>> # Building a query with a replace_null_and_nan transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -673,7 +658,7 @@ class QueryBuilder:
     def replace_infinity(
         self, replace_with: Optional[Dict[str, Tuple[float, float]]] = None
     ) -> "QueryBuilder":
-        """Updates the current query to replace +inf and -inf values in some columns.
+        """Replaces +inf and -inf values in specified columns.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -695,6 +680,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+                A    B    X
+            0  a1  0.0  0.0
+            1  a1  NaN -inf
+            2  a2  2.0  inf
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -702,15 +692,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-                A    B    X
-            0  a1  0.0  0.0
-            1  a1  NaN -inf
-            2  a2  2.0  inf
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.DECIMAL, 'X': ColumnType.DECIMAL}
             >>> # Building a query with a replace_infinity transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -753,19 +734,21 @@ class QueryBuilder:
         return self
 
     def drop_null_and_nan(self, columns: Optional[List[str]]) -> "QueryBuilder":
-        """Updates the current query to drop rows containing null or NaN values.
+        """Removes rows containing null or NaN values.
 
         .. note::
-            Null values *cannot* be dropped in the ID column of a table initialized
-            with a :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-            :class:`~tmlt.analytics.protected_change.ProtectedChange`, nor on a column
-            generated by a :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`
-            with the grouping parameter set to True.
+            Null values *cannot* be dropped in the ID column of a table
+            initialized with a
+            :class:`~tmlt.analytics.protected_change.AddRowsWithID`
+            :class:`~tmlt.analytics.protected_change.ProtectedChange`, nor on a
+            column generated by a
+            :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` with the
+            grouping parameter set to True.
 
         .. warning::
             If null and NaN values are dropped from a column, then Analytics will
-            raise an error if you use a :class:`~tmlt.analytics.keyset.KeySet`
-            that contains a null value for that column.
+            raise an error if a :class:`~tmlt.analytics.keyset.KeySet` that
+            contains a null value is used for that column.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -792,6 +775,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+                A    B    X
+            0  a1  2.0  0.0
+            1  a1  NaN  1.1
+            2  a2  2.0  NaN
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -799,15 +787,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-                A    B    X
-            0  a1  2.0  0.0
-            1  a1  NaN  1.1
-            2  a2  2.0  NaN
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.DECIMAL}
             >>> # Count query on the original data
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -858,7 +837,7 @@ class QueryBuilder:
         return self
 
     def drop_infinity(self, columns: Optional[List[str]]) -> "QueryBuilder":
-        """Updates the current query to drop rows containing infinite values.
+        """Remove rows containing infinite values.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -876,7 +855,7 @@ class QueryBuilder:
             ... )
             >>> spark = SparkSession.builder.getOrCreate()
             >>> my_private_data = spark.createDataFrame(
-            ...     [["a1", 2, 0.0], ["a1", 1, 1.1], ["a2", 2, float("inf")]],
+            ...     [["a1", 1, 1.1], ["a1", 2, 0.0], ["a2", 2, float("inf")]],
             ...     schema=StructType([
             ...         StructField("A", StringType(), nullable=True),
             ...         StructField("B", LongType(), nullable=True),
@@ -885,6 +864,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+                A  B    X
+            0  a1  1  1.1
+            1  a1  2  0.0
+            2  a2  2  inf
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -892,15 +876,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.sort("A", "B", "X").toPandas()
-                A  B    X
-            0  a1  1  1.1
-            1  a1  2  0.0
-            2  a2  2  inf
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.DECIMAL}
             >>> # Count query on the original data
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -949,7 +924,7 @@ class QueryBuilder:
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
-        """Updates the current query to rename the columns.
+        """Renames one or more columns in the table.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -966,6 +941,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -973,15 +953,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a rename transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1010,7 +981,7 @@ class QueryBuilder:
         return self
 
     def filter(self, condition: str) -> "QueryBuilder":
-        """Updates the current query to filter for rows matching a condition.
+        """Filter rows matching a condition.
 
         The ``condition`` parameter accepts the same syntax as in PySpark's
         :meth:`~pyspark.sql.DataFrame.filter` method: valid expressions are
@@ -1041,6 +1012,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1048,15 +1024,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a filter transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1081,7 +1048,7 @@ class QueryBuilder:
         return self
 
     def select(self, columns: Sequence[str]) -> "QueryBuilder":
-        """Updates the current query to select certain columns.
+        """Selects the specified columns, dropping the others.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1099,6 +1066,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1106,13 +1078,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
             >>> sess.get_column_types("my_private_data")
             {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Create a new view using a select query
@@ -1140,11 +1105,16 @@ class QueryBuilder:
         new_column_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
         augment: bool = False,
     ) -> "QueryBuilder":
-        """Updates the current query to apply a mapping function to each row.
+        """Applies a mapping function to each row.
 
-        If you provide only a ColumnType for the new column types, Analytics
-        assumes that all new columns created may contain null values (and that
-        DECIMAL columns may contain NaN or infinite values).
+        If the new column types are specified using
+        :class:`~tmlt.analytics.query_builder.ColumnType` and not
+        :class:`~tmlt.analytics.query_builder.ColumnDescriptor`, Tumult
+        Analytics assumes that all new columns created may contain null values,
+        and that DECIMAL columns may contain NaN or infinite values.
+
+        An illustrated example can be found in the
+        :ref:`Simple transformations <Maps>` tutorial.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1161,6 +1131,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1168,15 +1143,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a map transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1241,17 +1207,22 @@ class QueryBuilder:
         max_rows: Optional[int] = None,
         max_num_rows: Optional[int] = None,
     ) -> "QueryBuilder":
-        """Updates the current query to apply a flat map.
+        """Applies a mapping function to each row, returning zero or more rows.
 
-        If you provide only a ColumnType for the new column types, Analytics
-        assumes that all new columns created may contain null values (and that
-        DECIMAL columns may contain NaN or infinite values).
+        If the new column types are specified using
+        :class:`~tmlt.analytics.query_builder.ColumnType` and not
+        :class:`~tmlt.analytics.query_builder.ColumnDescriptor`, Tumult
+        Analytics assumes that all new columns created may contain null values,
+        and that DECIMAL columns may contain NaN or infinite values.
 
-        Operations on tables with a
-        :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-        :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
-        ``max_rows`` argument, since it is not necessary to impose a limit on
-        the number of new rows.
+        The ``max_rows`` argument is ignored if the table was initialized with
+        the :class:`~tmlt.analytics.protected_change.AddRowsWithID`
+        :class:`~tmlt.analytics.protected_change.ProtectedChange`. Otherwise, it
+        is required (and enforced).
+
+        The :ref:`Simple transformations <Flat maps>` and
+        :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorials
+        contain illustrated examples of flat maps.
 
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
@@ -1270,6 +1241,12 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
+            3  1  3  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1277,16 +1254,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            3  1  3  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a query with a flat map transformation
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -1384,7 +1351,7 @@ class QueryBuilder:
         f: Callable[[List[Row]], List[Row]],
         new_column_types: Mapping[str, Union[str, ColumnDescriptor, ColumnType]],
     ) -> "QueryBuilder":
-        """Apply a transformation to each group of records sharing an ID.
+        """Applies a transformation to each group of records sharing an ID.
 
         Transforms groups of records that all share a common ID into a new group
         of records with that same ID based on a user-provided function. The
@@ -1418,6 +1385,12 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+              id  A
+            0  0  1
+            1  1  0
+            2  1  1
+            3  1  4
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1425,14 +1398,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddRowsWithID("id"),
             ... )
-            >>> my_private_data.toPandas()
-              id  A
-            0  0  1
-            1  1  0
-            2  1  1
-            3  1  4
-            >>> sess.get_column_types("my_private_data")
-            {'id': ColumnType.VARCHAR, 'A': ColumnType.INTEGER}
             >>> # Using flat_map_by_id, each ID's records are pre-summed before
             >>> # computing a total sum, allowing less data loss than truncating
             >>> # and clamping each row individually without having to add
@@ -1493,7 +1458,10 @@ class QueryBuilder:
     def bin_column(
         self, column: str, spec: BinningSpec, name: Optional[str] = None
     ) -> "QueryBuilder":
-        """Create a new column by assigning the values in a given column to bins.
+        """Creates a new column by assigning the values in a given column to bins.
+
+        An illustrated example can be found in the
+        :ref:`Simple transformations <Binning>` tutorial.
 
         ..
             >>> from tmlt.analytics.query_builder import QueryBuilder
@@ -1514,13 +1482,6 @@ class QueryBuilder:
             ... )
 
         Example:
-            >>> from tmlt.analytics.binning_spec import BinningSpec
-            >>> sess = Session.from_dataframe(
-            ...     PureDPBudget(float("inf")),
-            ...     source_id="private_data",
-            ...     dataframe=my_private_data,
-            ...     protected_change=AddOneRow(),
-            ... )
             >>> my_private_data.toPandas()
                age  income
             0   11       0
@@ -1533,6 +1494,13 @@ class QueryBuilder:
             7   91      18
             8   48      97
             9   53      85
+            >>> from tmlt.analytics.binning_spec import BinningSpec
+            >>> sess = Session.from_dataframe(
+            ...     PureDPBudget(float("inf")),
+            ...     source_id="private_data",
+            ...     dataframe=my_private_data,
+            ...     protected_change=AddOneRow(),
+            ... )
             >>> age_binspec = BinningSpec(
             ...     [0, 18, 65, 100], include_both_endpoints=False
             ... )
@@ -1660,7 +1628,7 @@ class QueryBuilder:
         return self.bin_column(column, spec, name).groupby(keys).count()
 
     def enforce(self, constraint: Constraint) -> "QueryBuilder":
-        """Enforce a :mod:`~tmlt.analytics.constraints.Constraint` on the current table.
+        """Enforces a :class:`~tmlt.analytics.constraints.Constraint` on the table.
 
         This method can be used to enforce constraints on the current table. See
         the :mod:`~tmlt.analytics.constraints` module for information about the
@@ -1853,6 +1821,11 @@ class QueryBuilder:
     def groupby(self, by: Union[KeySet, List[str], str]) -> "GroupedQueryBuilder":
         """Groups the query by the given set of keys, returning a GroupedQueryBuilder.
 
+        The aggregation will return one row for each key in the KeySet; other
+        values present in the data will be discarded.
+
+        More information can be found in the :ref:`Group-by queries` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget, ApproxDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -1869,6 +1842,11 @@ class QueryBuilder:
 
         Examples:
             >>> from tmlt.analytics.keyset import KeySet
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -1876,15 +1854,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
 
         Answering a query with the exact groupby domain:
             >>> groupby_keys = KeySet.from_dict({"A": ["0", "1"]})
@@ -1902,8 +1871,8 @@ class QueryBuilder:
             0  0      1
             1  1      2
 
-        Answering a query with an omitted domain value:
-            >>> groupby_keys = KeySet.from_dict({"A": ["0"]})
+        Answering a query with omitted and added domain values:
+            >>> groupby_keys = KeySet.from_dict({"A": ["0", "2"]})
             >>> query = (
             ...     QueryBuilder("my_private_data")
             ...     .groupby(groupby_keys)
@@ -1916,23 +1885,7 @@ class QueryBuilder:
             >>> answer.toPandas()
                A  count
             0  0      1
-
-        Answering a query with an added domain value:
-            >>> groupby_keys = KeySet.from_dict({"A": ["0", "1", "2"]})
-            >>> query = (
-            ...     QueryBuilder("my_private_data")
-            ...     .groupby(groupby_keys)
-            ...     .count()
-            ... )
-            >>> answer = sess.evaluate(
-            ...     query,
-            ...     PureDPBudget(float("inf"))
-            ... )
-            >>> answer.sort("A").toPandas()
-               A  count
-            0  0      1
-            1  1      2
-            2  2      0
+            1  2      0
 
         Answering a query with a multi-column domain:
             >>> groupby_keys = KeySet.from_dict(
@@ -2028,6 +1981,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2035,15 +1993,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a count query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2105,6 +2054,12 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  0  1  0
+            2  1  0  1
+            3  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2112,16 +2067,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  0  1  0
-            2  1  0  1
-            3  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a count_distinct query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2195,6 +2140,11 @@ class QueryBuilder:
             >>> doctest.ELLIPSIS_MARKER = '1.331107'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2202,15 +2152,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2267,6 +2208,11 @@ class QueryBuilder:
             >>> doctest.ELLIPSIS_MARKER = '0.213415'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2274,15 +2220,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2337,6 +2274,11 @@ class QueryBuilder:
             >>> doctest.ELLIPSIS_MARKER='2.331871'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2344,15 +2286,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2407,6 +2340,11 @@ class QueryBuilder:
             >>> doctest.ELLIPSIS_MARKER='1.221197'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2414,15 +2352,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2476,6 +2405,9 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -2491,6 +2423,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2498,15 +2435,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a sum query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2561,6 +2489,9 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -2576,6 +2507,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2583,15 +2519,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building an average query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2646,6 +2573,9 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            Consult the :ref:`Numerical aggregations <Clamping bounds>` tutorial
+            for more information.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -2661,6 +2591,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2668,15 +2603,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a variance query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2731,6 +2657,9 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -2746,6 +2675,11 @@ class QueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2753,15 +2687,6 @@ class QueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a standard deviation query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2834,6 +2759,11 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2841,15 +2771,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -2906,6 +2827,12 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  0  1  0
+            2  1  0  1
+            3  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -2913,16 +2840,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  0  1  0
-            2  1  0  1
-            3  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby count_distinct query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3010,6 +2927,11 @@ class GroupedQueryBuilder:
             >>> doctest.ELLIPSIS_MARKER = '1.331107'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3017,15 +2939,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3095,6 +3008,11 @@ class GroupedQueryBuilder:
             >>> doctest.ELLIPSIS_MARKER = '0.213415'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3102,15 +3020,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3171,6 +3080,11 @@ class GroupedQueryBuilder:
             >>> doctest.ELLIPSIS_MARKER='2.331871'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3178,15 +3092,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3247,6 +3152,11 @@ class GroupedQueryBuilder:
             >>> doctest.ELLIPSIS_MARKER='1.221197'
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3254,15 +3164,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a quantile query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3318,6 +3219,9 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -3333,6 +3237,11 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3340,15 +3249,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby sum query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3414,6 +3314,9 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -3429,6 +3332,11 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3436,15 +3344,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby average query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3510,6 +3409,9 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -3526,6 +3428,11 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3533,15 +3440,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby variance query
             >>> query = (
             ...     QueryBuilder("my_private_data")
@@ -3607,6 +3505,9 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
+            More information can be found in the :ref:`Numerical aggregations
+            <Clamping bounds>` tutorial.
+
         ..
             >>> from tmlt.analytics.privacy_budget import PureDPBudget
             >>> from tmlt.analytics.protected_change import AddOneRow
@@ -3622,6 +3523,11 @@ class GroupedQueryBuilder:
             ... )
 
         Example:
+            >>> my_private_data.toPandas()
+               A  B  X
+            0  0  1  0
+            1  1  0  1
+            2  1  2  1
             >>> budget = PureDPBudget(float("inf"))
             >>> sess = tmlt.analytics.session.Session.from_dataframe(
             ...     privacy_budget=budget,
@@ -3629,15 +3535,6 @@ class GroupedQueryBuilder:
             ...     dataframe=my_private_data,
             ...     protected_change=AddOneRow(),
             ... )
-            >>> my_private_data.toPandas()
-               A  B  X
-            0  0  1  0
-            1  1  0  1
-            2  1  2  1
-            >>> sess.private_sources
-            ['my_private_data']
-            >>> sess.get_column_types("my_private_data")
-            {'A': ColumnType.VARCHAR, 'B': ColumnType.INTEGER, 'X': ColumnType.INTEGER}
             >>> # Building a groupby standard deviation query
             >>> query = (
             ...     QueryBuilder("my_private_data")

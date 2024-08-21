@@ -9,14 +9,11 @@ complex one with multiple datasources can be constructed using
 
 A Session is initialized with a
 :class:`~tmlt.analytics.privacy_budget.PrivacyBudget`, and ensures that queries
-evaluated on the private data do not consume more than this budget. By default,
-a Session enforces this privacy guarantee at the row level: the queries prevent
-an attacker from learning whether an individual row has been added or removed in
-each of the private tables, provided that the private data is not used elsewhere
-in the computation of the queries.
-
-More details on the exact privacy promise provided by :class:`Session` can be
-found in the :ref:`Privacy promise topic guide <Privacy promise>`.
+evaluated on the private data do not consume more than this budget. A simple
+introduction to Session initialization and use can be found in the
+:ref:`First steps` and :ref:`Working with privacy budgets` tutorials. More
+details on the exact privacy promise provided by :class:`Session` can be found
+in the :ref:`Privacy promise` topic guide.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -262,6 +259,10 @@ class Session:
 
     Sessions should not be directly constructed. Instead, they should be created
     using :meth:`from_dataframe` or with a :class:`Builder`.
+
+    A simple introduction to Session initialization and use can be found in the
+    :ref:`first <First steps>` and :ref:`second <Working with privacy budgets>`
+    tutorials.
     """
 
     class Builder(DataFrameMixin, PrivacyBudgetMixin, BaseBuilder):

@@ -91,6 +91,8 @@ SQL <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`
 With Tumult Analytics, using transformations is that easy, and we will see that other
 transformations can be similarly expressed.
 
+.. _Maps:
+
 Maps
 ----
 
@@ -192,7 +194,7 @@ column would no longer be available: the only column in the transformed data wou
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
-.. _flat-map-tutorial-5:
+.. _Flat maps:
 
 Flat maps
 ---------
@@ -303,6 +305,8 @@ there are many members with three, so we set ``max_rows=3``.
     :alt: A bar chart plotting the count of members favoring each genre. The chart is sorted so that the genres are in descending order of popularity, starting with "Mystery/thriller/crime"
     :align: center
 
+.. _Binning:
+
 Binning
 -----------
 
@@ -399,6 +403,8 @@ to specify the name of the new column.
 Also available is the :meth:`histogram<tmlt.analytics.query_builder.QueryBuilder.histogram>`
 method, which provides a shorthand syntax for obtaining binned counts in
 simple cases.
+
+.. _Public joins:
 
 Public joins
 --------------
