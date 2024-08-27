@@ -203,7 +203,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/1.18/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/version/1.2.0/", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
-    "pyspark": ("https://spark.apache.org/docs/3.1.1/api/python/", None),
+    "pyspark": ("https://archive.apache.org/dist/spark/docs/3.1.1/api/python/", None),
 }
 
 
@@ -248,6 +248,7 @@ def skip_members(app, what, name, obj, skip, options):
     if "@nodoc" in obj.docstring:
         return True
     return skip
+
 
 def setup(sphinx):
     sphinx.connect("autoapi-skip-member", skip_members)
