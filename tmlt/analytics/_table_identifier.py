@@ -34,14 +34,27 @@ class TableCollection(Identifier):
         return f"TableCollection({self.name})"
 
 
-# It is essential that every TemporaryTable is equal only to itself.
+# It is essential that every TemporaryTable is equal only to itself and copies of
+# itself.
+@dataclass(init=False, frozen=True)
 class TemporaryTable(Identifier):
     """Identify temporary tables."""
 
+    _id: int
+
+    def __init__(self):
+        """Creates a new TemporaryTable with an automatically-generated id."""
+        object.__setattr__(self, "_id", id(self))
+
     def __str__(self):
         """Returns the hashed string representation of the NamedTable."""
-        return f"TemporaryTable({hash(self)})"
+        return f"TemporaryTable({self._id})"
 
     def __repr__(self):
         """Returns the hashed object representation in string format."""
-        return f"TemporaryTable({hash(self)})"
+        return f"TemporaryTable({self._id})"
+
+    def __copy__(self):
+        """Creates a copy of this TemporaryTable with the same id."""
+        other = TemporaryTable()
+        object.__setattr__(other, "_id", self._id)

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+import copy
+
 import pytest
 
 from tmlt.analytics._table_identifier import NamedTable, TableCollection, TemporaryTable
@@ -44,3 +46,13 @@ def test_table_reference_empty_errors():
         _ = TableReference(path=[]).parent
     with pytest.raises(IndexError):
         _ = TableReference(path=[]).identifier
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [NamedTable(name="foo"), TableCollection(name="bar"), TemporaryTable()],
+)
+def test_table_reference_copy(identifier):
+    """Test that table identifiers copy correctly."""
+    identifier_copy = copy.deepcopy(identifier)
+    assert identifier_copy == identifier
