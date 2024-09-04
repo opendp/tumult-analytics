@@ -8,6 +8,7 @@ Changelog
 
 Unreleased
 ----------
+
 This is a maintenance release, with no externally-visible changes.
 
 .. _v0.16.0:
