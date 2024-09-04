@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.16.1:
+
+0.16.1 - 2024-09-04
+-------------------
 
 This is a maintenance release, with no externally-visible changes.
 
