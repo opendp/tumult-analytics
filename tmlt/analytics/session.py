@@ -327,8 +327,8 @@ class Session:
             public_sources: The public data for the queries.
                 Provided as a dictionary {source_id: dataframe}
         """
-        check_type("accountant", accountant, PrivacyAccountant)
-        check_type("public_sources", public_sources, Dict[str, DataFrame])
+        check_type(accountant, PrivacyAccountant)
+        check_type(public_sources, Dict[str, DataFrame])
 
         self._accountant = accountant
 
@@ -432,7 +432,7 @@ class Session:
         """
         # pylint: disable=protected-access
         output_measure: Union[PureDP, ApproxDP, RhoZCDP]
-        sympy_budget: sp.Expr
+        sympy_budget: Union[sp.Expr, Tuple[sp.Expr, sp.Expr]]
         if isinstance(privacy_budget, PureDPBudget):
             output_measure = PureDP()
             sympy_budget = privacy_budget._epsilon.expr
@@ -441,7 +441,7 @@ class Session:
             if privacy_budget.is_infinite:
                 sympy_budget = (
                     ExactNumber.from_float(float("inf"), round_up=False).expr,
-                    1,
+                    ExactNumber(1).expr,
                 )
             else:
                 sympy_budget = (
@@ -943,8 +943,8 @@ class Session:
         privacy_budget: PrivacyBudget,
     ) -> Tuple[Measurement, PrivacyBudget, NoiseInfo]:
         """Pre-processing needed for evaluate() and _noise_info()."""
-        check_type("query_expr", query_expr, QueryExpr)
-        check_type("privacy_budget", privacy_budget, PrivacyBudget)
+        check_type(query_expr, QueryExpr)
+        check_type(privacy_budget, PrivacyBudget)
 
         is_approxDP_session = self._accountant.output_measure == ApproxDP()
 
@@ -1077,7 +1077,7 @@ class Session:
             privacy_budget: The privacy budget used for the query.
         """
         # pylint: enable=line-too-long
-        check_type("query_expr", query_expr, Query)
+        check_type(query_expr, Query)
         query = query_expr._query_expr  # pylint: disable=protected-access
         measurement, adjusted_budget, _ = self._compile_and_get_info(
             query, privacy_budget

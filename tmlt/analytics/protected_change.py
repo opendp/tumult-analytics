@@ -35,7 +35,7 @@ class AddMaxRows(ProtectedChange):
 
     def __post_init__(self):
         """Validate attributes."""
-        check_type("max_rows", self.max_rows, int)
+        check_type(self.max_rows, int)
         if self.max_rows < 1:
             raise ValueError("max_rows must be positive")
 
@@ -91,9 +91,9 @@ class AddMaxRowsInMaxGroups(ProtectedChange):
 
     def __post_init__(self):
         """Validate attributes."""
-        check_type("column", self.grouping_column, str)
-        check_type("max_groups", self.max_groups, int)
-        check_type("max_rows_per_group", self.max_rows_per_group, int)
+        check_type(self.grouping_column, str)
+        check_type(self.max_groups, int)
+        check_type(self.max_rows_per_group, int)
         if self.max_groups < 1:
             raise ValueError("max_groups must be positive")
         if self.max_rows_per_group < 1:
@@ -122,9 +122,9 @@ class AddRowsWithID(ProtectedChange):
 
     def __post_init__(self):
         """Validate attributes."""
-        check_type("id_space", self.id_space, str)
+        check_type(self.id_space, str)
         if self.id_space == "":
             raise ValueError("identifier must be non-empty")
-        check_type("id_column", self.id_column, str)
+        check_type(self.id_column, str)
         if self.id_column == "":
             raise ValueError("id_column must be non-empty")

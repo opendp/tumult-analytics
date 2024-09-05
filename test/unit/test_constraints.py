@@ -6,6 +6,7 @@
 from typing import List
 
 import pytest
+from typeguard import TypeCheckError
 
 from tmlt.analytics.constraints import (
     Constraint,
@@ -47,7 +48,7 @@ def test_max_rows_per_group_per_id():
         MaxRowsPerGroupPerID("group_col", 0)
     with pytest.raises(ValueError):
         MaxRowsPerGroupPerID("group_col", -5)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         MaxRowsPerGroupPerID(5, 10)  # type: ignore
 
 

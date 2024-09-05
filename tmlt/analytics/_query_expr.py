@@ -7,7 +7,6 @@ directly constructed or deconstructed by most users; interfaces such as
 :class:`tmlt.analytics.session.Session` to consume them provide more
 user-friendly features.
 """
-# TODO: Known typeguard issue: https://github.com/agronholm/typeguard/issues/65
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -185,7 +184,7 @@ class PrivateSource(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("source_id", self.source_id, str)
+        check_type(self.source_id, str)
 
         if not self.source_id.isidentifier():
             raise ValueError(
@@ -215,8 +214,8 @@ class GetGroups(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, Optional[Tuple[str, ...]])
+        check_type(self.child, QueryExpr)
+        check_type(self.columns, Optional[Tuple[str, ...]])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -240,13 +239,13 @@ class GetBounds(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
+        check_type(self.child, QueryExpr)
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("lower_bound_column", self.lower_bound_column, str)
-        check_type("upper_bound_column", self.upper_bound_column, str)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.lower_bound_column, str)
+        check_type(self.upper_bound_column, str)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -270,9 +269,9 @@ class Rename(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("column_mapper", self.column_mapper, FrozenDict)
-        check_type("column_mapper", dict(self.column_mapper), Dict[str, str])
+        check_type(self.child, QueryExpr)
+        check_type(self.column_mapper, FrozenDict)
+        check_type(dict(self.column_mapper), Dict[str, str])
         for k, v in self.column_mapper.items():
             if v == "":
                 raise ValueError(
@@ -300,8 +299,8 @@ class Filter(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("condition", self.condition, str)
+        check_type(self.child, QueryExpr)
+        check_type(self.condition, str)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -319,8 +318,8 @@ class Select(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, Tuple[str, ...])
+        check_type(self.child, QueryExpr)
+        check_type(self.columns, Tuple[str, ...])
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")
 
@@ -348,10 +347,10 @@ class Map(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("f", self.f, Callable[[Row], Row])
-        check_type("schema_new_columns", self.schema_new_columns, Schema)
-        check_type("augment", self.augment, bool)
+        check_type(self.child, QueryExpr)
+        check_type(self.f, Callable[[Row], Row])
+        check_type(self.schema_new_columns, Schema)
+        check_type(self.augment, bool)
         if self.schema_new_columns.grouping_column is not None:
             raise ValueError("Map cannot be be used to create grouping columns")
 
@@ -402,11 +401,11 @@ class FlatMap(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("f", self.f, Callable[[Row], List[Row]])
-        check_type("max_rows", self.max_rows, Optional[int])
-        check_type("schema_new_columns", self.schema_new_columns, Schema)
-        check_type("augment", self.augment, bool)
+        check_type(self.child, QueryExpr)
+        check_type(self.f, Callable[[Row], List[Row]])
+        check_type(self.max_rows, Optional[int])
+        check_type(self.schema_new_columns, Schema)
+        check_type(self.augment, bool)
         if self.max_rows and self.max_rows < 0:
             raise ValueError(
                 f"Limit on number of rows '{self.max_rows}' must be non-negative."
@@ -459,9 +458,9 @@ class FlatMapByID(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("f", self.f, Callable[[List[Row]], List[Row]])
-        check_type("schema_new_columns", self.schema_new_columns, Schema)
+        check_type(self.child, QueryExpr)
+        check_type(self.f, Callable[[List[Row]], List[Row]])
+        check_type(self.schema_new_columns, Schema)
         if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:
             raise AnalyticsInternalError(
                 "FlatMapByID new column schema must not have a grouping or ID column."
@@ -510,19 +509,17 @@ class JoinPrivate(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("right_operand_expr", self.right_operand_expr, QueryExpr)
+        check_type(self.child, QueryExpr)
+        check_type(self.right_operand_expr, QueryExpr)
         check_type(
-            "truncation_strategy_left",
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
         )
         check_type(
-            "truncation_strategy_right",
             self.truncation_strategy_right,
             Optional[TruncationStrategy.Type],
         )
-        check_type("join_columns", self.join_columns, Optional[Tuple[str, ...]])
+        check_type(self.join_columns, Optional[Tuple[str, ...]])
 
         if self.join_columns is not None:
             if len(self.join_columns) == 0:
@@ -550,9 +547,9 @@ class JoinPublic(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("public_table", self.public_table, Union[DataFrame, str])
-        check_type("join_columns", self.join_columns, Optional[Tuple[str, ...]])
+        check_type(self.child, QueryExpr)
+        check_type(self.public_table, Union[DataFrame, str])
+        check_type(self.join_columns, Optional[Tuple[str, ...]])
 
         if self.join_columns is not None:
             if len(self.join_columns) == 0:
@@ -668,9 +665,8 @@ class ReplaceNullAndNan(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
+        check_type(self.child, QueryExpr)
         check_type(
-            "replace_with",
             self.replace_with,
             FrozenDict,
         )
@@ -701,9 +697,9 @@ class ReplaceInfinity(QueryExpr):
         self, child: QueryExpr, replace_with: FrozenDict = FrozenDict.from_dict({})
     ) -> None:
         """Checks arguments to constructor."""
-        check_type("child", child, QueryExpr)
-        check_type("replace_with", replace_with, FrozenDict)
-        check_type("replace_with", dict(replace_with), Dict[str, Tuple[float, float]])
+        check_type(child, QueryExpr)
+        check_type(replace_with, FrozenDict)
+        check_type(dict(replace_with), Dict[str, Tuple[float, float]])
 
         # Ensure that the values in replace_with are tuples of floats
         updated_dict = {}
@@ -741,8 +737,8 @@ class DropNullAndNan(QueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, Tuple[str, ...])
+        check_type(self.child, QueryExpr)
+        check_type(self.columns, Tuple[str, ...])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -764,8 +760,8 @@ class DropInfinity(QueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
-        check_type("columns", self.columns, Tuple[str, ...])
+        check_type(self.child, QueryExpr)
+        check_type(self.columns, Tuple[str, ...])
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -812,10 +808,10 @@ class GroupByCount(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, CountMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.output_column, str)
+        check_type(self.mechanism, CountMechanism)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -847,11 +843,11 @@ class GroupByCountDistinct(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("columns_to_count", self.columns_to_count, Optional[Tuple[str, ...]])
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, CountDistinctMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.columns_to_count, Optional[Tuple[str, ...]])
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.output_column, str)
+        check_type(self.mechanism, CountDistinctMechanism)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -891,13 +887,13 @@ class GroupByQuantile(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("quantile", self.quantile, float)
-        check_type("low", self.low, float)
-        check_type("high", self.high, float)
-        check_type("output_column", self.output_column, str)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.quantile, float)
+        check_type(self.low, float)
+        check_type(self.high, float)
+        check_type(self.output_column, str)
 
         if not 0 <= self.quantile <= 1:
             raise ValueError(
@@ -956,13 +952,13 @@ class GroupByBoundedSum(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("low", self.low, float)
-        check_type("high", self.high, float)
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, SumMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.low, float)
+        check_type(self.high, float)
+        check_type(self.output_column, str)
+        check_type(self.mechanism, SumMechanism)
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
@@ -1017,13 +1013,13 @@ class GroupByBoundedAverage(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("low", self.low, float)
-        check_type("high", self.high, float)
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, AverageMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.low, float)
+        check_type(self.high, float)
+        check_type(self.output_column, str)
+        check_type(self.mechanism, AverageMechanism)
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
@@ -1078,13 +1074,13 @@ class GroupByBoundedVariance(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("low", self.low, float)
-        check_type("high", self.high, float)
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, VarianceMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.low, float)
+        check_type(self.high, float)
+        check_type(self.output_column, str)
+        check_type(self.mechanism, VarianceMechanism)
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
@@ -1139,13 +1135,13 @@ class GroupByBoundedSTDEV(QueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type("child", self.child, QueryExpr)
-        check_type("groupby_keys", self.groupby_keys, (KeySet, Tuple[str, ...]))
-        check_type("measure_column", self.measure_column, str)
-        check_type("low", self.low, float)
-        check_type("high", self.high, float)
-        check_type("output_column", self.output_column, str)
-        check_type("mechanism", self.mechanism, StdevMechanism)
+        check_type(self.child, QueryExpr)
+        check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
+        check_type(self.measure_column, str)
+        check_type(self.low, float)
+        check_type(self.high, float)
+        check_type(self.output_column, str)
+        check_type(self.mechanism, StdevMechanism)
 
         if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
             # If one is int and other is float; silently cast to float
@@ -1182,14 +1178,14 @@ class SuppressAggregates(QueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("child", self.child, QueryExpr)
+        check_type(self.child, QueryExpr)
         if not isinstance(self.child, GroupByCount):
             raise TypeError(
                 "SuppressAggregates is only supported on aggregates that are "
                 "GroupByCounts"
             )
-        check_type("column", self.column, str)
-        check_type("threshold", self.threshold, float)
+        check_type(self.column, str)
+        check_type(self.threshold, float)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

@@ -6,6 +6,7 @@
 import pandas as pd
 import pytest
 from pyspark.sql.types import DoubleType, LongType, StructField, StructType
+from typeguard import TypeCheckError
 
 from tmlt.analytics._base_builder import (
     BaseBuilder,
@@ -45,7 +46,7 @@ def test_privacy_budget_multiple_set():
 def test_privacy_budget_rejects_wrong_type():
     """PrivacyBudgetMixin raises an error when the privacy budget is the wrong type."""
     builder = _PrivacyBudgetBuilder()
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         builder.with_privacy_budget("not a privacy budget")  # type: ignore
 
 
@@ -140,22 +141,22 @@ def test_dataframes_rejects_wrong_types(spark):
     """DataFrameMixin raises an error if arguments are the wrong type(s)."""
     builder = _DataFrameBuilder()
     df = spark.createDataFrame(pd.DataFrame({"A": [1]}))
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         # Wrong type for Source ID
         builder.with_private_dataframe(1, df, AddMaxRows(1))  # type: ignore
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         builder.with_private_dataframe(
             "source_id", "not a dataframe", AddMaxRows(1)  # type: ignore
         )
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         # wrong type for ProtectedChange
         builder.with_private_dataframe("source_id", df, 12)  # type: ignore
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         # Wrong type for source ID
         builder.with_public_dataframe(AddMaxRows(1), df)  # type: ignore
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         builder.with_public_dataframe("source_id", "not a dataframe")  # type: ignore
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         # ID space should be a string
         builder.with_id_space(1)  # type: ignore
 
@@ -204,5 +205,5 @@ def test_parameters_name_conflicts():
 def test_parameters_rejects_wrong_name_type():
     """ParameterMixin raises an error if name is not a string."""
     builder = _ParameterBuilder()
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         builder.with_parameter(2, "a")  # type: ignore

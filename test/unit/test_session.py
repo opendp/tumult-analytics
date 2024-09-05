@@ -50,6 +50,7 @@ from tmlt.core.metrics import (
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
+from typeguard import TypeCheckError
 
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
@@ -1661,12 +1662,8 @@ class TestInvalidSession:
         ) as mock_accountant:
             # Private
             with pytest.raises(
-                TypeError,
-                match=(
-                    'type of argument "dataframe" must be'
-                    " pyspark.sql.dataframe.DataFrame; got pandas.core.frame.DataFrame"
-                    " instead"
-                ),
+                TypeCheckError,
+                match=('"dataframe"'),
             ):
                 Session.from_dataframe(
                     privacy_budget=PureDPBudget(1),
@@ -1679,12 +1676,8 @@ class TestInvalidSession:
 
             session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(
-                TypeError,
-                match=(
-                    'type of argument "dataframe" must be'
-                    " pyspark.sql.dataframe.DataFrame; got pandas.core.frame.DataFrame"
-                    " instead"
-                ),
+                TypeCheckError,
+                match=('"dataframe"'),
             ):
                 session.add_public_dataframe(source_id="public", dataframe=self.pdf)
 
@@ -1808,7 +1801,11 @@ class TestInvalidSession:
     @pytest.mark.parametrize(
         "source_id,exception_type,expected_error_msg",
         [
-            (2, TypeError, 'type of argument "source_id" must be str; got int instead'),
+            (
+                2,
+                TypeCheckError,
+                '"source_id"',
+            ),
             (
                 "@str",
                 ValueError,
@@ -1896,24 +1893,13 @@ class TestInvalidSession:
 
             session = Session(accountant=mock_accountant, public_sources={})
             with pytest.raises(
-                TypeError,
-                match=re.escape(
-                    "type of query_expr must be tmlt.analytics.query_builder.Query;"
-                    " got list instead"
-                ),
+                TypeCheckError,
             ):
                 session.evaluate(query_expr, privacy_budget=PureDPBudget(float("inf")))
 
     @pytest.mark.parametrize(
         "query_expr,exception_type,expected_error_msg",
-        [
-            (
-                "filter private A == 0",
-                TypeError,
-                'type of argument "query_expr" must be '
-                "tmlt.analytics.query_builder.QueryBuilder; got str instead",
-            )
-        ],
+        [("filter private A == 0", TypeCheckError, '"query_expr"')],
     )
     def test_invalid_queries_create(
         self,
@@ -2029,10 +2015,7 @@ class TestInvalidSession:
 
             with pytest.raises(
                 TypeError,
-                match=(
-                    r"'A' column is of type 'StringType\(?\)?'; 'StringType\(?\)?' "
-                    "column not compatible with splits value type 'int'"
-                ),
+                match="'A'",
             ):
                 session.partition_and_create(
                     "private",

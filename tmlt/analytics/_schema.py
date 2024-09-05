@@ -65,7 +65,7 @@ class FrozenDict:
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("child", self.elements, Tuple[keyValuePair, ...])
+        check_type(self.elements, Tuple[keyValuePair, ...])
 
     def __getitem__(self, key):
         """Returns the value of the key if it exists, otherwise raise KeyError."""
@@ -91,7 +91,7 @@ class FrozenDict:
     @staticmethod
     def from_dict(dictionary: MappingType[str, Any]) -> "FrozenDict":
         """Returns an FrozenDict from a dictionary."""
-        check_type("dictionary", dictionary, MappingType[str, Any])
+        check_type(dictionary, MappingType[str, Any])
         elements = tuple(keyValuePair(key, value) for key, value in dictionary.items())
         return FrozenDict(elements)
 

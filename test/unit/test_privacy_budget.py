@@ -8,6 +8,7 @@ from typing import List
 
 import pytest
 from tmlt.core.utils.exact_number import ExactNumber
+from typeguard import TypeCheckError
 
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -49,7 +50,7 @@ def test_constructor_fail_negative_float():
 
 def test_constructor_fail_bad_epsilon_type():
     """Tests that construction fails with epsilon that is not an int or float."""
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         PureDPBudget("1.5")  # type: ignore
 
 
@@ -117,13 +118,13 @@ def test_constructor_fail_delta_negative_float_ApproxDP():
 
 def test_constructor_fail_bad_epsilon_type_ApproxDP():
     """Tests that construction fails with epsilon that is not an int or float."""
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         ApproxDPBudget("1.5", 0.5)  # type: ignore
 
 
 def test_constructor_fail_bad_delta_type_ApproxDP():
     """Tests that construction fails with delta that is not an int or float."""
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         ApproxDPBudget(0.5, "1.5")  # type: ignore
 
 
@@ -172,7 +173,7 @@ def test_constructor_fail_negative_float_ZCDP():
 
 def test_constructor_fail_bad_rho_type_ZCDP():
     """Tests that construction fails with rho that is not an int or float."""
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         RhoZCDPBudget("1.5")  # type: ignore
 
 

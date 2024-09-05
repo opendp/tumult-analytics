@@ -96,7 +96,7 @@ class MaxRowsPerID(Constraint):
 
     def __post_init__(self):
         """Check constructor arguments."""
-        check_type("max", self.max, int)
+        check_type(self.max, int)
         if self.max < 1:
             raise ValueError(f"max must be a positive integer, not {self.max}")
 
@@ -176,8 +176,8 @@ class MaxGroupsPerID(Constraint):
 
     def __post_init__(self):
         """Check constructor arguments."""
-        check_type("grouping_column", self.grouping_column, str)
-        check_type("max", self.max, int)
+        check_type(self.grouping_column, str)
+        check_type(self.max, int)
         if self.grouping_column == "":
             raise ValueError("grouping_column cannot be empty")
         if self.max < 1:
@@ -287,10 +287,10 @@ class MaxRowsPerGroupPerID(Constraint):
 
     def __post_init__(self):
         """Check constructor arguments."""
-        check_type("max", self.max, int)
+        check_type(self.max, int)
         if self.max < 1:
             raise ValueError(f"max must be a positive integer, not {self.max}")
-        check_type("grouping_column", self.grouping_column, str)
+        check_type(self.grouping_column, str)
         if self.grouping_column == "":
             raise ValueError("grouping_column cannot be empty")
 

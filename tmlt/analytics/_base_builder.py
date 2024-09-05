@@ -41,7 +41,7 @@ class PrivacyBudgetMixin:
     @typechecked
     def with_privacy_budget(self, privacy_budget: PrivacyBudget):
         """Set the privacy budget for the object being built."""
-        check_type("privacy_budget", privacy_budget, PrivacyBudget)
+        check_type(privacy_budget, PrivacyBudget)
         if self.__budget is not None:
             raise ValueError("This builder already has a privacy budget set")
         self.__budget = privacy_budget
@@ -191,7 +191,7 @@ class ParameterMixin:
     @typechecked
     def with_parameter(self, name: str, value: Any):
         """Set the value of a parameter."""
-        check_type("name", name, str)
+        check_type(name, str)
         if name in self.__parameters:
             raise ValueError(f"Parameter '{name}' has already been set")
         self.__parameters[name] = value

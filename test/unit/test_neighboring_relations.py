@@ -22,6 +22,7 @@ from tmlt.core.metrics import (
     SymmetricDifference,
 )
 from tmlt.core.utils.exact_number import ExactNumber
+from typeguard import TypeCheckError
 
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
@@ -94,7 +95,7 @@ class TestNeighboringRelations:
         with pytest.raises(ValueError):
             AddRemoveRows("table1", n=1).validate_input(self.testdfsdict)
         # table's value is of wrong type
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeCheckError):
             AddRemoveRows("table1", n=1).validate_input(
                 {"table1": ["a", "random", "list"]}  # type: ignore
             )
@@ -137,7 +138,7 @@ class TestNeighboringRelations:
                 self.testdfsdictgrouping
             )
         # table's value is not a DataFrame
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeCheckError):
             AddRemoveRowsAcrossGroups("table1", "B", 1, 1).validate_input(
                 {"table1": ["a", "random", "list"]}  # type: ignore
             )

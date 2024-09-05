@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
+from typeguard import TypeCheckError
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
@@ -51,7 +52,7 @@ from ..conftest import assert_frame_equal_with_sort
 @pytest.mark.parametrize(
     "invalid_source_id,exception_type,expected_error_msg",
     [
-        (1001, TypeError, "type of source_id must be str; got int instead"),
+        (1001, TypeCheckError, None),
         (" ", ValueError, "source_id must be a valid Python identifier."),
         ("space present", ValueError, "source_id must be a valid Python identifier."),
         (
@@ -70,15 +71,15 @@ def test_invalid_private_source(
 
 
 @pytest.mark.parametrize(
-    "column_mapper,expected_error_msg",
+    "column_mapper",
     [
-        (True, "type of dictionary must be collections.abc.Mapping; got bool instead"),
-        ({"A": 123}, r"type of column_mapper\['A'] must be str; got int instead"),
+        (True,),
+        ({"A": 123},),
     ],
 )
-def test_invalid_rename(column_mapper: Dict[str, str], expected_error_msg: str):
+def test_invalid_rename(column_mapper: Dict[str, str]):
     """Tests that invalid Rename errors on post-init."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises(TypeCheckError):
         Rename(PrivateSource("private"), FrozenDict.from_dict(column_mapper))
 
 
@@ -96,21 +97,23 @@ def test_invalid_rename_empty_string():
 
 def test_invalid_filter():
     """Tests that invalid Filter errors on post-init."""
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         Filter(PrivateSource("private"), 0)  # type: ignore
 
 
 @pytest.mark.parametrize(
-    "columns, expected_error_msg",
+    "columns",
     [
-        (True, "type of columns must be a tuple; got bool instead"),
-        (tuple([1]), "type of columns[0] must be str; got int instead"),
-        (("A", "B", "B"), "Column name appears more than once in ('A', 'B', 'B')"),
+        (True,),
+        (tuple([1]),),
+        (("A", "B", "B"),),
     ],
 )
-def test_invalid_select(columns: Tuple[str, ...], expected_error_msg: str):
+def test_invalid_select(
+    columns: Tuple[str, ...],
+):
     """Tests that invalid Rename errors on post-init."""
-    with pytest.raises((ValueError, TypeError), match=re.escape(expected_error_msg)):
+    with pytest.raises((ValueError, TypeCheckError)):
         Select(PrivateSource("private"), columns)
 
 
@@ -121,16 +124,13 @@ def test_invalid_select(columns: Tuple[str, ...], expected_error_msg: str):
             lambda row: {"C": 2 * str(row["B"])},
             Schema({"C": "VARCHAR"}),
             1.0,
-            "type of augment must be bool; got float instead",
+            None,
         ),
         (  # Invalid Schema
             lambda row: {"C": 2 * str(row["B"])},
             {"C": "VARCHAR"},
             True,
-            (
-                "type of schema_new_columns must be "
-                "tmlt.analytics._schema.Schema; got dict instead"
-            ),
+            None,
         ),
         (  # Grouping column in schema
             lambda row: {"C": 2 * str(row["B"])},
@@ -144,7 +144,7 @@ def test_invalid_map(
     func: Callable, schema_new_columns: Schema, augment: bool, expected_error_msg: str
 ):
     """Tests that invalid Map errors on post-init."""
-    with pytest.raises((TypeError, ValueError), match=expected_error_msg):
+    with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
         Map(PrivateSource("private"), func, schema_new_columns, augment)
 
 
@@ -171,7 +171,7 @@ def test_invalid_map(
             2,
             Schema({"i": "INTEGER"}),
             1.0,
-            "type of augment must be bool; got float instead",
+            None,
         ),
         (  # Invalid grouping result
             PrivateSource("private"),
@@ -195,7 +195,7 @@ def test_invalid_flatmap(
     expected_error_msg: str,
 ):
     """Tests that invalid FlatMap errors on post-init."""
-    with pytest.raises((TypeError, ValueError), match=expected_error_msg):
+    with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
         FlatMap(child, func, schema_new_columns, augment, max_rows)
 
 
@@ -250,79 +250,62 @@ def test_invalid_how():
 @pytest.mark.parametrize(
     "replace_with,expected_error_msg",
     [
-        (
-            {"str": 100.0},
-            re.escape(
-                r"type of replace_with['str'] must be a tuple; got float instead"
-            ),
-        ),
-        (
-            {"str": [100.0, 100.0]},
-            re.escape(r"type of replace_with['str'] must be a tuple; got list instead"),
-        ),
-        (
-            [],
-            re.escape(r"type of replace_with must be a dict; got list instead"),
-        ),
+        ({"str": 100.0}, None),
+        ({"str": [100.0, 100.0]}, None),
+        ([], None),
         (
             {"A": (-100.0,)},
-            re.escape(
-                r"replace_with['A'] has wrong number of elements (expected 2, got 1"
-                r" instead)"
-            ),
+            re.escape("'A'"),
         ),
     ],
 )
 def test_invalid_replace_infinity(replace_with: Any, expected_error_msg: str) -> None:
     """Test ReplaceInfinity with invalid arguments."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises((TypeCheckError), match=expected_error_msg):
         QueryBuilder("private").replace_infinity(replace_with)
 
 
 @pytest.mark.parametrize(
-    "columns,expected_error_msg",
+    "columns",
     [
-        ("A", "type of columns must be a tuple; got str instead"),
-        (["A", "B"], "type of columns must be a tuple; got list instead"),
-        (tuple([1]), re.escape(r"type of columns[0] must be str; got int instead")),
+        "A",
+        ["A", "B"],
+        tuple([1]),
     ],
 )
-def test_invalid_drop_null_and_nan(columns: Any, expected_error_msg: str) -> None:
+def test_invalid_drop_null_and_nan(columns: Any) -> None:
     """Test DropNullAndNan with invalid arguments."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises(TypeCheckError):
         DropNullAndNan(PrivateSource("private"), columns)
 
 
 @pytest.mark.parametrize(
-    "columns,expected_error_msg",
+    "columns",
     [
-        ("A", "type of columns must be a tuple; got str instead"),
-        (["A", "B"], "type of columns must be a tuple; got list instead"),
-        (tuple([1]), re.escape(r"type of columns[0] must be str; got int instead")),
+        "A",
+        ["A", "B"],
+        tuple([1]),
     ],
 )
-def test_invalid_drop_infinity(columns: Any, expected_error_msg: str) -> None:
+def test_invalid_drop_infinity(columns: Any) -> None:
     """Test DropInfinity with invalid arguments."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises(TypeCheckError):
         DropInfinity(PrivateSource("private"), columns)
 
 
 @pytest.mark.parametrize(
-    "child,keys,expected_error_msg,output_column",
+    "child,keys,output_column",
     [
         (
             PrivateSource("private"),
             KeySet.from_dict({}),
-            "type of output_column must be str; got int instead",
             123,
         )
     ],
 )
-def test_invalid_groupbycount(
-    child: QueryExpr, keys: KeySet, expected_error_msg: str, output_column: str
-):
+def test_invalid_groupbycount(child: QueryExpr, keys: KeySet, output_column: str):
     """Tests that invalid GroupByCount errors on post-init."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises(TypeCheckError):
         GroupByCount(child, keys, output_column)
 
 
@@ -334,7 +317,7 @@ def test_invalid_groupbycount(
             "B",
             "1.0",
             10.0,
-            "type of low must be either float or int; got str instead",
+            None,
         ),
         (
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -362,7 +345,7 @@ def test_invalid_groupbyagg(
         GroupByBoundedVariance,
         GroupByBoundedSTDEV,
     ]:
-        with pytest.raises((TypeError, ValueError), match=expected_error_msg):
+        with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
             DataClass(PrivateSource("private"), keys, measure_column, low, high)
 
 
@@ -375,7 +358,7 @@ def test_invalid_groupbyagg(
             "0",
             8.0,
             10.0,
-            "type of quantile must be either float or int; got str instead",
+            None,
         ),
         (
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -399,7 +382,7 @@ def test_invalid_groupbyagg(
             0.5,
             "1.0",
             10.0,
-            "type of low must be either float or int; got str instead",
+            None,
         ),
         (
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -428,7 +411,7 @@ def test_invalid_groupbyquantile(
     expected_error_msg: str,
 ):
     """Test invalid GroupByQuantile."""
-    with pytest.raises((TypeError, ValueError), match=expected_error_msg):
+    with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
         GroupByQuantile(
             PrivateSource("private"), keys, measure_column, quantile, low, high
         )
@@ -578,13 +561,13 @@ def test_join_public_dataframe_validation_column_type(spark):
             GroupByCount(PrivateSource("P"), KeySet.from_dict({})),
             -17,
             0,
-            "column must be str",
+            None,
         ),
         (
             GroupByCount(PrivateSource("P"), KeySet.from_dict({})),
             "count",
             "not an int",
-            "threshold must be either float or int",
+            None,
         ),
     ],
 )
@@ -596,5 +579,5 @@ def test_invalid_suppress_aggregates(
     expected_error_msg: str,
 ) -> None:
     """Test that SuppressAggregates rejects invalid arguments."""
-    with pytest.raises(TypeError, match=expected_error_msg):
+    with pytest.raises((TypeError, TypeCheckError), match=expected_error_msg):
         SuppressAggregates(child, column, threshold)

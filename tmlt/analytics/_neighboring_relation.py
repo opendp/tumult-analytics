@@ -65,15 +65,15 @@ class AddRemoveRows(NeighboringRelation):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("source_id", self.table, str)
-        check_type("n", self.n, int)
+        check_type(self.table, str)
+        check_type(self.n, int)
 
     def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
         """Does nothing if input is valid, otherwise raises an informative exception.
 
         Used only for top-level validation.
         """
-        check_type("dfs", dfs, Dict[str, DataFrame])
+        check_type(dfs, Dict[str, DataFrame])
         if len(dfs) > 1:
             raise ValueError(
                 f"The provided input contains too many items: {dfs.items()}."
@@ -128,10 +128,10 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("table", self.table, str)
-        check_type("grouping_column", self.grouping_column, str)
-        check_type("max_groups", self.max_groups, int)
-        check_type("per_group", self.per_group, int)
+        check_type(self.table, str)
+        check_type(self.grouping_column, str)
+        check_type(self.max_groups, int)
+        check_type(self.per_group, int)
 
     def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
         """Does nothing if input is valid, otherwise raises an informative exception.
@@ -142,7 +142,7 @@ class AddRemoveRowsAcrossGroups(NeighboringRelation):
         # and the columns exist and have appropriate types
         # private checks to be done if this is a top-level call:
         # the input dict is of length one, is a DataFrame + public checks.
-        check_type("dfs", dfs, Dict[str, DataFrame])
+        check_type(dfs, Dict[str, DataFrame])
         if len(dfs) > 1:
             raise ValueError(
                 f"The provided input contains too many items: {dfs.items()}."
@@ -217,9 +217,9 @@ class AddRemoveKeys(NeighboringRelation):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type("id_space", self.id_space, str)
-        check_type("table_to_key_column", self.table_to_key_column, Dict[str, str])
-        check_type("max_keys", self.max_keys, int)
+        check_type(self.id_space, str)
+        check_type(self.table_to_key_column, Dict[str, str])
+        check_type(self.max_keys, int)
         if self.id_space == "":
             raise ValueError("id space must be non-empty")
         if len(self.table_to_key_column) == 0:
@@ -243,7 +243,7 @@ class AddRemoveKeys(NeighboringRelation):
         """
         # checks needed here:
         # - input type
-        check_type("dfs", dfs, Dict[str, DataFrame])
+        check_type(dfs, Dict[str, DataFrame])
         # - all tables present in table_to_key_column are in the input tables
         difference = set(self.table_to_key_column.keys()).difference(set(dfs.keys()))
         if difference:
@@ -325,7 +325,7 @@ class Conjunction(NeighboringRelation):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type("children", self.children, List[NeighboringRelation])
+        check_type(self.children, List[NeighboringRelation])
 
     def validate_input(self, dfs: Dict[str, DataFrame]) -> bool:
         """Does nothing if input is valid, otherwise raises an informative exception."""
@@ -333,7 +333,7 @@ class Conjunction(NeighboringRelation):
         # checks that every input table in dfs is covered in the relation
         # checks each table is covered only once in the relation
         # validation checks pass for each of the children
-        check_type("dfs", dfs, Dict[str, DataFrame])
+        check_type(dfs, Dict[str, DataFrame])
         covered_tables: List[str] = []
         for child in self.children:
             relation_table_names = child._validate(dfs)

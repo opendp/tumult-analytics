@@ -7,6 +7,7 @@ from contextlib import nullcontext as does_not_raise
 from typing import Any, ContextManager, List
 
 import pytest
+from typeguard import TypeCheckError
 
 from tmlt.analytics.protected_change import (
     AddMaxRows,
@@ -33,9 +34,7 @@ def test_add_one_row():
         ([-1], pytest.raises(ValueError, match="^max_rows must be positive$")),
         (
             ["a"],
-            pytest.raises(
-                TypeError, match="^type of max_rows must be int; got str instead$"
-            ),
+            pytest.raises(TypeCheckError),
         ),
     ],
 )
@@ -57,21 +56,18 @@ def test_add_max_rows(args: List[Any], expectation: ContextManager[None]):
         ),
         (
             [1, 1, 1],
-            pytest.raises(
-                TypeError, match="^type of column must be str; got int instead$"
-            ),
+            pytest.raises(TypeCheckError),
         ),
         (
             ["x", "y", 1],
             pytest.raises(
-                TypeError, match="^type of max_groups must be int; got str instead$"
+                TypeCheckError,
             ),
         ),
         (
             ["x", 1, "y"],
             pytest.raises(
-                TypeError,
-                match=(r"^type of max_rows_per_group must be int; got str instead$"),
+                TypeCheckError,
             ),
         ),
     ],
@@ -91,9 +87,7 @@ def test_add_max_rows_per_group_invalid(
         (["y"], does_not_raise()),
         (
             [1],
-            pytest.raises(
-                TypeError, match="^type of id_column must be str; got int instead$"
-            ),
+            pytest.raises(TypeCheckError),
         ),
         (["x", "x_space"], does_not_raise()),
         (["x", ""], pytest.raises(ValueError, match="identifier must be non-empty")),

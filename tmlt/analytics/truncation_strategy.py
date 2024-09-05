@@ -81,7 +81,7 @@ class TruncationStrategy:
 
         def __post_init__(self):
             """Check arguments to constructor."""
-            check_type("max_rows", self.max_rows, int)
+            check_type(self.max_rows, int)
             if self.max_rows < 1:
                 raise ValueError("At least one row must be kept for each join key.")
 
