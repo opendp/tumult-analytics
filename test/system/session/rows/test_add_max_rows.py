@@ -13,6 +13,7 @@ from tmlt.core.measurements.interactive_measurements import PrivacyAccountantSta
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
+from tmlt.core.utils.testing import Case, parametrize
 
 from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._query_expr import (
@@ -47,7 +48,7 @@ from tmlt.analytics.query_builder import (
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
-from ....conftest import assert_frame_equal_with_sort, params
+from ....conftest import assert_frame_equal_with_sort
 from .conftest import EVALUATE_TESTS
 
 Row = Dict[str, Any]
@@ -417,33 +418,31 @@ class TestSession:
         assert isinstance(actual_sdf, DataFrame)
         assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
 
-    @params(
-        {
-            "positive": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(100)],
-                    columns=["X"],
-                )
-            },
-            "negative": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(-99, 0)],
-                    columns=["X"],
-                )
-            },
-            "positive_and_negative": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(-99, 100)],
-                    columns=["X"],
-                )
-            },
-            "floats": {
-                "data": pd.DataFrame(
-                    [[float(i) + 0.5] for i in range(-99, 100)],
-                    columns=["X"],
-                )
-            },
-        }
+    @parametrize(
+        Case("positive")(
+            data=pd.DataFrame(
+                [[i] for i in range(100)],
+                columns=["X"],
+            )
+        ),
+        Case("negative")(
+            data=pd.DataFrame(
+                [[i] for i in range(-99, 0)],
+                columns=["X"],
+            )
+        ),
+        Case("positive_and_negative")(
+            data=pd.DataFrame(
+                [[i] for i in range(-99, 100)],
+                columns=["X"],
+            )
+        ),
+        Case("floats")(
+            data=pd.DataFrame(
+                [[float(i) + 0.5] for i in range(-99, 100)],
+                columns=["X"],
+            )
+        ),
     )
     def test_get_bounds_inf_budget(self, spark, data):
         """Test that the get_bounds produces reasonable bounds."""
@@ -469,33 +468,31 @@ class TestSession:
         true_min = data["X"].min()
         assert upper - lower < 4 * max(abs(true_max), abs(true_min))
 
-    @params(
-        {
-            "positive": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(100)],
-                    columns=["X"],
-                )
-            },
-            "negative": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(-99, 0)],
-                    columns=["X"],
-                )
-            },
-            "positive_and_negative": {
-                "data": pd.DataFrame(
-                    [[i] for i in range(-99, 100)],
-                    columns=["X"],
-                )
-            },
-            "floats": {
-                "data": pd.DataFrame(
-                    [[float(i) + 0.5] for i in range(-99, 100)],
-                    columns=["X"],
-                )
-            },
-        }
+    @parametrize(
+        Case("positive")(
+            data=pd.DataFrame(
+                [[i] for i in range(100)],
+                columns=["X"],
+            )
+        ),
+        Case("negative")(
+            data=pd.DataFrame(
+                [[i] for i in range(-99, 0)],
+                columns=["X"],
+            )
+        ),
+        Case("positive_and_negative")(
+            data=pd.DataFrame(
+                [[i] for i in range(-99, 100)],
+                columns=["X"],
+            )
+        ),
+        Case("floats")(
+            data=pd.DataFrame(
+                [[float(i) + 0.5] for i in range(-99, 100)],
+                columns=["X"],
+            )
+        ),
     )
     def test_get_bounds_inf_budget_sum(self, spark, data):
         """Test that the bounds from get_bounds produce a reasonable sum."""
@@ -527,41 +524,39 @@ class TestSession:
             1.1 * abs(true_sum) >= abs(got_sum)
         )
 
-    @params(
-        {
-            "str_column": {
-                "data": pd.DataFrame(
-                    [["0"], ["1"], ["1"]],
-                    columns=["str_column"],
-                ),
-                "column": "str_column",
-                "protected_change": AddOneRow(),
-                "error_type": ValueError,
-                "message": "Cannot get bounds for column 'str_column',"
-                " which is of type VARCHAR",
-            },
-            "missing_column": {
-                "data": pd.DataFrame(
-                    [[1], [0], [2]],
-                    columns=["int_column"],
-                ),
-                "column": "column_does_not_exist",
-                "protected_change": AddOneRow(),
-                "error_type": ValueError,
-                "message": "Cannot get bounds for column 'column_does_not_exist',"
-                " which does not exist",
-            },
-            "id_column": {
-                "data": pd.DataFrame(
-                    [[0, 10], [1, 20], [2, 30]],
-                    columns=["id_column", "int_column"],
-                ),
-                "column": "id_column",
-                "protected_change": AddRowsWithID("id_column"),
-                "error_type": ValueError,
-                "message": "get_bounds cannot be used on the privacy ID column",
-            },
-        }
+    @parametrize(
+        Case("str_column")(
+            data=pd.DataFrame(
+                [["0"], ["1"], ["1"]],
+                columns=["str_column"],
+            ),
+            column="str_column",
+            protected_change=AddOneRow(),
+            error_type=ValueError,
+            message="Cannot get bounds for column 'str_column',"
+            " which is of type VARCHAR",
+        ),
+        Case("missing_column")(
+            data=pd.DataFrame(
+                [[1], [0], [2]],
+                columns=["int_column"],
+            ),
+            column="column_does_not_exist",
+            protected_change=AddOneRow(),
+            error_type=ValueError,
+            message="Cannot get bounds for column 'column_does_not_exist',"
+            " which does not exist",
+        ),
+        Case("id_column")(
+            data=pd.DataFrame(
+                [[0, 10], [1, 20], [2, 30]],
+                columns=["id_column", "int_column"],
+            ),
+            column="id_column",
+            protected_change=AddRowsWithID("id_column"),
+            error_type=ValueError,
+            message="get_bounds cannot be used on the privacy ID column",
+        ),
     )
     def test_get_bounds_invalid_columns(
         self, spark, data, column, error_type, message, protected_change

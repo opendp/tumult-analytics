@@ -9,6 +9,7 @@ from typing import Dict, List, Type
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
+from tmlt.core.utils.testing import Case, parametrize
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
@@ -48,8 +49,6 @@ from tmlt.analytics._schema import (
 from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-
-from ...conftest import params
 
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
@@ -1090,53 +1089,51 @@ class TestValidationWithNulls:
         schema = self.visitor.visit_join_public(query)
         assert schema == expected_schema
 
-    @params(
-        {
-            "all_allow_null": {
-                "left_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "right_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-            },
-            "no_nulls_null": {
-                "left_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "right_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-            "public_only_null": {
-                "left_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "right_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-            "private_only_null": {
-                "left_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "right_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-        }
+    @parametrize(
+        Case("all_allow_null")(
+            left_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            right_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+        ),
+        Case("no_nulls_null")(
+            left_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            right_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
+        Case("public_only_null")(
+            left_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            right_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
+        Case("private_only_null")(
+            left_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            right_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
     )
     def test_visit_join_private_nulls(self, left_schema, right_schema, expected_schema):
         """Test that OutputSchemaVisitor correctly propagates nulls through a join."""
@@ -1153,53 +1150,51 @@ class TestValidationWithNulls:
         result_schema = visitor.visit_join_private(query)
         assert result_schema == expected_schema
 
-    @params(
-        {
-            "all_allow_null": {
-                "private_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "public_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-            },
-            "no_nulls_null": {
-                "private_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "public_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-            "public_only_null": {
-                "private_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "public_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-            "private_only_null": {
-                "private_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-                ),
-                "public_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-                "expected_schema": Schema(
-                    {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
-                ),
-            },
-        }
+    @parametrize(
+        Case("all_allow_null")(
+            private_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            public_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+        ),
+        Case("no_nulls")(
+            private_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            public_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
+        Case("public_only_null")(
+            private_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            public_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
+        Case("private_only_null")(
+            private_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
+            ),
+            public_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+            expected_schema=Schema(
+                {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)}
+            ),
+        ),
     )
     def test_visit_join_public_nulls(
         self, private_schema, public_schema, expected_schema
