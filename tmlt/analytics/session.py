@@ -20,7 +20,7 @@ in the :ref:`Privacy promise` topic guide.
 # Copyright Tumult Labs 2024
 
 from operator import xor
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from warnings import warn
 
 import pandas as pd  # pylint: disable=unused-import
@@ -268,6 +268,10 @@ class Session:
     class Builder(DataFrameMixin, PrivacyBudgetMixin, BaseBuilder):
         """Builder for :class:`Session`."""
 
+        def get_class_type(self):
+            """Returns Session type."""
+            return Session
+
         def build(self) -> "Session":
             """Builds Session with specified configuration."""
             if self._privacy_budget is None:
@@ -284,10 +288,8 @@ class Session:
                 source_id: dataframe
                 for source_id, (dataframe, _) in self._private_dataframes.items()
             }
-            sess = (
-                Session._from_neighboring_relation(  # pylint: disable=protected-access
-                    self._privacy_budget, tables, neighboring_relation
-                )
+            sess = self.get_class_type()._from_neighboring_relation(  # pylint: disable=protected-access
+                self._privacy_budget, tables, neighboring_relation
             )
             # check list of ARK identifiers against session's ID spaces
             if not isinstance(neighboring_relation, Conjunction):
@@ -310,7 +312,9 @@ class Session:
             return sess
 
     def __init__(
-        self, accountant: PrivacyAccountant, public_sources: Dict[str, DataFrame]
+        self,
+        accountant: PrivacyAccountant,
+        public_sources: Dict[str, DataFrame],
     ) -> None:
         """Initializes a DP session from a queryable.
 
@@ -404,7 +408,7 @@ class Session:
         """
         # pylint: enable=line-too-long
         session_builder = (
-            Session.Builder()
+            cls.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
             .with_private_dataframe(
                 source_id=source_id,
@@ -416,20 +420,12 @@ class Session:
 
     @classmethod
     @typechecked
-    def _from_neighboring_relation(
-        cls,
+    def _create_accountant_from_neighboring_relation(
+        cls: Type["Session"],
         privacy_budget: PrivacyBudget,
         private_sources: Dict[str, DataFrame],
         relation: NeighboringRelation,
-    ) -> "Session":
-        """Initializes a DP session using the provided :class:`NeighboringRelation`.
-
-        Args:
-            privacy_budget: The total privacy budget allocated to this session.
-            private_sources: The private data to be used in the session.
-                Provided as a dictionary {source_id: DataFrame}.
-            relation: the :class:`NeighboringRelation` to be used in the session.
-        """
+    ) -> Tuple[PrivacyAccountant, Any]:
         # pylint: disable=protected-access
         output_measure: Union[PureDP, ApproxDP, RhoZCDP]
         sympy_budget: Union[sp.Expr, Tuple[sp.Expr, sp.Expr]]
@@ -474,7 +470,28 @@ class Session:
             output_measure=output_measure,
         )
         accountant = PrivacyAccountant.launch(measurement, dataframes)
-        return Session(accountant=accountant, public_sources={})
+        return accountant, dataframes
+
+    @classmethod
+    @typechecked
+    def _from_neighboring_relation(
+        cls: Type["Session"],
+        privacy_budget: PrivacyBudget,
+        private_sources: Dict[str, DataFrame],
+        relation: NeighboringRelation,
+    ) -> "Session":
+        """Initializes a DP session using the provided :class:`NeighboringRelation`.
+
+        Args:
+            privacy_budget: The total privacy budget allocated to this session.
+            private_sources: The private data to be used in the session.
+                Provided as a dictionary {source_id: DataFrame}.
+            relation: the :class:`NeighboringRelation` to be used in the session.
+        """
+        accountant, _ = cls._create_accountant_from_neighboring_relation(
+            privacy_budget, private_sources, relation
+        )
+        return cls(accountant=accountant, public_sources={})
 
     @property
     def private_sources(self) -> List[str]:
@@ -1638,7 +1655,7 @@ class Session:
                     key=NamedTable(source),
                 )
             accountant.queue_transformation(nested_dict_transformation)
-            new_sessions[source] = Session(accountant, self._public_sources)
+            new_sessions[source] = self.__class__(accountant, self._public_sources)
         return new_sessions
 
     def _process_requested_budget(self, privacy_budget: PrivacyBudget) -> PrivacyBudget:
