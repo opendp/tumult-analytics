@@ -4,10 +4,12 @@
 # Copyright Tumult Labs 2024
 # pylint: disable=pointless-string-statement
 
-from typing import List
+import math
+from typing import List, Type, Union
 
 import pytest
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.testing import Case, parametrize
 from typeguard import TypeCheckError
 
 from tmlt.analytics.privacy_budget import (
@@ -330,3 +332,138 @@ def test_RhoZCDPBudget_immutability():
 def test_budget_equality(budget_a: PrivacyBudget, budget_b: PrivacyBudget, equal: bool):
     """Tests that two budgets are equal if they have the same value."""
     assert (budget_a == budget_b) == equal
+
+
+@parametrize(
+    Case("puredp_ints")(
+        budget=PureDPBudget(1),
+        divisor=2,
+        expected=PureDPBudget(0.5),
+    ),
+    Case("puredp_floats")(
+        budget=PureDPBudget(1.0),
+        divisor=2.0,
+        expected=PureDPBudget(0.5),
+    ),
+    Case("puredp_non_half")(
+        budget=PureDPBudget(2),
+        divisor=5,
+        expected=PureDPBudget(0.4),
+    ),
+    Case("puredp_bad_type")(
+        budget=PureDPBudget(2),
+        divisor={},
+        expected=TypeError,
+    ),
+    Case("puredp_zero_divisor")(
+        budget=PureDPBudget(2),
+        divisor=0,
+        expected=ValueError,
+    ),
+    Case("puredp_negative_divisor")(
+        budget=PureDPBudget(2),
+        divisor=-1,
+        expected=ValueError,
+    ),
+    Case("puredp_inf_divisor")(
+        budget=PureDPBudget(2),
+        divisor=float("inf"),
+        expected=ValueError,
+    ),
+    Case("puredp_nan_divisor")(
+        budget=PureDPBudget(2),
+        divisor=math.nan,
+        expected=ValueError,
+    ),
+    Case("zcdp_ints")(
+        budget=RhoZCDPBudget(1),
+        divisor=2,
+        expected=RhoZCDPBudget(0.5),
+    ),
+    Case("zcdp_floats")(
+        budget=RhoZCDPBudget(1.0),
+        divisor=2.0,
+        expected=RhoZCDPBudget(0.5),
+    ),
+    Case("zcdp_non_half")(
+        budget=RhoZCDPBudget(2),
+        divisor=5,
+        expected=RhoZCDPBudget(0.4),
+    ),
+    Case("zcdp_bad_type")(
+        budget=RhoZCDPBudget(2),
+        divisor={},
+        expected=TypeError,
+    ),
+    Case("zcdp_zero_divisor")(
+        budget=RhoZCDPBudget(2),
+        divisor=0,
+        expected=ValueError,
+    ),
+    Case("zcdp_negative_divisor")(
+        budget=RhoZCDPBudget(2),
+        divisor=-1,
+        expected=ValueError,
+    ),
+    Case("zcdp_inf_divisor")(
+        budget=RhoZCDPBudget(2),
+        divisor=float("inf"),
+        expected=ValueError,
+    ),
+    Case("zcdp_nan_divisor")(
+        budget=RhoZCDPBudget(2),
+        divisor=math.nan,
+        expected=ValueError,
+    ),
+    Case("approxdp_ints")(
+        budget=ApproxDPBudget(1, 0.1),
+        divisor=2,
+        expected=ApproxDPBudget(0.5, 0.05),
+    ),
+    Case("approxdp_floats")(
+        budget=ApproxDPBudget(1.0, 0.1),
+        divisor=2.0,
+        expected=ApproxDPBudget(0.5, 0.05),
+    ),
+    Case("approxdp_non_half")(
+        budget=ApproxDPBudget(2, 0.2),
+        divisor=5,
+        expected=ApproxDPBudget(0.4, 0.04),
+    ),
+    Case("approxdp_bad_type")(
+        budget=ApproxDPBudget(2, 0.1),
+        divisor={},
+        expected=TypeError,
+    ),
+    Case("approxdp_zero_divisor")(
+        budget=ApproxDPBudget(2, 0.1),
+        divisor=0,
+        expected=ValueError,
+    ),
+    Case("approxdp_negative_divisor")(
+        budget=ApproxDPBudget(2, 0.1),
+        divisor=-1,
+        expected=ValueError,
+    ),
+    Case("approxdp_inf_divisor")(
+        budget=ApproxDPBudget(2, 0.1),
+        divisor=float("inf"),
+        expected=ValueError,
+    ),
+    Case("approxdp_nan_divisor")(
+        budget=ApproxDPBudget(2, 0.1),
+        divisor=math.nan,
+        expected=ValueError,
+    ),
+)
+def test_budget_division(
+    budget: PrivacyBudget,
+    divisor: Union[int, float],
+    expected: Union[PrivacyBudget, Type[Exception]],
+):
+    """Tests that division works correctly on privacy budgets."""
+    if isinstance(expected, PrivacyBudget):
+        assert (budget / divisor) == expected
+    else:
+        with pytest.raises(expected):
+            _ = budget / divisor

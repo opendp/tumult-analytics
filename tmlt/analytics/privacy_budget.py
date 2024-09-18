@@ -70,6 +70,10 @@ class PrivacyBudget(ABC):
     def is_infinite(self) -> bool:
         """Returns true if the privacy budget is infinite."""
 
+    @abstractmethod
+    def __truediv__(self, other) -> "PrivacyBudget":
+        """Budgets can be divided by finite integer/float values > 0."""
+
 
 @dataclass(frozen=True, init=False, unsafe_hash=True)
 class PureDPBudget(PrivacyBudget):
@@ -127,6 +131,17 @@ class PureDPBudget(PrivacyBudget):
     def __repr__(self) -> str:
         """Returns string representation of this PureDPBudget."""
         return f"PureDPBudget(epsilon={self.epsilon})"
+
+    def __truediv__(self, other) -> "PureDPBudget":
+        """Divide this budget by a finite integer/float value > 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot divide a PureDPBudget by a {type(other)}.")
+        if other <= 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to divide a privacy budget by {other}, but can only "
+                "divide by non-infinite numbers >0."
+            )
+        return PureDPBudget(self.epsilon / other)
 
 
 @dataclass(frozen=True, init=False, eq=False, unsafe_hash=False)
@@ -225,6 +240,17 @@ class ApproxDPBudget(PrivacyBudget):
             return hash((float("inf"), float("inf")))
         return hash(self.value)
 
+    def __truediv__(self, other) -> "ApproxDPBudget":
+        """Divide this budget by a finite integer/float value > 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot divide a ApproxDPBudget by a {type(other)}.")
+        if other <= 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to divide a privacy budget by {other}, but can only "
+                "divide by non-infinite numbers >0."
+            )
+        return ApproxDPBudget(self.epsilon / other, self.delta / other)
+
 
 @dataclass(frozen=True, init=False, unsafe_hash=True)
 class RhoZCDPBudget(PrivacyBudget):
@@ -281,3 +307,14 @@ class RhoZCDPBudget(PrivacyBudget):
     def __repr__(self) -> str:
         """Returns string representation of this RhoZCDPBudget."""
         return f"RhoZCDPBudget(rho={self.rho})"
+
+    def __truediv__(self, other) -> "RhoZCDPBudget":
+        """Divide this budget by a finite integer/float value > 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot divide a RhoZCDPBudget by a {type(other)}.")
+        if other <= 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to divide a privacy budget by {other}, but can only "
+                "divide by non-infinite numbers >0."
+            )
+        return RhoZCDPBudget(self.rho / other)

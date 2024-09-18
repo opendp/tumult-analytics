@@ -12,6 +12,7 @@ Unreleased
 Changed
 ~~~~~~~
 - Upgraded to typeguard 4.
+- Privacy budgets support division.
 
 .. _v0.16.1:
 
