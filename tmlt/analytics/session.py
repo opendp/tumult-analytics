@@ -75,7 +75,6 @@ from tmlt.analytics._neighboring_relation import (
 )
 from tmlt.analytics._neighboring_relation_visitor import NeighboringRelationCoreVisitor
 from tmlt.analytics._noise_info import NoiseInfo
-from tmlt.analytics._privacy_budget_rounding_helper import get_adjusted_budget
 from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
@@ -107,6 +106,7 @@ from tmlt.analytics.privacy_budget import (
     PrivacyBudget,
     PureDPBudget,
     RhoZCDPBudget,
+    _get_adjusted_budget,
 )
 from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
     AddMaxRows,
@@ -1671,7 +1671,7 @@ class Session:
                 raise AnalyticsInternalError(
                     f"Cannot understand remaining budget of {remaining_budget_value}."
                 )
-            return get_adjusted_budget(
+            return _get_adjusted_budget(
                 privacy_budget,
                 PureDPBudget(remaining_budget_value.to_float(round_up=False)),
             )
@@ -1687,7 +1687,7 @@ class Session:
                     )
                 # mypy doesn't understand that we've already checked that this is a tuple
                 remaining_epsilon, remaining_delta = remaining_budget_value  # type: ignore
-                return get_adjusted_budget(
+                return _get_adjusted_budget(
                     ApproxDPBudget(*privacy_budget.value),
                     ApproxDPBudget(
                         remaining_epsilon.to_float(round_up=False),
@@ -1699,7 +1699,7 @@ class Session:
                 raise AnalyticsInternalError(
                     f"Cannot understand remaining budget of {remaining_budget_value}."
                 )
-            return get_adjusted_budget(
+            return _get_adjusted_budget(
                 privacy_budget,
                 RhoZCDPBudget(remaining_budget_value.to_float(round_up=False)),
             )

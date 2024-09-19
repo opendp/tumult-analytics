@@ -8,12 +8,12 @@
 from tmlt.core.utils.exact_number import ExactNumber
 from typeguard import typechecked
 
-from tmlt.analytics._privacy_budget_rounding_helper import (
-    BUDGET_RELATIVE_TOLERANCE,
-    get_adjusted_budget,
-    requested_budget_is_slightly_higher_than_remaining,
+from tmlt.analytics.privacy_budget import (
+    _BUDGET_RELATIVE_TOLERANCE,
+    PureDPBudget,
+    _get_adjusted_budget,
+    _requested_budget_is_slightly_higher_than_remaining,
 )
-from tmlt.analytics.privacy_budget import PureDPBudget
 
 """Tests for converting a numeric budget into symbolic representation."""
 FUDGE_FACTOR = 1 / 1e9
@@ -32,9 +32,9 @@ def test_int_request():
     requested budget should be returned in all cases.
     """
 
-    adjusted = get_adjusted_budget(PURE_DP_99, PURE_DP_100)
+    adjusted = _get_adjusted_budget(PURE_DP_99, PURE_DP_100)
     assert adjusted == PURE_DP_99
-    adjusted = get_adjusted_budget(PURE_DP_101, PURE_DP_100)
+    adjusted = _get_adjusted_budget(PURE_DP_101, PURE_DP_100)
     assert adjusted == PURE_DP_101
 
 
@@ -45,29 +45,29 @@ def test_float_request():
     requested budget is slightly less than the remaining.
     """
     # We should never round up.
-    adjusted = get_adjusted_budget(PureDPBudget(99.1), PURE_DP_100)
+    adjusted = _get_adjusted_budget(PureDPBudget(99.1), PURE_DP_100)
     assert adjusted == PureDPBudget(99.1)
 
     # Even if request is only slightly less, we still should not round up.
     requested = PureDPBudget(INT_100 - FUDGE_FACTOR)
-    adjusted = get_adjusted_budget(requested, PURE_DP_100)
+    adjusted = _get_adjusted_budget(requested, PURE_DP_100)
     assert adjusted == requested
 
     # Slightly greater than the remaining budget means we should round down.
     requested = PureDPBudget(INT_100 + FUDGE_FACTOR)
-    adjusted = get_adjusted_budget(requested, PURE_DP_100)
+    adjusted = _get_adjusted_budget(requested, PURE_DP_100)
     assert adjusted == PURE_DP_100
 
     # Up to the threshold, we should still round down.
     requested = PureDPBudget(INT_100 + (INT_100 * FUDGE_FACTOR))
-    adjusted = get_adjusted_budget(requested, PURE_DP_100)
+    adjusted = _get_adjusted_budget(requested, PURE_DP_100)
     assert adjusted == PURE_DP_100
 
     # But past the threshold, we assume this is not a rounding error, and we let
     # the requested budget proceed deeper into the system (to ultimately be caught
     # and inform the user they requested too much).
     requested = PureDPBudget(INT_100 + (INT_100 * FUDGE_FACTOR * 2))
-    adjusted = get_adjusted_budget(requested, PURE_DP_100)
+    adjusted = _get_adjusted_budget(requested, PURE_DP_100)
     assert adjusted == requested
 
 
@@ -109,7 +109,7 @@ def test_requested_budget_slightly_lower():
     privacy violation.
     """
     remaining = ExactNumber(10)
-    fudge_factor = ExactNumber(1 / BUDGET_RELATIVE_TOLERANCE)
+    fudge_factor = ExactNumber(1 / _BUDGET_RELATIVE_TOLERANCE)
     requested = remaining + ((remaining + 1) * fudge_factor)
     _compare_budgets(requested, remaining, False)
 
@@ -120,7 +120,7 @@ def test_requested_budget_slightly_higher():
     We should successfully round DOWN To consume remaining budget.
     """
     remaining = ExactNumber(10)
-    fudge_factor = ExactNumber(1 / BUDGET_RELATIVE_TOLERANCE)
+    fudge_factor = ExactNumber(1 / _BUDGET_RELATIVE_TOLERANCE)
     # Just below the tolerance threshold.
     requested = remaining + ((remaining - 1) * fudge_factor)
     _compare_budgets(requested, remaining, True)
@@ -145,7 +145,7 @@ def _compare_budgets(
         remaining: The remaining budget.
         expected_comparison: True if requested should be higher than remaining.
     """
-    comparison = requested_budget_is_slightly_higher_than_remaining(
+    comparison = _requested_budget_is_slightly_higher_than_remaining(
         requested_budget=requested, remaining_budget=remaining
     )
     assert comparison == expected_comparison

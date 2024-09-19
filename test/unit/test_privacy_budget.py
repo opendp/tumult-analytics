@@ -467,3 +467,238 @@ def test_budget_division(
     else:
         with pytest.raises(expected):
             _ = budget / divisor
+
+
+@parametrize(
+    Case("puredp_ints")(
+        budget_a=PureDPBudget(1),
+        budget_b=PureDPBudget(2),
+        expected=PureDPBudget(3),
+    ),
+    Case("puredp_floats")(
+        budget_a=PureDPBudget(1.5),
+        budget_b=PureDPBudget(2.5),
+        expected=PureDPBudget(4.0),
+    ),
+    Case("puredp_inf_plus_finite")(
+        budget_a=PureDPBudget(float("inf")),
+        budget_b=PureDPBudget(2),
+        expected=PureDPBudget(float("inf")),
+    ),
+    Case("puredp_inf_plus_inf")(
+        budget_a=PureDPBudget(float("inf")),
+        budget_b=PureDPBudget(float("inf")),
+        expected=PureDPBudget(float("inf")),
+    ),
+    Case("zcdp_ints")(
+        budget_a=RhoZCDPBudget(1),
+        budget_b=RhoZCDPBudget(2),
+        expected=RhoZCDPBudget(3),
+    ),
+    Case("zcdp_floats")(
+        budget_a=RhoZCDPBudget(1.5),
+        budget_b=RhoZCDPBudget(2.5),
+        expected=RhoZCDPBudget(4.0),
+    ),
+    Case("zcdp_inf_plus_finite")(
+        budget_a=RhoZCDPBudget(float("inf")),
+        budget_b=RhoZCDPBudget(2),
+        expected=RhoZCDPBudget(float("inf")),
+    ),
+    Case("zcdp_inf_plus_inf")(
+        budget_a=RhoZCDPBudget(float("inf")),
+        budget_b=RhoZCDPBudget(float("inf")),
+        expected=RhoZCDPBudget(float("inf")),
+    ),
+    Case("approxdp_ints")(
+        budget_a=ApproxDPBudget(1, 0.25),
+        budget_b=ApproxDPBudget(2, 0.25),
+        expected=ApproxDPBudget(3, 0.5),
+    ),
+    Case("approxdp_floats")(
+        budget_a=ApproxDPBudget(1.5, 0.15),
+        budget_b=ApproxDPBudget(2.5, 0.25),
+        expected=ApproxDPBudget(4.0, 0.4),
+    ),
+    Case("approxdp_delta_overflow")(
+        budget_a=ApproxDPBudget(1, 0.8),
+        budget_b=ApproxDPBudget(2, 0.3),
+        expected=ApproxDPBudget(3, 1.0),
+    ),
+    Case("approxdp_plus_puredp")(
+        budget_a=ApproxDPBudget(1, 0.5),
+        budget_b=PureDPBudget(2),
+        expected=ApproxDPBudget(3, 0.5),
+    ),
+    Case("puredp_plus_approxdp")(
+        budget_a=PureDPBudget(2),
+        budget_b=ApproxDPBudget(1, 0.5),
+        expected=ApproxDPBudget(3, 0.5),
+    ),
+    Case("approxdp_inf_plus_finite")(
+        budget_a=ApproxDPBudget(float("inf"), 1.0),
+        budget_b=ApproxDPBudget(2, 0.1),
+        expected=ApproxDPBudget(float("inf"), 1.0),
+    ),
+    Case("approxdp_inf_plus_inf")(
+        budget_a=ApproxDPBudget(float("inf"), 1.0),
+        budget_b=ApproxDPBudget(float("inf"), 1.0),
+        expected=ApproxDPBudget(float("inf"), 1.0),
+    ),
+    Case("approxdp_delta_inf_plus_finite")(
+        budget_a=ApproxDPBudget(3, 1.0),
+        budget_b=ApproxDPBudget(2, 0.1),
+        expected=ApproxDPBudget(5, 1.0),
+    ),
+    Case("approxdp_delta_inf_plus_inf")(
+        budget_a=ApproxDPBudget(3, 1.0),
+        budget_b=ApproxDPBudget(2, 1.0),
+        expected=ApproxDPBudget(5, 1.0),
+    ),
+    Case("approxdp_epsilon_inf_plus_finite")(
+        budget_a=ApproxDPBudget(float("inf"), 0.2),
+        budget_b=ApproxDPBudget(2, 0.1),
+        expected=ApproxDPBudget(float("inf"), 0.3),
+    ),
+    Case("approxdp_epsilon_inf_plus_inf")(
+        budget_a=ApproxDPBudget(float("inf"), 0.2),
+        budget_b=ApproxDPBudget(float("inf"), 0.1),
+        expected=ApproxDPBudget(float("inf"), 0.3),
+    ),
+)
+def test_budget_addition(
+    budget_a: PrivacyBudget,
+    budget_b: PrivacyBudget,
+    expected: Union[PrivacyBudget, Type[Exception]],
+):
+    """Tests that two budgets added together yield the expected result."""
+    if isinstance(expected, PrivacyBudget):
+        assert (budget_a + budget_b) == expected
+    else:
+        with pytest.raises(expected):
+            _ = budget_a + budget_b
+
+
+@parametrize(
+    Case("puredp_ints")(
+        budget_a=PureDPBudget(3),
+        budget_b=PureDPBudget(2),
+        expected=PureDPBudget(1),
+    ),
+    Case("puredp_floats")(
+        budget_a=PureDPBudget(4.0),
+        budget_b=PureDPBudget(2.5),
+        expected=PureDPBudget(1.5),
+    ),
+    Case("puredp_inf_minus_finite")(
+        budget_a=PureDPBudget(float("inf")),
+        budget_b=PureDPBudget(2),
+        expected=PureDPBudget(float("inf")),
+    ),
+    Case("puredp_inf_minus_inf")(
+        budget_a=PureDPBudget(float("inf")),
+        budget_b=PureDPBudget(float("inf")),
+        expected=PureDPBudget(float("inf")),
+    ),
+    Case("puredp_rounds")(
+        budget_a=PureDPBudget(1),
+        budget_b=PureDPBudget(1.000000000001),
+        expected=PureDPBudget(0),
+    ),
+    Case("zcdp_ints")(
+        budget_a=RhoZCDPBudget(3),
+        budget_b=RhoZCDPBudget(2),
+        expected=RhoZCDPBudget(1),
+    ),
+    Case("zcdp_floats")(
+        budget_a=RhoZCDPBudget(4.0),
+        budget_b=RhoZCDPBudget(2.5),
+        expected=RhoZCDPBudget(1.5),
+    ),
+    Case("zcdp_inf_minus_finite")(
+        budget_a=RhoZCDPBudget(float("inf")),
+        budget_b=RhoZCDPBudget(2),
+        expected=RhoZCDPBudget(float("inf")),
+    ),
+    Case("zcdp_inf_minus_inf")(
+        budget_a=RhoZCDPBudget(float("inf")),
+        budget_b=RhoZCDPBudget(float("inf")),
+        expected=RhoZCDPBudget(float("inf")),
+    ),
+    Case("zcdp_rounds")(
+        budget_a=RhoZCDPBudget(1),
+        budget_b=RhoZCDPBudget(1.000000000001),
+        expected=RhoZCDPBudget(0),
+    ),
+    Case("approxdp_ints")(
+        budget_a=ApproxDPBudget(3, 0.5),
+        budget_b=ApproxDPBudget(2, 0.25),
+        expected=ApproxDPBudget(1, 0.25),
+    ),
+    Case("approxdp_floats")(
+        budget_a=ApproxDPBudget(4.0, 0.5),
+        budget_b=ApproxDPBudget(2.5, 0.25),
+        expected=ApproxDPBudget(1.5, 0.25),
+    ),
+    Case("puredp_underflow")(
+        budget_a=PureDPBudget(2),
+        budget_b=PureDPBudget(3),
+        expected=ValueError,
+    ),
+    Case("zcdp_underflow")(
+        budget_a=RhoZCDPBudget(2),
+        budget_b=RhoZCDPBudget(3),
+        expected=ValueError,
+    ),
+    Case("approxdp_epsilon_underflow")(
+        budget_a=ApproxDPBudget(2, 0.5),
+        budget_b=ApproxDPBudget(3, 0.5),
+        expected=ValueError,
+    ),
+    Case("approxdp_delta_underflow")(
+        budget_a=ApproxDPBudget(3, 0.5),
+        budget_b=ApproxDPBudget(2, 0.6),
+        expected=ValueError,
+    ),
+    Case("approxdp_minus_puredp")(
+        budget_a=ApproxDPBudget(3, 0.5),
+        budget_b=PureDPBudget(1),
+        expected=ApproxDPBudget(2, 0.5),
+    ),
+    Case("puredp_minus_approxdp")(
+        budget_a=PureDPBudget(3),
+        budget_b=ApproxDPBudget(1, 0.5),
+        expected=TypeError,
+    ),
+    Case("approxdp_inf_minus_finite")(
+        budget_a=ApproxDPBudget(float("inf"), 1.0),
+        budget_b=ApproxDPBudget(2, 0.1),
+        expected=ApproxDPBudget(float("inf"), 1.0),
+    ),
+    Case("approxdp_inf_minus_inf")(
+        budget_a=ApproxDPBudget(float("inf"), 1.0),
+        budget_b=ApproxDPBudget(float("inf"), 1.0),
+        expected=ApproxDPBudget(float("inf"), 1.0),
+    ),
+    Case("approx_rounds_epsilon")(
+        budget_a=ApproxDPBudget(1, 0.9),
+        budget_b=ApproxDPBudget(1.00000000001, 0.9),
+        expected=ApproxDPBudget(0, 0.0),
+    ),
+    Case("approx_rounds_delta")(
+        budget_a=ApproxDPBudget(1, 0.1),
+        budget_b=ApproxDPBudget(1, 0.100000000001),
+        expected=ApproxDPBudget(0, 0.0),
+    ),
+)
+def test_budget_subtraction(
+    budget_a: PrivacyBudget,
+    budget_b: PrivacyBudget,
+    expected: Union[PrivacyBudget, Type[Exception]],
+):
+    """Tests that two budgets added together yield the expected result."""
+    if isinstance(expected, PrivacyBudget):
+        assert (budget_a - budget_b) == expected
+    else:
+        with pytest.raises(expected):
+            _ = budget_a - budget_b

@@ -74,6 +74,29 @@ class PrivacyBudget(ABC):
     def __truediv__(self, other) -> "PrivacyBudget":
         """Budgets can be divided by finite integer/float values > 0."""
 
+    @abstractmethod
+    def __add__(self, other) -> "PrivacyBudget":
+        """Budgets can be added to other budgets of compatible types.
+
+        Addition is only supported so long as the result is still a valid budget
+        (i.e. all parameters fall within valid ranges).
+        """
+
+    @abstractmethod
+    def __sub__(self, other) -> "PrivacyBudget":
+        """Budgets can be subtracted from other budgets of compatible types.
+
+        Subtraction is only supported so long as the result is still a valid budget
+        (i.e. all parameters fall within valid ranges).
+
+        Subtracting anything from an infinite budget will return an infinite budget.
+        """
+
+    @classmethod
+    @abstractmethod
+    def inf(cls) -> "PrivacyBudget":
+        """Get an infinite budget of this type."""
+
 
 @dataclass(frozen=True, init=False, unsafe_hash=True)
 class PureDPBudget(PrivacyBudget):
@@ -142,6 +165,44 @@ class PureDPBudget(PrivacyBudget):
                 "divide by non-infinite numbers >0."
             )
         return PureDPBudget(self.epsilon / other)
+
+    def __add__(self, other) -> PrivacyBudget:
+        """Add this budget to another PureDPBudget or an ApproxDPBudget.
+
+        The resulting epsilon must be greater than zero, and the
+        resulting delta (if any) must be in [0, 1].
+        """
+        if isinstance(other, ApproxDPBudget):
+            return ApproxDPBudget(self.epsilon, 0) + other
+        elif not isinstance(other, PureDPBudget):
+            raise TypeError(f"Cannot add a PureDPBudget to a {type(other)}.")
+        if self.is_infinite:
+            return self
+        if other.is_infinite:
+            return other
+        return PureDPBudget(self.epsilon + other.epsilon)
+
+    def __sub__(self, other) -> "PureDPBudget":
+        """Subtract a PureDPBudget from this budget.
+
+        The resulting epsilon must greater than zero. Subtracting anything from an
+        infinite budget will return an infinite budget.
+
+        Note that you cannot subtract an ApproxDPBudget from a PureDPBudget, though
+        the reverse is allowed.
+        """
+        if not isinstance(other, PureDPBudget):
+            raise TypeError(f"Cannot subtract a {type(other)} from a PureDPBudget.")
+        if self.is_infinite:
+            return self
+        adjusted_other = _get_adjusted_budget(other, self)
+        assert isinstance(adjusted_other, PureDPBudget)
+        return PureDPBudget(self.epsilon - adjusted_other.epsilon)
+
+    @classmethod
+    def inf(cls) -> "PureDPBudget":
+        """Get an infinite budget of this type."""
+        return PureDPBudget(ExactNumber.from_float(float("inf"), round_up=False))
 
 
 @dataclass(frozen=True, init=False, eq=False, unsafe_hash=False)
@@ -251,6 +312,54 @@ class ApproxDPBudget(PrivacyBudget):
             )
         return ApproxDPBudget(self.epsilon / other, self.delta / other)
 
+    def __add__(self, other) -> "ApproxDPBudget":
+        """Add this budget to another ApproxDPBudget or a PureDPBudget.
+
+        The resulting epsilon must greater than zero. If the resulting delta is >1 it
+        will be rounded down to 1.
+
+        Addition is performed using basic composition, and the sum is therefore a
+        (possibly loose) upper bound on the privacy loss from running two queries.
+        """
+        if isinstance(other, PureDPBudget):
+            return self + ApproxDPBudget(other.epsilon, 0)
+        elif not isinstance(other, ApproxDPBudget):
+            raise TypeError(f"Cannot add a ApproxDPBudget to a {type(other)}.")
+        if self.is_infinite:
+            return self
+        if other.is_infinite:
+            return other
+        return ApproxDPBudget(
+            self.epsilon + other.epsilon, min(self.delta + other.delta, 1.0)
+        )
+
+    def __sub__(self, other) -> "ApproxDPBudget":
+        """Subtract a PureDPBudget or ApproxDPBudget from this budget.
+
+        The resulting epsilon greater than zero, and the resulting
+        delta must be in [0, 1]. Subtracting anything from an infinite
+        budget will return an infinite budget.
+
+        Note that you can subtract a PureDPBudget from an ApproxDPBudget, though
+        the reverse is not allowed.
+        """
+        if isinstance(other, PureDPBudget):
+            return self - ApproxDPBudget(other.epsilon, 0)
+        elif not isinstance(other, ApproxDPBudget):
+            raise TypeError(f"Cannot subtract a {type(other)} from a ApproxDPBudget.")
+        if self.is_infinite:
+            return self
+        adjusted_other = _get_adjusted_budget(other, self)
+        assert isinstance(adjusted_other, ApproxDPBudget)
+        return ApproxDPBudget(
+            self.epsilon - adjusted_other.epsilon, self.delta - adjusted_other.delta
+        )
+
+    @classmethod
+    def inf(cls) -> "ApproxDPBudget":
+        """Get an infinite budget of this type."""
+        return ApproxDPBudget(ExactNumber.from_float(float("inf"), round_up=False), 0)
+
 
 @dataclass(frozen=True, init=False, unsafe_hash=True)
 class RhoZCDPBudget(PrivacyBudget):
@@ -318,3 +427,132 @@ class RhoZCDPBudget(PrivacyBudget):
                 "divide by non-infinite numbers >0."
             )
         return RhoZCDPBudget(self.rho / other)
+
+    def __add__(self, other) -> "RhoZCDPBudget":
+        """Add this budget to another RhoZCDPBudget.
+
+        The resulting rho must be greater than zero.
+        """
+        if not isinstance(other, RhoZCDPBudget):
+            raise TypeError(f"Cannot add a RhoZCDPBudget to a {type(other)}.")
+        if self.is_infinite:
+            return self
+        if other.is_infinite:
+            return other
+        return RhoZCDPBudget(self.rho + other.rho)
+
+    def __sub__(self, other) -> "RhoZCDPBudget":
+        """Subtract a RhoZCDPBudget from this budget.
+
+        The resulting rho must be greater than zero. Subtracting anything
+        from an infinite budget will return an infinite budget.
+        """
+        if not isinstance(other, RhoZCDPBudget):
+            raise TypeError(f"Cannot subtract a {type(other)} from a RhoZCDPBudget.")
+        if self.is_infinite:
+            return self
+        adjusted_other = _get_adjusted_budget(other, self)
+        assert isinstance(adjusted_other, RhoZCDPBudget)
+        return RhoZCDPBudget(self.rho - adjusted_other.rho)
+
+    @classmethod
+    def inf(cls) -> "RhoZCDPBudget":
+        """Get an infinite budget of this type."""
+        return RhoZCDPBudget(ExactNumber.from_float(float("inf"), round_up=False))
+
+
+_BUDGET_RELATIVE_TOLERANCE: sp.Expr = sp.Pow(10, 9)
+
+
+def _requested_budget_is_slightly_higher_than_remaining(
+    requested_budget: ExactNumber, remaining_budget: ExactNumber
+) -> bool:
+    """Returns True if requested budget is slightly larger than remaining.
+
+    This check uses a relative tolerance, i.e., it determines if the requested
+    budget is within X% of the remaining budget.
+
+    Args:
+        requested_budget: Exact representation of requested budget.
+        remaining_budget: Exact representation of how much budget we have left.
+    """
+    if not remaining_budget.is_finite:
+        return False
+
+    diff = remaining_budget - requested_budget
+    if diff >= 0:
+        return False
+    return abs(diff) <= remaining_budget / _BUDGET_RELATIVE_TOLERANCE
+
+
+@typechecked
+def _get_adjusted_budget_number(
+    requested_budget: ExactNumber, remaining_budget: ExactNumber
+) -> ExactNumber:
+    """Converts a requested int or float budget into an adjusted budget.
+
+    If the requested budget is "slightly larger" than the remaining budget, as
+    determined by some threshold, then we round down and consume all remaining
+    budget. The goal is to accommodate some degree of floating point imprecision by
+    erring on the side of providing a slightly stronger privacy guarantee
+    rather than declining the request altogether.
+
+    Args:
+        requested_budget: The numeric value of the requested budget.
+        remaining_budget: The numeric value of how much budget we have left.
+    """
+    if _requested_budget_is_slightly_higher_than_remaining(
+        requested_budget, remaining_budget
+    ):
+        return remaining_budget
+
+    return requested_budget
+
+
+@typechecked
+def _get_adjusted_budget(
+    requested_privacy_budget: PrivacyBudget, remaining_privacy_budget: PrivacyBudget
+) -> PrivacyBudget:
+    """Converts a requested privacy budget into an adjusted privacy budget.
+
+    For each term in the privacy budget, calls _get_adjusted_budget_number to adjust
+    the requested budget slightly if it's close enough to the remaining budget.
+
+    Args:
+        requested_privacy_budget: The requested privacy budget.
+        remaining_privacy_budget: How much privacy budget we have left.
+    """
+    # pylint: disable=protected-access
+    if isinstance(requested_privacy_budget, PureDPBudget) and isinstance(
+        remaining_privacy_budget, PureDPBudget
+    ):
+        adjusted_epsilon = _get_adjusted_budget_number(
+            requested_privacy_budget._epsilon, remaining_privacy_budget._epsilon
+        )
+        return PureDPBudget(adjusted_epsilon)
+
+    elif isinstance(requested_privacy_budget, ApproxDPBudget) and isinstance(
+        remaining_privacy_budget, ApproxDPBudget
+    ):
+        adjusted_epsilon = _get_adjusted_budget_number(
+            requested_privacy_budget._epsilon, remaining_privacy_budget._epsilon
+        )
+        adjusted_delta = _get_adjusted_budget_number(
+            requested_privacy_budget._delta, remaining_privacy_budget._delta
+        )
+        return ApproxDPBudget(adjusted_epsilon, adjusted_delta)
+
+    elif isinstance(requested_privacy_budget, RhoZCDPBudget) and isinstance(
+        remaining_privacy_budget, RhoZCDPBudget
+    ):
+        adjusted_rho = _get_adjusted_budget_number(
+            requested_privacy_budget._rho, remaining_privacy_budget._rho
+        )
+        return RhoZCDPBudget(adjusted_rho)
+    # pylint: enable=protected-access
+    else:
+        raise ValueError(
+            "Unable to compute a privacy budget with the requested budget "
+            f"of {requested_privacy_budget} and a remaining budget of "
+            f"{remaining_privacy_budget}."
+        )
