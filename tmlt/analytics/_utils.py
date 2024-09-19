@@ -1,6 +1,10 @@
 """Private utility functions."""
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
+
+from collections.abc import Iterable
+from typing import Type
 
 from pyspark.sql import DataFrame
 
@@ -41,3 +45,80 @@ def dataframe_is_empty(df: DataFrame) -> bool:
         return df.isEmpty()
 
     return df.count() == 0
+
+
+def validate_collection(
+    test_collection: Iterable,
+    required_elements: Iterable,
+    optional_elements: Iterable,
+    collection_name: str,
+    elements_name: str,
+    error_type: Type[Exception] = ValueError,
+) -> None:
+    """Validates that the provided collection contains expected elements.
+
+    In particular, it checks that the collection contains every required element,
+    and no elements that are not required or optional.
+
+    If the collection does not pass validation, raises an exception that explains
+    the problem.
+
+    Args:
+        test_collection: The collection to check.
+        required_elements: The collection of elements which must all be present.
+        optional_elements: The collection of elements which are allowed but not
+            required. The optional and required elements must be disjoint.
+        collection_name: The name of the collection to check. Used in error
+            messages.
+        elements_name: The name of the elements in the collection. Should be plural.
+            Used in error messages.
+        error_type: The type of error to raise if validation fails.
+
+    Example:
+        >>> try:
+        ...   validate_collection(
+        ...     test_collection={"a", "b"},
+        ...     required_elements={"a", "c"},
+        ...     optional_elements={"b"},
+        ...     collection_name="alphabet",
+        ...     elements_name="letters"
+        ...   )
+        ... except Exception as e:
+        ...   print(f"{type(e).__name__}: {e}")
+        ValueError: alphabet is missing required letters: ['c']
+        >>> validate_collection(
+        ...   test_collection={"a", "b", "c"},
+        ...   required_elements={"a", "c"},
+        ...   optional_elements={"b"},
+        ...   collection_name="alphabet",
+        ...   elements_name="letters"
+        ... )
+        >>> try:
+        ...    validate_collection(
+        ...     test_collection={"a", "b", "c", "d"},
+        ...     required_elements={"a", "c"},
+        ...     optional_elements={"b"},
+        ...     collection_name="alphabet",
+        ...     elements_name="letters"
+        ...   )
+        ... except Exception as e:
+        ...   print(f"{type(e).__name__}: {e}")
+        ValueError: alphabet has unexpected letters: ['d']
+    """
+    test_set = set(test_collection)
+    required_set = set(required_elements)
+    allowed_set = required_set | set(optional_elements)
+
+    missing_elements = required_set - test_set
+    if missing_elements:
+        raise error_type(
+            f"{collection_name} is missing required {elements_name}: "
+            f"{sorted(missing_elements)}"
+        )
+
+    unexpected_elements = test_set - allowed_set
+    if unexpected_elements:
+        raise error_type(
+            f"{collection_name} has unexpected {elements_name}: "
+            f"{sorted(unexpected_elements)}"
+        )
