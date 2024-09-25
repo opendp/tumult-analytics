@@ -14,6 +14,7 @@ Changed
 - Upgraded to typeguard 4.
 - Privacy budgets support division, addition and subtraction.
 
+
 .. _v0.16.1:
 
 0.16.1 - 2024-09-04
