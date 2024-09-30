@@ -274,6 +274,15 @@ class QueryBuilder:
         self._source_id: str = source_id
         self._query_expr: QueryExpr = PrivateSource(source_id)
 
+    def clone(self) -> QueryBuilder:
+        """Construct a new QueryBuilder with the same partial query as the current one.
+
+        @nodoc.
+        """
+        builder = QueryBuilder(self._source_id)
+        builder._query_expr = self._query_expr  # pylint: disable=protected-access
+        return builder
+
     def join_public(
         self,
         public_table: Union[DataFrame, str],

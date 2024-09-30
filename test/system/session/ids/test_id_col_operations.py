@@ -34,7 +34,7 @@ def test_filter_on_id_col(
 ):
     """Tests that filter on an ID column works as expected."""
     res = session.evaluate(
-        query.enforce(MaxRowsPerID(100)).filter(condition).count(),
+        query.clone().enforce(MaxRowsPerID(100)).filter(condition).count(),
         session.remaining_privacy_budget,
     ).toPandas()
     assert res["count"][0] == expected_count
@@ -63,7 +63,8 @@ def test_filter_on_id_col(
 def test_map_on_id_col(query: QueryBuilder, mapping: Any, expected_sum: int, session):
     """Tests that map on an ID column works as expected."""
     res = session.evaluate(
-        query.enforce(MaxRowsPerID(100))
+        query.clone()
+        .enforce(MaxRowsPerID(100))
         .map(mapping, {"new": ColumnType.INTEGER}, augment=True)
         .sum("new", low=0, high=100),
         session.remaining_privacy_budget,
@@ -84,7 +85,10 @@ def test_replace_null_and_nan_raises_error(
     """Tests that replace nulls/nans on an ID column raises an error."""
     with pytest.raises(ValueError, match="Cannot replace null values in column"):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).replace_null_and_nan(replace_with).count(),
+            query.clone()
+            .enforce(MaxRowsPerID(100))
+            .replace_null_and_nan(replace_with)
+            .count(),
             session.remaining_privacy_budget,
         )
 
@@ -101,7 +105,7 @@ def test_replace_null_and_nan_raises_warning(session, query: QueryBuilder):
         RuntimeWarning, match="the ID column may still contain null values."
     ):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).replace_null_and_nan(None).count(),
+            query.clone().enforce(MaxRowsPerID(100)).replace_null_and_nan(None).count(),
             session.remaining_privacy_budget,
         )
 
@@ -118,7 +122,7 @@ def test_drop_null_and_nan_raises_warning(session, query: QueryBuilder):
         RuntimeWarning, match="the ID column may still contain null values."
     ):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).drop_null_and_nan(None).count(),
+            query.clone().enforce(MaxRowsPerID(100)).drop_null_and_nan(None).count(),
             session.remaining_privacy_budget,
         )
 
@@ -141,7 +145,7 @@ def test_drop_null_and_nan_raises_error(
     """Tests that replace nulls/nans raises warning on IDs table with empty mapping."""
     with pytest.raises(ValueError, match="it is an ID column."):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).drop_null_and_nan(columns).count(),
+            query.clone().enforce(MaxRowsPerID(100)).drop_null_and_nan(columns).count(),
             session.remaining_privacy_budget,
         )
 
@@ -163,7 +167,10 @@ def test_replace_infs_raises_error(
     """Tests that appropriate error is raised with replace infs on ID columns."""
     with pytest.raises(ValueError, match="Cannot replace infinite values in column"):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).replace_infinity(replace_with).count(),
+            query.clone()
+            .enforce(MaxRowsPerID(100))
+            .replace_infinity(replace_with)
+            .count(),
             session.remaining_privacy_budget,
         )
 
@@ -183,7 +190,7 @@ def test_drop_infs_raises_error(session, query: QueryBuilder, columns: List[str]
     """Tests that appropriate error is raised with drop infs on ID columns."""
     with pytest.raises(ValueError, match="Cannot drop infinite values in column"):
         session.evaluate(
-            query.enforce(MaxRowsPerID(100)).drop_infinity(columns).count(),
+            query.clone().enforce(MaxRowsPerID(100)).drop_infinity(columns).count(),
             session.remaining_privacy_budget,
         )
 

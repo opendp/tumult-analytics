@@ -408,6 +408,13 @@ class OutputSchemaVisitor(QueryExprVisitor):
             new_columns[name] = replace(new_columns[name], allow_null=True)
 
         if expr.augment:
+            overlapping_columns = set(input_schema.keys()) & set(new_columns.keys())
+            if overlapping_columns:
+                raise ValueError(
+                    "New columns in augmenting map must not overwrite "
+                    "existing columns, but found new columns that "
+                    f"already exist: {', '.join(overlapping_columns)}"
+                )
             return Schema(
                 {**input_schema, **new_columns},
                 grouping_column=input_schema.grouping_column,
@@ -454,6 +461,13 @@ class OutputSchemaVisitor(QueryExprVisitor):
         for name in list(new_columns.keys()):
             new_columns[name] = replace(new_columns[name], allow_null=True)
         if expr.augment:
+            overlapping_columns = set(input_schema.keys()) & set(new_columns.keys())
+            if overlapping_columns:
+                raise ValueError(
+                    "New columns in augmenting map must not overwrite "
+                    "existing columns, but found new columns that "
+                    f"already exist: {', '.join(overlapping_columns)}"
+                )
             return Schema(
                 {**input_schema, **new_columns},
                 grouping_column=grouping_column,

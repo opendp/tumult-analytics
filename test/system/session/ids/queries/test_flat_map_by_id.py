@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Union
 
 import pandas as pd
 import pytest
+from py4j.protocol import Py4JJavaError
 from pyspark.sql import Row
 
 from tmlt.analytics.constraints import MaxRowsPerID
@@ -250,7 +251,7 @@ def test_schema(
             QueryBuilder("t")
             .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
-                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True)},
             )
             .filter("isnull(v)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
@@ -260,7 +261,7 @@ def test_schema(
             QueryBuilder("t")
             .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
-                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True)},
             )
             .filter("isnan(v)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
@@ -270,7 +271,7 @@ def test_schema(
             QueryBuilder("t")
             .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
-                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True)},
             )
             .filter("v == CAST('inf' AS DOUBLE) OR v == CAST('-inf' AS DOUBLE)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
@@ -280,7 +281,7 @@ def test_schema(
             QueryBuilder("t")
             .flat_map_by_id(
                 lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("inf")}],
-                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True)},
             )
             .filter("v == CAST('inf' AS DOUBLE)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
@@ -292,7 +293,7 @@ def test_schema(
                 lambda rs: (
                     len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("-inf")}]
                 ),
-                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True)},
+                {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True)},
             )
             .filter("v == CAST('-inf' AS DOUBLE)"),
             pd.DataFrame({"id": [1, 2, 2, 3, 3, 3]}),
@@ -316,24 +317,25 @@ def test_nulls_nans_infs_allowed(
     assert_frame_equal_with_sort(result_df.toPandas(), expected_df)
 
 
-@pytest.mark.xfail(reason="#3298")
+@pytest.mark.xfail(reason="tumult-labs/tumult#3298")
 @pytest.mark.parametrize(
     "f,schema",
     [
-        (
-            lambda rs: len(rs) * [{"v": 1 if rs[0]["id"] != 1 else None}],
+        pytest.param(
+            lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else None}],
             {"v": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)},
+            marks=pytest.mark.xfail(reason="tumult-labs/tumult#3297"),
         ),
         (
-            lambda rs: len(rs) * [{"v": 1 if rs[0]["id"] != 1 else None}],
+            lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else None}],
             {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False)},
         ),
         (
-            lambda rs: len(rs) * [{"v": 1 if rs[0]["id"] != 1 else float("nan")}],
+            lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("nan")}],
             {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=False)},
         ),
         (
-            lambda rs: len(rs) * [{"v": 1 if rs[0]["id"] != 1 else float("inf")}],
+            lambda rs: len(rs) * [{"v": 1.0 if rs[0]["id"] != 1 else float("inf")}],
             {"v": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=False)},
         ),
     ],
@@ -351,7 +353,7 @@ def test_nulls_nans_infs_disallowed(
     sess = make_session(budget, {"t": (input_df, AddRowsWithID("id"))})
 
     q = QueryBuilder("t").flat_map_by_id(f, schema).enforce(MaxRowsPerID(10)).count()
-    with pytest.raises(ValueError):
+    with pytest.raises(Py4JJavaError):
         sess.evaluate(q, budget)
 
 
