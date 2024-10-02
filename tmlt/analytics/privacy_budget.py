@@ -75,6 +75,10 @@ class PrivacyBudget(ABC):
         """Budgets can be divided by finite integer/float values > 0."""
 
     @abstractmethod
+    def __mul__(self, other) -> "PrivacyBudget":
+        """Budgets can be multiplied by finite integer/float values >= 0."""
+
+    @abstractmethod
     def __add__(self, other) -> "PrivacyBudget":
         """Budgets can be added to other budgets of compatible types.
 
@@ -165,6 +169,17 @@ class PureDPBudget(PrivacyBudget):
                 "divide by non-infinite numbers >0."
             )
         return PureDPBudget(self.epsilon / other)
+
+    def __mul__(self, other) -> "PureDPBudget":
+        """Multiply this budget by a finite integer/float value >= 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot multiply a PureDPBudget by a {type(other)}.")
+        if other < 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to multiply a privacy budget by {other}, but can only "
+                "multiply by non-infinite numbers >=0."
+            )
+        return PureDPBudget(self.epsilon * other)
 
     def __add__(self, other) -> PrivacyBudget:
         """Add this budget to another PureDPBudget or an ApproxDPBudget.
@@ -312,6 +327,17 @@ class ApproxDPBudget(PrivacyBudget):
             )
         return ApproxDPBudget(self.epsilon / other, self.delta / other)
 
+    def __mul__(self, other) -> "ApproxDPBudget":
+        """Multiply this budget by a finite integer/float value >= 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot multiply a ApproxDPBudget by a {type(other)}.")
+        if other < 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to multiply a privacy budget by {other}, but can only "
+                "multiply by non-infinite numbers >=0."
+            )
+        return ApproxDPBudget(self.epsilon * other, min(self.delta * other, 1.0))
+
     def __add__(self, other) -> "ApproxDPBudget":
         """Add this budget to another ApproxDPBudget or a PureDPBudget.
 
@@ -427,6 +453,17 @@ class RhoZCDPBudget(PrivacyBudget):
                 "divide by non-infinite numbers >0."
             )
         return RhoZCDPBudget(self.rho / other)
+
+    def __mul__(self, other) -> "RhoZCDPBudget":
+        """Multiply this budget by a finite integer/float value >= 0."""
+        if not isinstance(other, (int, float)):
+            raise TypeError(f"Cannot multiply a RhoZCDPBudget by a {type(other)}.")
+        if other < 0 or math.isnan(other) or math.isinf(other):
+            raise ValueError(
+                f"Tried to multiply a privacy budget by {other}, but can only "
+                "multiply by non-infinite numbers >=0."
+            )
+        return RhoZCDPBudget(self.rho * other)
 
     def __add__(self, other) -> "RhoZCDPBudget":
         """Add this budget to another RhoZCDPBudget.

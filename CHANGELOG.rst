@@ -12,7 +12,7 @@ Unreleased
 Changed
 ~~~~~~~
 - Upgraded to typeguard 4.
-- Privacy budgets support division, addition and subtraction.
+- Privacy budgets support division, multiplication, addition and subtraction.
 
 
 .. _v0.16.1:

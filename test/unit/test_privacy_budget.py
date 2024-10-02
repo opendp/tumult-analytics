@@ -471,6 +471,146 @@ def test_budget_division(
 
 @parametrize(
     Case("puredp_ints")(
+        budget=PureDPBudget(1),
+        multiplier=2,
+        expected=PureDPBudget(2),
+    ),
+    Case("puredp_floats")(
+        budget=PureDPBudget(0.5),
+        multiplier=2.0,
+        expected=PureDPBudget(1.0),
+    ),
+    Case("puredp_non_half")(
+        budget=PureDPBudget(2),
+        multiplier=5,
+        expected=PureDPBudget(10),
+    ),
+    Case("puredp_bad_type")(
+        budget=PureDPBudget(2),
+        multiplier={},
+        expected=TypeError,
+    ),
+    Case("puredp_zero_multiplier")(
+        budget=PureDPBudget(2),
+        multiplier=0,
+        expected=PureDPBudget(0),
+    ),
+    Case("puredp_negative_multiplier")(
+        budget=PureDPBudget(2),
+        multiplier=-1,
+        expected=ValueError,
+    ),
+    Case("puredp_inf_multiplier")(
+        budget=PureDPBudget(2),
+        multiplier=float("inf"),
+        expected=ValueError,
+    ),
+    Case("puredp_nan_multiplier")(
+        budget=PureDPBudget(2),
+        multiplier=math.nan,
+        expected=ValueError,
+    ),
+    Case("zcdp_ints")(
+        budget=RhoZCDPBudget(1),
+        multiplier=2,
+        expected=RhoZCDPBudget(2),
+    ),
+    Case("zcdp_floats")(
+        budget=RhoZCDPBudget(0.5),
+        multiplier=2.0,
+        expected=RhoZCDPBudget(1.0),
+    ),
+    Case("zcdp_non_half")(
+        budget=RhoZCDPBudget(2),
+        multiplier=5,
+        expected=RhoZCDPBudget(10),
+    ),
+    Case("zcdp_bad_type")(
+        budget=RhoZCDPBudget(2),
+        multiplier={},
+        expected=TypeError,
+    ),
+    Case("zcdp_zero_multiplier")(
+        budget=RhoZCDPBudget(2),
+        multiplier=0,
+        expected=RhoZCDPBudget(0),
+    ),
+    Case("zcdp_negative_multiplier")(
+        budget=RhoZCDPBudget(2),
+        multiplier=-1,
+        expected=ValueError,
+    ),
+    Case("zcdp_inf_multiplier")(
+        budget=RhoZCDPBudget(2),
+        multiplier=float("inf"),
+        expected=ValueError,
+    ),
+    Case("zcdp_nan_multiplier")(
+        budget=RhoZCDPBudget(2),
+        multiplier=math.nan,
+        expected=ValueError,
+    ),
+    Case("approxdp_ints")(
+        budget=ApproxDPBudget(1, 0.1),
+        multiplier=2,
+        expected=ApproxDPBudget(2, 0.2),
+    ),
+    Case("approxdp_floats")(
+        budget=ApproxDPBudget(0.5, 0.05),
+        multiplier=2.0,
+        expected=ApproxDPBudget(1.0, 0.1),
+    ),
+    Case("approxdp_non_half")(
+        budget=ApproxDPBudget(2, 0.02),
+        multiplier=5,
+        expected=ApproxDPBudget(10, 0.1),
+    ),
+    Case("approxdp_bad_type")(
+        budget=ApproxDPBudget(2, 0.1),
+        multiplier={},
+        expected=TypeError,
+    ),
+    Case("approxdp_zero_multiplier")(
+        budget=ApproxDPBudget(2, 0.1),
+        multiplier=0,
+        expected=ApproxDPBudget(0, 0),
+    ),
+    Case("approxdp_negative_multiplier")(
+        budget=ApproxDPBudget(2, 0.1),
+        multiplier=-1,
+        expected=ValueError,
+    ),
+    Case("approxdp_inf_multiplier")(
+        budget=ApproxDPBudget(2, 0.1),
+        multiplier=float("inf"),
+        expected=ValueError,
+    ),
+    Case("approxdp_nan_multiplier")(
+        budget=ApproxDPBudget(2, 0.1),
+        multiplier=math.nan,
+        expected=ValueError,
+    ),
+    Case("approxdp_overflow")(
+        budget=ApproxDPBudget(1, 0.5),
+        multiplier=5,
+        expected=ApproxDPBudget(5, 1.0),
+    ),
+)
+def test_budget_multiplication(
+    budget: PrivacyBudget,
+    multiplier: Union[int, float],
+    expected: Union[PrivacyBudget, Type[Exception]],
+):
+    """Tests that division works correctly on privacy budgets."""
+    if isinstance(expected, PrivacyBudget):
+        assert (budget * multiplier) == expected
+    else:
+        with pytest.raises(expected):
+            _ = budget * multiplier
+
+
+@parametrize(
+    Case("puredp_ints")(
         budget_a=PureDPBudget(1),
         budget_b=PureDPBudget(2),
         expected=PureDPBudget(3),
