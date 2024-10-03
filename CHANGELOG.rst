@@ -15,6 +15,7 @@ Changed
 - Privacy budgets support division, multiplication, addition and subtraction.
 
 
+
 .. _v0.16.1:
 
 0.16.1 - 2024-09-04
