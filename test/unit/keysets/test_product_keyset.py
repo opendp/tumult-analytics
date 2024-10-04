@@ -12,8 +12,9 @@ from typing import Dict, List, Sequence, Tuple, Union
 import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 
-from tmlt.analytics.keyset import KeySet, _ProductKeySet
+from tmlt.analytics.keyset import KeySet, _MaterializedKeySet, _ProductKeySet
 from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
 
 from ...conftest import assert_frame_equal_with_sort
@@ -352,27 +353,43 @@ def test_getitem_ordering(spark: SparkSession, column_ordering: Sequence[str]) -
 
 
 # Defining KeySets for _ProductKeySet Equality Testing.
-DF_A = KeySet.from_dict({"A": [1, 2, 3]})
-DF_B = KeySet.from_dict({"B": ["a", "b", "c"]})
-DF_C = KeySet.from_dict({"C": [9, 8, 7], "D": ["D", "E", "F"]})
-DF_D = KeySet.from_dict({"E": [100, 200, 300], "F": ["G", "H", "I"]})
+KS_A = KeySet.from_dict({"A": [1, 2, 3]})
+KS_B = KeySet.from_dict({"B": ["a", "b", "c"]})
+KS_C = KeySet.from_dict({"C": [9, 8, 7], "D": ["D", "E", "F"]})
+KS_D = KeySet.from_dict({"E": [100, 200, 300], "F": ["G", "H", "I"]})
 
 
 @pytest.mark.parametrize(
     "ks_a,ks_b,equal",
     [
-        (DF_A * DF_B, DF_A * DF_B, True),
-        (DF_A * DF_B, DF_B * DF_A, True),
-        (DF_A * DF_B, DF_A * DF_C, False),
-        (DF_A * DF_B, DF_A * DF_D, False),
-        (DF_A * DF_C, DF_C * DF_A, True),
-        (DF_A * DF_C, DF_D * DF_A, False),
-        (DF_D * DF_C, DF_D * DF_C, True),
+        (KS_A * KS_B, KS_A * KS_B, True),
+        (KS_A * KS_B, KS_B * KS_A, True),
+        (KS_A * KS_B, KS_A * KS_C, False),
+        (KS_A * KS_B, KS_A * KS_D, False),
+        (KS_A * KS_C, KS_C * KS_A, True),
+        (KS_A * KS_C, KS_D * KS_A, False),
+        (KS_D * KS_C, KS_D * KS_C, True),
     ],
 )
 def test_equality(ks_a: _ProductKeySet, ks_b: _ProductKeySet, equal: bool):
     """Test custom equality function of two ProductKeySets."""
     assert (ks_a == ks_b) == equal
+
+
+@pytest.mark.parametrize(
+    "ks_a, ks_b",
+    [
+        (KS_A * KS_B, KS_A * KS_B),
+        (KS_A * KS_B, KS_B * KS_A),
+        (KS_A * KS_B, KS_A * KS_C),
+    ],
+)
+def test_hashing(ks_a: KeySet, ks_b: KeySet):
+    """Tests that the hash function is hashing on DF schema."""
+    if ks_a.dataframe().schema == ks_b.dataframe().schema:
+        assert hash(ks_a) == hash(ks_b)
+    else:
+        assert hash(ks_a) != hash(ks_b)
 
 
 @pytest.mark.parametrize(
@@ -394,3 +411,77 @@ def test_equality(ks_a: _ProductKeySet, ks_b: _ProductKeySet, equal: bool):
 def test_size(_, keyset: KeySet, expected: int):
     """Tests that the expected KeySet size is returned."""
     assert keyset.size() == expected
+
+
+@pytest.fixture(scope="module")
+def _eq_hashing_test_data(spark):
+    "Set up test data."
+    df_ab = spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
+    df_ij = spark.createDataFrame(pd.DataFrame({"I": ["i1", "i2"], "J": [0, 1]}))
+    df_dc = spark.createDataFrame(pd.DataFrame({"D": ["d1", "d2"], "C": [0, 1]}))
+    return {
+        "df_ab": KeySet.from_dataframe(df_ab),
+        "df_ij": KeySet.from_dataframe(df_ij),
+        "df_dc": KeySet.from_dataframe(df_dc),
+        "df_ab_with_c": KeySet.from_dataframe(df_ab.withColumn("C", lit(1))),
+        "df_ab_with_d_int": KeySet.from_dataframe(df_ab.withColumn("D", lit(2))),
+        "df_ab_with_d_string": KeySet.from_dataframe(df_ab.withColumn("D", lit("2"))),
+        "df_ab_with_d_string_duplicate": KeySet.from_dataframe(
+            df_ab.withColumn("D", lit("2"))
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    "factors1, factors2, equal",
+    [
+        (("df_ab", "df_ij"), ("df_ab", "df_ij"), True),
+        (  # Due to column ordering, this returns False.
+            ("df_ab", "df_ij"),
+            ("df_ij", "df_ab"),
+            False,
+        ),
+        (("df_ab", "df_ij"), ("df_ab", "df_dc"), False),
+        (
+            ("df_ab_with_d_string", "df_ij"),
+            ("df_ab_with_d_int", "df_ij"),
+            False,
+        ),
+        (
+            ("df_ab_with_d_string", "df_ij"),
+            ("df_ab_with_d_string_duplicate", "df_ij"),
+            True,
+        ),
+    ],
+)
+def test_fast_equality_check(_eq_hashing_test_data, factors1, factors2, equal):
+    """Test the _fast_equality_check function for accuracy."""
+    ks1 = _eq_hashing_test_data[factors1[0]] * _eq_hashing_test_data[factors1[1]]
+    ks2 = _eq_hashing_test_data[factors2[0]] * _eq_hashing_test_data[factors2[1]]
+    # pylint: disable=protected-access
+    assert ks1._fast_equality_check(ks2) == equal
+    # pylint: enable=protected-access
+
+
+def test_fast_equality_check_with_keyset_projection():
+    """Test the _fast_equality_check function with a projected KeySet."""
+    ks1 = KeySet.from_dict({"A": ["a1", "a2"], "C": [0, 1]})
+    ks2 = KeySet.from_dict({"B": [0, 1]})
+    ks = ks1 * ks2
+    # pylint: disable=protected-access
+    assert ks1._fast_equality_check(ks["A", "C"])
+    # pylint: enable=protected-access
+
+
+def test_fast_equality_check_with_different_types(_eq_hashing_test_data):
+    """Test the _fast_equality_check between materialized and product keyset."""
+    ks1 = KeySet.from_dict({"A": [0]}) * KeySet.from_dict({"B": [1]})
+    ks2_keys = ("df_ab", "df_ij")
+    ks2 = _eq_hashing_test_data[ks2_keys[0]] * _eq_hashing_test_data[ks2_keys[1]]
+    projected_ks2 = ks2["A", "B"]
+    # pylint: disable=protected-access
+    assert isinstance(ks1, _ProductKeySet)
+    assert isinstance(ks2, _ProductKeySet)
+    assert isinstance(projected_ks2, _MaterializedKeySet)
+    assert not ks1._fast_equality_check(projected_ks2)
+    # pylint: enable=protected-access

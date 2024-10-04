@@ -9,6 +9,7 @@ from typing import Dict, List, Mapping, Optional, Union
 import pandas as pd
 import pytest
 from pyspark.sql import Column
+from pyspark.sql.functions import lit
 from pyspark.sql.types import (
     DataType,
     DateType,
@@ -371,6 +372,8 @@ def test_type_coercion_from_dataframe(
             },
             {"A": LongType(), "B": LongType(), "X": StringType(), "Y": DateType()},
         ),
+        # Tests an empty dict, which is used for queries without a KeySet.
+        ({}, {}),
     ],
 )
 def test_type_coercion_from_dict(
@@ -705,3 +708,60 @@ def test_size_from_df(_, spark, pd_df, expected_size, schema):
     )
     keyset = KeySet.from_dataframe(sdf)
     assert keyset.size() == expected_size
+
+
+@pytest.fixture(scope="module")
+def _eq_hashing_test_data(spark):
+    "Set up test data."
+    df_ab = spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
+    return {
+        "df_ab": KeySet.from_dataframe(df_ab),
+        "df_ab_duplicate": KeySet.from_dataframe(
+            spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
+        ),
+        "df_ac": KeySet.from_dataframe(
+            spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "C": [0, 1]}))
+        ),
+        "df_ab_with_c": KeySet.from_dataframe(df_ab.withColumn("C", lit(1))),
+        "df_ab_with_d_int": KeySet.from_dataframe(df_ab.withColumn("D", lit(2))),
+        "df_ab_with_d_string": KeySet.from_dataframe(df_ab.withColumn("D", lit("2"))),
+    }
+
+
+@pytest.mark.parametrize(
+    "key1, key2, equal",
+    [
+        ("df_ab", "df_ab", True),
+        ("df_ab", "df_ac", False),
+        ("df_ab", "df_ab_with_c", False),
+        ("df_ab_with_d_string", "df_ab_with_d_int", False),
+        ("df_ab_with_d_string", "df_ab_with_d_string", True),
+    ],
+)
+def test_fast_equality_check(_eq_hashing_test_data, key1, key2, equal):
+    """Test the _fast_equality_check function for accuracy."""
+    ks1 = _eq_hashing_test_data[key1]
+    ks2 = _eq_hashing_test_data[key2]
+
+    # pylint: disable=protected-access
+    assert ks1._fast_equality_check(ks2) == equal
+    # pylint: enable=protected-access
+
+
+@pytest.mark.parametrize(
+    "key1, key2",
+    [
+        ("df_ab", "df_ab"),
+        ("df_ab", "df_ab_duplicate"),
+        ("df_ab_with_d_string", "df_ab_with_d_int"),
+    ],
+)
+def test_hashing(_eq_hashing_test_data, key1, key2):
+    """Tests that the hash function is hashing on DF schema."""
+    ks_1 = _eq_hashing_test_data[key1]
+    ks_2 = _eq_hashing_test_data[key2]
+
+    if ks_1.dataframe().schema == ks_2.dataframe().schema:
+        assert hash(ks_1) == hash(ks_2)
+    else:
+        assert hash(ks_1) != hash(ks_2)

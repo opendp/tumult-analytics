@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from copy import copy
 from functools import partial, reduce
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterable,
@@ -28,7 +29,7 @@ from typing import (
     Union,
 )
 
-from pyspark.sql import Column, DataFrame
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql import functions as sf
 from pyspark.sql import types as spark_types
 from tmlt.core.transformations.spark_transformations.groupby import (
@@ -36,6 +37,7 @@ from tmlt.core.transformations.spark_transformations.groupby import (
 )
 from tmlt.core.utils.type_utils import get_element_type
 
+from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import ColumnDescriptor, spark_schema_to_analytics_columns
 from tmlt.analytics._utils import dataframe_is_empty
@@ -67,6 +69,10 @@ def _check_dict_schema(types: Dict[str, type]) -> None:
                 "not allowed in KeySets. Allowed column types are: "
                 f"{','.join(t.__qualname__ for t in allowed_types)}"
             )
+
+
+LOW_SIZE = 10**6
+"""An arbitrary threshold below which a KeySet is considered small."""
 
 
 class KeySet(ABC):
@@ -119,6 +125,15 @@ class KeySet(ABC):
             2  a2  b1
             3  a2  b2
         """
+        # Manage case of len(0) KeySet by creating a KeySet with an empty DataFrame.
+        if len(domains) == 0:
+            return _MaterializedKeySet(
+                SparkSession.builder.getOrCreate().createDataFrame(
+                    [], spark_types.StructType([])
+                ),
+                size=1,
+            )
+
         # Mypy can't propagate the value type through this operation for some
         # reason -- it thinks the resulting type is Dict[str, List[object]].
         list_domains: Dict[
@@ -141,10 +156,17 @@ class KeySet(ABC):
             # every keyset will use the same dictionary
             # corresponding to the last column iterated over
             func = partial(
-                compute_full_domain_df, column_domains={col_name: col_values}
+                compute_full_domain_df,
+                column_domains={col_name: col_values},
             )
-            keyset = _MaterializedKeySet(func)
+            keyset = _MaterializedKeySet(func, size=len(col_values))
             discrete_keysets.append(keyset)
+
+        # Avoids making a _ProductKeySet if the list of factors only contains one
+        # element. Context:
+        # https://gitlab.com/tumult-labs/analytics-upstream/-/merge_requests/342#note_2134174669
+        if len(discrete_keysets) == 1:
+            return discrete_keysets[0]
         return _ProductKeySet(discrete_keysets, list(domains.keys()))
 
     @classmethod
@@ -161,6 +183,11 @@ class KeySet(ABC):
         Spark session is closed, this method or any uses of the resulting
         dataframe may raise exceptions or have other unanticipated effects.
         """
+        if not isinstance(dataframe, DataFrame):
+            raise ValueError(
+                "Expected a Spark DataFrame, but got "
+                f"{type(dataframe).__module__}.{type(dataframe).__name__}"
+            )
         return _MaterializedKeySet(
             coerce_spark_schema_or_fail(dataframe).dropDuplicates()
         )
@@ -247,6 +274,16 @@ class KeySet(ABC):
         if other_df.exceptAll(self_df).count() != 0:
             return False
         return True
+
+    @abstractmethod
+    def _fast_equality_check(self, other: Any) -> bool:
+        """Checks KeySets for equality without performing expensive DataFrame checks.
+
+        .. note::
+            This method ensures a quick evaluation of KeySet equality. It is guaranteed
+            to return False if the KeySets are not equal, but there may be cases where
+            it returns False for equal KeySets.
+        """
 
     @abstractmethod
     def schema(self) -> Dict[str, ColumnDescriptor]:
@@ -336,6 +373,10 @@ class KeySet(ABC):
         """Removes the KeySet's dataframe from memory and disk."""
         self.dataframe().unpersist()
 
+    def __hash__(self) -> int:
+        """Hashes a KeySet on the underlying DataFrame's schema."""
+        return hash(self.dataframe().schema)
+
 
 class _MaterializedKeySet(KeySet):
     """A class containing a set of values for specific columns.
@@ -353,6 +394,7 @@ class _MaterializedKeySet(KeySet):
     def __init__(
         self,
         dataframe: Union[DataFrame, Callable[[], DataFrame]],
+        size: Optional[int] = None,
     ) -> None:
         """Construct a new keyset.
 
@@ -371,7 +413,7 @@ class _MaterializedKeySet(KeySet):
             self._dataframe = dataframe
             self._columns = None
         self._schema: Optional[Dict[str, ColumnDescriptor]] = None
-        self._size: Optional[int] = None
+        self._size = size
 
     def dataframe(self) -> DataFrame:
         """Return the dataframe associated with this KeySet."""
@@ -408,6 +450,50 @@ class _MaterializedKeySet(KeySet):
             )
         return _MaterializedKeySet(self.dataframe().select(*columns).dropDuplicates())
 
+    def _fast_equality_check(self, other: Any):
+        """Checks KeySets for equality without performing expensive DataFrame checks.
+
+        .. note::
+            This method ensures a quick evaluation of KeySet equality. It is guaranteed
+            to return False if the KeySets are not equal, but there may be cases where
+            it returns False for equal KeySets.
+        """
+        if other is self:
+            return True
+
+        # Any KeySet with no columns equals any other keyset with no columns.
+        if len(self.columns()) == 0 and len(other.columns()) == 0:
+            return True
+
+        if self.columns() != other.columns():
+            return False
+
+        if self.dataframe().schema != other.dataframe().schema:
+            return False
+
+        if self.dataframe().sameSemantics(other.dataframe()):
+            return True
+
+        # pylint: disable=protected-access
+        if self._size is not None and other._size is not None:
+            self_size = self._size
+            other_size = other._size
+            # pylint: enable=protected-access
+
+            if self_size != other_size:
+                return False
+            elif self_size < LOW_SIZE:
+                # This comparison is required because KeySets produced by from_dict({})
+                # aren't equal according to sameSemantics. This ensures we can still
+                # successfully compare small KeySets defined inline. The size threshold
+                # ensures the check remains fast.
+                return (
+                    self.dataframe()  # type: ignore
+                    .toPandas()
+                    .equals(other.dataframe().toPandas())
+                )
+        return False
+
     def schema(self) -> Dict[str, ColumnDescriptor]:
         """Returns a Schema based on the KeySet."""
         if self._schema is not None:
@@ -420,6 +506,10 @@ class _MaterializedKeySet(KeySet):
         if self._size is not None:
             return self._size
         self._size = self.dataframe().count()
+        if self._size == 0 and len(self.columns()) == 0:
+            # A query with a KeySet of 0 cols and 0 rows returns a total for the query.
+            # This total query has on output, so the KeySet size is set to 1.
+            self._size = 1
         return self._size
 
 
@@ -464,7 +554,14 @@ class _ProductKeySet(KeySet):
         self._columns: List[str] = column_order
         self._dataframe: Optional[DataFrame] = None
         self._schema: Optional[Dict[str, ColumnDescriptor]] = None
-        self._size: Optional[int] = None
+        factors_size: Optional[int] = None
+        if all(factor._size is not None for factor in self._factors):
+            factors_size = 1
+            for factor in self._factors:
+                if factor._size is None:  # appease mypy
+                    raise AnalyticsInternalError("KeySet size is None")
+                factors_size *= factor._size
+        self._size = factors_size
 
     def schema(self) -> Dict[str, ColumnDescriptor]:
         """Return a Schema for this KeySet."""
@@ -485,7 +582,7 @@ class _ProductKeySet(KeySet):
     # pylint: disable=line-too-long
     def __getitem__(
         self, desired_columns: Union[str, Tuple[str, ...], Sequence[str]]
-    ) -> _ProductKeySet:
+    ) -> KeySet:
         """``_ProductKeySet[col, col, ...]`` returns a KeySet with those columns only."""
         # pylint: enable=line-too-long
         if isinstance(desired_columns, str):
@@ -507,12 +604,52 @@ class _ProductKeySet(KeySet):
         for keyset in self._factors:
             if set(keyset.columns()).isdisjoint(desired_column_set):
                 continue
-            if set(keyset.columns()) < desired_column_set:
+            if set(keyset.columns()) <= desired_column_set:
                 new_factors.append(keyset)
             else:
                 applicable_columns = tuple(set(keyset.columns()) & desired_column_set)
                 new_factors.append(keyset[applicable_columns])
+        # Avoids making a _ProductKeySet if the list of factors only contains
+        # one element. Context:
+        # https://gitlab.com/tumult-labs/analytics-upstream/-/merge_requests/342#note_2134174669
+        if len(new_factors) == 1:
+            return new_factors[0]
         return _ProductKeySet(new_factors, list(desired_columns))
+
+    def _fast_equality_check(self, other: Any):
+        """Checks KeySets for equality without performing expensive DataFrame checks.
+
+        .. note::
+            This method ensures a quick evaluation of KeySet equality. It is guaranteed
+            to return False if the KeySets are not equal, but there may be cases where
+            it returns False for equal KeySets.
+        """
+        if other is self:
+            return True
+
+        # pylint: disable=protected-access
+        # For product keysets if someone passes a materialized keyset,
+        # call materialized keyset's fast equality check.
+        # Context: https://gitlab.com/tumult-labs/analytics-upstream/-/merge_requests/342#note_2140238892
+        if isinstance(other, _MaterializedKeySet):
+            return other._fast_equality_check(self)
+
+        # Any KeySet with no columns equals any other keyset with no columns.
+        if len(self.columns()) == 0 and len(other.columns()) == 0:
+            return True
+
+        if self.columns() != other.columns():
+            return False
+
+        if len(self._factors) != len(other._factors):
+            return False
+
+        # Check if all factors are equal. This returns false if column order is different
+        return all(
+            self_factor._fast_equality_check(other_factor)
+            for self_factor, other_factor in zip(self._factors, other._factors)
+        )
+        # pylint: enable=protected-access
 
     def filter(self, condition: Union[Column, str]) -> KeySet:
         """Filter this KeySet using some condition."""
@@ -523,8 +660,8 @@ class _ProductKeySet(KeySet):
         """Get the dataframe corresponding to this KeySet."""
         if self._dataframe is not None:
             return self._dataframe
-        # Use Spark to join together all results if the final dataframe is very large
-        if self.size() > 10**6:
+        # Use Spark to join together all results if the final dataframe is very large or we don't know the size
+        if self._size is None or self._size > LOW_SIZE:
             dataframe = reduce(
                 lambda acc, df: acc.crossJoin(df),
                 [factor.dataframe() for factor in self._factors],
