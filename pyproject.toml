@@ -219,6 +219,7 @@ disable = [
   'unbalanced-tuple-unpacking',
   'unnecessary-lambda-assignment',
   'unsubscriptable-object',
+  'use-dict-literal',
   # There are a lot of false positives for unsupported-binary-operation
   # on Python 3.8 and 3.9;
   # see: https://github.com/pylint-dev/pylint/issues/7381
