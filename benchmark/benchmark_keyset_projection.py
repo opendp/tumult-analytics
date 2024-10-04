@@ -1,4 +1,4 @@
-"""Benchmarking script for taking the cross-product of large keysets."""
+"""Benchmarking script for taking the cross-product and projection of large keysets."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -21,14 +21,17 @@ def evaluate_runtime(
     """See how long it takes to select a subset of columns from product keyset."""
     start = time.time()
     product_keyset = reduce(lambda a, b: a * b, keysets)
+    product_keyset_size = product_keyset.size()
     selected_keyset = product_keyset[columns_to_select]
-    _ = selected_keyset.dataframe()
+    projected_keyset_size = selected_keyset.size()
+    selected_keyset.dataframe().write.format("noop").mode("overwrite").save()
     running_time = time.time() - start
-    return round(running_time, 3)
+    return round(running_time, 3), product_keyset_size, projected_keyset_size
 
 
 def main() -> None:
     """Evaluate running time for selecting subset of columns from product keysets."""
+    print("Benchmark keyset projection")
     spark = SparkSession.builder.getOrCreate()
     keyset_ab = KeySet.from_dataframe(
         spark.createDataFrame(
@@ -43,10 +46,10 @@ def main() -> None:
     )
 
     benchmark_result = pd.DataFrame(
-        [], columns=["Keyset Size", "Columns", "Running time (s)"]
+        [], columns=["Keyset Domain Size", "Columns", "Product Keyset Size", "Projected Keyset Size", "Running time (s)"]
     )
 
-    for size in [100, 400, 10000, 40000, 160000, 640000]:
+    for size in [100, 400, 10000]:
         keyset_c = KeySet.from_dict({"C": list(range(size))})
         keyset_d = KeySet.from_dict({"D": list(range(0 - size, 0))})
         keyset_e = KeySet.from_dict({"E": [str(n) for n in range(size)]})
@@ -55,7 +58,7 @@ def main() -> None:
 
         # Materialize all dataframes before benchmarking
         for keyset in keysets:
-            _ = keyset.dataframe()
+            keyset.dataframe().write.format("noop").mode("overwrite").save()
 
         column_combinations_to_check = [
             ["A"],
@@ -69,10 +72,12 @@ def main() -> None:
             ["A", "E"],
         ]
         for columns_to_select in column_combinations_to_check:
-            running_time = evaluate_runtime(keysets, columns_to_select)
+            running_time, product_keyset_size, projected_keyset_size = evaluate_runtime(keysets, columns_to_select)
             row = {
-                "Keyset Size": size,
+                "Keyset Domain Size": size,
                 "Columns": columns_to_select,
+                "Product Keyset Size": product_keyset_size,
+                "Projected Keyset Size": projected_keyset_size,
                 "Running time (s)": running_time,
             }
             print("Benchmark row:", row)
@@ -80,7 +85,7 @@ def main() -> None:
                 [benchmark_result, pd.Series(row).to_frame().T], ignore_index=True
             )
     spark.stop()
-    write_as_html(benchmark_result, "keyset_join.html")
+    write_as_html(benchmark_result, "keyset_projection.html")
 
 
 if __name__ == "__main__":
