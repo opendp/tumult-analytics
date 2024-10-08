@@ -11,6 +11,8 @@ Unreleased
 
 Changed
 ~~~~~~~
+- The :meth:`~tmlt.analytics.query_builder.QueryBuilder.map`, :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, and :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id` transformations now more strictly check their outputs against the provided new column types.
+  This may cause some existing programs to produce errors if they relied on the previous, less-strict behavior.
 - Upgraded to typeguard 4.
 - Privacy budgets support division, multiplication, addition and subtraction.
 
