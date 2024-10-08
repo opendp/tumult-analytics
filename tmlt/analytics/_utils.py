@@ -9,6 +9,15 @@ from typing import Type
 from pyspark.sql import DataFrame
 
 
+def type_name(ty: type) -> str:
+    """Generate a type identifier for a given type.
+
+    Returns an identifier for the given type that can be used to unambiguously
+    refer to the type, e.g. in serializers or error messages.
+    """
+    return f"{ty.__module__}.{ty.__qualname__}"
+
+
 class AnalyticsInternalError(AssertionError):
     """Generic error to raise for internal analytics errors."""
 
