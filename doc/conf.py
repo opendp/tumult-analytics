@@ -87,6 +87,8 @@ napoleon_use_rtype = True
 # Autoapi settings
 autoapi_root = "reference"
 autoapi_dirs = ["../tmlt/"]
+# TODO(#3320): Don't include Tune shortcuts in the documentation for now.
+autoapi_ignore = ["*tmlt/tune/*"]
 autoapi_template_dir = "../doc/templates"
 autoapi_add_toctree_entry = False
 autoapi_python_use_implicit_namespaces = True  # This is important for intersphinx
@@ -246,6 +248,12 @@ def skip_members(app, what, name, obj, skip, options):
     if what == "attribute" and name.split(".")[-1] in excluded_attributes:
         return True
     if "@nodoc" in obj.docstring:
+        return True
+    # TODO(#3320): Don't include top-level shortcuts in the docs for now.
+    if what not in ["module", "package"] and len(name.split(".")) == 3:
+        # Only top-level object currently in the docs, keep it.
+        if name == "tmlt.analytics.AnalyticsInternalError":
+            return skip
         return True
     return skip
 
