@@ -69,10 +69,12 @@ Now, recall our Tumult Analytics program defined :ref:`earlier<bigquery inputs a
 
     from pyspark.sql import SparkSession
 
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
     BUCKET = "tumult-warehouse"
     INPUT_TABLE = "tumult-labs.analytics_tutorial.library_members"
@@ -144,9 +146,12 @@ In the end, your program should look structurally similar to this final program.
 
    from pyspark.sql import SparkSession
 
-   from tmlt.analytics.privacy_budget import PureDPBudget
-   from tmlt.analytics.query_builder import QueryBuilder
-   from tmlt.analytics.session import Session
+   from tmlt.analytics import (
+       AddOneRow,
+       PureDPBudget,
+       QueryBuilder,
+       Session,
+   )
 
    BUCKET = json.loads(os.environ["BIGQUERY_PROC_PARAM.bucket"])
    INPUT_TABLE = json.loads(os.environ["BIGQUERY_PROC_PARAM.input"])

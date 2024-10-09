@@ -130,12 +130,14 @@ The code to do this looks very much like a typical Tumult Analytics program, but
    books_df = dfc[books_key].toDF()
 
    # Import from Tumult Analytics as usual:
-   from tmlt.analytics.session import Session
-   from tmlt.analytics.protected_change import AddRowsWithID
-   from tmlt.analytics.constraints import MaxRowsPerID
-   from tmlt.analytics.query_builder import QueryBuilder
-   from tmlt.analytics.privacy_budget import PureDPBudget
-   from tmlt.analytics.keyset import KeySet
+   from tmlt.analytics import (
+       AddRowsWithID,
+       KeySet,
+       MaxRowsPerID,
+       PureDPBudget,
+       QueryBuilder,
+       Session,
+   )
 
    # Configure a Session and KeySet based on DataFrames created above:
    budget = PureDPBudget(2)

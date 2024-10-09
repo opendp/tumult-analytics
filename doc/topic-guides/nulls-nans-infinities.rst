@@ -20,11 +20,13 @@ This topic guide details how
     import pandas as pd
     from pyspark.sql import SparkSession
 
-    from tmlt.analytics.keyset import KeySet
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        KeySet,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
 Constructing Sessions with Null, NaN, and infinite values
 ---------------------------------------------------------
@@ -104,7 +106,7 @@ columns can contain null, NaN, or infinite values:
 
 .. testcode::
 
-    from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
+    from tmlt.analytics import ColumnDescriptor, ColumnType
     new_column_types = {'new': ColumnDescriptor(
         column_type=ColumnType.DECIMAL,
         allow_null=False,

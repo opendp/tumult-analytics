@@ -97,10 +97,12 @@ For this example, let's just count how many users have borrowed a book:
 
 .. code-block::
 
-   from tmlt.analytics.privacy_budget import PureDPBudget
-   from tmlt.analytics.protected_change import AddOneRow
-   from tmlt.analytics.session import Session
-   from tmlt.analytics.query_builder import QueryBuilder
+   from tmlt.analytics import 
+       AddOneRow,
+       PureDPBudget,
+       QueryBuilder,
+       Session,
+   )
 
    budget = PureDPBudget(1)
    sess = Session.from_dataframe(

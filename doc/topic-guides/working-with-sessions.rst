@@ -33,10 +33,12 @@ in detail in the :ref:`privacy promise topic guide<Privacy promise>`.
     import pandas as pd
     import tempfile
     from pyspark.sql import SparkSession
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import ColumnType
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        ColumnType,
+        PureDPBudget,
+        Session,
+    )
 
 Constructing a Session
 ----------------------

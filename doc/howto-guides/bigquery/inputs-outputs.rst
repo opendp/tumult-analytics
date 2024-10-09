@@ -20,10 +20,12 @@ members in a fake dataset containing members of a public library
 
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
     spark = SparkSession.builder.getOrCreate()
 
@@ -166,10 +168,12 @@ In the end, your program should look structurally similar to this final program.
 
     from pyspark.sql import SparkSession
 
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
     BUCKET = "tumult-warehouse"
     INPUT_TABLE = "tumult-labs.analytics_tutorial.library_members"

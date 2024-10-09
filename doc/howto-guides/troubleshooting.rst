@@ -69,7 +69,7 @@ For example, this code will raise an error:
 
     from typing import Dict, List
     from pyspark.sql import DataFrame, SparkSession
-    from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+    from tmlt.analytics import ColumnType, QueryBuilder
 
     class DataReader:
 

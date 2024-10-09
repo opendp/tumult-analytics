@@ -1000,7 +1000,7 @@ class Session:
         evaluation.
 
         ..
-            >>> from tmlt.analytics.keyset import KeySet
+            >>> from tmlt.analytics import KeySet
             >>> # Get data
             >>> spark = SparkSession.builder.getOrCreate()
             >>> data = spark.createDataFrame(
@@ -1049,7 +1049,7 @@ class Session:
         the Session was initialized with a PureDPBudget, and vice versa).
 
         ..
-            >>> from tmlt.analytics.keyset import KeySet
+            >>> from tmlt.analytics import KeySet
             >>> # Get data
             >>> spark = SparkSession.builder.getOrCreate()
             >>> data = spark.createDataFrame(
