@@ -24,12 +24,7 @@ from tmlt.core.metrics import AbsoluteDifference, Metric
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.utils.exact_number import ExactNumber
 
-from tmlt.analytics.privacy_budget import (
-    ApproxDPBudget,
-    PrivacyBudget,
-    PureDPBudget,
-    RhoZCDPBudget,
-)
+from tmlt.analytics import ApproxDPBudget, PrivacyBudget, PureDPBudget, RhoZCDPBudget
 
 
 def quiet_py4j():

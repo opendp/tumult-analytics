@@ -8,14 +8,15 @@ from typing import Dict, List
 import pandas as pd
 import pytest
 
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.constraints import (
+from tmlt.analytics import (
+    ColumnType,
     Constraint,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    QueryBuilder,
 )
-from tmlt.analytics.query_builder import ColumnType, QueryBuilder
+from tmlt.analytics._table_identifier import NamedTable
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 

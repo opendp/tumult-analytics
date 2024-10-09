@@ -5,9 +5,14 @@
 
 import pytest
 
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.protected_change import AddMaxRows, AddRowsWithID
-from tmlt.analytics.session import Session
+from tmlt.analytics import (
+    AddMaxRows,
+    AddRowsWithID,
+    PrivacyBudget,
+    PureDPBudget,
+    RhoZCDPBudget,
+    Session,
+)
 
 INF_BUDGET = PureDPBudget(float("inf"))
 INF_BUDGET_ZCDP = RhoZCDPBudget(float("inf"))

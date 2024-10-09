@@ -10,6 +10,7 @@ from typing import Any, List, Tuple
 
 import pytest
 
+from tmlt.analytics import ColumnType
 from tmlt.analytics._schema import ColumnDescriptor
 from tmlt.analytics.binning_spec import (
     BinningSpec,
@@ -17,7 +18,6 @@ from tmlt.analytics.binning_spec import (
     _default_bin_names,
     _edges_as_str,
 )
-from tmlt.analytics.query_builder import ColumnType
 
 
 @pytest.mark.parametrize(

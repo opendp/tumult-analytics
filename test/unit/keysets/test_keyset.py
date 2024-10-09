@@ -22,8 +22,8 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from tmlt.analytics.keyset import KeySet, _check_df_schema, _check_dict_schema
-from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
+from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
+from tmlt.analytics.keyset import _check_df_schema, _check_dict_schema
 
 from ...conftest import assert_frame_equal_with_sort
 

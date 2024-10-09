@@ -10,6 +10,7 @@ import pytest
 from pyspark.sql import DataFrame
 from tmlt.core.metrics import SymmetricDifference
 
+from tmlt.analytics import MaxGroupsPerID, MaxRowsPerGroupPerID, MaxRowsPerID
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import EnforceConstraint, PrivateSource
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
@@ -18,11 +19,6 @@ from tmlt.analytics._query_expr_compiler._transformation_visitor import (
 from tmlt.analytics._schema import FrozenDict
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.constraints import (
-    MaxGroupsPerID,
-    MaxRowsPerGroupPerID,
-    MaxRowsPerID,
-)
 
 from .conftest import TestTransformationVisitor
 

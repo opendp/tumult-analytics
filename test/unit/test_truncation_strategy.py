@@ -5,7 +5,7 @@
 
 import pytest
 
-from tmlt.analytics.truncation_strategy import TruncationStrategy
+from tmlt.analytics import TruncationStrategy
 
 
 @pytest.mark.parametrize("threshold", [(1), (8)])

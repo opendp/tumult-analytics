@@ -5,6 +5,7 @@
 
 import pytest
 
+from tmlt.analytics import KeySet, MaxRowsPerID, TruncationStrategy
 from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -34,9 +35,6 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
 )
 from tmlt.analytics._schema import FrozenDict, Schema
-from tmlt.analytics.constraints import MaxRowsPerID
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 
 class QueryExprIdentifierVisitor(QueryExprVisitor):

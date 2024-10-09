@@ -7,9 +7,7 @@ from typing import Dict, Optional, Tuple
 
 from pyspark.sql import DataFrame
 
-from tmlt.analytics.privacy_budget import PrivacyBudget
-from tmlt.analytics.protected_change import AddRowsWithID, ProtectedChange
-from tmlt.analytics.session import Session
+from tmlt.analytics import AddRowsWithID, PrivacyBudget, ProtectedChange, Session
 
 
 def make_session(

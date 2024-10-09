@@ -8,11 +8,14 @@ import pytest
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.metrics import AddRemoveKeys
 
+from tmlt.analytics import (
+    AddRowsWithID,
+    ColumnType,
+    MaxRowsPerID,
+    QueryBuilder,
+    Session,
+)
 from tmlt.analytics._table_identifier import TableCollection
-from tmlt.analytics.constraints import MaxRowsPerID
-from tmlt.analytics.protected_change import AddRowsWithID
-from tmlt.analytics.query_builder import ColumnType, QueryBuilder
-from tmlt.analytics.session import Session
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 

@@ -14,8 +14,8 @@ import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
 
-from tmlt.analytics.keyset import KeySet, _MaterializedKeySet, _ProductKeySet
-from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType
+from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
+from tmlt.analytics.keyset import _MaterializedKeySet, _ProductKeySet
 
 from ...conftest import assert_frame_equal_with_sort
 

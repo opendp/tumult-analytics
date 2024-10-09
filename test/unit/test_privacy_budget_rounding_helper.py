@@ -8,9 +8,9 @@
 from tmlt.core.utils.exact_number import ExactNumber
 from typeguard import typechecked
 
+from tmlt.analytics import PureDPBudget
 from tmlt.analytics.privacy_budget import (
     _BUDGET_RELATIVE_TOLERANCE,
-    PureDPBudget,
     _get_adjusted_budget,
     _requested_budget_is_slightly_higher_than_remaining,
 )

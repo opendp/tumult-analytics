@@ -7,14 +7,13 @@ import pandas as pd
 import pytest
 from pyspark.sql.types import DoubleType, LongType, StructField, StructType
 
+from tmlt.analytics import AddMaxRows, AddRowsWithID, PureDPBudget
 from tmlt.analytics._base_builder import (
     BaseBuilder,
     DataFrameMixin,
     ParameterMixin,
     PrivacyBudgetMixin,
 )
-from tmlt.analytics.privacy_budget import PureDPBudget
-from tmlt.analytics.protected_change import AddMaxRows, AddRowsWithID
 
 
 class _Builder(PrivacyBudgetMixin, DataFrameMixin, ParameterMixin, BaseBuilder):

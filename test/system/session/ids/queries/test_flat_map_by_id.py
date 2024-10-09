@@ -10,10 +10,14 @@ import pytest
 from py4j.protocol import Py4JJavaError
 from pyspark.sql import Row
 
-from tmlt.analytics.constraints import MaxRowsPerID
-from tmlt.analytics.privacy_budget import PureDPBudget
-from tmlt.analytics.protected_change import AddRowsWithID
-from tmlt.analytics.query_builder import ColumnDescriptor, ColumnType, QueryBuilder
+from tmlt.analytics import (
+    AddRowsWithID,
+    ColumnDescriptor,
+    ColumnType,
+    MaxRowsPerID,
+    PureDPBudget,
+    QueryBuilder,
+)
 
 from .....conftest import assert_frame_equal_with_sort
 from .conftest import make_session

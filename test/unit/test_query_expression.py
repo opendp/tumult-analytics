@@ -15,7 +15,12 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
 from typeguard import TypeCheckError
 
-from tmlt.analytics import AnalyticsInternalError
+from tmlt.analytics import (
+    AnalyticsInternalError,
+    KeySet,
+    QueryBuilder,
+    TruncationStrategy,
+)
 from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
@@ -40,9 +45,6 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
 )
 from tmlt.analytics._schema import FrozenDict, Schema
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ..conftest import assert_frame_equal_with_sort
 

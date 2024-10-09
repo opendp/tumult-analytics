@@ -18,6 +18,7 @@ from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.identity import Identity as IdentityTransformation
 
+from tmlt.analytics import TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
     DropInfinity,
@@ -48,7 +49,6 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.analytics._table_reference import TableReference, lookup_domain
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from .conftest import (
     DATE1,

@@ -20,6 +20,7 @@ from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.dictionary import AugmentDictTransformation
 from tmlt.core.transformations.identity import Identity as IdentityTransformation
 
+from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics._query_expr import (
@@ -58,8 +59,6 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference, lookup_domain, lookup_metric
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from .conftest import (
     DATE1,

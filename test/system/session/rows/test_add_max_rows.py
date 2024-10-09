@@ -15,38 +15,34 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
 from tmlt.core.utils.testing import Case, parametrize
 
+from tmlt.analytics import (
+    AddMaxRowsInMaxGroups,
+    AddOneRow,
+    AddRowsWithID,
+    ApproxDPBudget,
+    AverageMechanism,
+    ColumnDescriptor,
+    ColumnType,
+    CountMechanism,
+    KeySet,
+    PrivacyBudget,
+    PureDPBudget,
+    Query,
+    QueryBuilder,
+    RhoZCDPBudget,
+    Session,
+    StdevMechanism,
+    SumMechanism,
+    TruncationStrategy,
+)
 from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._query_expr import (
-    AverageMechanism,
-    CountMechanism,
     GroupByBoundedSTDEV,
     GroupByCount,
     PrivateSource,
     QueryExpr,
-    StdevMechanism,
-    SumMechanism,
 )
 from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import (
-    ApproxDPBudget,
-    PrivacyBudget,
-    PureDPBudget,
-    RhoZCDPBudget,
-)
-from tmlt.analytics.protected_change import (
-    AddMaxRowsInMaxGroups,
-    AddOneRow,
-    AddRowsWithID,
-)
-from tmlt.analytics.query_builder import (
-    ColumnDescriptor,
-    ColumnType,
-    Query,
-    QueryBuilder,
-)
-from tmlt.analytics.session import Session
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ....conftest import assert_frame_equal_with_sort
 from .conftest import EVALUATE_TESTS

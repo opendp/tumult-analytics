@@ -9,12 +9,7 @@ from typing import Any, ContextManager, List
 import pytest
 from typeguard import TypeCheckError
 
-from tmlt.analytics.protected_change import (
-    AddMaxRows,
-    AddMaxRowsInMaxGroups,
-    AddOneRow,
-    AddRowsWithID,
-)
+from tmlt.analytics import AddMaxRows, AddMaxRowsInMaxGroups, AddOneRow, AddRowsWithID
 
 
 def test_add_one_row():

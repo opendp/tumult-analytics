@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from tmlt.core.utils.testing import Case, parametrize
 
+from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
     DropInfinity,
@@ -47,8 +48,7 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.config import config
-from tmlt.analytics.keyset import KeySet, _MaterializedKeySet
-from tmlt.analytics.truncation_strategy import TruncationStrategy
+from tmlt.analytics.keyset import _MaterializedKeySet
 
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(

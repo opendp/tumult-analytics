@@ -10,15 +10,15 @@ import sympy as sp
 from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 
-from tmlt.analytics._table_identifier import NamedTable, TableCollection
-from tmlt.analytics.constraints import (
+from tmlt.analytics import (
+    KeySet,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    PureDPBudget,
+    QueryBuilder,
 )
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PureDPBudget
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics._table_identifier import NamedTable, TableCollection
 
 from ....conftest import assert_frame_equal_with_sort
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP

@@ -30,6 +30,14 @@ from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.type_utils import assert_never
 
+from tmlt.analytics import (
+    KeySet,
+    PureDPBudget,
+    Query,
+    QueryBuilder,
+    RhoZCDPBudget,
+    TruncationStrategy,
+)
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo, _NoiseMechanism
 from tmlt.analytics._query_expr import (
@@ -80,10 +88,6 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.query_builder import Query, QueryBuilder
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024

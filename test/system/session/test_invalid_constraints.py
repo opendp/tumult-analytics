@@ -4,14 +4,14 @@
 
 import pytest
 
-from tmlt.analytics._query_expr import QueryExpr
-from tmlt.analytics.constraints import (
+from tmlt.analytics import (
     Constraint,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    QueryBuilder,
 )
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics._query_expr import QueryExpr
 
 from .conftest import INF_BUDGET, INF_BUDGET_ZCDP
 

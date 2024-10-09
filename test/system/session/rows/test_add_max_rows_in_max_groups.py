@@ -18,20 +18,24 @@ from tmlt.core.measures import RhoZCDP
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
 
-from tmlt.analytics._noise_info import _NoiseMechanism
-from tmlt.analytics._query_expr import (
+from tmlt.analytics import (
+    AddMaxRowsInMaxGroups,
     AverageMechanism,
     CountMechanism,
+    KeySet,
+    PrivacyBudget,
+    PureDPBudget,
+    QueryBuilder,
+    RhoZCDPBudget,
+    Session,
+)
+from tmlt.analytics._noise_info import _NoiseMechanism
+from tmlt.analytics._query_expr import (
     GroupByBoundedAverage,
     GroupByCount,
     PrivateSource,
     QueryExpr,
 )
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PrivacyBudget, PureDPBudget, RhoZCDPBudget
-from tmlt.analytics.protected_change import AddMaxRowsInMaxGroups
-from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.session import Session
 
 
 @pytest.mark.usefixtures("session_data")

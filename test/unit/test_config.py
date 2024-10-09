@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pytest
 
 import tmlt.analytics.config as config_module
-from tmlt.analytics.config import Config, FeatureFlag, config
+from tmlt.analytics import Config, FeatureFlag
+from tmlt.analytics.config import config
 
 
 def test_config_singleton():

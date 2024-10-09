@@ -12,12 +12,7 @@ from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.testing import Case, parametrize
 from typeguard import TypeCheckError
 
-from tmlt.analytics.privacy_budget import (
-    ApproxDPBudget,
-    PrivacyBudget,
-    PureDPBudget,
-    RhoZCDPBudget,
-)
+from tmlt.analytics import ApproxDPBudget, PrivacyBudget, PureDPBudget, RhoZCDPBudget
 
 """Tests for :class:`tmlt.analytics.privacy_budget.PureDPBudget`."""
 

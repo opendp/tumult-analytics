@@ -7,15 +7,15 @@ import sys
 
 import pytest
 
-from tmlt.analytics._query_expr import QueryExpr
-from tmlt.analytics.constraints import MaxRowsPerID
-from tmlt.analytics.privacy_budget import (
+from tmlt.analytics import (
     ApproxDPBudget,
+    MaxRowsPerID,
     PrivacyBudget,
     PureDPBudget,
+    QueryBuilder,
     RhoZCDPBudget,
 )
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics._query_expr import QueryExpr
 
 
 @pytest.mark.parametrize(

@@ -8,13 +8,13 @@ from typing import List
 import pytest
 from typeguard import TypeCheckError
 
-from tmlt.analytics.constraints import (
+from tmlt.analytics import (
     Constraint,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
-    simplify_constraints,
 )
+from tmlt.analytics.constraints import simplify_constraints
 
 
 def test_max_rows_per_id():

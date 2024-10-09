@@ -9,14 +9,14 @@ functions properly when used with a mixture of IDs and non-IDs protected changes
 
 import pytest
 
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.constraints import (
+from tmlt.analytics import (
+    KeySet,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    QueryBuilder,
 )
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.query_builder import QueryBuilder
+from tmlt.analytics._table_identifier import NamedTable
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 

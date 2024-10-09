@@ -14,17 +14,19 @@ from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
 from tmlt.core.utils.exact_number import ExactNumber
 
-from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import (
+from tmlt.analytics import (
+    AddOneRow,
     ApproxDPBudget,
+    KeySet,
     PrivacyBudget,
     PureDPBudget,
+    Query,
+    QueryBuilder,
     RhoZCDPBudget,
+    Session,
 )
-from tmlt.analytics.protected_change import AddOneRow
-from tmlt.analytics.query_builder import Query, QueryBuilder
-from tmlt.analytics.session import Session, _format_insufficient_budget_msg
+from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics.session import _format_insufficient_budget_msg
 
 
 @pytest.mark.usefixtures("session_data")

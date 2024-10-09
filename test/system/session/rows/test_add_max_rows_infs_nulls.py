@@ -13,15 +13,18 @@ from pyspark.sql.types import StringType, StructField, StructType
 from tmlt.core.measurements.interactive_measurements import SequentialQueryable
 from tmlt.core.utils.testing import Case, parametrize
 
-from tmlt.analytics._query_expr import AnalyticsDefault
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType
+from tmlt.analytics import (
+    AddOneRow,
+    AnalyticsDefault,
+    ColumnDescriptor,
+    ColumnType,
+    KeySet,
+    PureDPBudget,
+    QueryBuilder,
+    Session,
+    TruncationStrategy,
+)
 from tmlt.analytics._table_identifier import NamedTable
-from tmlt.analytics.keyset import KeySet
-from tmlt.analytics.privacy_budget import PureDPBudget
-from tmlt.analytics.protected_change import AddOneRow
-from tmlt.analytics.query_builder import QueryBuilder
-from tmlt.analytics.session import Session
-from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ....conftest import assert_frame_equal_with_sort
 
