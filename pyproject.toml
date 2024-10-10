@@ -246,6 +246,9 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "serial",
 ]
+# Avoids an re-import issue with serializers. See tumult-labs/tumult#3343 for
+# more information and a better future fix.
+addopts = ["--import-mode=importlib"]
 
 [tool.coverage.run]
 relative_files = true
