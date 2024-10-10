@@ -12,7 +12,7 @@ from tmlt.nox_utils import SessionBuilder
 
 PACKAGE_NAME = "tmlt.analytics"
 """Name of the package."""
-PACKAGE_SOURCE_DIR = "tmlt/analytics"
+PACKAGE_SOURCE_DIR = "tmlt"
 """Relative path from the project root to its source code."""
 SMOKETEST_SCRIPT = """
 from tmlt.analytics.utils import check_installation
