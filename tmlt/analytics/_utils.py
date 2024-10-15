@@ -95,6 +95,8 @@ def validate_collection(
         ... except Exception as e:
         ...   print(f"{type(e).__name__}: {e}")
         ValueError: alphabet is missing required letters: ['c']
+        Required letters: ['a', 'c']
+        Optional letters: ['b']
         >>> validate_collection(
         ...   test_collection={"a", "b", "c"},
         ...   required_elements={"a", "c"},
@@ -113,6 +115,8 @@ def validate_collection(
         ... except Exception as e:
         ...   print(f"{type(e).__name__}: {e}")
         ValueError: alphabet has unexpected letters: ['d']
+        Required letters: ['a', 'c']
+        Optional letters: ['b']
     """
     test_set = set(test_collection)
     required_set = set(required_elements)
@@ -122,12 +126,16 @@ def validate_collection(
     if missing_elements:
         raise error_type(
             f"{collection_name} is missing required {elements_name}: "
-            f"{sorted(missing_elements)}"
+            f"{sorted(missing_elements)}\n"
+            f"Required {elements_name}: {sorted(required_set)}\n"
+            f"Optional {elements_name}: {sorted(optional_elements)}"
         )
 
     unexpected_elements = test_set - allowed_set
     if unexpected_elements:
         raise error_type(
             f"{collection_name} has unexpected {elements_name}: "
-            f"{sorted(unexpected_elements)}"
+            f"{sorted(unexpected_elements)}\n"
+            f"Required {elements_name}: {sorted(required_set)}\n"
+            f"Optional {elements_name}: {sorted(optional_elements)}"
         )
