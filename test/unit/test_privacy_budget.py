@@ -229,7 +229,7 @@ def test_is_infinite(budget: PrivacyBudget, inf_bool: bool):
         [RhoZCDPBudget(1), RhoZCDPBudget(2), RhoZCDPBudget(3)],
     ],
 )
-def test_hashing(budgets: List[PrivacyBudget]):
+def test_hashing_dict_value(budgets: List[PrivacyBudget]):
     """Tests that each privacy budget is hashable."""
     # Add each budget to a dictionary
     budgets_dict = {budget: budget.value for budget in budgets}
@@ -237,6 +237,32 @@ def test_hashing(budgets: List[PrivacyBudget]):
     # Check that the budgets are correctly mapped.
     for budget in budgets:
         assert budgets_dict[budget] == budget.value
+
+
+@pytest.mark.parametrize(
+    "budgets, equal",
+    [
+        ([PureDPBudget(1), PureDPBudget(1)], True),
+        ([PureDPBudget(1), RhoZCDPBudget(1)], False),
+        ([PureDPBudget(float("inf")), RhoZCDPBudget(float("inf"))], False),
+        ([RhoZCDPBudget(1), RhoZCDPBudget(10)], False),
+        ([PureDPBudget(1), ApproxDPBudget(1, 1e-10)], False),
+        ([ApproxDPBudget(1, 1e-10), ApproxDPBudget(1, 1e-10)], True),
+        (
+            [ApproxDPBudget(float("inf"), 1), ApproxDPBudget(float("inf"), 1)],
+            True,
+        ),
+    ],
+)
+def test_budget_hashing(budgets: List[PrivacyBudget], equal: bool):
+    """Tests that each privacy budget is hashable."""
+    # Add each budget to a dictionary
+    budget0_hash = hash(budgets[0])
+    budget1_hash = hash(budgets[1])
+    if equal:
+        assert budget0_hash == budget1_hash
+    else:
+        assert budget0_hash != budget1_hash
 
 
 # pylint: disable=protected-access

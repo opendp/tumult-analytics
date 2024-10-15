@@ -102,7 +102,7 @@ class PrivacyBudget(ABC):
         """Get an infinite budget of this type."""
 
 
-@dataclass(frozen=True, init=False, unsafe_hash=True)
+@dataclass(frozen=True, init=False)
 class PureDPBudget(PrivacyBudget):
     """A privacy budget under pure differential privacy.
 
@@ -158,6 +158,10 @@ class PureDPBudget(PrivacyBudget):
     def __repr__(self) -> str:
         """Returns string representation of this PureDPBudget."""
         return f"PureDPBudget(epsilon={self.epsilon})"
+
+    def __hash__(self):
+        """Hashes on type and value."""
+        return hash((type(self), self.epsilon))
 
     def __truediv__(self, other) -> "PureDPBudget":
         """Divide this budget by a finite integer/float value > 0."""
@@ -387,7 +391,7 @@ class ApproxDPBudget(PrivacyBudget):
         return ApproxDPBudget(ExactNumber.from_float(float("inf"), round_up=False), 0)
 
 
-@dataclass(frozen=True, init=False, unsafe_hash=True)
+@dataclass(frozen=True, init=False)
 class RhoZCDPBudget(PrivacyBudget):
     """A privacy budget under rho-zero-concentrated differential privacy.
 
@@ -442,6 +446,10 @@ class RhoZCDPBudget(PrivacyBudget):
     def __repr__(self) -> str:
         """Returns string representation of this RhoZCDPBudget."""
         return f"RhoZCDPBudget(rho={self.rho})"
+
+    def __hash__(self):
+        """Hashes on type and value."""
+        return hash((type(self), self.rho))
 
     def __truediv__(self, other) -> "RhoZCDPBudget":
         """Divide this budget by a finite integer/float value > 0."""
