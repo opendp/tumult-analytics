@@ -4,6 +4,8 @@
 # Copyright Tumult Labs 2024
 
 import datetime
+import os
+import tempfile
 from typing import Dict, List, Mapping, Optional, Union
 
 import pandas as pd
@@ -713,18 +715,30 @@ def test_size_from_df(_, spark, pd_df, expected_size, schema):
 @pytest.fixture(scope="module")
 def _eq_hashing_test_data(spark):
     "Set up test data."
-    df_ab = spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
+    pdf_ab = pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]})
+    df_ab = spark.createDataFrame(pdf_ab)
+    pdf_ac = pd.DataFrame({"A": ["a1", "a2"], "C": [0, 1]})
+    df_ac = spark.createDataFrame(pdf_ac)
+    temp_dir = tempfile.gettempdir()
+    filepath1 = os.path.join(temp_dir, "keyset1.csv")
+    pdf_ab.to_csv(filepath1, index=False, sep="|")
+    filepath2 = os.path.join(temp_dir, "keyset2.csv")
+    pdf_ac.to_csv(filepath2, index=False, sep="|")
     return {
         "df_ab": KeySet.from_dataframe(df_ab),
         "df_ab_duplicate": KeySet.from_dataframe(
             spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
         ),
-        "df_ac": KeySet.from_dataframe(
-            spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "C": [0, 1]}))
-        ),
+        "df_ac": KeySet.from_dataframe(df_ac),
         "df_ab_with_c": KeySet.from_dataframe(df_ab.withColumn("C", lit(1))),
         "df_ab_with_d_int": KeySet.from_dataframe(df_ab.withColumn("D", lit(2))),
         "df_ab_with_d_string": KeySet.from_dataframe(df_ab.withColumn("D", lit("2"))),
+        "df_ab_from_file1": KeySet.from_dataframe(
+            spark.read.csv(filepath1, header=True)
+        ),
+        "df_ac_from_file2": KeySet.from_dataframe(
+            spark.read.csv(filepath2, header=True)
+        ),
     }
 
 
@@ -736,6 +750,8 @@ def _eq_hashing_test_data(spark):
         ("df_ab", "df_ab_with_c", False),
         ("df_ab_with_d_string", "df_ab_with_d_int", False),
         ("df_ab_with_d_string", "df_ab_with_d_string", True),
+        ("df_ab_from_file1", "df_ab_from_file1", True),
+        ("df_ab_from_file1", "df_ac_from_file2", False),
     ],
 )
 def test_fast_equality_check(_eq_hashing_test_data, key1, key2, equal):
@@ -748,12 +764,28 @@ def test_fast_equality_check(_eq_hashing_test_data, key1, key2, equal):
     # pylint: enable=protected-access
 
 
+def test_fast_equality_check_same_file_read(spark):
+    """Test the _fast_equality_check when same file read twice."""
+    pdf_ab = pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]})
+    temp_dir = tempfile.gettempdir()
+    filepath1 = os.path.join(temp_dir, "keyset1.csv")
+    pdf_ab.to_csv(filepath1, index=False, sep="|")
+
+    ks1 = KeySet.from_dataframe(spark.read.csv(filepath1, header=True))
+    ks2 = KeySet.from_dataframe(spark.read.csv(filepath1, header=True))
+
+    # pylint: disable=protected-access
+    assert ks1._fast_equality_check(ks2)
+    # pylint: enable=protected-access
+
+
 @pytest.mark.parametrize(
     "key1, key2",
     [
         ("df_ab", "df_ab"),
         ("df_ab", "df_ab_duplicate"),
         ("df_ab_with_d_string", "df_ab_with_d_int"),
+        ("df_ab_from_file1", "df_ac_from_file2"),
     ],
 )
 def test_hashing(_eq_hashing_test_data, key1, key2):
