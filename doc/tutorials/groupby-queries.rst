@@ -68,11 +68,13 @@ infinite privacy budget—not to be used in production!
 
    from pyspark import SparkFiles
    from pyspark.sql import SparkSession
-   from tmlt.analytics.keyset import KeySet
-   from tmlt.analytics.privacy_budget import PureDPBudget
-   from tmlt.analytics.protected_change import AddOneRow
-   from tmlt.analytics.query_builder import QueryBuilder
-   from tmlt.analytics.session import Session
+   from tmlt.analytics import (
+       AddOneRow,
+       KeySet,
+       PureDPBudget,
+       QueryBuilder,
+       Session,
+   )
 
    spark = SparkSession.builder.getOrCreate()
    spark.sparkContext.addFile(
@@ -579,7 +581,7 @@ For more information on Approx DP, you can consult our topic guide on :ref:`Priv
 
 .. testcode::
 
-   from tmlt.analytics.privacy_budget import ApproxDPBudget
+   from tmlt.analytics import ApproxDPBudget
 
    session = Session.from_dataframe(
       privacy_budget=ApproxDPBudget(epsilon=3, delta=1e-10),

@@ -34,16 +34,16 @@ We import Python packages...
 
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
-    from tmlt.analytics.constraints import (
+    from tmlt.analytics import (
+        AddRowsWithID,
         MaxGroupsPerID,
         MaxRowsPerGroupPerID,
         MaxRowsPerID,
+        KeySet,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
     )
-    from tmlt.analytics.keyset import KeySet
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddRowsWithID
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
 
 ... and download two datasets: one containing books checked out from
 the library, and one that contains a list of the books that the library has. The checkout logs might look like:

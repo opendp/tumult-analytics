@@ -24,13 +24,16 @@ We import the same collection of packages as in the previous tutorial:
 
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
-    from tmlt.analytics.binning_spec import BinningSpec
-    from tmlt.analytics.constraints import MaxRowsPerID
-    from tmlt.analytics.keyset import KeySet
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddRowsWithID
-    from tmlt.analytics.query_builder import QueryBuilder, ColumnType
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddRowsWithID,
+        BinningSpec,
+        ColumnType,
+        MaxRowsPerID,
+        KeySet,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
 
 We’ll use the same checkout logs dataset from the previous tutorial,

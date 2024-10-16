@@ -24,11 +24,13 @@ As usual, we need to create a Session with our dataset.
 
     from pyspark import SparkFiles
     from pyspark.sql import SparkSession
-    from tmlt.analytics.keyset import KeySet
-    from tmlt.analytics.privacy_budget import PureDPBudget
-    from tmlt.analytics.protected_change import AddOneRow
-    from tmlt.analytics.query_builder import QueryBuilder
-    from tmlt.analytics.session import Session
+    from tmlt.analytics import (
+        AddOneRow,
+        KeySet,
+        PureDPBudget,
+        QueryBuilder,
+        Session,
+    )
 
     spark = SparkSession.builder.getOrCreate()
     spark.sparkContext.addFile(
@@ -157,7 +159,7 @@ column would no longer be available: the only column in the transformed data wou
 
 .. testcode::
 
-    from tmlt.analytics.query_builder import ColumnType
+    from tmlt.analytics import ColumnType
 
     ages = list(range(0, 100))  # [0, 6, ..., 99]
     age_keys = KeySet.from_dict({"age_joined": ages})
@@ -322,7 +324,7 @@ which allows us to assign values to bins based on a list of bin edges.
 
 .. testcode::
 
-    from tmlt.analytics.binning_spec import BinningSpec
+    from tmlt.analytics import BinningSpec
     # bin edges at [0, 10, 20,...,100]
     age_binspec = BinningSpec(bin_edges = [10*i for i in range(0, 11)])
 
@@ -357,7 +359,7 @@ to specify the name of the new column.
 
 .. testcode::
 
-    from tmlt.analytics.query_builder import ColumnType
+    from tmlt.analytics import ColumnType
 
     binned_age_gender_keys = KeySet.from_dict(
         {
