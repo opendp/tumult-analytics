@@ -144,11 +144,13 @@ nitpick_ignore = [
     #     __init__'s parameters are documented there for some reason. Once we
     #     fix that, it should be possible to remove this ignore.
     ("py:class", "tmlt.analytics._table_identifier.Identifier"),
-    # TypeVar support: https://github.com/agronholm/sphinx-autodoc-typehints/issues/39
+    # TypeVar support: https://github.com/tox-dev/sphinx-autodoc-typehints/issues/39
     ("py:class", "Row"),
     ("py:class", "BinT"),
     ("py:class", "tmlt.analytics.binning_spec.BinT"),
     ("py:class", "BinNameT"),
+    # Ellipses (Tuple[blah, ...]) confuse Sphinx apparently; suppressing warning
+    ("py:class", "Ellipsis"),
 ]
 
 # Remove this after intersphinx can use core

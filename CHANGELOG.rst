@@ -16,6 +16,7 @@ Changed
 - Upgraded to typeguard 4.
 - Privacy budgets support division, multiplication, addition and subtraction.
 
+- Added a new way to initialize KeySets: :meth:`~tmlt.analytics.keyset.KeySet.from_tuples`.
 
 
 .. _v0.16.1:

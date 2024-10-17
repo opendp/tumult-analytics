@@ -44,7 +44,7 @@ from tmlt.analytics._utils import dataframe_is_empty
 
 
 def _check_df_schema(types: spark_types.StructType):
-    """Raise an exception if any of the given types are not allowed in a KeySet."""
+    """Raises an exception if any of the given types are not allowed in a KeySet."""
     allowed_types = {
         spark_types.LongType(),
         spark_types.StringType(),
@@ -59,8 +59,8 @@ def _check_df_schema(types: spark_types.StructType):
             )
 
 
-def _check_dict_schema(types: Dict[str, type]) -> None:
-    """Raise an exception if the dict contains a type not allowed in a KeySet."""
+def _check_dict_schema(types: Dict[str, type]):
+    """Raises an exception if the dict contains a type not allowed in a KeySet."""
     allowed_types = {int, str, datetime.date}
     for col, dtype in types.items():
         if dtype not in allowed_types:
@@ -68,6 +68,53 @@ def _check_dict_schema(types: Dict[str, type]) -> None:
                 f"Column {col} has type {dtype.__qualname__}, which is "
                 "not allowed in KeySets. Allowed column types are: "
                 f"{','.join(t.__qualname__ for t in allowed_types)}"
+            )
+
+
+def _check_tuples_schema(
+    tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
+    columns: Tuple[str, ...],
+):
+    """Raises an exception if the tuples schema is faulty.
+
+    More specifically, raises an exception of a tuple contains a a type not
+    allowed in a KeySet, if the size or types of the tuples are inconsistent, or
+    if a column only has None values (which would prevent Spark from inferring
+    its type).
+    """
+    allowed_types = {int, str, datetime.date}
+    num_columns = len(columns)
+    expected_types: List[Optional[type]] = [None for _ in columns]
+    for t in tuples:
+        if len(t) != num_columns:
+            raise ValueError(
+                f"Mismatch between tuple {t}, which has {len(t)} elements, and "
+                f"columns argument {columns}, which has {num_columns}."
+            )
+        for i, elt in enumerate(t):
+            if elt is None:
+                continue
+            dtype = type(elt)
+            if dtype not in allowed_types:
+                raise ValueError(
+                    f"Element {elt} of tuple {t} has type {dtype.__qualname__}, "
+                    "which is not allowed in KeySets. Allowed column types are: "
+                    f"{','.join(t.__qualname__ for t in allowed_types)}."
+                )
+            expected = expected_types[i]
+            if expected is None:
+                expected_types[i] = dtype
+            elif expected != dtype:
+                raise ValueError(
+                    f"Element {elt} of tuple {t} (for column '{columns[i]}') "
+                    f"has type {dtype.__qualname__}, expected type "
+                    f"{expected.__qualname__} from a previous tuple."
+                )
+    for i, expected in enumerate(expected_types):
+        if expected is None:
+            raise ValueError(
+                f"Could not infer type for column '{columns[i]}': all its "
+                "values are None."
             )
 
 
@@ -145,16 +192,15 @@ class KeySet(ABC):
             c: list(set(d)) for c, d in domains.items()  # type: ignore
         }
         # compute_full_domain_df throws an IndexError if any list has length 0
-        for v in list_domains.values():
-            if len(v) == 0:
-                raise ValueError("Every column should have a non-empty list of values.")
+        for k, v in list_domains.items():
+            if not v:
+                raise ValueError(f"Column {k} has an empty list of values.")
         _check_dict_schema({c: get_element_type(d) for c, d in list_domains.items()})
         discrete_keysets: List[_MaterializedKeySet] = []
         for col_name, col_values in list_domains.items():
             # functools.partial will "freeze" the arguments in their current state
-            # if you don't use functools.partial,
-            # every keyset will use the same dictionary
-            # corresponding to the last column iterated over
+            # if we don't use functools.partial, every keyset will use the same
+            # dictionary corresponding to the last column iterated over.
             func = partial(
                 compute_full_domain_df,
                 column_domains={col_name: col_values},
@@ -191,6 +237,43 @@ class KeySet(ABC):
         return _MaterializedKeySet(
             coerce_spark_schema_or_fail(dataframe).dropDuplicates()
         )
+
+    @classmethod
+    def from_tuples(
+        cls: Type[KeySet],
+        tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
+        columns: Tuple[str, ...],
+    ) -> KeySet:
+        """Create a KeySet from a list of tuples and column names.
+
+        Example:
+            >>> tuples = [
+            ...   ("a1", "b1"),
+            ...   ("a2", "b1"),
+            ...   ("a3", "b3"),
+            ... ]
+            >>> keyset = KeySet.from_tuples(tuples, ("A", "B"))
+            >>> keyset.dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a1  b1
+            1  a2  b1
+            2  a3  b3
+        """
+        if not tuples:
+            # Initializing an empty KeySet with no columns is allowed.
+            if not columns:
+                return KeySet.from_dict({})
+            # Initializing an empty KeySet with columns is forbidden, as we're
+            # missing type information for columns.
+            raise ValueError(
+                "Cannot initialize a KeySet using from_tuples with no tuples "
+                "and non-zero columns. If you want to create an empty KeySet, "
+                "use from_dataframe with an empty DataFrame instead."
+            )
+        _check_tuples_schema(tuples, columns)
+        spark = SparkSession.builder.getOrCreate()
+        df = spark.createDataFrame(tuples, schema=columns)
+        return KeySet.from_dataframe(df)
 
     @abstractmethod
     def dataframe(self) -> DataFrame:

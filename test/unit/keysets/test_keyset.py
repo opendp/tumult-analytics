@@ -5,8 +5,9 @@
 
 import datetime
 import os
+import re
 import tempfile
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -23,6 +24,7 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+from tmlt.core.utils.testing import Case, parametrize
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
 from tmlt.analytics.keyset import _check_df_schema, _check_dict_schema
@@ -147,17 +149,15 @@ def test_check_dict_schema_invalid(types: Dict[str, type], expected_err_msg: str
                 columns=["A", "B"],
             ),
         ),
+        ({}, pd.DataFrame()),  # Empty KeySet with no columns is allowed
     ],
 )
 def test_from_dict(
     d: Mapping[
         str,
         Union[
-            List[str],
             List[Optional[str]],
-            List[int],
             List[Optional[int]],
-            List[datetime.date],
             List[Optional[datetime.date]],
         ],
     ],
@@ -182,17 +182,14 @@ def test_from_dict_empty_list(
     d: Mapping[
         str,
         Union[
-            List[str],
             List[Optional[str]],
-            List[int],
             List[Optional[int]],
-            List[datetime.date],
             List[Optional[datetime.date]],
         ],
     ]
 ) -> None:
     """Test that calls like ``KeySet.from_dict({'A': []})`` raise a friendly error."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="has an empty list of values"):
         KeySet.from_dict(d)
 
 
@@ -214,6 +211,167 @@ def test_from_dict_invalid_types(d: Dict[str, List], expected_err_msg: str):
     """KeySet.from_dict raises an appropriate exception on invalid inputs."""
     with pytest.raises(ValueError, match=expected_err_msg):
         KeySet.from_dict(d)
+
+
+@parametrize(
+    Case("one column")(
+        tuples=[("a1",), ("a2",)],
+        columns=("A",),
+        expected_df=pd.DataFrame({"A": ["a1", "a2"]}),
+    ),
+    Case("two columns")(
+        tuples=[("a1", "b1"), ("a2", "b1"), ("a3", "b2")],
+        columns=("A", "B"),
+        expected_df=pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b1", "b2"]}),
+    ),
+    Case("different types")(
+        tuples=[
+            (42, "foo", datetime.date.fromordinal(1)),
+            (17, "bar", datetime.date.fromordinal(2)),
+            (99, "baz", datetime.date.fromordinal(3)),
+        ],
+        columns=("int_col", "string_col", "date_col"),
+        expected_df=pd.DataFrame(
+            {
+                "int_col": [42, 17, 99],
+                "string_col": ["foo", "bar", "baz"],
+                "date_col": [
+                    datetime.date.fromordinal(1),
+                    datetime.date.fromordinal(2),
+                    datetime.date.fromordinal(3),
+                ],
+            }
+        ),
+    ),
+    Case("None values")(
+        tuples=[
+            (None, "foo", datetime.date.fromordinal(1)),
+            (17, None, datetime.date.fromordinal(2)),
+            (99, "baz", None),
+        ],
+        columns=("int_col", "string_col", "date_col"),
+        expected_df=pd.DataFrame(
+            {
+                "int_col": [None, 17, 99],
+                "string_col": ["foo", None, "baz"],
+                "date_col": [
+                    datetime.date.fromordinal(1),
+                    datetime.date.fromordinal(2),
+                    None,
+                ],
+            }
+        ),
+    ),
+    Case("None & duplicated values")(
+        tuples=[
+            (None, None),
+            (None, "foo"),
+            (42, "bar"),
+            (42, "bar"),
+            (None, "foo"),
+            (None, None),
+        ],
+        columns=("A", "B"),
+        expected_df=pd.DataFrame({"A": [None, None, 42], "B": [None, "foo", "bar"]}),
+    ),
+    Case("Empty KeySet")(tuples=[], columns=(), expected_df=pd.DataFrame()),
+)
+def test_from_tuples(
+    tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
+    columns: Tuple[str, ...],
+    expected_df: pd.DataFrame,
+):
+    """KeySet.from_tuples works as expected"""
+    keyset = KeySet.from_tuples(tuples, columns)
+    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+
+
+@parametrize(
+    Case("Tuple too big")(
+        tuples=[("a1", "b2"), ("a2",)],
+        columns=("A",),
+        expected_err_msg=(
+            "Mismatch between tuple ('a1', 'b2'), which has 2 elements, and "
+            "columns argument ('A',), which has 1."
+        ),
+    ),
+    Case("Tuple too small")(
+        tuples=[("a1", "b2"), ("a2",)],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Mismatch between tuple ('a2',), which has 1 elements, and "
+            "columns argument ('A', 'B'), which has 2."
+        ),
+    ),
+    Case("Empty tuple")(
+        tuples=[(), ("a1", "b2")],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Mismatch between tuple (), which has 0 elements, and "
+            "columns argument ('A', 'B'), which has 2."
+        ),
+    ),
+    Case("Floats are forbidden")(
+        tuples=[(42.17, "b2")],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Element 42.17 of tuple (42.17, 'b2') has type float, "
+            "which is not allowed in KeySets."
+        ),
+    ),
+    Case("Timestamps are forbidden")(
+        tuples=[(datetime.datetime.now(), "b2")],
+        columns=("A", "B"),
+        expected_err_msg="has type datetime, which is not allowed in KeySets.",
+    ),
+    Case("Mismatched types: str to int")(
+        tuples=[("a1", "b2"), ("a2", 42)],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Element 42 of tuple ('a2', 42) (for column 'B') has type int, "
+            "expected type str from a previous tuple."
+        ),
+    ),
+    Case("Mismatched types: int to str")(
+        tuples=[(42, "b1"), ("a2", "b2")],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Element a2 of tuple ('a2', 'b2') (for column 'A') has type str, "
+            "expected type int from a previous tuple."
+        ),
+    ),
+    Case("Mismatched types with None")(
+        tuples=[(None, None), (None, "b2"), ("a1", None), ("a2", 42)],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Element 42 of tuple ('a2', 42) (for column 'B') has type int, "
+            "expected type str from a previous tuple."
+        ),
+    ),
+    Case("Columns full of None")(
+        tuples=[(None, None), (None, "b2"), (None, None), (None, "b1")],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Could not infer type for column 'A': all its values are None."
+        ),
+    ),
+    Case("Empty tuples, no-empty columns")(
+        tuples=[],
+        columns=("A", "B"),
+        expected_err_msg=(
+            "Cannot initialize a KeySet using from_tuples with no tuples "
+            "and non-zero columns."
+        ),
+    ),
+)
+def test_from_tuples_invalid_schema(
+    tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
+    columns: Tuple[str, ...],
+    expected_err_msg: str,
+):
+    """KeySet.from_tuples raises an appropriate exception on invalid inputs."""
+    with pytest.raises(ValueError, match=re.escape(expected_err_msg)):
+        KeySet.from_tuples(tuples, columns)
 
 
 @pytest.mark.parametrize(
@@ -382,11 +540,8 @@ def test_type_coercion_from_dict(
     d_in: Mapping[
         str,
         Union[
-            List[str],
             List[Optional[str]],
-            List[int],
             List[Optional[int]],
-            List[datetime.date],
             List[Optional[datetime.date]],
         ],
     ],
@@ -394,6 +549,36 @@ def test_type_coercion_from_dict(
 ) -> None:
     """Test KeySet correctly coerces types when created with ``from_dict``."""
     keyset = KeySet.from_dict(d_in)
+    df_out = keyset.dataframe()
+    for col in df_out.schema:
+        assert col.dataType == expected_schema[col.name]
+
+
+@pytest.mark.parametrize(
+    "tuples,columns,expected_schema",
+    [
+        ([(None, None), (42, "foo")], ("A", "B"), {"A": LongType(), "B": StringType()}),
+        (
+            [
+                (None, 2147483649, "foo", datetime.date.fromordinal(1)),
+                (42, None, "bar", datetime.date.fromordinal(2)),
+                (17, -1000000, None, datetime.date.fromordinal(3)),
+                (None, None, None, None),
+            ],
+            ("A", "B", "X", "Y"),
+            {"A": LongType(), "B": LongType(), "X": StringType(), "Y": DateType()},
+        ),
+        # Tests an empty tuple list, used for queries without a KeySet.
+        ([], (), {}),
+    ],
+)
+def test_type_coercion_from_tuples(
+    tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
+    columns: Tuple[str, ...],
+    expected_schema: Dict[str, DataType],
+) -> None:
+    """Test KeySet correctly coerces types when created with ``from_tuples``."""
+    keyset = KeySet.from_tuples(tuples, columns)
     df_out = keyset.dataframe()
     for col in df_out.schema:
         assert col.dataType == expected_schema[col.name]
