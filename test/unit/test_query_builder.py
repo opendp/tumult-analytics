@@ -1347,3 +1347,61 @@ def test_query_immutability(query: Query):
 
     with pytest.raises(FrozenInstanceError):
         query._query_expr = QueryBuilder("testdf").count()._query_expr  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "query1, query2, equal",
+    [
+        (QueryBuilder("testdf").count(), QueryBuilder("testdf").count(), True),
+        (
+            QueryBuilder("testdf").count(),
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+            False,
+        ),
+        (
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+            True,
+        ),
+        (
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"B": ["0", "1"]})).count(),
+            False,
+        ),
+        (
+            QueryBuilder("testdf").groupby(KeySet.from_dict({"A": ["0", "1"]})).count(),
+            QueryBuilder("testdf")
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
+            .suppress(1),
+            False,
+        ),
+        (
+            QueryBuilder("testdf")
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
+            .suppress(1),
+            QueryBuilder("testdf")
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
+            .suppress(1),
+            True,
+        ),
+        (
+            QueryBuilder("testdf")
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
+            .suppress(1),
+            QueryBuilder("testdf")
+            .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+            .count()
+            .suppress(10),
+            False,
+        ),
+    ],
+)
+def test_query_fast_equality_check(query1: Query, query2: Query, equal: bool):
+    """Tests that Query objects are equal when they should be."""
+    # pylint: disable=protected-access
+    assert query1._fast_equality_check(query2) == equal
+    # pylint: enable=protected-access

@@ -46,7 +46,12 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._schema import FrozenDict, Schema
 
-from ..conftest import assert_frame_equal_with_sort
+from ..conftest import (
+    GROUPBY_AGGREGATION_QUERIES,
+    NON_GROUPBY_AGGREGATION_QUERIES,
+    SIMPLE_TRANSFORMATION_QUERIES,
+    assert_frame_equal_with_sort,
+)
 
 """Tests for invalid attributes on dataclasses."""
 
@@ -583,3 +588,20 @@ def test_invalid_suppress_aggregates(
     """Test that SuppressAggregates rejects invalid arguments."""
     with pytest.raises((TypeError, TypeCheckError), match=expected_error_msg):
         SuppressAggregates(child, column, threshold)
+
+
+@pytest.mark.parametrize(
+    "queryexpr",
+    SIMPLE_TRANSFORMATION_QUERIES
+    + NON_GROUPBY_AGGREGATION_QUERIES
+    + [
+        func2(func1)
+        for func1 in SIMPLE_TRANSFORMATION_QUERIES
+        for func2 in GROUPBY_AGGREGATION_QUERIES
+    ],
+)
+def test_queryexpr_hashing(queryexpr):
+    """Tests that each query expression has enabled hashing and eq."""
+    test_dict = {queryexpr: 1}
+    assert test_dict[queryexpr] == 1
+    assert queryexpr == queryexpr  # pylint: disable=comparison-with-itself

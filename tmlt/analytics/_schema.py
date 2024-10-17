@@ -38,13 +38,13 @@ from tmlt.core.domains.spark_domains import (
     SparkStringColumnDescriptor,
     SparkTimestampColumnDescriptor,
 )
-from typeguard import check_type
+from typeguard import check_type, typechecked
 
 
 class keyValuePair(NamedTuple):
     """A key-value pair for the FrozenDict class."""
 
-    key: str
+    key: Hashable
     value: Hashable
 
 
@@ -89,9 +89,9 @@ class FrozenDict:
         return len(self.elements)
 
     @staticmethod
-    def from_dict(dictionary: MappingType[str, Any]) -> "FrozenDict":
-        """Returns an FrozenDict from a dictionary."""
-        check_type(dictionary, MappingType[str, Any])
+    @typechecked
+    def from_dict(dictionary: MappingType[Any, Any]) -> "FrozenDict":
+        """Returns a FrozenDict from a dictionary."""
         elements = tuple(keyValuePair(key, value) for key, value in dictionary.items())
         return FrozenDict(elements)
 
@@ -100,11 +100,11 @@ class FrozenDict:
         for element in self.elements:
             yield element.key
 
-    def items(self) -> List[Tuple[str, Any]]:
+    def items(self) -> List[Tuple[Any, Any]]:
         """Returns a list of key-value pairs from the FrozenDict."""
         return [(pair.key, pair.value) for pair in self.elements]
 
-    def keys(self) -> List[str]:
+    def keys(self) -> List[Any]:
         """Returns a list of keys from the FrozenDict."""
         return [pair.key for pair in self.elements]
 

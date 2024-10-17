@@ -37,6 +37,7 @@ from tmlt.core.measurements.interactive_measurements import (
     PrivacyAccountantState,
     SequentialComposition,
 )
+from tmlt.core.measurements.postprocess import NonInteractivePostProcess
 from tmlt.core.measures import ApproxDP, InsufficientBudgetError, PureDP, RhoZCDP
 from tmlt.core.metrics import (
     DictMetric,
@@ -558,6 +559,11 @@ class Session:
         return self._accountant.input_metric
 
     @property
+    def _d_in(self) -> Any:
+        """Returns the distance for neighboring datasets."""
+        return self._accountant.d_in
+
+    @property
     def _output_measure(self) -> Union[PureDP, ApproxDP, RhoZCDP]:
         """Returns the output measure of the underlying accountant."""
         return self._accountant.output_measure
@@ -757,6 +763,45 @@ class Session:
             description += ", ".join(col_strs)
             description += f" ({groupby_keys.size()} groups)"
         return description
+
+    def _spend_budget_without_executing(
+        self, query: QueryExpr, privacy_budget: PrivacyBudget
+    ) -> None:
+        """Create a measurement that does not execute but reduces budget.
+
+        This is used for budget tracking in |NoPrivacySession| and in the
+        cache hit case of |_CachingSession|
+        """
+        # Ensure that the query can compile
+        _, adjusted_budget, _ = self._compile_and_get_info(query, privacy_budget)
+
+        # Creates a measurement that can be used to reduce the acccountant's budget
+        # but doesn't complete any computation.
+        no_op = NonInteractivePostProcess(
+            SequentialComposition(
+                input_domain=self._accountant.input_domain,
+                input_metric=self._accountant.input_metric,
+                output_measure=self._accountant.output_measure,
+                d_in=self._accountant.d_in,
+                privacy_budget=adjusted_budget.value,
+            ),
+            lambda _: None,
+        )
+
+        self._activate_accountant()
+
+        try:
+            _ = self._accountant.measure(no_op, d_out=adjusted_budget.value)
+        except InsufficientBudgetError as err:
+            msg = _format_insufficient_budget_msg(
+                err.requested_budget.value,
+                err.remaining_budget.value,
+                privacy_budget,
+            )
+            raise RuntimeError(
+                "Cannot answer query without exceeding the Session privacy budget."
+                + msg
+            ) from err
 
     @typechecked
     def get_schema(self, source_id: str) -> Dict[str, ColumnDescriptor]:

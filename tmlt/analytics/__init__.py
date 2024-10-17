@@ -46,7 +46,7 @@ __version_tuple__ = (0, 0, 0)
 from typing import List
 
 from tmlt.analytics._utils import AnalyticsInternalError
-from tmlt.analytics.binning_spec import BinningSpec
+from tmlt.analytics.binning_spec import BinningSpec, BinT
 from tmlt.analytics.config import Config, FeatureFlag
 from tmlt.analytics.constraints import (
     Constraint,

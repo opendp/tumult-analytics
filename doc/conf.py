@@ -139,6 +139,8 @@ nitpick_ignore = [
     #     public docs in a couple of places. This ignore can be removed once it
     #     is public.
     ("py:class", "tmlt.analytics._schema.Schema"),
+    # Users can't create the cache directly and need not pass it to the builder.
+    ("py:class", "tmlt.analytics._query_metadata.ResultCache"),
     # TODO(#1357): We shouldn't be showing the types for these values at all,
     #     but they're appearing at the end of class docstrings because
     #     __init__'s parameters are documented there for some reason. Once we

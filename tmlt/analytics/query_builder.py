@@ -113,6 +113,29 @@ Row = Dict[str, Any]
 """Type alias for a dictionary with string keys."""
 
 
+def _query_expr_recursive_fast_equals(query: QueryExpr, other_query: QueryExpr) -> bool:
+    """Checks that each attribute in both query is fast equal."""
+    self_query_attrs = query.__dict__
+    other_query_attrs = other_query.__dict__
+    if len(self_query_attrs) != len(other_query_attrs):
+        return False
+    for key, val in self_query_attrs.items():
+        if key not in other_query_attrs:
+            return False
+        if isinstance(val, QueryExpr):
+            if not _query_expr_recursive_fast_equals(val, other_query_attrs[key]):
+                return False
+        if isinstance(val, KeySet):
+            # Check KeySet fast equality.
+            if not val._fast_equality_check(  # pylint: disable=protected-access
+                other_query_attrs[key]
+            ):
+                return False
+        elif val != other_query_attrs[key]:
+            return False
+    return True
+
+
 @dataclass(frozen=True)
 class Query:
     """Instances of the Query class represent expressions within Tumult Analytics.
@@ -135,6 +158,21 @@ class Query:
             return self._query_expr == other._query_expr
         else:
             return False
+
+    def _fast_equality_check(self, other: Any) -> bool:
+        """Checks if two Query objects are similar.
+
+        This method returns True in some cases when the objects are equal and False
+        whenever they are unequal. A full equality check is runtime expensive so this
+        feature is useful for quick equality checks, which are needed for caching. In
+        some cases, this method may return False even when the objects are equal.
+        """
+        if not isinstance(other, Query):
+            return False
+
+        query = self._query_expr
+        other_query = other._query_expr  # pylint: disable=protected-access
+        return _query_expr_recursive_fast_equals(query, other_query)
 
 
 class _QueryProtocol(Protocol):

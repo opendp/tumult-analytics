@@ -24,7 +24,122 @@ from tmlt.core.metrics import AbsoluteDifference, Metric
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.utils.exact_number import ExactNumber
 
-from tmlt.analytics import ApproxDPBudget, PrivacyBudget, PureDPBudget, RhoZCDPBudget
+from tmlt.analytics import (
+    ApproxDPBudget,
+    BinningSpec,
+    KeySet,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+    PrivacyBudget,
+    PureDPBudget,
+    QueryBuilder,
+    RhoZCDPBudget,
+)
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics.truncation_strategy import TruncationStrategy
+
+SIMPLE_TRANSFORMATION_QUERIES = [
+    QueryBuilder("private_data").rename({"D": "new"}),
+    QueryBuilder("private_data").filter("C>1"),
+    QueryBuilder("private_data").select(["A", "B", "C"]),
+    QueryBuilder("private_data").map(
+        f=lambda row: {"F": 1},
+        new_column_types=Schema({"F": "INTEGER"}),
+        augment=True,
+    ),
+    QueryBuilder("private_data").flat_map(
+        f=lambda row: [{"F": 1}],
+        new_column_types=Schema({"F": "INTEGER"}),
+        augment=True,
+        max_rows=2,
+    ),
+    QueryBuilder("private_data").join_private(
+        "join_private_data",
+        truncation_strategy_left=TruncationStrategy.DropExcess(1),
+        truncation_strategy_right=TruncationStrategy.DropNonUnique(),
+    ),
+    QueryBuilder("private_data").join_public("join_public_data"),
+    QueryBuilder("private_data").replace_null_and_nan(),
+    QueryBuilder("private_data").replace_infinity({"C": (-100, 100)}),
+    QueryBuilder("private_data").drop_null_and_nan(["C"]),
+    QueryBuilder("private_data").drop_infinity(["C"]),
+    QueryBuilder("private_data").bin_column(
+        column="A", spec=BinningSpec(bin_edges=[1000 * i for i in range(0, 10)])
+    ),
+]
+
+KEY_SET = KeySet.from_dict(
+    {
+        "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True).tolist(),
+        "B": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True).tolist(),
+    }
+)
+KEY_SET.cache()
+
+
+GROUPBY_AGGREGATION_QUERIES = [
+    lambda x: x.groupby(KEY_SET).count("measure_col"),
+    lambda x: x.groupby(KEY_SET).sum("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).variance("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).stdev("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).min("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).max("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).median("C", low=0, high=1000, name="measure_col"),
+    lambda x: x.groupby(KEY_SET).count_distinct(name="measure_col"),
+    lambda x: x.groupby(KEY_SET).quantile(
+        "C", 0.5, low=0, high=1000, name="measure_col"
+    ),
+    lambda x: x.groupby(KEY_SET).count(name="measure_col").suppress(1),
+    # TODO(#3342): Enable after get_bounds core slowness is fixed
+    # lambda x: x.groupby(KEY_SET).get_bounds("C", lower_bound_column="measure_col"),
+]
+
+NON_GROUPBY_AGGREGATION_QUERIES = [
+    QueryBuilder("private_data").count(name="measure_col"),
+    QueryBuilder("private_data").count_distinct(columns=["A", "B"], name="measure_col"),
+    QueryBuilder("private_data").quantile("A", 0.5, 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").min("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").max("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").median("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").sum("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").average("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").variance("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").stdev("A", 0, 1000, name="measure_col"),
+    QueryBuilder("private_data").get_groups(["A"]),
+    QueryBuilder("private_data").histogram(
+        column="A",
+        bin_edges=BinningSpec(bin_edges=[1000 * i for i in range(0, 10)]),
+        name="measure_col",
+    ),
+    # TODO(#3342): Enable after get_bounds core slowness is fixed
+    # QueryBuilder("private_data").get_bounds("C", lower_bound_column="measure_col"),
+]
+
+ID_QUERIES = [
+    QueryBuilder("id_a_private_data").enforce(MaxRowsPerID(1)).count(),
+    QueryBuilder("id_a_private_data")
+    .enforce(MaxRowsPerID(100))
+    .filter("id >= 2")
+    .groupby(KEY_SET)
+    .count("measure_col"),
+    QueryBuilder("id_a_private_data")
+    .enforce(MaxGroupsPerID("X", 1))
+    .enforce(MaxRowsPerGroupPerID("X", 1))
+    .count(),
+    QueryBuilder("id_a_private_data")
+    .flat_map_by_id(
+        lambda rows: [{"per_id_sum": sum(r["A"] for r in rows)}],
+        new_column_types={
+            "per_id_sum": ColumnDescriptor(
+                ColumnType.INTEGER,
+                allow_null=False,
+            )
+        },
+    )
+    .enforce(MaxRowsPerID(1))
+    .sum("per_id_sum", low=0, high=5, name="sum"),
+]
 
 
 def quiet_py4j():
@@ -326,3 +441,48 @@ def pyspark_schema_from_pandas(df: pd.DataFrame) -> StructType:
             for colname, dtype in df.dtypes.items()
         ]
     )
+
+
+@pytest.fixture(scope="module")
+def _session_data(spark):
+    base_private_data = pd.DataFrame(
+        {
+            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "B": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "C": np.random.choice(np.arange(0, 1000, 0.5), 1000, replace=True),
+            "D": np.random.choice(np.arange(0, 1000, 0.5), 1000, replace=True),
+        }
+    )
+    private_id_data = pd.DataFrame(
+        [
+            [1, 4, 100, "X"],
+            [1, 5, 100, "Y"],
+            [1, 6, 100, "X"],
+            [2, 7, 100, "Y"],
+            [3, 8, 100, "X"],
+            [3, 9, 100, "Y"],
+        ],
+        columns=["id", "A", "B", "X"],
+    )
+    join_private_data = pd.DataFrame(
+        {
+            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "Y": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+        }
+    )
+    join_public_data = pd.DataFrame(
+        {
+            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "Z": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+        }
+    )
+    private_sdf = spark.createDataFrame(base_private_data)
+    private_id_sdf = spark.createDataFrame(private_id_data)
+    join_private_sdf = spark.createDataFrame(join_private_data)
+    join_public_sdf = spark.createDataFrame(join_public_data)
+    return {
+        "private_data": private_sdf,
+        "private_id_data": private_id_sdf,
+        "join_private_data": join_private_sdf,
+        "join_public_data": join_public_sdf,
+    }
