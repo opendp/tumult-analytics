@@ -71,8 +71,8 @@ SIMPLE_TRANSFORMATION_QUERIES = [
 
 KEY_SET = KeySet.from_dict(
     {
-        "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True).tolist(),
-        "B": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True).tolist(),
+        "A": np.random.choice(np.arange(0, 100, 1), 100, replace=True).tolist(),
+        "B": np.random.choice(np.arange(0, 100, 1), 100, replace=True).tolist(),
     }
 )
 KEY_SET.cache()
@@ -447,10 +447,10 @@ def pyspark_schema_from_pandas(df: pd.DataFrame) -> StructType:
 def _session_data(spark):
     base_private_data = pd.DataFrame(
         {
-            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
-            "B": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
-            "C": np.random.choice(np.arange(0, 1000, 0.5), 1000, replace=True),
-            "D": np.random.choice(np.arange(0, 1000, 0.5), 1000, replace=True),
+            "A": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
+            "B": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
+            "C": np.random.choice(np.arange(0, 100, 0.5), 100, replace=True),
+            "D": np.random.choice(np.arange(0, 100, 0.5), 100, replace=True),
         }
     )
     private_id_data = pd.DataFrame(
@@ -466,14 +466,14 @@ def _session_data(spark):
     )
     join_private_data = pd.DataFrame(
         {
-            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
-            "Y": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "A": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
+            "Y": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
         }
     )
     join_public_data = pd.DataFrame(
         {
-            "A": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
-            "Z": np.random.choice(np.arange(0, 1000, 1), 1000, replace=True),
+            "A": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
+            "Z": np.random.choice(np.arange(0, 100, 1), 100, replace=True),
         }
     )
     private_sdf = spark.createDataFrame(base_private_data)
