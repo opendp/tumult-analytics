@@ -152,7 +152,7 @@ class KeySet(ABC):
             ],
         ],
     ) -> KeySet:
-        """Create a KeySet from a dictionary.
+        """Creates a KeySet from a dictionary.
 
         The ``domains`` dictionary should map column names to the desired values
         for those columns. The KeySet returned is the cross-product of those
@@ -217,7 +217,7 @@ class KeySet(ABC):
 
     @classmethod
     def from_dataframe(cls: Type[KeySet], dataframe: DataFrame) -> KeySet:
-        """Create a KeySet from a dataframe.
+        """Creates a KeySet from a dataframe.
 
         This DataFrame should contain every combination of values being selected
         in the KeySet. If there are duplicate rows in the dataframe, only one
@@ -244,7 +244,7 @@ class KeySet(ABC):
         tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
         columns: Tuple[str, ...],
     ) -> KeySet:
-        """Create a KeySet from a list of tuples and column names.
+        """Creates a KeySet from a list of tuples and column names.
 
         Example:
             >>> tuples = [
@@ -277,7 +277,7 @@ class KeySet(ABC):
 
     @abstractmethod
     def dataframe(self) -> DataFrame:
-        """Return the dataframe associated with this KeySet.
+        """Returns the dataframe associated with this KeySet.
 
         This dataframe contains every combination of values being selected in
         the KeySet, and its rows are guaranteed to be unique as long as the
@@ -321,7 +321,7 @@ class KeySet(ABC):
         """
 
     def __eq__(self, other: object) -> bool:
-        """Override equality.
+        """Returns whether two KeySets are equal.
 
         Two KeySets are equal if their dataframes contain the same values for
         the same columns (in any order).
@@ -404,11 +404,11 @@ class KeySet(ABC):
 
     @abstractmethod
     def columns(self) -> List[str]:
-        """Return the list of columns used by this KeySet."""
+        """Returns the list of columns used in this KeySet."""
 
     @abstractmethod
     def filter(self, condition: Union[Column, str]) -> KeySet:
-        """Filter this KeySet using some condition.
+        """Filters this KeySet using some condition.
 
         This method accepts the same syntax as
         :meth:`pyspark.sql.DataFrame.filter`: valid conditions are those that
@@ -446,7 +446,14 @@ class KeySet(ABC):
 
     @abstractmethod
     def size(self) -> int:
-        """Get the size of this KeySet."""
+        """Returns the size of this KeySet.
+
+        .. note::
+            A KeySet with no rows and no columns has a size of 1, because
+            queries grouped on such an empty KeySet will return one row
+            (aggregating data over the entire dataset). A KeySet with no rows
+            but non-zero columns has a size of 0.
+        """
 
     def cache(self) -> None:
         """Caches the KeySet's dataframe in memory."""
@@ -479,7 +486,7 @@ class _MaterializedKeySet(KeySet):
         dataframe: Union[DataFrame, Callable[[], DataFrame]],
         size: Optional[int] = None,
     ) -> None:
-        """Construct a new keyset.
+        """Constructs a new KeySet.
 
         .. warning::
             The :meth:`from_dict` and :meth:`from_dataframe` methods are preferred
@@ -499,7 +506,7 @@ class _MaterializedKeySet(KeySet):
         self._size = size
 
     def dataframe(self) -> DataFrame:
-        """Return the dataframe associated with this KeySet."""
+        """Returns the DataFrame associated with this KeySet."""
         if callable(self._dataframe):
             self._dataframe = coerce_spark_schema_or_fail(self._dataframe())
             # Invalid column types should get caught before this, as it keeps
@@ -509,7 +516,7 @@ class _MaterializedKeySet(KeySet):
         return self._dataframe
 
     def columns(self) -> List[str]:
-        """What columns are used by this KeySet."""
+        """Returns the columns used in this KeySet."""
         if self._columns is not None:
             return copy(self._columns)
         else:
@@ -517,7 +524,7 @@ class _MaterializedKeySet(KeySet):
             return self._columns
 
     def filter(self, condition: Union[Column, str]) -> KeySet:
-        """Filter this KeySet using some condition."""
+        """Filters this KeySet using some condition."""
         return _MaterializedKeySet(self.dataframe().filter(condition))
 
     def __getitem__(
@@ -585,7 +592,7 @@ class _MaterializedKeySet(KeySet):
         return self._schema
 
     def size(self) -> int:
-        """Get the size of this KeySet."""
+        """Returns the size of this KeySet."""
         if self._size is not None:
             return self._size
         self._size = self.dataframe().count()
@@ -600,7 +607,7 @@ class _ProductKeySet(KeySet):
     """A KeySet that is the product of a list of other KeySets."""
 
     def __init__(self, factors: Sequence[KeySet], column_order: List[str]):
-        """Create a Product KeySet from a list of other KeySets.
+        """Creates a Product KeySet from a list of other KeySets.
 
         .. warning::
             The :meth:`from_dict` and :meth:`from_dataframe` methods are preferred
@@ -647,7 +654,7 @@ class _ProductKeySet(KeySet):
         self._size = factors_size
 
     def schema(self) -> Dict[str, ColumnDescriptor]:
-        """Return a Schema for this KeySet."""
+        """Returns a Schema for this KeySet."""
         if self._schema is not None:
             return self._schema
         analytics_columns: Dict[str, ColumnDescriptor] = {}
@@ -659,7 +666,7 @@ class _ProductKeySet(KeySet):
         return self._schema
 
     def columns(self) -> List[str]:
-        """Return the list of columns used by this KeySet."""
+        """Returns the list of columns used in this KeySet."""
         return copy(self._columns)
 
     # pylint: disable=line-too-long
@@ -735,12 +742,12 @@ class _ProductKeySet(KeySet):
         # pylint: enable=protected-access
 
     def filter(self, condition: Union[Column, str]) -> KeySet:
-        """Filter this KeySet using some condition."""
+        """Filters this KeySet using some condition."""
         df = self.dataframe()
         return _MaterializedKeySet(df).filter(condition)
 
     def dataframe(self) -> DataFrame:
-        """Get the dataframe corresponding to this KeySet."""
+        """Returns the dataframe corresponding to this KeySet."""
         if self._dataframe is not None:
             return self._dataframe
         # Use Spark to join together all results if the final dataframe is very large or we don't know the size
@@ -793,12 +800,7 @@ class _ProductKeySet(KeySet):
         return self._dataframe
 
     def size(self) -> int:
-        """Get the size of this KeySet.
-
-        Note: A KeySet with an empty DataFrame will have a size of 1 because queries
-        with an empty KeySet will return one row with the query applied to the total
-        dataset.
-        """
+        """Returns the size of this KeySet."""
         if self._size is not None:
             return self._size
         self._size = reduce(lambda acc, keyset: acc * keyset.size(), self._factors, 1)
