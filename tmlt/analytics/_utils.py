@@ -3,9 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-import logging
 from collections.abc import Iterable
-from typing import Optional, Type
+from typing import Type
 
 from pyspark.sql import DataFrame
 
@@ -140,27 +139,3 @@ def validate_collection(
             f"Required {elements_name}: {sorted(required_set)}\n"
             f"Optional {elements_name}: {sorted(optional_elements)}"
         )
-
-
-def setup_logger(logger_name: Optional[str] = None):
-    """Set up the INFO logger for the analytics and set Py4J level to WARNING."""
-    logger = logging.getLogger()
-    if logger_name:
-        logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
-
-    class CustomFormatter(logging.Formatter):
-        """Custom log handler to format the output."""
-
-        def format(self, record):
-            return record.getMessage()
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(CustomFormatter())
-    logger.addHandler(console_handler)
-
-    # Set the log level for Py4J to WARNING to suppress INFO logs
-    py4j_logger = logging.getLogger("py4j")
-    py4j_logger.setLevel(logging.WARNING)
-
-    return logger

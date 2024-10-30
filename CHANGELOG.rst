@@ -15,6 +15,7 @@ Changed
   This may cause some existing programs to produce errors if they relied on the previous, less-strict behavior.
 - Upgraded to typeguard 4.
 - Privacy budgets support division, multiplication, addition and subtraction.
+- Log messages are now emitted via Python's built-in ``logging`` module.
 
 - Added a new way to initialize KeySets: :meth:`~tmlt.analytics.keyset.KeySet.from_tuples`.
 
