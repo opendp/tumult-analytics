@@ -74,7 +74,7 @@ def main() -> None:
         benchmark_result, [keyset_ab, keyset_cd], 2, "tiny * tiny"
     )
 
-    for size in [100, 400, 10000]:
+    for size in [100, 400, 10000, 40000, 160000]:
         keyset_c = KeySet.from_dict({"C": list(range(size))})
         keyset_d = KeySet.from_dict({"D": list(range(size))})
         keysets = [keyset_ab, keyset_c]

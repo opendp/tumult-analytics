@@ -49,7 +49,7 @@ def main() -> None:
         [], columns=["Keyset Domain Size", "Columns", "Product Keyset Size", "Projected Keyset Size", "Running time (s)"]
     )
 
-    for size in [100, 400, 10000]:
+    for size in [100, 400, 10000, 40000, 160000, 640000]:
         keyset_c = KeySet.from_dict({"C": list(range(size))})
         keyset_d = KeySet.from_dict({"D": list(range(0 - size, 0))})
         keyset_e = KeySet.from_dict({"E": [str(n) for n in range(size)]})
