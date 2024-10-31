@@ -124,7 +124,7 @@ test_slow:
   extends: test
   script:
     - nox -s test_slow
-  timeout: 3h
+  timeout: 1h
   tags: [aws-m6a.2xlarge]
   rules:
     - if: '$NIGHTLY == "true"'
