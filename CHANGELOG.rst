@@ -9,15 +9,25 @@ Changelog
 Unreleased
 ----------
 
+This release provides a number of quality of life improvements, including a new :meth:`.KeySet.from_tuples` method and support for basic arithmetic on privacy budgets.
+
+
+.. note::
+
+   Tumult Analytics 0.17 will be the last minor version to support Python 3.8 and PySpark versions below 3.3.1.
+   If you are using Python 3.8 or one of these versions of PySpark, you will need to upgrade them in order to use Tumult Analytics 0.18.0.
+
 Changed
 ~~~~~~~
 - The :meth:`~tmlt.analytics.query_builder.QueryBuilder.map`, :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, and :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id` transformations now more strictly check their outputs against the provided new column types.
   This may cause some existing programs to produce errors if they relied on the previous, less-strict behavior.
-- Upgraded to typeguard 4.
-- Privacy budgets support division, multiplication, addition and subtraction.
 - Log messages are now emitted via Python's built-in ``logging`` module.
+- The supported version of typeguard has been updated to 4.*.
 
-- Added a new way to initialize KeySets: :meth:`~tmlt.analytics.keyset.KeySet.from_tuples`.
+Added
+~~~~~
+- Privacy budgets now support division, multiplication, addition and subtraction.
+- KeySets can now be initialized directly from a collection of Python tuples using :meth:`.KeySet.from_tuples`.
 
 
 .. _v0.16.1:
