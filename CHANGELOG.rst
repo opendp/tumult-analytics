@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.17.0:
+
+0.17.0 - 2024-11-04
+-------------------
 
 This release provides a number of quality of life improvements, including a new :meth:`.KeySet.from_tuples` method and support for basic arithmetic on privacy budgets.
 
