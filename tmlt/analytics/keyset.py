@@ -73,7 +73,7 @@ def _check_dict_schema(types: Dict[str, type]):
 
 def _check_tuples_schema(
     tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
-    columns: Tuple[str, ...],
+    columns: Sequence[str],
 ):
     """Raises an exception if the tuples schema is faulty.
 
@@ -242,7 +242,7 @@ class KeySet(ABC):
     def from_tuples(
         cls: Type[KeySet],
         tuples: List[Tuple[Optional[Union[str, int, datetime.date]], ...]],
-        columns: Tuple[str, ...],
+        columns: Sequence[str],
     ) -> KeySet:
         """Creates a KeySet from a list of tuples and column names.
 
@@ -252,7 +252,7 @@ class KeySet(ABC):
             ...   ("a2", "b1"),
             ...   ("a3", "b3"),
             ... ]
-            >>> keyset = KeySet.from_tuples(tuples, ("A", "B"))
+            >>> keyset = KeySet.from_tuples(tuples, ["A", "B"])
             >>> keyset.dataframe().sort("A", "B").toPandas()
                 A   B
             0  a1  b1
@@ -272,7 +272,7 @@ class KeySet(ABC):
             )
         _check_tuples_schema(tuples, columns)
         spark = SparkSession.builder.getOrCreate()
-        df = spark.createDataFrame(tuples, schema=columns)
+        df = spark.createDataFrame(tuples, schema=tuple(columns))
         return KeySet.from_dataframe(df)
 
     @abstractmethod
