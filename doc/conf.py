@@ -144,6 +144,9 @@ nitpick_ignore = [
     #     __init__'s parameters are documented there for some reason. Once we
     #     fix that, it should be possible to remove this ignore.
     ("py:class", "tmlt.analytics._table_identifier.Identifier"),
+    # Sphinx can't figure out what this refers to for some reason, perhaps
+    # related to it being a nested class.
+    ("py:class", "tmlt.analytics.synthetics._strategy.AdaptiveMarginals.Case"),
     # TypeVar support: https://github.com/tox-dev/sphinx-autodoc-typehints/issues/39
     ("py:class", "Row"),
     ("py:class", "BinT"),
