@@ -9,6 +9,12 @@ Changelog
 Unreleased
 ----------
 
+This release introduces no major user-visible changes.
+
+Fixed
+~~~~~
+- The ``columns`` argument to :meth:`.KeySet.from_tuples` is no longer required to be a tuple, any sequence type (e.g. a list) is now acceptable.
+
 .. _v0.17.0:
 
 0.17.0 - 2024-11-04
