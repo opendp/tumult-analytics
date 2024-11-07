@@ -38,7 +38,7 @@ package:
   extends: .base
   stage: setup
   needs: []
-  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.8
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.9
   script:
     - nox -s build
   artifacts:
@@ -139,10 +139,10 @@ test_dep_matrix:
   needs: ["package"]
   parallel:
     matrix:
-      - PYTHON_VERSION: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      - PYTHON_VERSION: ["3.9", "3.10", "3.11", "3.12"]
         TEST_TYPE: ["oldest", "newest"]
-      - PYTHON_VERSION: ["3.8"]
-        TEST_TYPE: ["pyspark3.2", "pyspark3.3", "pyspark3.4"]
+      - PYTHON_VERSION: ["3.9"]
+        TEST_TYPE: ["pyspark3.4"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   rules:
     - if: '$NIGHTLY == "true"'
@@ -208,7 +208,7 @@ benchmark_dependency_matrix:
   needs: ["package"]
   parallel:
     matrix:
-      - PYTHON_VERSION: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      - PYTHON_VERSION: ["3.9", "3.10", "3.11", "3.12"]
         TEST_TYPE: ["oldest", "newest"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   script:
@@ -231,7 +231,7 @@ test_release_linux:
   needs: ["package"]
   parallel:
     matrix:
-      - PYTHON_VERSION: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      - PYTHON_VERSION: ["3.9", "3.10", "3.11", "3.12"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   script:
     - nox -s release_smoketest release_test
@@ -258,7 +258,7 @@ audit:
   needs: ["package"]
   parallel:
     matrix:
-      - PYTHON_VERSION: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      - PYTHON_VERSION: ["3.9", "3.10", "3.11", "3.12"]
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   script:
     - nox -s "audit(python=\"${PYTHON_VERSION}\")"

@@ -86,10 +86,3 @@ from tmlt.analytics.query_builder import (
 )
 from tmlt.analytics.session import SUPPORTED_SPARK_TYPES, TYPE_COERCION_MAP, Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
-
-try:
-    # Addresses https://nvd.nist.gov/vuln/detail/CVE-2023-47248 for Python 3.7
-    # Python 3.8+ resolve this by using PyArrow >=14.0.1, so it may not be available
-    import pyarrow_hotfix
-except ImportError:
-    pass

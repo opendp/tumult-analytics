@@ -9,7 +9,8 @@ Changelog
 Unreleased
 ----------
 
-This release introduces no major user-visible changes.
+This release introduces no major API changes.
+However, it increases the minimum supported Python version to 3.9, and the minimum supported PySpark version to 3.3.1.
 
 Fixed
 ~~~~~

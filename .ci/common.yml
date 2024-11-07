@@ -10,7 +10,7 @@ variables:
   FF_USE_FASTZIP: "true"
 
 .base:
-  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.8
+  image: registry.gitlab.com/tumult-labs/ops/ci/linux:python3.9
   before_script:
     - java -version
     - python --version

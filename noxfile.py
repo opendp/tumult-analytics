@@ -37,14 +37,10 @@ DEPENDENCY_MATRIX = {
     }
     for (name, python, pyspark, sympy, pandas, core) in [
         # fmt: off
-        ("3.8-oldest",     "3.8",  "==3.1.1", "==1.8", "==1.4.0", "==0.16.5"),
-        ("3.8-pyspark3.2", "3.8",  "==3.2.0", "==1.9", "==1.5.3", ">=0.16.5"),
-        ("3.8-pyspark3.3", "3.8",  "==3.3.1", "==1.9", "==1.5.3", ">=0.16.5"),
-        ("3.8-pyspark3.4", "3.8",  "==3.4.0", "==1.9", "==1.5.3", ">=0.16.5"),
-        ("3.8-newest",     "3.8",  "==3.5.1", "==1.9", "==1.5.3", ">=0.16.5"),
-        ("3.9-oldest",     "3.9",  "==3.1.1", "==1.8", "==1.4.0", "==0.16.5"),
-        ("3.9-newest",     "3.9",  "==3.5.1", "==1.9", "==1.5.3", ">=0.16.5"),
-        ("3.10-oldest",    "3.10", "==3.1.1", "==1.8", "==1.4.0", "==0.16.5"),
+        ("3.9-oldest",     "3.9",  "==3.3.1", "==1.8", "==1.4.0", "==0.17.0"),
+        ("3.9-pyspark3.4", "3.9",  "==3.4.0", "==1.9", "==1.5.3", ">=0.17.0"),
+        ("3.9-newest",     "3.9",  "==3.5.1", "==1.9", "==1.5.3", ">=0.17.0"),
+        ("3.10-oldest",    "3.10", "==3.3.1", "==1.8", "==1.4.0", "==0.17.0"),
         ("3.10-newest",    "3.10", "==3.5.1", "==1.9", "==1.5.3", ">=0.16.5"),
         ("3.11-oldest",    "3.11", "==3.4.0", "==1.8", "==1.5.0", "==0.16.5"),
         ("3.11-newest",    "3.11", "==3.5.1", "==1.9", "==1.5.3", ">=0.16.5"),
@@ -85,7 +81,7 @@ ILLEGAL_WORDS_IGNORE_GLOBS = LICENSE_IGNORE_GLOBS
 ILLEGAL_WORDS_IGNORE_FILES = LICENSE_IGNORE_FILES
 ILLEGAL_WORDS = ["multirepo", "multi-repo"]
 
-AUDIT_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+AUDIT_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 AUDIT_SUPPRESSIONS = [
     "PYSEC-2023-228",
     # Affects: pip<23.3
@@ -130,6 +126,7 @@ _builder = SessionBuilder(
     options={
         "code_dirs": [Path(PACKAGE_SOURCE_DIR).resolve(), Path("test").resolve()],
         "install_overrides": install_overrides,
+        "default_python_version": "3.9",
         "smoketest_script": SMOKETEST_SCRIPT,
         "dependency_matrix": DEPENDENCY_MATRIX,
         "license_exclude_globs": LICENSE_IGNORE_GLOBS,
