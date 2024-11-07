@@ -224,6 +224,11 @@ def test_from_dict_invalid_types(d: Dict[str, List], expected_err_msg: str):
         columns=("A", "B"),
         expected_df=pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b1", "b2"]}),
     ),
+    Case("columns is a list")(
+        tuples=[("a1", "b1"), ("a2", "b1"), ("a3", "b2")],
+        columns=["A", "B"],
+        expected_df=pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b1", "b2"]}),
+    ),
     Case("different types")(
         tuples=[
             (42, "foo", datetime.date.fromordinal(1)),
