@@ -401,7 +401,7 @@ class TestTransformationVisitor:
         assert isinstance(t.output_domain, DictDomain)
         assert isinstance(t.output_metric, (DictMetric, AddRemoveKeys))
         result_df = self._get_result(t, ref)
-        assert_frame_equal_with_sort(result_df, transformed_df, check_dtype=False)
+        assert_frame_equal_with_sort(result_df, transformed_df)
 
 
 @pytest.fixture(scope="class")

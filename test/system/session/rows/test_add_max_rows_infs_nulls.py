@@ -112,7 +112,8 @@ class TestSessionWithNulls:
         )
         assert_frame_equal_with_sort(self.pdf, self._expected_replace({}))
         assert_frame_equal_with_sort(
-            expected, self._expected_replace(d), check_dtype=False
+            expected,
+            self._expected_replace(d),
         )
 
     @pytest.mark.parametrize(

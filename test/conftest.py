@@ -253,7 +253,10 @@ def assert_frame_equal_with_sort(
     if sort_columns:
         first_df = first_df.set_index(sort_columns).sort_index().reset_index()
         second_df = second_df.set_index(sort_columns).sort_index().reset_index()
-    pd.testing.assert_frame_equal(first_df, second_df, **kwargs)
+    # We explicitly pass check_dtype=False the equality check, so that identical
+    # DataFrames which differ only in dtypes (like one with an int64 column and
+    # the other with an Int64 column) are considered equal.
+    pd.testing.assert_frame_equal(first_df, second_df, check_dtype=False, **kwargs)
 
 
 def create_mock_measurement(
