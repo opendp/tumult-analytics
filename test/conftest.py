@@ -229,7 +229,7 @@ def assert_frame_equal_with_sort(
     sort_columns: Optional[Sequence[str]] = None,
     **kwargs: Any,
 ):
-    """Asserts that the two data frames are equal.
+    """Asserts that the two Pandas DataFrames are equal.
 
     Wrapper around pandas test function. Both dataframes are sorted
     since the ordering in Spark is not guaranteed.
