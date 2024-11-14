@@ -2,14 +2,13 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
-# pylint: disable=pointless-string-statement
+
+import random
 import re
 
 import pytest
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
-
-"""Unit tests for Schema."""
 
 
 def test_invalid_column_type() -> None:
@@ -86,8 +85,8 @@ def test_schema_hash() -> None:
     assert hash(schema_1) != hash(schema_5)
 
 
-def test_FrozenDict():
-    """Tests that FrozenDict works like an immutable dict."""
+def test_frozen_dict():
+    """FrozenDict works like an immutable dict."""
 
     a = FrozenDict.from_dict({"a": 1, "b": 2})
     assert a["a"] == 1
@@ -107,16 +106,36 @@ def test_FrozenDict():
     assert a == a_2
     assert hash(a) == hash(a_2)
 
-    # Tests that the dict() method works on FrozenDict.
     assert isinstance(dict(a), dict)
     assert dict(a)["a"] == 1
 
-    # Tests that the iter is implemented correctly
     assert set(a) == set(["a", "b"])
 
-    # Tests that items is implemented correctly
-    assert [("a", 1), ("b", 2)] == a.items()
+    assert [("a", 1), ("b", 2)] == list(a.items())
+    assert ["a", "b"] == list(a.keys())
+    assert [1, 2] == list(a.values())
 
-    # Tests the FrozenDict.get() method.
     assert a.get("a") == 1
     assert a.get("c", 10) == 10
+
+
+def test_frozen_dict_order():
+    """FrozenDict preserves element order when converting to/from a dict."""
+    keys = list(range(1000))
+    random.shuffle(keys)
+
+    def f(n: int) -> int:
+        return (127 * n) % 8191
+
+    pre_d = {k: f(k) for k in keys}
+    fd = FrozenDict.from_dict(pre_d)
+    post_d = dict(fd)
+
+    assert list(fd.keys()) == keys
+    assert list(fd.values()) == [f(k) for k in keys]
+    assert list(fd.items()) == [(k, f(k)) for k in keys]
+
+    assert post_d == pre_d
+    assert list(post_d.keys()) == keys
+    assert list(post_d.values()) == [f(k) for k in keys]
+    assert list(post_d.items()) == [(k, f(k)) for k in keys]

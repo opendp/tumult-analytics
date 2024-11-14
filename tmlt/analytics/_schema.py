@@ -49,10 +49,14 @@ class keyValuePair(NamedTuple):
 
 
 @dataclass(frozen=True)
-class FrozenDict:
+class FrozenDict(Mapping):
     """A mapping that is immutable and hashable.
 
-    This is needed to replace the mutable mappings in some QueryExprs.
+    Like Python's built-in dict, FrozenDict maintains the order of elements when
+    iterating and converting to/from dict.
+
+    This is needed to replace the mutable mappings in some QueryExprs and other
+    immutable objects.
 
     Note: This will not have the same performance characteristics as a normal dict.
     Mainly, really large FrozenDicts will be slower than dicts to access. This is not
@@ -67,27 +71,6 @@ class FrozenDict:
         """Checks arguments to constructor."""
         check_type(self.elements, Tuple[keyValuePair, ...])
 
-    def __getitem__(self, key):
-        """Returns the value of the key if it exists, otherwise raise KeyError."""
-        for pair in self.elements:
-            if pair.key == key:
-                return pair.value
-        raise KeyError(key)
-
-    def __hash__(self):
-        """Hashes a FrozenDict based on the tuple of elements."""
-        return hash(self.elements)
-
-    def __eq__(self, other):
-        """Determines if two FrozenDicts are equal based on their elements."""
-        if not isinstance(other, FrozenDict):
-            return False
-        return self.elements == other.elements
-
-    def __len__(self) -> int:
-        """Returns the number of elements in the FrozenDict."""
-        return len(self.elements)
-
     @staticmethod
     @typechecked
     def from_dict(dictionary: MappingType[Any, Any]) -> "FrozenDict":
@@ -95,29 +78,31 @@ class FrozenDict:
         elements = tuple(keyValuePair(key, value) for key, value in dictionary.items())
         return FrozenDict(elements)
 
+    def __len__(self) -> int:
+        """Returns the number of elements in the FrozenDict."""
+        return len(self.elements)
+
     def __iter__(self):
         """Returns each key in the FrozenDict."""
         for element in self.elements:
             yield element.key
 
-    def items(self) -> List[Tuple[Any, Any]]:
-        """Returns a list of key-value pairs from the FrozenDict."""
-        return [(pair.key, pair.value) for pair in self.elements]
-
-    def keys(self) -> List[Any]:
-        """Returns a list of keys from the FrozenDict."""
-        return [pair.key for pair in self.elements]
-
-    def values(self) -> List[Any]:
-        """Returns a list of values from the FrozenDict."""
-        return [pair.value for pair in self.elements]
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Returns the value of the key if it exists, otherwise return the default."""
+    def __getitem__(self, key):
+        """Returns the value of the key if it exists, otherwise raise KeyError."""
         for pair in self.elements:
             if pair.key == key:
                 return pair.value
-        return default
+        raise KeyError(key)
+
+    def __eq__(self, other):
+        """Determines if two FrozenDicts are equal based on their elements."""
+        if not isinstance(other, FrozenDict):
+            return False
+        return self.elements == other.elements
+
+    def __hash__(self):
+        """Hashes a FrozenDict based on the tuple of elements."""
+        return hash(self.elements)
 
 
 class ColumnType(Enum):
