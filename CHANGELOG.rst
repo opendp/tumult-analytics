@@ -12,6 +12,7 @@ Unreleased
 This release introduces no major API changes.
 However, it increases the minimum supported Python version to 3.9, and the minimum supported PySpark version to 3.3.1.
 
+
 Fixed
 ~~~~~
 - The ``columns`` argument to :meth:`.KeySet.from_tuples` is no longer required to be a tuple, any sequence type (e.g. a list) is now acceptable.
