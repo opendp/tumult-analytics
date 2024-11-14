@@ -72,6 +72,9 @@ def main() -> None:
             ["A", "E"],
         ]
         for columns_to_select in column_combinations_to_check:
+            # Make sure everything is "warmed up" for good comparisons.
+            evaluate_runtime(keysets, columns_to_select)
+
             running_time, product_keyset_size, projected_keyset_size = evaluate_runtime(keysets, columns_to_select)
             row = {
                 "Keyset Domain Size": size,

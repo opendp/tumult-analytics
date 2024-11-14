@@ -27,6 +27,9 @@ def evaluate_runtime(keysets: List[KeySet]) -> float:
 
 def add_benchmark_row(benchmark_result, keysets, size, hint):
     """Call evaluate and add a row to the benchmark result"""
+    # Make sure everything is "warmed up" for good comparisons.
+    evaluate_runtime(keysets)
+
     running_time, product_keyset_size = evaluate_runtime(keysets)
     row = {
         "Hint": hint,

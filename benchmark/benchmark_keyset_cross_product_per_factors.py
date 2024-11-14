@@ -56,6 +56,9 @@ def main() -> None:
         for keyset in keysets:
             keyset.dataframe().write.format("noop").mode("overwrite").save()
 
+        # Make sure everything is "warmed up" for good comparisons.
+        evaluate_runtime(keysets)
+
         running_time, product_keyset_size = evaluate_runtime(keysets)
         row = {
             "Factor Size": len(keysets),
