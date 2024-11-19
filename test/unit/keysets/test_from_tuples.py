@@ -96,7 +96,7 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
             "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         },
     ),
-    Case("empty")(
+    Case("total")(
         tuples=[], columns=(), expected_df=pd.DataFrame(), expected_schema={}
     ),
 )

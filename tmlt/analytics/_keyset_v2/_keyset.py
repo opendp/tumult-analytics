@@ -14,7 +14,7 @@ from pyspark.sql import DataFrame
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
-from ._ops import FromTuples, KeySetOp
+from ._ops import CrossJoin, FromTuples, KeySetOp
 
 KEYSET_COLUMN_TYPES = [ColumnType.INTEGER, ColumnType.DATE, ColumnType.VARCHAR]
 """Column types that are allowed in KeySets."""
@@ -128,6 +128,33 @@ class KeySet:
                 )
 
         return KeySet(FromTuples(tuple_set, FrozenDict.from_dict(schema)))
+
+    def __mul__(self, other: KeySet) -> KeySet:
+        """A product (``KeySet * KeySet``) returns the cross-product of both KeySets.
+
+        Example:
+            >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
+            >>> keyset2 = KeySet.from_tuples([("b1",), ("b2",)], columns=["B"])
+            >>> product = keyset1 * keyset2
+            >>> product.dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a1  b1
+            1  a1  b2
+            2  a2  b1
+            3  a2  b2
+        """
+        if not isinstance(other, KeySet):
+            raise ValueError(
+                "KeySet multiplication expected another KeySet, not "
+                f"{type(other)}, as right-hand value."
+            )
+        overlapping_columns = set(self.columns()) & set(other.columns())
+        if overlapping_columns:
+            raise ValueError(
+                "Unable to cross-join KeySets, they have "
+                f"overlapping columns: {' '.join(overlapping_columns)}"
+            )
+        return KeySet(CrossJoin(self._op_tree, other._op_tree))
 
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""

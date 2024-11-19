@@ -4,4 +4,5 @@
 # Copyright Tumult Labs 2024
 
 from ._base import KeySetOp
+from ._cross_join import CrossJoin
 from ._from_tuples import FromTuples

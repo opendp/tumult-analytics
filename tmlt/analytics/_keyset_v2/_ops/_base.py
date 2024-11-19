@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2024
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from pyspark.sql import DataFrame
 
@@ -43,3 +44,7 @@ class KeySetOp(ABC):
     @abstractmethod
     def is_plan(self) -> bool:
         """Determine whether this plan has any parts requiring partition selection."""
+
+    @abstractmethod
+    def size(self) -> Optional[int]:
+        """Determine the size of the KeySet resulting from this operation."""
