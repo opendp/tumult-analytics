@@ -66,6 +66,7 @@ typing-extensions = "^4.1.0"
 tqdm = "^4.66.4"
 tabulate = "^0.8.9"
 types-tabulate = "^0.8.10"
+sdmetrics = "^0.17.0"
 
 [tool.poetry.group.fix-lock.dependencies]
 # This is a hack to convince Poetry to allow different versions of various
