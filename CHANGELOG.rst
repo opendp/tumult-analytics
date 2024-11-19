@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.18.0:
+
+0.18.0 - 2024-11-19
+-------------------
 
 This release introduces no major API changes.
 However, it increases the minimum supported Python version to 3.9, and the minimum supported PySpark version to 3.3.1.
