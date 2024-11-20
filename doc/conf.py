@@ -154,13 +154,6 @@ nitpick_ignore = [
     ("py:class", "BinNameT"),
     # Ellipses (Tuple[blah, ...]) confuse Sphinx apparently; suppressing warning
     ("py:class", "Ellipsis"),
-    # Pandas DataFrames in as parameter types in a class constructor causes Sphinx
-    # to raise a warning
-    ("py:class", "pandas.core.frame.DataFrame"),
-    # Adding an intersphinx mapping for plotly does not fix this -- there's only a
-    # link for `plotly.graph_objects._figure.Figure` instead
-    ("py:class", "plotly.graph_objs._figure.Figure"),
-    ("py:class", "plotly.graph_objects.Figure"),
 ]
 
 # Remove this after intersphinx can use core
