@@ -11,7 +11,7 @@ function injectBanner(content) {
 }
 
 function init() {
-  const banner_config_url = DOCUMENTATION_OPTIONS.URL_ROOT + "banner-config.json";
+  const banner_config_url = document.getRootNode().documentElement.dataset.content_root + "banner-config.json";
   fetch(banner_config_url)
     .then((resp) => {
       if (resp.status != 200) {
