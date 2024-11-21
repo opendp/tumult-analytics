@@ -9,7 +9,7 @@ Changelog
 Unreleased
 ----------
 
-
+This release includes no user-facing API changes.
 
 .. _v0.18.0:
 
