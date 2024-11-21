@@ -10,8 +10,8 @@ First steps with Tumult Analytics
 In this first tutorial, we will demonstrate how to load data, run a simple
 aggregation query, and get our first differentially private results. You can run
 this tutorial (as well as the next ones) as you go: simply follow the
-:ref:`installation instructions <Installation instructions>`, and use the copy/paste button of each code
-block to reproduce it.
+:ref:`installation instructions <Installation instructions>`, and use the
+copy/paste button of each code block to reproduce it.
 
 Throughout these tutorials, we'll imagine we are the data protection officer for
 a fictional institution, the Pierre-Simon Laplace Public Library. We want to
@@ -25,7 +25,8 @@ Importantly, Tumult Analytics does *not* require you to have an in-depth
 understanding of differential privacy. In these tutorials, we will gloss over
 all the details of what happens behind the scenes, and focus on how to
 accomplish common tasks. To learn more about the trade-offs involved in
-parameter setting and mechanism design, you can consult our :ref:`topic guides <Topic guides>`.
+parameter setting and mechanism design, you can consult our
+:ref:`topic guides <Topic guides>`.
 
 .. _differential privacy: https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html
 
@@ -52,7 +53,6 @@ Next, we initialize the Spark session.
    spark = SparkSession.builder.getOrCreate()
 
 This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark topic guide <Spark>`.
-
 
 Now, we need to load our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``

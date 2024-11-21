@@ -86,11 +86,12 @@ our library?
    |   36.81559|
    +-----------+
 
-Take a look at the query definition: the call to `average` has two additional
-parameters, besides the column we want to compute the average on: `low` and
-`high`. These are *clamping bounds*, and they indicate the possible range of the
-input data. Here, clamping bounds of `low=0` and `high=120` indicate that the
-individual values for column `age` will be in the interval `[0, 120]`.
+Take a look at the query definition: the call to ``average`` has two additional
+parameters, besides the column we want to compute the average on: ``low`` and
+``high``. These are *clamping bounds*, and they indicate the possible range of
+the input data. Here, clamping bounds of ``low=0`` and ``high=120`` indicate
+that the individual values for column ``age`` will be in the interval
+``[0, 120]``.
 
 When you know that there is a reasonable minimum and maximum for each value of a
 column, you can use those as clamping bounds. This is what we did here: without

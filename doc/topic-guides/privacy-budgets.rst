@@ -1,6 +1,5 @@
 .. _Privacy budget fundamentals:
 
-
 Privacy budget fundamentals
 ===========================
 
@@ -77,7 +76,6 @@ There are a few additional constraints worth noting:
   may not exceed the Session's total budget.
   If you attempt to evaluate a query with a greater budget than your Session has
   remaining, the Session will raise an exception.
-
 
 .. _Privacy tradeoff:
 

@@ -229,6 +229,8 @@ We observe a low, but non-zero count for age 5, even though this value is
 completely absent in our dataset. This is entirely due to the noise added to the
 real value (here, 0).
 
+.. _keysets-multiple-columns:
+
 Multiple columns
 ----------------
 
@@ -564,8 +566,10 @@ possible combinations of the two columns, using a filter.
 
    True
 
+.. _automatic-keyset-selection:
+
 Automatic KeySet selection
----------------------------
+--------------------------
 
 There are some uses cases for which it is impossible, or at least very impractical,
 to enumerate the list of group-by keys without using the private data. For instance,
