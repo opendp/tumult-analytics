@@ -89,6 +89,15 @@ AUDIT_SUPPRESSIONS = [
     # Link: https://github.com/advisories/GHSA-mq26-g339-26xf
     # Impact: None, we don't use Mercurial, and in any case we assume that users will
     #         have their own pip installations -- it is not a dependency of Analytics.
+    "PYSEC-2017-147",
+    # Affects: PySpark 1.6 through 2.1
+    # Link: https://nvd.nist.gov/vuln/detail/CVE-2017-12612
+    # Impact: None, we don't support these versions of PySpark. This appears to
+    #         be showing up due to a bad data import into the PyPA vulnerability
+    #         database [0], which they are aware of and working to fix [1], but
+    #         in the mean time we are also ignoring it here.
+    # [0] https://github.com/pypa/advisory-database/commit/c9b8e1f96953321b54b796baef731c8f72587115
+    # [1] https://github.com/pypa/advisory-database/issues/207#issuecomment-2491830484
 ]
 
 # Dictionary mapping benchmark names to the corresponding timeouts
