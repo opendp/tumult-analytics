@@ -6,8 +6,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.19.0:
+
+0.19.0 - 2024-11-21
+-------------------
 
 This release includes no user-facing API changes.
 
