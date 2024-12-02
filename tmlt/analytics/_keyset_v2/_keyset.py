@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import Optional, Union
+from functools import reduce
+from typing import Iterable, Mapping, Optional, Union
 
 from pyspark.sql import DataFrame
 
@@ -50,7 +51,7 @@ class KeySet:
 
     @staticmethod
     def from_tuples(
-        tuples: Sequence[tuple[Union[str, int, datetime.date, None], ...]],
+        tuples: Iterable[tuple[Union[str, int, datetime.date, None], ...]],
         columns: Sequence[str],
     ) -> KeySet:
         """Creates a KeySet from a list of tuples and column names.
@@ -100,7 +101,7 @@ class KeySet:
             types = column_types[col]
             if types == set():
                 raise ValueError(
-                    "Unable to infer column types for empty collection of tuples."
+                    "Unable to infer column types for an empty collection of values."
                 )
             if types == {type(None)}:
                 raise ValueError(
@@ -128,6 +129,46 @@ class KeySet:
                 )
 
         return KeySet(FromTuples(tuple_set, FrozenDict.from_dict(schema)))
+
+    @staticmethod
+    def from_dict(
+        domains: Mapping[
+            str,
+            Union[
+                Iterable[Optional[str]],
+                Iterable[Optional[int]],
+                Iterable[Optional[datetime.date]],
+            ],
+        ]
+    ) -> KeySet:
+        """Creates a KeySet from a dictionary.
+
+        The ``domains`` dictionary should map column names to the desired values
+        for those columns. The KeySet returned is the cross-product of those
+        columns. Duplicate values in the column domains are allowed, but only
+        one of the duplicates is kept.
+
+        Example:
+            >>> domains = {
+            ...     "A": ["a1", "a2"],
+            ...     "B": ["b1", "b2"],
+            ... }
+            >>> keyset = KeySet.from_dict(domains)
+            >>> keyset.dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a1  b1
+            1  a1  b2
+            2  a2  b1
+            3  a2  b2
+        """
+        if len(domains) == 0:
+            return KeySet.from_tuples([], columns=[])
+
+        domain_keysets = (
+            KeySet.from_tuples(((v,) for v in values), columns=[col])
+            for col, values in domains.items()
+        )
+        return reduce(lambda l, r: l * r, domain_keysets)
 
     def __mul__(self, other: KeySet) -> KeySet:
         """A product (``KeySet * KeySet``) returns the cross-product of both KeySets.
