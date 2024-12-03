@@ -5,13 +5,13 @@
 
 import datetime
 from functools import reduce
-from typing import Any, ContextManager
+from typing import Any, ContextManager, Union
 
 import pandas as pd
 import pytest
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet
+from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType
 
 
@@ -94,6 +94,36 @@ def test_valid(
     assert ks.columns() == left.columns() + right.columns()
     assert_dataframe_equal(ks.dataframe(), expected_df)
     assert ks.schema() == expected_schema
+
+
+# pylint: disable=protected-access
+@parametrize(
+    Case("left_plan")(
+        left=KeySet._detect(["A"]),
+        right=KeySet.from_dict({"B": [1, 2]}),
+        expected_columns=["A", "B"],
+    ),
+    Case("right_plan")(
+        left=KeySet.from_dict({"A": [1, 2]}),
+        right=KeySet._detect(["B"]),
+        expected_columns=["A", "B"],
+    ),
+    Case("both_plan")(
+        left=KeySet._detect(["A"]),
+        right=KeySet._detect(["B"]),
+        expected_columns=["A", "B"],
+    ),
+)
+# pylint: enable=protected-access
+def test_valid_plan(
+    left: Union[KeySet, KeySetPlan],
+    right: Union[KeySet, KeySetPlan],
+    expected_columns: list[str],
+):
+    """Valid parameters including a KeySetPlan work as expected."""
+    ks = left * right
+    assert isinstance(ks, KeySetPlan)
+    assert ks.columns() == expected_columns
 
 
 @parametrize(

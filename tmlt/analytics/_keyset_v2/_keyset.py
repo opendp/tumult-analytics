@@ -8,17 +8,27 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from functools import reduce
-from typing import Iterable, Mapping, Optional, Union
+from typing import Iterable, Mapping, Optional, Union, overload
 
 from pyspark.sql import DataFrame
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
-from ._ops import CrossJoin, FromTuples, KeySetOp
+from ._ops import CrossJoin, Detect, FromTuples, KeySetOp
 
 KEYSET_COLUMN_TYPES = [ColumnType.INTEGER, ColumnType.DATE, ColumnType.VARCHAR]
 """Column types that are allowed in KeySets."""
+
+
+def _validate_column_names(columns: Iterable[str]):
+    for col in columns:
+        if not isinstance(col, str):
+            raise ValueError(
+                f"Column names must be strings, not {type(col).__qualname__}."
+            )
+        if len(col) == 0:
+            raise ValueError("Empty column names are not allowed.")
 
 
 class KeySet:
@@ -69,11 +79,7 @@ class KeySet:
             1  a2  b1
             2  a3  b3
         """
-        for col in columns:
-            if not isinstance(col, str):
-                raise ValueError(f"Column names must be strings, not {type(col)}.")
-            if len(col) == 0:
-                raise ValueError("Empty column names are not allowed.")
+        _validate_column_names(columns)
 
         # Deduplicate the tuples
         tuple_set = frozenset(tuples)
@@ -170,8 +176,35 @@ class KeySet:
         )
         return reduce(lambda l, r: l * r, domain_keysets)
 
-    def __mul__(self, other: KeySet) -> KeySet:
-        """A product (``KeySet * KeySet``) returns the cross-product of both KeySets.
+    # TODO(tumult-labs/tumult#3384): Make this public and fill in its docstring
+    #     with an example of usage.
+    @staticmethod
+    def _detect(columns: Sequence[str]) -> KeySetPlan:
+        """Detect the keys for a collection of columns."""
+        column_set = frozenset(columns)
+        if len(column_set) == 0:
+            raise ValueError(
+                "Detect must be used on a non-empty collection of columns."
+            )
+        _validate_column_names(column_set)
+        return KeySetPlan(Detect(column_set))
+
+    # Pydocstyle doesn't seem to understand overloads, so we need to disable the
+    # check that a docstring exists for them.
+    @overload
+    def __mul__(self, other: KeySet) -> KeySet:  # noqa: D105
+        ...
+
+    @overload
+    def __mul__(self, other: KeySetPlan) -> KeySetPlan:  # noqa: D105
+        ...
+
+    def __mul__(self, other):
+        r"""The Cartesian product of the two KeySet or KeySetPlan factors.
+
+        Multiplying two :class:`KeySet`\ s together produces another
+        :class:`KeySet`; if either factor is a :class:`KeySetPlan`, then the
+        result is a :class:`KeySetPlan`.
 
         Example:
             >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
@@ -184,10 +217,10 @@ class KeySet:
             2  a2  b1
             3  a2  b2
         """
-        if not isinstance(other, KeySet):
+        if not isinstance(other, (KeySet, KeySetPlan)):
             raise ValueError(
-                "KeySet multiplication expected another KeySet, not "
-                f"{type(other)}, as right-hand value."
+                "KeySet multiplication expected another KeySet or KeySetPlan, not "
+                f"{type(other).__qualname__}, as right-hand value."
             )
         overlapping_columns = set(self.columns()) & set(other.columns())
         if overlapping_columns:
@@ -195,7 +228,11 @@ class KeySet:
                 "Unable to cross-join KeySets, they have "
                 f"overlapping columns: {' '.join(overlapping_columns)}"
             )
-        return KeySet(CrossJoin(self._op_tree, other._op_tree))
+
+        if isinstance(other, KeySet):
+            return KeySet(CrossJoin(self._op_tree, other._op_tree))
+        else:
+            return KeySetPlan(CrossJoin(self._op_tree, other._op_tree))
 
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""
@@ -246,3 +283,58 @@ class KeySet:
         self._cached = False
         if self._dataframe:
             self._dataframe.unpersist()
+
+
+class KeySetPlan:
+    """A plan for computing a KeySet based on values in a table.
+
+    A :class:`.KeySetPlan` describes a plan for computing a set of group keys
+    that may be used when computing a group-by query. This is similar to what a
+    :class:`.KeySet` represents, with one key difference: a :class:`.KeySetPlan`
+    requires spending some privacy budget with a :class:`.Session` to get back a
+    specific :class:`.KeySet` for a particular table. The :class:`.KeySetPlan`
+    alone cannot produce an equivalent dataframe and doesn't have a fixed
+    schema.
+    """
+
+    def __init__(self, op_tree: KeySetOp):
+        """Constructor. @nodoc."""
+        if not isinstance(op_tree, KeySetOp):
+            raise ValueError(
+                "KeySets should not be initialized using their constructor, "
+                "use one of the various static initializer methods instead."
+            )
+        if not op_tree.is_plan():
+            raise AnalyticsInternalError(
+                "KeySetPlan must be generated with a plan "
+                "including partition selection."
+            )
+        self._op_tree = op_tree
+
+    def columns(self) -> list[str]:
+        """Returns the list of columns used in this KeySetPlan."""
+        return self._op_tree.columns()
+
+    def __mul__(self, other: Union[KeySet, KeySetPlan]) -> KeySetPlan:
+        """The Cartesian product of the two KeySet or KeySetPlan factors.
+
+        Example:
+            >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
+            >>> keyset2 = KeySet._detect(["B"])
+            >>> product = keyset1 * keyset2
+            >>> product.columns()
+            ['A', 'B']
+        """
+        if not isinstance(other, (KeySet, KeySetPlan)):
+            raise ValueError(
+                "KeySet multiplication expected another KeySet or KeySetPlan, not "
+                f"{type(other).__qualname__}, as right-hand value."
+            )
+        overlapping_columns = set(self.columns()) & set(other.columns())
+        if overlapping_columns:
+            raise ValueError(
+                "Unable to cross-join KeySets, they have "
+                f"overlapping columns: {' '.join(overlapping_columns)}"
+            )
+
+        return KeySetPlan(CrossJoin(self._op_tree, other._op_tree))
