@@ -137,6 +137,8 @@ def test_large(factors: int, factor_size: int):
     """Operations with large output KeySets work as expected."""
     ks = KeySet.from_dict({str(f): range(factor_size) for f in range(factors)})
     assert ks.dataframe().count() == factor_size**factors
+    assert ks.columns() == [str(f) for f in range(factors)]
+    assert ks.dataframe().columns == ks.columns()
 
 
 @parametrize(

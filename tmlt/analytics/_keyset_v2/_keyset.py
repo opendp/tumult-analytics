@@ -43,7 +43,7 @@ class KeySet:
         that column.
     """
 
-    def __init__(self, op_tree: KeySetOp):
+    def __init__(self, op_tree: KeySetOp, columns: Sequence[str]):
         """Constructor. @nodoc."""
         if not isinstance(op_tree, KeySetOp):
             raise ValueError(
@@ -55,7 +55,13 @@ class KeySet:
                 "KeySet should not be generated with a plan "
                 "including partition selection."
             )
+        if set(op_tree.columns()) != set(columns):
+            raise AnalyticsInternalError(
+                f"KeySet columns {columns} do not match "
+                f"the columns of its op-tree {op_tree.columns()}."
+            )
         self._op_tree = op_tree
+        self._columns = columns
         self._dataframe: Optional[DataFrame] = None
         self._cached = False
 
@@ -134,7 +140,9 @@ class KeySet:
                     f"{', '.join(t.name for t in KEYSET_COLUMN_TYPES)}"
                 )
 
-        return KeySet(FromTuples(tuple_set, FrozenDict.from_dict(schema)))
+        return KeySet(
+            FromTuples(tuple_set, FrozenDict.from_dict(schema)), columns=columns
+        )
 
     @staticmethod
     def from_dict(
@@ -187,7 +195,7 @@ class KeySet:
                 "Detect must be used on a non-empty collection of columns."
             )
         _validate_column_names(column_set)
-        return KeySetPlan(Detect(column_set))
+        return KeySetPlan(Detect(column_set), columns=columns)
 
     # Pydocstyle doesn't seem to understand overloads, so we need to disable the
     # check that a docstring exists for them.
@@ -230,13 +238,19 @@ class KeySet:
             )
 
         if isinstance(other, KeySet):
-            return KeySet(CrossJoin(self._op_tree, other._op_tree))
+            return KeySet(
+                CrossJoin(self._op_tree, other._op_tree),
+                columns=self.columns() + other.columns(),
+            )
         else:
-            return KeySetPlan(CrossJoin(self._op_tree, other._op_tree))
+            return KeySetPlan(
+                CrossJoin(self._op_tree, other._op_tree),
+                columns=self.columns() + other.columns(),
+            )
 
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""
-        return self._op_tree.columns()
+        return list(self._columns)
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         # pylint: disable=line-too-long
@@ -254,7 +268,8 @@ class KeySet:
              'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)}
         """
         # pylint: enable=line-too-long
-        return self._op_tree.schema()
+        schema = self._op_tree.schema()
+        return {c: schema[c] for c in self.columns()}  # Reorder to match self.columns()
 
     def dataframe(self) -> DataFrame:
         """Returns the dataframe associated with this KeySet.
@@ -263,7 +278,14 @@ class KeySet:
         the KeySet, and its rows are guaranteed to be unique.
         """
         if not self._dataframe:
-            self._dataframe = self._op_tree.dataframe()
+            df = self._op_tree.dataframe()
+            if set(df.columns) != set(self.columns()):
+                raise AnalyticsInternalError(
+                    f"KeySet op-tree dataframe produced columns {df.columns} that "
+                    f"do not match its expected columns {self.columns()}."
+                )
+            # Reorder to match self.columns()
+            self._dataframe = df.select(*self.columns())
             if self._cached:
                 self._dataframe.cache()
 
@@ -297,7 +319,7 @@ class KeySetPlan:
     schema.
     """
 
-    def __init__(self, op_tree: KeySetOp):
+    def __init__(self, op_tree: KeySetOp, columns: Sequence[str]):
         """Constructor. @nodoc."""
         if not isinstance(op_tree, KeySetOp):
             raise ValueError(
@@ -309,11 +331,17 @@ class KeySetPlan:
                 "KeySetPlan must be generated with a plan "
                 "including partition selection."
             )
+        if set(op_tree.columns()) != set(columns):
+            raise AnalyticsInternalError(
+                f"KeySet columns {columns} do not match "
+                f"the columns of its op-tree {op_tree.columns()}."
+            )
         self._op_tree = op_tree
+        self._columns = columns
 
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySetPlan."""
-        return self._op_tree.columns()
+        return list(self._columns)
 
     def __mul__(self, other: Union[KeySet, KeySetPlan]) -> KeySetPlan:
         """The Cartesian product of the two KeySet or KeySetPlan factors.
@@ -337,4 +365,7 @@ class KeySetPlan:
                 f"overlapping columns: {' '.join(overlapping_columns)}"
             )
 
-        return KeySetPlan(CrossJoin(self._op_tree, other._op_tree))
+        return KeySetPlan(
+            CrossJoin(self._op_tree, other._op_tree),
+            columns=self.columns() + other.columns(),
+        )

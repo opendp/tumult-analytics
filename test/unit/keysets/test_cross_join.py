@@ -25,6 +25,15 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
             "B": ColumnDescriptor(ColumnType.INTEGER),
         },
     ),
+    Case("one_column_swapped")(
+        left=KeySet.from_tuples([(1,), (2,)], columns=["B"]),
+        right=KeySet.from_tuples([(3,), (4,)], columns=["A"]),
+        expected_df=pd.DataFrame({"B": [1, 1, 2, 2], "A": [3, 4, 3, 4]}),
+        expected_schema={
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
     Case("two_column")(
         left=KeySet.from_tuples([(1, 2), (3, 4)], columns=["A", "B"]),
         right=KeySet.from_tuples([(5, 6), (7, 8)], columns=["C", "D"]),
@@ -113,6 +122,21 @@ def test_valid(
         right=KeySet._detect(["B"]),
         expected_columns=["A", "B"],
     ),
+    Case("left_plan_swapped")(
+        left=KeySet._detect(["B"]),
+        right=KeySet.from_dict({"A": [1, 2]}),
+        expected_columns=["B", "A"],
+    ),
+    Case("right_plan_swapped")(
+        left=KeySet.from_dict({"B": [1, 2]}),
+        right=KeySet._detect(["A"]),
+        expected_columns=["B", "A"],
+    ),
+    Case("both_plan_swapped")(
+        left=KeySet._detect(["B"]),
+        right=KeySet._detect(["A"]),
+        expected_columns=["B", "A"],
+    ),
 )
 # pylint: enable=protected-access
 def test_valid_plan(
@@ -141,6 +165,8 @@ def test_chained(factors: int, factor_size: int):
     ]
     ks = reduce(lambda l, r: l * r, keysets)
     assert ks.dataframe().count() == factor_size**factors
+    assert ks.columns() == [str(f) for f in range(factors)]
+    assert ks.dataframe().columns == ks.columns()
 
 
 @parametrize(

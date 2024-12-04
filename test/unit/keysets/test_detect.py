@@ -15,7 +15,11 @@ def test_detect():
     """KeySet.detect works as expected."""
     ks = KeySet._detect(["A", "B"])  # pylint: disable=protected-access
     assert isinstance(ks, KeySetPlan)
-    assert set(ks.columns()) == {"A", "B"}
+    assert ks.columns() == ["A", "B"]
+
+    ks = KeySet._detect(["B", "A"])  # pylint: disable=protected-access
+    assert isinstance(ks, KeySetPlan)
+    assert ks.columns() == ["B", "A"]
 
 
 @parametrize(

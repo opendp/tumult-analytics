@@ -16,7 +16,12 @@ class KeySetOp(ABC):
 
     @abstractmethod
     def columns(self) -> list[str]:
-        """Get a list of the columns included in the output of this operation."""
+        r"""Get a list of the columns included in the output of this operation.
+
+        The column order of a :class:`KeySetOp` is an implementation detail, and
+        should not be considered when deciding whether two :class:`KeySetOp`\ s
+        are equivalent.
+        """
 
     @abstractmethod
     def schema(self) -> dict[str, ColumnDescriptor]:
