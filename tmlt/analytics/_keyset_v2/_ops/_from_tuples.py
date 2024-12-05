@@ -41,6 +41,8 @@ class FromTuples(KeySetOp):
                     "only allowed types in KeySets are: "
                     f"{', '.join(t.name for t in KEYSET_COLUMN_TYPES)}"
                 )
+        if len(self.column_descriptors) == 0 and len(self.tuples) > 0:
+            raise ValueError("A KeySet with no columns must not have any rows.")
 
     def columns(self) -> list[str]:
         """Get a list of the columns included in the output of this operation."""

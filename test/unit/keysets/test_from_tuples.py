@@ -172,6 +172,13 @@ def test_columns_type(columns: Sequence[str]):
             ValueError, match="Column 'A' has type TIMESTAMP, but only allowed types"
         ),
     ),
+    Case("empty_columns_with_tuples")(
+        tuples=[(), ()],
+        columns=[],
+        expectation=pytest.raises(
+            ValueError, match="A KeySet with no columns must not have any rows"
+        ),
+    ),
     Case("empty_tuples_with_columns")(
         tuples=[],
         columns=["A"],
