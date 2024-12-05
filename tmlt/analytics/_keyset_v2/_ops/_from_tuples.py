@@ -17,6 +17,7 @@ from tmlt.analytics._schema import (
 )
 
 from ._base import KeySetOp
+from ._utils import KEYSET_COLUMN_TYPES, validate_column_names
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,21 @@ class FromTuples(KeySetOp):
 
     tuples: frozenset[tuple[Union[str, int, datetime.date, None], ...]]
     column_descriptors: FrozenDict
+
+    def __post_init__(self):
+        """Validation."""
+        # Validation of the tuples themselves occurs in the KeySet.from_tuples
+        # method, as constructing column_descriptors already requires scanning
+        # the input data. The checking there guarantees that all of the tuples
+        # match column_descriptors and that every column has a known type.
+        validate_column_names(self.column_descriptors.keys())
+        for col, desc in self.column_descriptors.items():
+            if desc.column_type not in KEYSET_COLUMN_TYPES:
+                raise ValueError(
+                    f"Column '{col}' has type {desc.column_type.name}, but "
+                    "only allowed types in KeySets are: "
+                    f"{', '.join(t.name for t in KEYSET_COLUMN_TYPES)}"
+                )
 
     def columns(self) -> list[str]:
         """Get a list of the columns included in the output of this operation."""

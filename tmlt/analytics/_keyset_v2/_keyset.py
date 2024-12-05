@@ -17,19 +17,6 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
 from ._ops import CrossJoin, Detect, FromTuples, KeySetOp
 
-KEYSET_COLUMN_TYPES = [ColumnType.INTEGER, ColumnType.DATE, ColumnType.VARCHAR]
-"""Column types that are allowed in KeySets."""
-
-
-def _validate_column_names(columns: Iterable[str]):
-    for col in columns:
-        if not isinstance(col, str):
-            raise ValueError(
-                f"Column names must be strings, not {type(col).__qualname__}."
-            )
-        if len(col) == 0:
-            raise ValueError("Empty column names are not allowed.")
-
 
 class KeySet:
     """A class containing a set of values for specific columns.
@@ -85,8 +72,6 @@ class KeySet:
             1  a2  b1
             2  a3  b3
         """
-        _validate_column_names(columns)
-
         # Deduplicate the tuples
         tuple_set = frozenset(tuples)
         for t in tuple_set:
@@ -131,14 +116,6 @@ class KeySet:
             schema[col] = ColumnDescriptor(
                 ColumnType(col_type), allow_null=type(None) in types
             )
-
-        for col, desc in schema.items():
-            if desc.column_type not in KEYSET_COLUMN_TYPES:
-                raise ValueError(
-                    f"Column '{col}' has type {desc.column_type}, but only allowed "
-                    "types in KeySets are: "
-                    f"{', '.join(t.name for t in KEYSET_COLUMN_TYPES)}"
-                )
 
         return KeySet(
             FromTuples(tuple_set, FrozenDict.from_dict(schema)), columns=columns
@@ -189,13 +166,7 @@ class KeySet:
     @staticmethod
     def _detect(columns: Sequence[str]) -> KeySetPlan:
         """Detect the keys for a collection of columns."""
-        column_set = frozenset(columns)
-        if len(column_set) == 0:
-            raise ValueError(
-                "Detect must be used on a non-empty collection of columns."
-            )
-        _validate_column_names(column_set)
-        return KeySetPlan(Detect(column_set), columns=columns)
+        return KeySetPlan(Detect(frozenset(columns)), columns=columns)
 
     # Pydocstyle doesn't seem to understand overloads, so we need to disable the
     # check that a docstring exists for them.
@@ -230,13 +201,6 @@ class KeySet:
                 "KeySet multiplication expected another KeySet or KeySetPlan, not "
                 f"{type(other).__qualname__}, as right-hand value."
             )
-        overlapping_columns = set(self.columns()) & set(other.columns())
-        if overlapping_columns:
-            raise ValueError(
-                "Unable to cross-join KeySets, they have "
-                f"overlapping columns: {' '.join(overlapping_columns)}"
-            )
-
         if isinstance(other, KeySet):
             return KeySet(
                 CrossJoin(self._op_tree, other._op_tree),
@@ -358,13 +322,6 @@ class KeySetPlan:
                 "KeySet multiplication expected another KeySet or KeySetPlan, not "
                 f"{type(other).__qualname__}, as right-hand value."
             )
-        overlapping_columns = set(self.columns()) & set(other.columns())
-        if overlapping_columns:
-            raise ValueError(
-                "Unable to cross-join KeySets, they have "
-                f"overlapping columns: {' '.join(overlapping_columns)}"
-            )
-
         return KeySetPlan(
             CrossJoin(self._op_tree, other._op_tree),
             columns=self.columns() + other.columns(),

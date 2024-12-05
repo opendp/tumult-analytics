@@ -12,6 +12,7 @@ from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor
 
 from ._base import KeySetOp
+from ._utils import validate_column_names
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,14 @@ class Detect(KeySetOp):
     """Detect a KeySet from a group of columns on a Session."""
 
     detect_columns: frozenset[str]
+
+    def __post_init__(self):
+        """Validation."""
+        if len(self.detect_columns) == 0:
+            raise ValueError(
+                "Detect must be used on a non-empty collection of columns."
+            )
+        validate_column_names(self.detect_columns)
 
     def columns(self) -> list[str]:
         """Get a list of the columns included in the output of this operation."""

@@ -36,6 +36,15 @@ class CrossJoin(KeySetOp):
     left: KeySetOp
     right: KeySetOp
 
+    def __post_init__(self):
+        """Validation."""
+        overlapping_columns = set(self.left.columns()) & set(self.right.columns())
+        if overlapping_columns:
+            raise ValueError(
+                "Unable to cross-join KeySets, they have "
+                f"overlapping columns: {' '.join(overlapping_columns)}"
+            )
+
     def columns(self) -> list[str]:
         """Get a list of the columns included in the output of this operation."""
         return self.left.columns() + self.right.columns()
