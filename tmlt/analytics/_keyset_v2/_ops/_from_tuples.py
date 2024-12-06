@@ -17,7 +17,7 @@ from tmlt.analytics._schema import (
 )
 
 from ._base import KeySetOp
-from ._utils import KEYSET_COLUMN_TYPES, validate_column_names
+from ._utils import validate_schema
 
 
 @dataclass(frozen=True)
@@ -33,14 +33,7 @@ class FromTuples(KeySetOp):
         # method, as constructing column_descriptors already requires scanning
         # the input data. The checking there guarantees that all of the tuples
         # match column_descriptors and that every column has a known type.
-        validate_column_names(self.column_descriptors.keys())
-        for col, desc in self.column_descriptors.items():
-            if desc.column_type not in KEYSET_COLUMN_TYPES:
-                raise ValueError(
-                    f"Column '{col}' has type {desc.column_type.name}, but "
-                    "only allowed types in KeySets are: "
-                    f"{', '.join(t.name for t in KEYSET_COLUMN_TYPES)}"
-                )
+        validate_schema(self.column_descriptors)
         if len(self.column_descriptors) == 0 and len(self.tuples) > 0:
             raise ValueError("A KeySet with no columns must not have any rows.")
 

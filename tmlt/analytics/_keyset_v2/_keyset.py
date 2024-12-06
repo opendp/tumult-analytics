@@ -15,7 +15,7 @@ from pyspark.sql import DataFrame
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
-from ._ops import CrossJoin, Detect, FromTuples, KeySetOp
+from ._ops import CrossJoin, Detect, FromSparkDataFrame, FromTuples, KeySetOp
 
 
 class KeySet:
@@ -51,6 +51,22 @@ class KeySet:
         self._columns = columns
         self._dataframe: Optional[DataFrame] = None
         self._cached = False
+
+    @staticmethod
+    def from_dataframe(df: DataFrame) -> KeySet:
+        """Creates a KeySet from a dataframe.
+
+        This DataFrame should contain every combination of values being selected
+        in the KeySet. If there are duplicate rows in the dataframe, only one
+        copy of each will be kept.
+
+        When creating KeySets with this method, it is the responsibility of the
+        caller to ensure that the given dataframe remains valid for the lifetime
+        of the KeySet. If the dataframe becomes invalid, for example because its
+        Spark session is closed, this method or any uses of the resulting
+        dataframe may raise exceptions or have other unanticipated effects.
+        """
+        return KeySet(FromSparkDataFrame(df), columns=df.columns)
 
     @staticmethod
     def from_tuples(

@@ -5,10 +5,12 @@
 
 import datetime
 from functools import reduce
-from typing import Any, ContextManager, Union
+from typing import Any, Callable, ContextManager, Union
 
 import pandas as pd
 import pytest
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import LongType, StructField, StructType
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
@@ -48,6 +50,57 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
             "D": ColumnDescriptor(ColumnType.INTEGER),
         },
     ),
+    Case("mixed_types")(
+        left=KeySet.from_tuples([(5, None), (None, "str")], columns=["int", "string"]),
+        right=KeySet.from_tuples([(datetime.date.fromordinal(1),)], columns=["date"]),
+        expected_df=pd.DataFrame(
+            [
+                (5, None, datetime.date.fromordinal(1)),
+                (None, "str", datetime.date.fromordinal(1)),
+            ],
+            columns=["int", "string", "date"],
+        ),
+        expected_schema={
+            "int": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "string": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "date": ColumnDescriptor(ColumnType.DATE),
+        },
+    ),
+    Case("dataframe_left")(
+        left=lambda spark: spark.createDataFrame(
+            [[1], [2]], schema=StructType([StructField("A", LongType(), False)])
+        ),
+        right=KeySet.from_tuples([(3,), (4,)], columns=["B"]),
+        expected_df=pd.DataFrame({"A": [1, 1, 2, 2], "B": [3, 4, 3, 4]}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("dataframe_right")(
+        left=KeySet.from_tuples([(1,), (2,)], columns=["A"]),
+        right=lambda spark: spark.createDataFrame(
+            [[3], [4]], schema=StructType([StructField("B", LongType(), False)])
+        ),
+        expected_df=pd.DataFrame({"A": [1, 1, 2, 2], "B": [3, 4, 3, 4]}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("dataframe_both")(
+        left=lambda spark: spark.createDataFrame(
+            [[1], [2]], schema=StructType([StructField("A", LongType(), False)])
+        ),
+        right=lambda spark: spark.createDataFrame(
+            [[3], [4]], schema=StructType([StructField("B", LongType(), False)])
+        ),
+        expected_df=pd.DataFrame({"A": [1, 1, 2, 2], "B": [3, 4, 3, 4]}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
     Case("total_left")(
         left=KeySet.from_tuples([], columns=[]),
         right=KeySet.from_tuples([(1,), (2,)], columns=["A"]),
@@ -70,35 +123,74 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
         expected_df=pd.DataFrame({}),
         expected_schema={},
     ),
-    # TODO(tumult#3381, tumult#3382, tumult#3383): There's not currently a way
-    #     to create a KeySet which contains columns but no rows. Once there is
-    #     (any of the mentioned issues will add one), a test should be added
-    #     here to ensure that crossing an empty KeySet with any other KeySet
-    #     produces another empty KeySet.
-    Case("mixed_types")(
-        left=KeySet.from_tuples([(5, None), (None, "str")], columns=["int", "string"]),
-        right=KeySet.from_tuples([(datetime.date.fromordinal(1),)], columns=["date"]),
-        expected_df=pd.DataFrame(
-            [
-                (5, None, datetime.date.fromordinal(1)),
-                (None, "str", datetime.date.fromordinal(1)),
-            ],
-            columns=["int", "string", "date"],
+    Case("empty_left")(
+        left=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("A", LongType(), False)])
         ),
+        right=KeySet.from_tuples([(1,), (2,)], columns=["B"]),
+        expected_df=pd.DataFrame({"A": [], "B": []}),
         expected_schema={
-            "int": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "string": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-            "date": ColumnDescriptor(ColumnType.DATE),
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("empty_right")(
+        left=KeySet.from_tuples([(1,), (2,)], columns=["A"]),
+        right=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("B", LongType(), False)])
+        ),
+        expected_df=pd.DataFrame({"A": [], "B": []}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("empty_both")(
+        left=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("A", LongType(), False)])
+        ),
+        right=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("B", LongType(), False)])
+        ),
+        expected_df=pd.DataFrame({"A": [], "B": []}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("total_empty")(
+        left=KeySet.from_tuples([], columns=[]),
+        right=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("A", LongType(), False)])
+        ),
+        expected_df=pd.DataFrame({"A": []}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("empty_total")(
+        left=lambda spark: spark.createDataFrame(
+            [], schema=StructType([StructField("A", LongType(), False)])
+        ),
+        right=KeySet.from_tuples([], columns=[]),
+        expected_df=pd.DataFrame({"A": []}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
         },
     ),
 )
 def test_valid(
-    left: KeySet,
-    right: KeySet,
+    left: Union[KeySet, Callable[[SparkSession], DataFrame]],
+    right: Union[KeySet, Callable[[SparkSession], DataFrame]],
     expected_df: pd.DataFrame,
     expected_schema: dict[str, ColumnDescriptor],
+    spark,
 ):
     """Valid parameters work as expected."""
+    if callable(left):
+        left = KeySet.from_dataframe(left(spark))
+    if callable(right):
+        right = KeySet.from_dataframe(right(spark))
     ks = left * right
     assert ks.columns() == left.columns() + right.columns()
     assert_dataframe_equal(ks.dataframe(), expected_df)
