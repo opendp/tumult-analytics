@@ -8,3 +8,4 @@ from ._cross_join import CrossJoin
 from ._detect import Detect
 from ._from_dataframe import FromSparkDataFrame
 from ._from_tuples import FromTuples
+from ._project import Project

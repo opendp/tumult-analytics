@@ -15,7 +15,7 @@ from pyspark.sql import DataFrame
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
-from ._ops import CrossJoin, Detect, FromSparkDataFrame, FromTuples, KeySetOp
+from ._ops import CrossJoin, Detect, FromSparkDataFrame, FromTuples, KeySetOp, Project
 
 
 class KeySet:
@@ -228,6 +228,47 @@ class KeySet:
                 columns=self.columns() + other.columns(),
             )
 
+    def __getitem__(self, desired_columns: Union[str, Sequence[str]]) -> KeySet:
+        """``KeySet[col, col, ...]`` returns a KeySet with those columns only.
+
+        The returned KeySet contains all unique combinations of values in the
+        given columns that were present in the original KeySet.
+
+        Example:
+            >>> domains = {
+            ...     "A": ["a1", "a2"],
+            ...     "B": ["b1", "b2"],
+            ...     "C": ["c1", "c2"],
+            ...     "D": [0, 1, 2, 3]
+            ... }
+            >>> keyset = KeySet.from_dict(domains)
+            >>> a_b_keyset = keyset["A", "B"]
+            >>> a_b_keyset.dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a1  b1
+            1  a1  b2
+            2  a2  b1
+            3  a2  b2
+            >>> a_b_keyset = keyset[["A", "B"]]
+            >>> a_b_keyset.dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a1  b1
+            1  a1  b2
+            2  a2  b1
+            3  a2  b2
+            >>> a_keyset = keyset["A"]
+            >>> a_keyset.dataframe().sort("A").toPandas()
+                A
+            0  a1
+            1  a2
+        """
+        if isinstance(desired_columns, str):
+            desired_columns = [desired_columns]
+
+        return KeySet(
+            Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
+        )
+
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""
         return list(self._columns)
@@ -341,4 +382,31 @@ class KeySetPlan:
         return KeySetPlan(
             CrossJoin(self._op_tree, other._op_tree),
             columns=self.columns() + other.columns(),
+        )
+
+    # TODO(tumult-labs/tumult#3389): Some optimizations involving projection may
+    #     allow this method to actually return a KeySet rather than a
+    #     KeySetPlan, for example cross-joining a KeySet with a KeySetPlan and
+    #     then only keeping columns from the KeySet. This method will need a bit
+    #     of adjustment to accomodate that.
+    def __getitem__(self, desired_columns: Union[str, Sequence[str]]) -> KeySetPlan:
+        """``KeySetPlan[col, col, ...]`` returns a KeySetPlan with those columns only.
+
+        The returned KeySetPlan contains all unique combinations of values in the
+        given columns that were present in the original KeySetPlan.
+
+        Example:
+            >>> keyset = KeySet._detect(["A", "B", "C"])
+            >>> keyset["A", "B"].columns()
+            ['A', 'B']
+            >>> keyset[["A", "B"]].columns()
+            ['A', 'B']
+            >>> keyset["A"].columns()
+            ['A']
+        """
+        if isinstance(desired_columns, str):
+            desired_columns = [desired_columns]
+
+        return KeySetPlan(
+            Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
         )
