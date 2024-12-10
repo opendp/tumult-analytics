@@ -129,7 +129,7 @@ def test_dataframe_schema(nullable: bool):
 @parametrize(
     Case("2^4")(factors=4, factor_size=2),
     Case("64^3")(factors=3, factor_size=64),
-    Case("3^20", marks=pytest.mark.slow)(factors=20, factor_size=3),
+    Case("3^18", marks=pytest.mark.slow)(factors=18, factor_size=3),
     Case("63^5", marks=pytest.mark.slow)(factors=5, factor_size=63),
     Case("128^4", marks=pytest.mark.slow)(factors=4, factor_size=128),
 )

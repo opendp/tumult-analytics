@@ -169,6 +169,7 @@ def pyspark():
         .config("spark.default.parallelism", "5")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "16g")
+        .config("spark.driver.memory", "2g")
         .config("spark.port.maxRetries", "30")
         .config("spark.sql.shuffle.partitions", "1")
         # Disable Spark UI / Console display
@@ -204,9 +205,10 @@ def pyspark_with_progress():
         .config("spark.default.parallelism", "5")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "16g")
+        .config("spark.driver.memory", "2g")
         .config("spark.port.maxRetries", "30")
         .config("spark.sql.shuffle.partitions", "1")
-        # Disable Spark UI / Console display
+        # Disable Spark UI, leave console display enabled
         .config("spark.ui.showConsoleProgress", "true")
         .config("spark.ui.enabled", "false")
         .config("spark.ui.dagGraph.retainedRootRDDs", "1")
