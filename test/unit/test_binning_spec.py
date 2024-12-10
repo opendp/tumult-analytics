@@ -6,8 +6,9 @@
 import copy
 import datetime
 from dataclasses import FrozenInstanceError
-from typing import Any, List, Tuple
+from typing import Any, List, Sequence, Tuple
 
+import numpy as np
 import pytest
 
 from tmlt.analytics import ColumnType
@@ -82,7 +83,12 @@ def test_default_bin_names(args: List[Any], expected_strs: List[str]):
     "edges,ty",
     [
         ([0, 1], ColumnType.INTEGER),
+        (range(0, 17), ColumnType.INTEGER),
+        (np.arange(0, 17), ColumnType.INTEGER),
         ([0.0, 1.0], ColumnType.DECIMAL),
+        (np.linspace(0, 17), ColumnType.DECIMAL),
+        (np.geomspace(1, 17), ColumnType.DECIMAL),
+        (np.logspace(1, 17), ColumnType.DECIMAL),
         (["0", "1"], ColumnType.VARCHAR),
         ([datetime.date(2022, 1, 1), datetime.date(2022, 1, 2)], ColumnType.DATE),
         (
@@ -91,7 +97,7 @@ def test_default_bin_names(args: List[Any], expected_strs: List[str]):
         ),
     ],
 )
-def test_input_type(edges: List[Any], ty: ColumnType):
+def test_input_type(edges: Sequence[Any], ty: ColumnType):
     """BinningSpec.input_type works as expected."""
     spec = BinningSpec(edges)
     assert spec.input_type == ty
@@ -101,7 +107,12 @@ def test_input_type(edges: List[Any], ty: ColumnType):
     "names,ty",
     [
         ([0, 1], ColumnType.INTEGER),
+        (range(0, 2), ColumnType.INTEGER),
+        (np.arange(0, 2), ColumnType.INTEGER),
         ([0.0, 1.0], ColumnType.DECIMAL),
+        (np.linspace(0, 17, 2), ColumnType.DECIMAL),
+        (np.geomspace(1, 17, 2), ColumnType.DECIMAL),
+        (np.logspace(0, 17, 2), ColumnType.DECIMAL),
         (["0", "1"], ColumnType.VARCHAR),
         ([datetime.date(2022, 1, 1), datetime.date(2022, 1, 2)], ColumnType.DATE),
         (
@@ -165,7 +176,12 @@ def test_descriptor_allow_inf() -> None:
     "spec,bins",
     [
         (BinningSpec([0, 1, 2]), ["[0, 1]", "(1, 2]"]),
+        (BinningSpec(range(0, 3)), ["[0, 1]", "(1, 2]"]),
+        (BinningSpec(np.arange(0, 3)), ["[0, 1]", "(1, 2]"]),
         (BinningSpec([0.0, 1.0, 2.0]), ["[0.00, 1.00]", "(1.00, 2.00]"]),
+        (BinningSpec(np.linspace(0, 2, num=3)), ["[0.00, 1.00]", "(1.00, 2.00]"]),
+        (BinningSpec(np.geomspace(1, 4, num=3)), ["[1.00, 2.00]", "(2.00, 4.00]"]),
+        (BinningSpec(np.logspace(0, 2, num=3)), ["[1.00, 10.00]", "(10.00, 100.00]"]),
         (BinningSpec(["0", "1", "2"]), ["['0', '1']", "('1', '2']"]),
         (BinningSpec([0, 1, 2], nan_bin="NaN"), ["[0, 1]", "(1, 2]", "NaN"]),
         (
@@ -182,7 +198,7 @@ def test_descriptor_allow_inf() -> None:
         ),
     ],
 )
-def test_bins(spec: BinningSpec, bins: List) -> None:
+def test_bins(spec: BinningSpec, bins: List[str]) -> None:
     """BinningSpec.bins() returns the expected value."""
     assert spec.bins() == bins
     assert spec.bins(include_null=True) == bins + [None]
@@ -379,6 +395,21 @@ def test_unsorted_edges(edges: List[Any]):
 
 
 @pytest.mark.parametrize(
+    "edges,wrong_type",
+    [
+        ([[1, 2], [3, 4]], "<class 'list'>"),
+        ([{"a": 1}, {"b": 2}], "<class 'dict'>"),
+    ],
+)
+def test_invalid_type_edges(edges: List[Any], wrong_type: str):
+    """Edge lists with non-uniform type are rejected."""
+    with pytest.raises(
+        ValueError, match=f"Invalid bin edges: {wrong_type} is not a valid ColumnType"
+    ):
+        BinningSpec(edges)
+
+
+@pytest.mark.parametrize(
     "edges",
     [
         ([1.0, 2]),
@@ -402,6 +433,21 @@ def test_none_type_edges(edges: List[Any]):
     """Edge lists with non-uniform type are rejected."""
     with pytest.raises(ValueError, match="Invalid bin edges: None is not allowed"):
         BinningSpec(edges)
+
+
+@pytest.mark.parametrize(
+    "edges,wrong_type",
+    [
+        ([[1, 2], [3, 4]], "<class 'list'>"),
+        ([{"a": 1}, {"b": 2}], "<class 'dict'>"),
+    ],
+)
+def test_invalid_type_names(edges: List[Any], wrong_type: str):
+    """Bin name lists with non-uniform type are rejected."""
+    with pytest.raises(
+        ValueError, match=f"Invalid bin names: {wrong_type} is not a valid ColumnType"
+    ):
+        BinningSpec([0, 1, 2], edges)
 
 
 @pytest.mark.parametrize(

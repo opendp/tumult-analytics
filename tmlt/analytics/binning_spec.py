@@ -9,6 +9,7 @@ from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from typing import Any, Generic, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
+import numpy as np
 from tmlt.core.utils.type_utils import get_element_type
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, column_type_to_py_type
@@ -160,8 +161,8 @@ class BinningSpec(Generic[BinT, BinNameT]):
 
     def __init__(
         self,
-        bin_edges: Sequence[BinT],
-        names: Optional[Sequence[Optional[BinNameT]]] = None,
+        bin_edges: Union[Sequence[BinT], np.ndarray],
+        names: Optional[Union[Sequence[Optional[BinNameT]], np.ndarray]] = None,
         right: bool = True,
         include_both_endpoints: bool = True,
         nan_bin: Optional[BinNameT] = None,
@@ -187,11 +188,15 @@ class BinningSpec(Generic[BinT, BinNameT]):
                 causes these values to be placed in the same bin with
                 out-of-range and null values.
         """
+        if isinstance(bin_edges, np.ndarray):
+            bin_edges = bin_edges.tolist()
+            assert isinstance(bin_edges, List)
         num_bins = len(bin_edges) - 1
         if num_bins < 1:
             raise ValueError("At least two bin edges must be provided")
         try:
             input_type = get_element_type(bin_edges, allow_none=False)
+            col_type = ColumnType(input_type)
         except ValueError as e:
             raise ValueError(f"Invalid bin edges: {e}") from e
         if not all(bin_edges[i] < bin_edges[i + 1] for i in range(num_bins)):
@@ -201,7 +206,7 @@ class BinningSpec(Generic[BinT, BinNameT]):
 
         # The class is frozen, so we need to subvert it to update attributes.
         object.__setattr__(self, "bin_edges", tuple(bin_edges))
-        object.__setattr__(self, "_input_type", ColumnType(input_type))
+        object.__setattr__(self, "_input_type", col_type)
 
         if names is None:
             # Assigning to self.names doesn't typecheck because of a
@@ -214,6 +219,9 @@ class BinningSpec(Generic[BinT, BinNameT]):
             )
             object.__setattr__(self, "names", tuple(new_bins_names))
         else:
+            if isinstance(names, np.ndarray):
+                names = names.tolist()
+                assert isinstance(names, List)
             if len(names) != num_bins:
                 raise ValueError(
                     "Number of bin names must be one less than the number of bin edges"

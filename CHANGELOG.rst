@@ -9,6 +9,9 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- Numpy arrays can now be used when initializing a :class:`~tmlt.analytics.binning_spec.BinningSpec`.
 
 .. _v0.19.0:
 
