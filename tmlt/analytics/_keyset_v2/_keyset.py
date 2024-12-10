@@ -10,12 +10,20 @@ from collections.abc import Sequence
 from functools import reduce
 from typing import Iterable, Mapping, Optional, Union, overload
 
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict
 
-from ._ops import CrossJoin, Detect, FromSparkDataFrame, FromTuples, KeySetOp, Project
+from ._ops import (
+    CrossJoin,
+    Detect,
+    Filter,
+    FromSparkDataFrame,
+    FromTuples,
+    KeySetOp,
+    Project,
+)
 
 
 class KeySet:
@@ -269,6 +277,45 @@ class KeySet:
             Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
         )
 
+    def filter(self, condition: Union[Column, str]) -> KeySet:
+        """Filters this KeySet using some condition.
+
+        This method accepts the same syntax as
+        :meth:`pyspark.sql.DataFrame.filter`: valid conditions are those that
+        can be used in a `WHERE clause
+        <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
+        in Spark SQL. Examples of valid conditions include:
+
+        * ``age < 42``
+        * ``age BETWEEN 17 AND 42``
+        * ``age < 42 OR (age < 60 AND gender IS NULL)``
+        * ``LENGTH(name) > 17``
+        * ``favorite_color IN ('blue', 'red')``
+
+        Example:
+            >>> domains = {
+            ...     "A": ["a1", "a2"],
+            ...     "B": [0, 1, 2, 3],
+            ... }
+            >>> keyset = KeySet.from_dict(domains)
+            >>> filtered_keyset = keyset.filter("B < 2")
+            >>> filtered_keyset.dataframe().sort("A", "B").toPandas()
+                A  B
+            0  a1  0
+            1  a1  1
+            2  a2  0
+            3  a2  1
+            >>> import pyspark.sql.functions as sf
+            >>> filtered_keyset = keyset.filter(sf.col("A") != "a1")
+            >>> filtered_keyset.dataframe().sort("A", "B").toPandas()
+                A  B
+            0  a2  0
+            1  a2  1
+            2  a2  2
+            3  a2  3
+        """
+        return KeySet(Filter(self._op_tree, condition), columns=self.columns())
+
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""
         return list(self._columns)
@@ -410,3 +457,26 @@ class KeySetPlan:
         return KeySetPlan(
             Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
         )
+
+    def filter(self, condition: Union[Column, str]) -> KeySetPlan:
+        """Filters this KeySetPlan using some condition.
+
+        This method accepts the same syntax as
+        :meth:`pyspark.sql.DataFrame.filter`: valid conditions are those that
+        can be used in a `WHERE clause
+        <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`__
+        in Spark SQL. Examples of valid conditions include:
+
+        * ``age < 42``
+        * ``age BETWEEN 17 AND 42``
+        * ``age < 42 OR (age < 60 AND gender IS NULL)``
+        * ``LENGTH(name) > 17``
+        * ``favorite_color IN ('blue', 'red')``
+
+        Example:
+            >>> keyset = KeySet._detect(["A", "B"])
+            >>> filtered_keyset = keyset.filter("B < 2")
+            >>> filtered_keyset.columns()
+            ['A', 'B']
+        """
+        return KeySetPlan(Filter(self._op_tree, condition), columns=self.columns())
