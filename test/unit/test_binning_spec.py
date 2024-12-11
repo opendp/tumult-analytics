@@ -402,7 +402,7 @@ def test_unsorted_edges(edges: List[Any]):
     ],
 )
 def test_invalid_type_edges(edges: List[Any], wrong_type: str):
-    """Edge lists with non-uniform type are rejected."""
+    """Invalid bin edge types are rejected."""
     with pytest.raises(
         ValueError, match=f"Invalid bin edges: {wrong_type} is not a valid ColumnType"
     ):
@@ -443,7 +443,7 @@ def test_none_type_edges(edges: List[Any]):
     ],
 )
 def test_invalid_type_names(edges: List[Any], wrong_type: str):
-    """Bin name lists with non-uniform type are rejected."""
+    """Invalid name types are rejected."""
     with pytest.raises(
         ValueError, match=f"Invalid bin names: {wrong_type} is not a valid ColumnType"
     ):
