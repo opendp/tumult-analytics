@@ -7,8 +7,8 @@ from typing import Any, ContextManager, Sequence, Union
 import pandas as pd
 import pyspark.sql.functions as sf
 import pytest
-from pyspark.errors import AnalysisException
 from pyspark.sql import Column
+from pyspark.sql.utils import AnalysisException
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
