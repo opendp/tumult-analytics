@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+import textwrap
 from dataclasses import dataclass
 from typing import Optional, Union
 
@@ -66,3 +67,7 @@ class Filter(KeySetOp):
         way, so this method always returns None for it.
         """
         return None
+
+    def __str__(self):
+        """Human-readable string representation."""
+        return f"Filter {self.condition}\n" + textwrap.indent(str(self.child), "  ")

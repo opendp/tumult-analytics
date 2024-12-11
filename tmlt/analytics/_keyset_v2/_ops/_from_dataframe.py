@@ -58,3 +58,7 @@ class FromSparkDataFrame(KeySetOp):
         way, so this method always returns None for it.
         """
         return None
+
+    def __str__(self):
+        """Human-readable string representation."""
+        return f"FromSparkDataFrame {self.df}"

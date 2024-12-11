@@ -70,3 +70,7 @@ class Detect(KeySetOp):
         size is not known until the fixed values are supplied.
         """
         raise AnalyticsInternalError("KeySetPlan does not have a fixed size.")
+
+    def __str__(self):
+        """Human-readable string representation."""
+        return f"Detect {', '.join(self.detect_columns)}"

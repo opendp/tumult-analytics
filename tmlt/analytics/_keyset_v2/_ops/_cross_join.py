@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
+import textwrap
 from dataclasses import dataclass
 from typing import Optional
 
@@ -119,3 +120,12 @@ class CrossJoin(KeySetOp):
         if left is not None and right is not None:
             return left * right
         return None
+
+    def __str__(self):
+        """Human-readable string representation."""
+        return (
+            "CrossJoin\n"
+            + textwrap.indent(str(self.left), "  ")
+            + "\n"
+            + textwrap.indent(str(self.right), "  ")
+        )

@@ -76,3 +76,11 @@ class FromTuples(KeySetOp):
         if len(self.column_descriptors) == 0:
             return 1
         return len(self.tuples)
+
+    def __str__(self):
+        """Human-readable string representation."""
+        cols = "\n  ".join(
+            f"{col}: {desc.column_type}{' not NULL' if not desc.allow_null else ''}"
+            for col, desc in self.column_descriptors.items()
+        )
+        return f"FromTuples ({len(self.tuples)} rows)\n  {cols}"
