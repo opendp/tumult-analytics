@@ -139,3 +139,16 @@ def test_frozen_dict_order():
     assert list(post_d.keys()) == keys
     assert list(post_d.values()) == [f(k) for k in keys]
     assert list(post_d.items()) == [(k, f(k)) for k in keys]
+
+
+def test_frozen_dict_order_comparison():
+    """FrozenDict considers order when comparing for equality."""
+    fd1 = FrozenDict.from_dict({1: 2, 3: 4})
+    fd2 = FrozenDict.from_dict({1: 2, 3: 4})
+    fd3 = FrozenDict.from_dict({3: 4, 1: 2})
+    fd4 = FrozenDict.from_dict({1: 2, 3: 5})
+
+    assert fd1 == fd1  # pylint: disable=comparison-with-itself
+    assert fd1 == fd2
+    assert fd1 != fd3
+    assert fd1 != fd4

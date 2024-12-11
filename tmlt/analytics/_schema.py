@@ -53,7 +53,10 @@ class FrozenDict(Mapping):
     """A mapping that is immutable and hashable.
 
     Like Python's built-in dict, FrozenDict maintains the order of elements when
-    iterating and converting to/from dict.
+    iterating and converting to/from dict. *Unlike* Python's built-in dict,
+    FrozenDict considers this ordering when checking for equality -- two
+    FrozenDicts are only equal if they have the same key-value pairs *in the
+    same order*.
 
     This is needed to replace the mutable mappings in some QueryExprs and other
     immutable objects.
