@@ -86,3 +86,5 @@ from tmlt.analytics.query_builder import (
 )
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
+
+# isort: off
