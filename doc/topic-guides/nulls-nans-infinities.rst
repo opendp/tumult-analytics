@@ -76,8 +76,8 @@ Null, NaN, and infinite values in maps and flat maps
 ----------------------------------------------------
 
 By default, all columns created by
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.map` or
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.flat_map` are assumed to contain
+:py:meth:`tmlt.analytics.QueryBuilder.map` or
+:py:meth:`tmlt.analytics.QueryBuilder.flat_map` are assumed to contain
 null values. If those columns are DECIMAL columns, they are also
 assumed to potentially contain NaN or infinite values.
 
@@ -101,7 +101,7 @@ assumed to potentially contain NaN or infinite values.
     grade          DECIMAL        True        True           True
     new            DECIMAL        True        True           True
 
-If you pass in a full :py:class:`tmlt.analytics.query_builder.ColumnDescriptor`, then you can specify whether new
+If you pass in a full :py:class:`tmlt.analytics.ColumnDescriptor`, then you can specify whether new
 columns can contain null, NaN, or infinite values:
 
 .. testcode::
@@ -141,7 +141,7 @@ Special case: null values in grouping columns
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Tumult Analytics does not allow you to replace null values in 
-:py:meth:`a flat map grouping column <tmlt.analytics.query_builder.QueryBuilder.flat_map>`,
+:py:meth:`a flat map grouping column <tmlt.analytics.QueryBuilder.flat_map>`,
 because this could violate Tumult Analytics' stability guarantee.
 If your flat map transformation could create null values, you cannot replace
 them later.
@@ -155,8 +155,8 @@ on columns that contain null, NaN, or infinite values.
 This section explains how Analytics handles aggregations when data contains null,
 NaN, or infinite values.
 
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.count` and
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.count_distinct`
+:py:meth:`tmlt.analytics.QueryBuilder.count` and
+:py:meth:`tmlt.analytics.QueryBuilder.count_distinct`
 do not have special behavior for rows containing nulls, NaNs, or infinite values.
 Rows with those values are counted the same as rows without any of those values.
 
@@ -378,7 +378,7 @@ of books checked out is therefore 0 (5 + 10 + -15, divided by 3).
 
 If you want infinite values to be treated differently, then you should
 explicitly drop infinite values (with
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.drop_infinity`) or
+:py:meth:`tmlt.analytics.QueryBuilder.drop_infinity`) or
 replace them (with
-:py:meth:`tmlt.analytics.query_builder.QueryBuilder.replace_infinity`) before
+:py:meth:`tmlt.analytics.QueryBuilder.replace_infinity`) before
 performing your aggregation.

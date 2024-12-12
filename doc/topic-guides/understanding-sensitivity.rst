@@ -17,9 +17,9 @@ privacy: the bigger the sensitivity, the more noise needs to be added to the res
 
 With Tumult Analytics, the type of protected change depends on whether the goal is
 to hide a fixed number of rows, using
-:class:`AddMaxRows<tmlt.analytics.protected_change.AddMaxRows>`, or arbitrarily many
+:class:`AddMaxRows<tmlt.analytics.AddMaxRows>`, or arbitrarily many
 rows sharing the same privacy identifier, using
-:class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>`.
+:class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>`.
 
 A simple example of sensitivity is the explanation of clamping bounds in :ref:`tutorial
 three <Clamping bounds>`: larger clamping bounds mean that a single row can have more influence, and more noise needs to be added. However, the sensitivity is not always so
@@ -31,8 +31,8 @@ choose what transformations to use to ensure accurate results while maintaining 
 Queries on tables using ``AddMaxRows``
 --------------------------------------
 
-Queries on tables using the :class:`AddMaxRows<tmlt.analytics.protected_change.AddMaxRows>` or
-:class:`AddOneRow<tmlt.analytics.protected_change.AddOneRow>` protected change
+Queries on tables using the :class:`AddMaxRows<tmlt.analytics.AddMaxRows>` or
+:class:`AddOneRow<tmlt.analytics.AddOneRow>` protected change
 protect the addition or removal of rows in the table. This means that any
 operation which changes the number of rows requires a corresponding increase to the
 protected change. A larger protected change corresponds to a higher sensitivity for a query,
@@ -40,14 +40,14 @@ which means more noise needs to be added to the query result. Specifically, sens
 scales *linearly* with the protected change.
 
 A few operations can increase the sensitivity of a query in this way:
-:meth:`flat maps<tmlt.analytics.query_builder.QueryBuilder.flat_map>`,
-:meth:`public joins<tmlt.analytics.query_builder.QueryBuilder.join_public>`, and
-:meth:`private joins<tmlt.analytics.query_builder.QueryBuilder.join_private>`.
+:meth:`flat maps<tmlt.analytics.QueryBuilder.flat_map>`,
+:meth:`public joins<tmlt.analytics.QueryBuilder.join_public>`, and
+:meth:`private joins<tmlt.analytics.QueryBuilder.join_private>`.
 
 Flat maps
 ~~~~~~~~~
 
-A :meth:`flat_map<tmlt.analytics.query_builder.QueryBuilder.flat_map>` maps each
+A :meth:`flat_map<tmlt.analytics.QueryBuilder.flat_map>` maps each
 input row to zero or more new rows. Consider the example from
 :ref:`Simple transformations<Flat maps>` tutorial, where each input row is mapped to up
 to three new rows, using to the ``max_rows=3`` parameter. On a per-row basis, this operation might look like this:
@@ -57,9 +57,9 @@ to three new rows, using to the ``max_rows=3`` parameter. On a per-row basis, th
     :align: center
 
 In this example, the input table was initialized with the
-:meth:`AddOneRow<tmlt.analytics.protected_change.AddOneRow>` protected change,
+:meth:`AddOneRow<tmlt.analytics.AddOneRow>` protected change,
 which is equivalent to
-:class:`AddMaxRows<tmlt.analytics.protected_change.AddMaxRows>` with
+:class:`AddMaxRows<tmlt.analytics.AddMaxRows>` with
 ``max_rows=1``. However, because the flat map can produce up to three rows for each
 input row, the protected change needs to be increased threefold to ``max_rows=3``,
 which results in a corresponding threefold increase in sensitivity for the query.
@@ -114,15 +114,15 @@ common column, ``user_id``. Each are initialized with a protected change of ``Ad
 
 Since both tables contain sensitive information, we cannot look at
 the data directly to calculate the sensitivity. Therefore, we need to truncate both tables by specifying a
-:class:`TruncationStrategy<tmlt.analytics.truncation_strategy.TruncationStrategy>` for
+:class:`TruncationStrategy<tmlt.analytics.TruncationStrategy>` for
 each. The sensitivity computation is more complicated than before:
 
 :math:`\text{sensitivity} = (T_{left}  *  S_{right}  *  M_{right}) + (T_{right}  *  S_{left}  *  M_{left})`
 
 where:
 
-  - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_rows``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`, these values are always 1.
-  - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. These values are always 2 for :class:`DropExcess<tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess>` and 1 for :class:`DropNonUnique<tmlt.analytics.truncation_strategy.TruncationStrategy.DropNonUnique>`.
+  - :math:`T_{left}` and :math:`T_{right}` are the truncation thresholds, i.e. ``max_rows``, for the left and right tables, respectively. When using :class:`DropNonUnique<tmlt.analytics.TruncationStrategy.DropNonUnique>`, these values are always 1.
+  - :math:`S_{left}` and :math:`S_{right}` are factors called the *stability* of each ``TruncationStrategy``. These values are always 2 for :class:`DropExcess<tmlt.analytics.TruncationStrategy.DropExcess>` and 1 for :class:`DropNonUnique<tmlt.analytics.TruncationStrategy.DropNonUnique>`.
   - :math:`M_{left}` and :math:`M_{right}` are the ``max_rows`` parameters of the protected change on the left and right tables, respectively.
 
 
@@ -161,25 +161,25 @@ As you can see, tracking stability can be complicated!
 ..
     TODO(#2696): Add this back in when describe() actually shows stability info.
     When in doubt, you can use the
-    :meth:`describe<tmlt.analytics.session.Session.describe>` method to see how stability evolves
+    :meth:`describe<tmlt.analytics.Session.describe>` method to see how stability evolves
     with transformations.
 
 Queries on tables using ``AddRowsWithID``
 -----------------------------------------
 
 Queries on tables using the
-:class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>` protected change
+:class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>` protected change
 protect the presence of arbitrarily many rows associated with the same privacy ID. In this case,
 transformations don't change the protected change: you can perform flat maps, public
 joins, or private joins, and the protected change is still ``AddRowsWithID``.
 
 However, before running aggregations, we must use the
-:meth:`enforce<tmlt.analytics.query_builder.QueryBuilder.enforce>` to specify truncation
+:meth:`enforce<tmlt.analytics.QueryBuilder.enforce>` to specify truncation
 bounds via constraints. Constraints can be enforced at any point, but it's generally
 better to specify them immediately before performing aggregations. There are two main
-ways to specify constraints: via a :class:`~tmlt.analytics.constraints.MaxRowsPerID`
-constraint, or a combination of :class:`~tmlt.analytics.constraints.MaxGroupsPerID` and
-:class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID`. See the
+ways to specify constraints: via a :class:`~tmlt.analytics.MaxRowsPerID`
+constraint, or a combination of :class:`~tmlt.analytics.MaxGroupsPerID` and
+:class:`~tmlt.analytics.MaxRowsPerGroupPerID`. See the
 :ref:`Summary<flow-chart-truncation>` section of tutorial 6 for a visualization of these
 truncation paths
 

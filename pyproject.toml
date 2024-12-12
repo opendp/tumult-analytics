@@ -203,6 +203,7 @@ disable = [
   'invalid-name',
   'logging-format-interpolation',
   'logging-fstring-interpolation',
+  'missing-function-docstring',  # Redundant with pydocstyle
   'missing-raises-doc',
   'missing-return-doc',
   'no-else-return',

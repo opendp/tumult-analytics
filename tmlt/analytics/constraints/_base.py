@@ -13,14 +13,14 @@ from tmlt.analytics._table_reference import TableReference
 
 
 class Constraint(ABC):
-    """A known, enforceable fact about a table.
+    """Base class representing a known, enforceable fact about a table.
 
     Constraints provide information about the contents of a table to help
     produce differentially-private results. For example, a constraint might say
     that each ID in a table corresponds to no more than two rows in that table
-    (the :class:`~tmlt.analytics.constraints.MaxRowsPerID`
+    (the :class:`~tmlt.analytics.MaxRowsPerID`
     constraint). Constraints are applied via the :meth:`QueryBuilder.enforce()
-    <tmlt.analytics.query_builder.QueryBuilder.enforce>` method.
+    <tmlt.analytics.QueryBuilder.enforce>` method.
 
     This class is a base class for all constraints, and cannot be used directly.
     """

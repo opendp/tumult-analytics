@@ -13,7 +13,7 @@ Tumult Analytics documentation
    tutorials/index
    How-to guides <howto-guides/index>
    topic-guides/index
-   API reference <reference/tmlt/analytics/index>
+   API reference <reference/index>
    Release notes <changelog>
 
 Tumult Analytics is a Python library for computing aggregate queries on tabular
@@ -84,7 +84,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
    .. grid-item-card::
       :img-top: /images/index_api.svg
       :class-img-top: intro-card-icon
-      :link: reference/tmlt/analytics/index
+      :link: reference/index
       :link-type: doc
       :link-alt: API reference
       :text-align: center

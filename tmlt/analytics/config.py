@@ -1,9 +1,4 @@
-"""Configuration for Tumult Analytics.
-
-This module contains various execution options for Tumult Analytics, controlling
-experimental features and other behavior. Most users will not need to use the
-options available in this module.
-"""
+"""Configuration for Tumult Analytics."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -22,7 +17,7 @@ class FeatureFlag:
     """
 
     def __init__(self, summary: str, default: bool):
-        """@nodoc."""
+        """Constructor."""
         self._summary = summary
         self._default = default
         self._enabled: Optional[bool] = None
@@ -30,23 +25,23 @@ class FeatureFlag:
         self._name: Optional[str] = None
 
     def __bool__(self) -> bool:
-        """@nodoc."""
+        """Returns whether the flag is enabled."""
         return self._enabled if self._enabled is not None else self._default
 
     def __str__(self) -> str:
-        """@nodoc."""
+        """Returns a describing the state of this feature flag."""
         return f"{self._name}: {'enabled' if self else 'disabled'}"
 
     def enable(self):
-        """Enable the features controlled by this feature flag."""
+        """Enables the features controlled by this feature flag."""
         self._enabled = True
 
     def disable(self):
-        """Disable the features controlled by this feature flag."""
+        """Disables the features controlled by this feature flag."""
         self._enabled = False
 
     def reset(self):
-        """Reset this feature flag to its base state."""
+        """Resets this feature flag to its base state."""
         # Note: The default value is returned if self.enabled is None.
         # The error message is different if self.enabled is None vs False though.
         self._enabled = None
@@ -119,8 +114,9 @@ class Config:
 
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
-        """Enforces that Config is a singleton. @nodoc."""
+    def __new__(cls, *args, **kwargs):  # noqa: D102
+        # Enforces that Config is a singleton.
+        # No docstring to prevent this from showing up in docs.
         if not cls._instance:
             cls._instance = super(Config, cls).__new__(cls, *args, **kwargs)
         return cls._instance
@@ -137,7 +133,14 @@ class Config:
 
         .. code-block::
 
-            config.features.example_feature.enable()
+            Config().features.example_feature.enable()
+
+        The current list of available features is:
+
+        * ``auto_partition_selection``: Automatically performs differentially private
+          partition selection when passing a list of columns to
+          :meth:`~tmlt.analytics.QueryBuilder.groupby`. This requires evaluating the
+          query with an :class:`~tmlt.analytics.ApproxDPBudget`.
         """
 
         # Add Feature Flags here to list them as experimental:
@@ -147,7 +150,7 @@ class Config:
         )
 
         def __init__(self):
-            """@nodoc."""
+            """Constructor."""
             attrs = {
                 k: v
                 for k, v in Config.Features.__dict__.items()
@@ -160,14 +163,15 @@ class Config:
                     )
                 v._name = k
 
-        def __setattr__(self, name: str, value: Any):
-            """@nodoc."""
+        def __setattr__(self, name: str, value: Any):  # noqa: D105
+            # Prevents users from manually changing features.
+            # No docstring to prevent this from showing up in docs.
             raise RuntimeError(
                 "Features cannot be assigned to, use their enable()/disable() methods"
             )
 
     def __init__(self):
-        """@nodoc."""
+        """Returns the current configuration."""
         self.features = Config.Features()
 
 

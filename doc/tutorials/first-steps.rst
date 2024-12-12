@@ -74,8 +74,8 @@ For more information about loading data files into Spark, see the Spark `data so
 Creating a Session
 ------------------
 
-To compute queries using Tumult Analytics, we must first wrap the data in a :class:`~tmlt.analytics.session.Session` to track and manage queries.
-The following snippet instantiates a Session with a DataFrame of our private data using the :meth:`~tmlt.analytics.session.Session.from_dataframe` method.
+To compute queries using Tumult Analytics, we must first wrap the data in a :class:`~tmlt.analytics.Session` to track and manage queries.
+The following snippet instantiates a Session with a DataFrame of our private data using the :meth:`~tmlt.analytics.Session.from_dataframe` method.
 
 .. testcode::
 
@@ -96,14 +96,14 @@ Note that in addition to the data itself, we needed to provide a couple of addit
   Here, ``AddOneRow()`` corresponds to protecting individual rows in the dataset.
 
 For a more complete description of the various ways a Session can be initialized, you can consult the relevant :ref:`topic guide<Working with Sessions>`.
-For more complex values for the ``protected_change`` parameter, see the :ref:`privacy promise topic guide<privacy-promise#unit-of-protection>` and the :mod:`~tmlt.analytics.protected_change` API documentation.
+For more complex values for the ``protected_change`` parameter, see the :ref:`privacy promise topic guide<privacy-promise#unit-of-protection>` and the :ref:`API documentation on privacy guarantees<privacy-guarantees>`.
 
 Evaluating queries in a Session
 -------------------------------
 
 Now that we have our Session, we can ask our first query. How many members does
 our library have? To answer this question with a query, we will use the
-:class:`QueryBuilder<tmlt.analytics.query_builder.QueryBuilder>` interface.
+:class:`QueryBuilder<tmlt.analytics.QueryBuilder>` interface.
 
 .. testcode::
 
@@ -115,7 +115,7 @@ earlier. Then, the ``count()`` statement requests the total number of rows in
 the dataset.
 
 After creating our query, we need to actually run it on the data, using the
-:meth:`evaluate<tmlt.analytics.session.Session.evaluate>` method of our Session.
+:meth:`evaluate<tmlt.analytics.Session.evaluate>` method of our Session.
 This requires us to allocate some privacy budget to this evaluation: here, let's
 evaluate the query with differential privacy, using ε=1.
 

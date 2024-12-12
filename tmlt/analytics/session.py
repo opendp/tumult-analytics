@@ -1,20 +1,4 @@
-"""Interactive query evaluation using a differential privacy framework.
-
-:class:`Session` provides an interface for managing data sources and performing
-differentially private queries on them. A simple session with a single private
-datasource can be created using :meth:`Session.from_dataframe`, or a more
-complex one with multiple datasources can be constructed using
-:class:`Session.Builder`. Queries can then be evaluated on the data using
-:meth:`Session.evaluate`.
-
-A Session is initialized with a
-:class:`~tmlt.analytics.privacy_budget.PrivacyBudget`, and ensures that queries
-evaluated on the private data do not consume more than this budget. A simple
-introduction to Session initialization and use can be found in the
-:ref:`First steps` and :ref:`Working with privacy budgets` tutorials. More
-details on the exact privacy promise provided by :class:`Session` can be found
-in the :ref:`Privacy promise` topic guide.
-"""
+"""The Session enforces formal privacy guarantees on sensitive data."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -62,11 +46,7 @@ from tmlt.analytics._base_builder import (
     PrivateDataFrame,
 )
 from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
-from tmlt.analytics._coerce_spark_schema import (
-    SUPPORTED_SPARK_TYPES,
-    TYPE_COERCION_MAP,
-    coerce_spark_schema_or_fail,
-)
+from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
     AddRemoveRows,
@@ -125,7 +105,7 @@ from tmlt.analytics.query_builder import (
     QueryBuilder,
 )
 
-__all__ = ["Session", "SUPPORTED_SPARK_TYPES", "TYPE_COERCION_MAP"]
+__all__ = ["Session"]
 
 
 def _generate_neighboring_relation(sources: Dict[str, PrivateDataFrame]) -> Conjunction:
@@ -362,10 +342,10 @@ class Session:
 
         Only one private data source is supported with this initialization
         method; if you need multiple data sources, use
-        :class:`~tmlt.analytics.session.Session.Builder`.
+        :class:`~tmlt.analytics.Session.Builder`.
 
         Not all Spark column types are supported in private sources; see
-        :data:`SUPPORTED_SPARK_TYPES` for information about which types are
+        :class:`~tmlt.analytics.ColumnType` for information about which types are
         supported.
 
         ..
@@ -403,7 +383,7 @@ class Session:
             dataframe: The private source dataframe to perform queries on,
                 corresponding to the `source_id`.
             protected_change: A
-                :class:`~tmlt.analytics.protected_change.ProtectedChange`
+                :class:`~tmlt.analytics.ProtectedChange`
                 specifying what changes to the input data the resulting
                 :class:`Session` should protect.
         """
@@ -584,8 +564,8 @@ class Session:
         If ``obj`` is not specified, ``session.describe()`` will describe the
         Session and all of the tables it contains.
 
-        If ``obj`` is a :class:`~tmlt.analytics.query_builder.QueryBuilder` or
-        :class:`~tmlt.analytics.query_builder.Query`, ``session.describe(obj)``
+        If ``obj`` is a :class:`~tmlt.analytics.QueryBuilder` or
+        :class:`~tmlt.analytics.Query`, ``session.describe(obj)``
         will describe the table that would result from that query if it were
         applied to the Session.
 
@@ -948,7 +928,7 @@ class Session:
         """Adds a public data source to the session.
 
         Not all Spark column types are supported in public sources; see
-        :data:`~.session.SUPPORTED_SPARK_TYPES` for information about which types are
+        :class:`~tmlt.analytics.ColumnType` for information about which types are
         supported.
 
         ..
@@ -1524,9 +1504,9 @@ class Session:
 
         The type of privacy budget that you use must match the type your Session
         was initialized with (i.e., you cannot use a
-        :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` to partition your
+        :class:`~tmlt.analytics.RhoZCDPBudget` to partition your
         Session if the Session was created using a
-        :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, and vice versa).
+        :class:`~tmlt.analytics.PureDPBudget`, and vice versa).
 
         The sessions returned must be used in the order that they were created.
         Using this session again or calling stop() will stop all partition sessions.
@@ -1786,19 +1766,19 @@ class Session:
             )
         if self._accountant.state == PrivacyAccountantState.WAITING_FOR_SIBLING:
             warn(
-                "Activating a session that is waiting for one of its siblings "
+                "Activating a Session that is waiting for one of its siblings "
                 "to finish may cause unexpected behavior."
             )
         if self._accountant.state == PrivacyAccountantState.WAITING_FOR_CHILDREN:
             warn(
-                "Activating a session that is waiting for its children "
+                "Activating a Session that is waiting for its children "
                 "(created with partition_and_create) to finish "
                 "may cause unexpected behavior."
             )
         self._accountant.force_activate()
 
     def stop(self) -> None:
-        """Closes out this session, allowing other sessions to become active."""
+        """Closes out this Session, allowing other Sessions to become active."""
         self._accountant.retire()
 
 

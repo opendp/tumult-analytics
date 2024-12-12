@@ -45,7 +45,7 @@ def _to_exact_number(value: Union[int, float, ExactNumber]) -> ExactNumber:
 
 
 class PrivacyBudget(ABC):
-    """Base class for specifying privacy parameters.
+    """Base class for specifying the maximal privacy loss of a Session or a query.
 
     A PrivacyBudget is a privacy definition, along with its associated parameters.
     The choice of a PrivacyBudget has an impact on the accuracy of query

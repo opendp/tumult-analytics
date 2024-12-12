@@ -8,10 +8,10 @@ Doing more with privacy IDs
     Copyright Tumult Labs 2024
 
 In the previous tutorial, we covered the basics of privacy IDs: how to
-initialize a :class:`Session<tmlt.analytics.session.Session>` where each person appears in multiple rows, and run simple queries.
+initialize a :class:`Session<tmlt.analytics.Session>` where each person appears in multiple rows, and run simple queries.
 But privacy IDs also make it easier to run more complex queries, especially those involving multiple
 tables. In this tutorial, we will build a
-:class:`Session<tmlt.analytics.session.Session>` that protects library patrons across multiple
+:class:`Session<tmlt.analytics.Session>` that protects library patrons across multiple
 tables, and highlight the differences that arise when performing queries on tables with
 or without privacy IDs.
 
@@ -60,10 +60,10 @@ Initializing a Session with multiple IDs tables
 
 Notice that both of the dataframes we’ve loaded share a common
 identifier: the ID associated with each library member. Our goal is to
-construct a :class:`Session<tmlt.analytics.session.Session>` that
+construct a :class:`Session<tmlt.analytics.Session>` that
 protects the addition or removal of arbitrarily many rows that share the
 same ID, *in both tables*. To do so, we have to use the
-:class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change
+:class:`~tmlt.analytics.AddRowsWithID` protected change
 again, but we also have to indicate that both tables share the same *ID space*.
 This is done as follows.
 
@@ -96,8 +96,8 @@ This is done as follows.
     Private dataframes: ['members', 'checkouts']
 
 The
-:meth:`Session.Builder.with_id_space<tmlt.analytics.session.Session.Builder.with_id_space>`
-method and the :class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>`
+:meth:`Session.Builder.with_id_space<tmlt.analytics.Session.Builder.with_id_space>`
+method and the :class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>`
 protected change work together to accomplish our desired notion of privacy.
 
 - The ``with_id_space`` function defines our ID space, ``member_id_space``. This is
@@ -136,7 +136,7 @@ Flat maps
 First, let's expand the checkout dataframe to
 associate each book to its genres, with each genre on its own separate row. To do this,
 we apply a
-:meth:`QueryBuilder.flat_map<tmlt.analytics.query_builder.QueryBuilder.flat_map>`
+:meth:`QueryBuilder.flat_map<tmlt.analytics.QueryBuilder.flat_map>`
 and save it as a view in our existing session.
 
 .. testcode::
@@ -193,7 +193,7 @@ The join produces an error, because the ID columns in the two tables have differ
     ValueError: Private joins between tables with the AddRowsWithID protected change are
     only possible when the ID columns of the two tables have the same name
 
-To fix this, we can use the :meth:`QueryBuilder.rename<tmlt.analytics.query_builder.QueryBuilder.rename>`
+To fix this, we can use the :meth:`QueryBuilder.rename<tmlt.analytics.QueryBuilder.rename>`
 method to rename the ID column in the members table to match the ID column in the checkouts table:
 
 .. testcode::
@@ -240,14 +240,14 @@ Let's inspect the result of the join to make sure it looks right:
     favorite_genres   VARCHAR        False                      True
     date_joined       DATE           False                      True
 
-Using :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
+Using :meth:`~tmlt.analytics.QueryBuilder.join_private` on two private tables in the same ID space works seamlessly as long as the ID
 columns are part of the join and have the same name in both tables. Like with
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, no truncation is necessary.
+:meth:`~tmlt.analytics.QueryBuilder.flat_map`, no truncation is necessary.
 
 Computing the statistic
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Next, we define a :class:`~tmlt.analytics.keyset.KeySet` with age
+Next, we define a :class:`~tmlt.analytics.KeySet` with age
 groups and the subset of genres we’re interested in for the analysis…
 
 .. testcode::
@@ -328,14 +328,14 @@ A note on Session initialization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You might have noticed that in the Session initialization step, we loaded the members
-table using the :class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>`
+table using the :class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>`
 protected change; even though in tutorials 1 through 5, we used it with
-:class:`AddOneRow<tmlt.analytics.protected_change.AddOneRow>`. For this table, both
+:class:`AddOneRow<tmlt.analytics.AddOneRow>`. For this table, both
 options are possible: there is exactly one row per person, and a unique identifier for
 each person. In such cases, which protected change should you choose?
 
 Typically, the right choice is to use
-:class:`AddRowsWithID<tmlt.analytics.protected_change.AddRowsWithID>`, for a couple of
+:class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>`, for a couple of
 reasons.
 
 - Data preparation is generally more convenient when using privacy IDs, because you

@@ -1,7 +1,7 @@
 """A KeySet specifies a list of values for one or more columns.
 
 They are used as input to the
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby` method to build
+:meth:`~tmlt.analytics.QueryBuilder.groupby` method to build
 group-by queries. An introduction to KeySets can be found in the
 :ref:`Group-by queries` tutorial.
 """
@@ -125,19 +125,10 @@ LOW_SIZE = 10**6
 class KeySet(ABC):
     """A class containing a set of values for specific columns.
 
-       An introduction to KeySet initialization and manipulation can be found in
-       the :ref:`Group-by queries` tutorial.
-
-    .. warning::
-        If a column has null values dropped or replaced, then Analytics
-        will raise an error if you use a KeySet that contains a null value for
-        that column.
-
-    .. note::
-        The :meth:`~.KeySet.from_dict` and :meth:`~.KeySet.from_dataframe` methods
-        are the preferred way to construct KeySets. Directly constructing KeySets
-        skips checks that guarantee the uniqueness of output rows, and ``__init__``
-        methods are not guaranteed to work the same way between releases.
+    KeySets can be constructed using :meth:`~.KeySet.from_dict`,
+    :meth:`~.KeySet.from_tuples`, or :meth:`~.KeySet.from_dataframe`. An introduction to
+    KeySet initialization and manipulation can be found in the :ref:`Group-by queries`
+    tutorial.
     """
 
     @classmethod

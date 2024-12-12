@@ -9,7 +9,7 @@ from typeguard import check_type
 
 
 class ProtectedChange(ABC):
-    """A description of the largest change in a dataset that is protected under DP.
+    """Base class describing the change in a dataset that is protected under DP.
 
     A :class:`ProtectedChange` describes, for a particular table, the largest
     change that can be made to that table while still being indistinguishable
@@ -23,7 +23,7 @@ class ProtectedChange(ABC):
 
 @dataclass(frozen=True)
 class AddMaxRows(ProtectedChange):
-    """Protect the addition or removal of any set of ``max_rows`` rows.
+    """Protects the addition or removal of any set of ``max_rows`` rows.
 
     This ProtectedChange is a generalization of the standard "add/remove one
     row" DP guarantee, hiding the addition or removal of any set of at most
@@ -42,7 +42,10 @@ class AddMaxRows(ProtectedChange):
 
 @dataclass(frozen=True)
 class AddOneRow(AddMaxRows):
-    """A shorthand for the common case of :class:`AddMaxRows` with ``max_rows = 1``."""
+    """Protects the addition or removal of a single row.
+
+    ``AddOneRow()`` is a shorthand for ``AddMaxRows(max_rows=1)``.
+    """
 
     max_rows = 1
 
@@ -53,7 +56,7 @@ class AddOneRow(AddMaxRows):
 
 @dataclass(frozen=True)
 class AddMaxRowsInMaxGroups(ProtectedChange):
-    """Protect the addition or removal of rows across a finite number of groups.
+    """Protects the addition or removal of rows across a finite number of groups.
 
     :class:`AddMaxRowsInMaxGroups` provides a similar guarantee to
     :class:`AddMaxRows`, but it uses some additional information to apply less
@@ -102,7 +105,7 @@ class AddMaxRowsInMaxGroups(ProtectedChange):
 
 @dataclass(frozen=True)
 class AddRowsWithID(ProtectedChange):
-    """Protect the addition or removal of rows with a specific identifier.
+    """Protects the addition or removal of rows with a specific identifier.
 
     Instead of limiting the number of rows that may be added or removed,
     :class:`AddRowsWithID` hides the addition or removal of *all rows*
@@ -118,7 +121,7 @@ class AddRowsWithID(ProtectedChange):
     id_space: str = "default_id_space"
     """The identifier space of the rows that may be added or removed. If not specified,
     a default will be assigned when using this protected change with
-    :class:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>`."""
+    :class:`Session.from_dataframe()<tmlt.analytics.Session.from_dataframe>`."""
 
     def __post_init__(self):
         """Validate attributes."""

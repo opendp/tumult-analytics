@@ -228,7 +228,7 @@ Now that you know the basics of how clamping bounds work, you can try out all
 the aggregations supported by Tumult Analytics. This tutorial demonstrated
 ``average`` and ``sum``, but the same principle applies for ``quantile``,
 ``variance``, and
-:class:`all other aggregations<tmlt.analytics.query_builder.GroupedQueryBuilder>`.
+:class:`all other aggregations<tmlt.analytics.GroupedQueryBuilder>`.
 
 So far, we only demonstrated *global* aggregations, calculating some statistic
 over the entire dataset, and returning a single number. In the next tutorial,

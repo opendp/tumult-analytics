@@ -69,7 +69,7 @@ Just like earlier, we import Python packages...
 Creating a Session with a fixed budget
 --------------------------------------
 
-Let's initialize our :class:`Session<tmlt.analytics.session.Session>`. We will
+Let's initialize our :class:`Session<tmlt.analytics.Session>`. We will
 allocate a fixed privacy budget of ``epsilon=2.5`` to it, using the classical
 ("pure") differential privacy definition.
 
@@ -84,7 +84,7 @@ allocate a fixed privacy budget of ``epsilon=2.5`` to it, using the classical
    )
 
 Let's check that we initialized the Session as intended using the
-:meth:`describe<tmlt.analytics.session.Session.describe>` method:
+:meth:`describe<tmlt.analytics.Session.describe>` method:
 
 .. testcode::
 
@@ -127,7 +127,7 @@ Each time we evaluate a query in our Session, we will *consume* some of the
 overall budget, and we will need to specify *how much* of this budget we want to
 consume. Let's start with a simple example: how many minors are members of the
 library? We will answer that question using a simple
-:meth:`filter<tmlt.analytics.query_builder.QueryBuilder.filter>` query,
+:meth:`filter<tmlt.analytics.QueryBuilder.filter>` query,
 consuming ``epsilon=1`` out of our total budget.
 
 .. testcode::

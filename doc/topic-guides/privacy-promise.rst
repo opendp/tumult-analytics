@@ -9,12 +9,12 @@ Tumult Analytics' privacy promise
 
 This topic guide outlines the "privacy promise" provided by Tumult Analytics,
 along with its caveats. This guarantee is based on one of the core abstractions
-of Tumult Analytics: :class:`Sessions <tmlt.analytics.session.Session>`.
+of Tumult Analytics: :class:`Sessions <tmlt.analytics.Session>`.
 
 At a high level, a Session allows you to evaluate queries on private data in a
 way that satisfies differential privacy. When creating a Session, private data
 must first be loaded into it, along with
-a :mod:`protected change<tmlt.analytics.protected_change>` for each
+a :mod:`protected change<tmlt.analytics.ProtectedChange>` for each
 table, and a Session-wide :ref:`privacy budget<Privacy budget fundamentals>`. You
 can then evaluate
 queries on your private data, consuming at most the privacy budget provided at
@@ -23,10 +23,10 @@ initialization time.
 The privacy promise in more detail
 ----------------------------------
 
-A :class:`~tmlt.analytics.session.Session` is initialized with:
+A :class:`~tmlt.analytics.Session` is initialized with:
 
 * one or more private tables (containing data you wish to query in a differentially
-  private way), each associated to a :mod:`protected change<tmlt.analytics.protected_change>`;
+  private way), each associated to a :mod:`protected change<tmlt.analytics.ProtectedChange>`;
 * zero or more public tables (containing data that does not require privacy
   protection, but may be used as auxiliary input to your computation);
 * a privacy definition along with its associated privacy parameters (e.g.
@@ -34,7 +34,7 @@ A :class:`~tmlt.analytics.session.Session` is initialized with:
   Tumult Analytics also supports zero-concentrated differential privacy).
 
 After initialization, the Session guarantees that the answers returned by
-calling :meth:`~tmlt.analytics.session.Session.evaluate` to evaluate queries
+calling :meth:`~tmlt.analytics.Session.evaluate` to evaluate queries
 satisfy the corresponding privacy definition with respect to the private data,
 using the specified parameters. For example, a Session initialized with
 :code:`PureDPBudget(1)` provides :math:`{\varepsilon}`-differential privacy with
@@ -51,9 +51,9 @@ in some specified way. When you add a private table to a session, you must
 specify what kind of protected change to use for this table.
 
 * In the simplest case, the privacy guarantee from a
-  :class:`~tmlt.analytics.session.Session` prevents an attacker from learning 
+  :class:`~tmlt.analytics.Session` prevents an attacker from learning 
   whether *one individual row* was added or removed in each private table -- the 
-  :class:`~tmlt.analytics.protected_change.AddOneRow` protected change.
+  :class:`~tmlt.analytics.AddOneRow` protected change.
   If the data of a single individual can span multiple rows in the same private
   table, then this individual is not covered by the privacy promise, only
   individual rows are.
@@ -66,14 +66,14 @@ specify what kind of protected change to use for this table.
 
 * If you want to protect the addition or removal of *arbitrarily many* rows that
   all share the same *identifier* (in some column), you can use the 
-  :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+  :class:`~tmlt.analytics.AddRowsWithID` protected change.
   If you add multiple tables that all use ``AddRowsWithID``, the
-  :attr:`~tmlt.analytics.protected_change.AddRowsWithID.id_space` property
+  :attr:`~tmlt.analytics.AddRowsWithID.id_space` property
   determines which ID space each table belongs to.
 
 Other possible protected changes are also available, though they are typically
 only needed for advanced use cases.
-See our :mod:`~tmlt.analytics.protected_change` documentation for more information.
+See our :ref:`API documentation<privacy-guarantees>` for more information.
 
 Because the privacy of individuals depends on how often they appear in a table,
 you should be careful of what kind of pre-processing is done to the private data
@@ -91,7 +91,7 @@ other way is not protected by the Session.
 
 This means that **you should not directly use private data**; instead, you
 should only access it indirectly by executing
-:meth:`~tmlt.analytics.session.Session.evaluate` on well-specified queries. In
+:meth:`~tmlt.analytics.Session.evaluate` on well-specified queries. In
 particular, public sources and parameters like ``groupby`` information or
 clamping bounds are not protected. They can reveal private information if the
 private data is used directly to determine them.
@@ -109,7 +109,7 @@ defend against actively malicious users. In particular:
    Session's private state and using this information to tailor your analysis
    workflow will break the privacy guarantee.
 
-#. **Do not use** :meth:`~tmlt.analytics.query_builder.QueryBuilder.map` **or** :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` **operations with side-effects.**
+#. **Do not use** :meth:`~tmlt.analytics.QueryBuilder.map` **or** :meth:`~tmlt.analytics.QueryBuilder.flat_map` **operations with side-effects.**
    These operations allow you to transform data using arbitrary user-defined
    functions (UDFs). When using map or flatmap, a Session's privacy guarantee
    only holds if the UDFs do not have side-effects with externally-observable
@@ -119,7 +119,7 @@ defend against actively malicious users. In particular:
 
 #. **Do not release side-channel information.** The privacy guarantee only
    applies to the output of calls to
-   :meth:`~tmlt.analytics.session.Session.evaluate`. Information such as how
+   :meth:`~tmlt.analytics.Session.evaluate`. Information such as how
    long a query ran or how much memory it required might reveal private
    information. Do not use this library in an untrusted context where protection
    against such side-channels is important.

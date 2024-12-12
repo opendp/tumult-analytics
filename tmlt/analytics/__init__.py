@@ -84,5 +84,5 @@ from tmlt.analytics.query_builder import (
     SumMechanism,
     VarianceMechanism,
 )
-from tmlt.analytics.session import SUPPORTED_SPARK_TYPES, TYPE_COERCION_MAP, Session
+from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy

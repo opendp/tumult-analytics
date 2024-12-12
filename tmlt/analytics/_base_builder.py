@@ -88,15 +88,15 @@ class DataFrameMixin:
         """Adds a Spark DataFrame as a private source.
 
         Not all Spark column types are supported in private sources; see
-        :data:`tmlt.analytics.session.SUPPORTED_SPARK_TYPES` for information about
-        which types are supported.
+        :class:`~tmlt.analytics.ColumnType` for information about which types are
+        supported.
 
         Args:
             source_id: Source id for the private source dataframe.
             dataframe: Private source dataframe to perform queries on,
                 corresponding to the ``source_id``.
             protected_change: A
-                :class:`~tmlt.analytics.protected_change.ProtectedChange`
+                :class:`~tmlt.analytics.ProtectedChange`
                 specifying what changes to the input data should be protected.
         """
         assert_is_identifier(source_id)

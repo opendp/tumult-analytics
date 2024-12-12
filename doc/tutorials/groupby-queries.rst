@@ -95,13 +95,13 @@ Introduction to KeySets
 -----------------------
 
 To specify the list of group-by keys in Tumult Analytics, we use the
-:class:`~tmlt.analytics.keyset.KeySet` class. A KeySet specifies both the
+:class:`~tmlt.analytics.KeySet` class. A KeySet specifies both the
 columns by which we are going to group by, and the possible values for those
 columns.
 
 The simple way to initialize a KeySet, especially when there are only a few
 possible values for a given column, is to use
-:meth:`~tmlt.analytics.keyset.KeySet.from_dict`. For example, the following
+:meth:`~tmlt.analytics.KeySet.from_dict`. For example, the following
 KeySet enumerates all possible values for the categorical column
 `education_level`.
 
@@ -118,7 +118,7 @@ KeySet enumerates all possible values for the categorical column
    })
 
 Once we have this KeySet, we can use it in group-by queries, using the
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby` operation. For
+:meth:`~tmlt.analytics.QueryBuilder.groupby` operation. For
 example, let us compute the average age of library members, grouped by education
 level.
 
@@ -254,7 +254,7 @@ age (of teenagers and young adults) and education level.
 
 This gives us a KeySet with each combination of values across the two columns
 ``age`` and ``education_level``. To manually check what's inside of a KeySet,
-we can call its :meth:`tmlt.analytics.keyset.KeySet.dataframe` method, which
+we can call its :meth:`tmlt.analytics.KeySet.dataframe` method, which
 will return the group-by keys it encapsulates, as a Spark DataFrame.
 
 .. testcode::
@@ -348,7 +348,7 @@ columns is pure noise, added to zero values.
 We can fix that problem by creating a KeySet that only contains reasonable
 combinations of values. One way to do this is by creating a Spark DataFrame with
 the desired combinations, and initializing a KeySet with it using the
-:meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` method. Here, let's create
+:meth:`~tmlt.analytics.KeySet.from_dataframe` method. Here, let's create
 such a KeySet for our age range, making some assumptions about the minimum age at
 which certain education levels can be achieved.
 
@@ -431,7 +431,7 @@ Cross-product
 
 When two KeySets are specifying group-by keys for different sets of columns, you
 can use the
-:meth:`multiplication operator<tmlt.analytics.keyset.KeySet.__mul__>` to
+:meth:`multiplication operator<tmlt.analytics.KeySet.__mul__>` to
 generate the combination of values present in both KeySets. Consider, for
 example, the combination of teen ages and education levels that we started with
 in the previous section.
@@ -480,7 +480,7 @@ Projection
 What if you have a large KeySet containing possible combination of values
 between multiple columns, and want to select only a subset of these columns? For
 this use case, you can use the
-:meth:`projection operator<tmlt.analytics.keyset.KeySet.__getitem__>`. For
+:meth:`projection operator<tmlt.analytics.KeySet.__getitem__>`. For
 example, taking the two-column KeySet above and projecting it on a single column
 will retrieve the original one-column KeySet.
 
@@ -493,7 +493,7 @@ will retrieve the original one-column KeySet.
    True
 
 Note that this operation, just like the
-:meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` method, removes duplicates
+:meth:`~tmlt.analytics.KeySet.from_dataframe` method, removes duplicates
 in the data: ``teen_edu_keys["education"]`` only has one row for e.g.
 ``"up-to-high-school"``, even though this value appears in multiple rows in the
 original KeySet.
@@ -519,7 +519,7 @@ You can easily specify multiple columns using multiple parameters, or a list.
 Filters
 """""""
 
-Finally, KeySets support the same :meth:`~tmlt.analytics.keyset.KeySet.filter`
+Finally, KeySets support the same :meth:`~tmlt.analytics.KeySet.filter`
 operation as Spark DataFrames. For example, consider the KeySet with specific
 combinations of age and education level from before.
 
@@ -578,7 +578,7 @@ members. We don't know all possible first names a priori, so building the KeySet
 
 We can solve this problem by using *approximate differential
 privacy* (Approx DP) in our Session, and using
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups` to collect a list of
+:meth:`~tmlt.analytics.QueryBuilder.get_groups` to collect a list of
 names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries.
 
 For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals`.
@@ -635,7 +635,7 @@ For more information on Approx DP, you can consult our topic guide on :ref:`Priv
 
 The query result is a dataframe with first names that appear in the private
 data. This can be converted into a KeySet using the
-:meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` method mentioned
+:meth:`~tmlt.analytics.KeySet.from_dataframe` method mentioned
 earlier.
 
 .. testcode::
@@ -657,7 +657,7 @@ Now that we have the KeySet, we can use it in a group-by query.
    )
 
 
-Note that :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups`
+Note that :meth:`~tmlt.analytics.QueryBuilder.get_groups`
 did *not* return every name in the dataset, but only those associated to
 sufficiently many people (with some randomization). To see this, we can
 look at the lowest counts returned by our count query.
@@ -695,7 +695,7 @@ look at the lowest counts returned by our count query.
    only showing top 5 rows
 
 Lastly, we can estimate how many names were suppressed during this
-operation by comparing the number of names we published using :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_groups` to a noisy
+operation by comparing the number of names we published using :meth:`~tmlt.analytics.QueryBuilder.get_groups` to a noisy
 count of distinct names in the dataset.
 
 .. testcode::

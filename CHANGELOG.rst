@@ -11,6 +11,9 @@ Unreleased
 
 Changed
 ~~~~~~~
+
+- The :ref:`API reference<api>` is now organized into semantically-grouped subpages, and no longer follows the internal module structure. 
+- All Python objects should now be imported directly from ``tmlt.analytics``, ``tmlt.synthetics``, and ``tmlt.tune``. The documentation and demos have been updated accordingly. Existing import paths still work but will be removed in a future release, so users should switch to the new import statements.
 - Numpy arrays can now be used when initializing a :class:`~tmlt.analytics.binning_spec.BinningSpec`.
 
 .. _v0.19.0:
@@ -48,7 +51,7 @@ This release provides a number of quality of life improvements, including a new 
 
 Changed
 ~~~~~~~
-- The :meth:`~tmlt.analytics.query_builder.QueryBuilder.map`, :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`, and :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id` transformations now more strictly check their outputs against the provided new column types.
+- The :meth:`~tmlt.analytics.QueryBuilder.map`, :meth:`~tmlt.analytics.QueryBuilder.flat_map`, and :meth:`~tmlt.analytics.QueryBuilder.flat_map_by_id` transformations now more strictly check their outputs against the provided new column types.
   This may cause some existing programs to produce errors if they relied on the previous, less-strict behavior.
 - Log messages are now emitted via Python's built-in ``logging`` module.
 - The supported version of typeguard has been updated to 4.*.
@@ -70,11 +73,11 @@ This is a maintenance release, with no externally-visible changes.
 
 0.16.0 - 2024-08-21
 -------------------
-This release adds a new :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id>` transformation, improved constraint support when using :meth:`~tmlt.analytics.session.Session.partition_and_create`, and performance improvements.
+This release adds a new :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.QueryBuilder.flat_map_by_id>` transformation, improved constraint support when using :meth:`~tmlt.analytics.Session.partition_and_create`, and performance improvements.
 
 Added
 ~~~~~
-- Added a new transformation, :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.query_builder.QueryBuilder.flat_map_by_id>`, which allows user-defined transformations to be applied to groups of rows sharing an ID on tables with the :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+- Added a new transformation, :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.QueryBuilder.flat_map_by_id>`, which allows user-defined transformations to be applied to groups of rows sharing an ID on tables with the :class:`~tmlt.analytics.AddRowsWithID` protected change.
 
 
 Fixed
@@ -83,33 +86,33 @@ Fixed
 
 Changed
 ~~~~~~~
-- :meth:`~tmlt.analytics.session.Session.partition_and_create` can now be used on a table with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change if a :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is present, converting the table being partitioned into one with an :class:`~tmlt.analytics.protected_change.AddMaxRows` protected change.
-  The behavior when using :meth:`~tmlt.analytics.session.Session.partition_and_create` on such a table with a :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint has not changed.
-  If both :class:`~tmlt.analytics.constraints.MaxRowsPerID` and :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraints are present, the :class:`~tmlt.analytics.constraints.MaxRowsPerID` constraint is ignored and only the :class:`~tmlt.analytics.constraints.MaxGroupsPerID` constraint gets applied.
+- :meth:`~tmlt.analytics.Session.partition_and_create` can now be used on a table with an :class:`~tmlt.analytics.AddRowsWithID` protected change if a :class:`~tmlt.analytics.MaxRowsPerID` constraint is present, converting the table being partitioned into one with an :class:`~tmlt.analytics.AddMaxRows` protected change.
+  The behavior when using :meth:`~tmlt.analytics.Session.partition_and_create` on such a table with a :class:`~tmlt.analytics.MaxGroupsPerID` constraint has not changed.
+  If both :class:`~tmlt.analytics.MaxRowsPerID` and :class:`~tmlt.analytics.MaxGroupsPerID` constraints are present, the :class:`~tmlt.analytics.MaxRowsPerID` constraint is ignored and only the :class:`~tmlt.analytics.MaxGroupsPerID` constraint gets applied.
 
 .. _v0.15.0:
 
 0.15.0 - 2024-08-12
 -------------------
-This release extends the :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
-In addition, it changes the object used to represent queries to the new :class:`~tmlt.analytics.query_builder.Query` class, and updates the format in which table schemas are returned.
+This release extends the :meth:`~tmlt.analytics.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
+In addition, it changes the object used to represent queries to the new :class:`~tmlt.analytics.Query` class, and updates the format in which table schemas are returned.
 
 
 Added
 ~~~~~
-- Added a dependency on the library ``tabulate`` to improve table displays from :meth:`~tmlt.analytics.session.Session.describe`.
-- Added the ability to :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.get_bounds` after calling :meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, for determining upper and lower bounds for a column per group in a differentially private way.
+- Added a dependency on the library ``tabulate`` to improve table displays from :meth:`~tmlt.analytics.Session.describe`.
+- Added the ability to :meth:`~tmlt.analytics.GroupedQueryBuilder.get_bounds` after calling :meth:`~tmlt.analytics.QueryBuilder.groupby`, for determining upper and lower bounds for a column per group in a differentially private way.
 
 Changed
 ~~~~~~~
-- *Backwards-incompatible*: The :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` query now returns a dataframe when evaluated instead of a tuple.
-- *Backwards-incompatible*: The :meth:`Session.get_schema() <tmlt.analytics.session.Session.get_schema>` and :meth:`KeySet.schema() <tmlt.analytics.keyset.KeySet.schema>` methods now return a normal dictionary of column names to :class:`~tmlt.analytics.query_builder.ColumnDescriptor`\ s, rather than a specialized ``Schema`` type.
+- *Backwards-incompatible*: The :meth:`~tmlt.analytics.QueryBuilder.get_bounds` query now returns a dataframe when evaluated instead of a tuple.
+- *Backwards-incompatible*: The :meth:`Session.get_schema() <tmlt.analytics.Session.get_schema>` and :meth:`KeySet.schema() <tmlt.analytics.KeySet.schema>` methods now return a normal dictionary of column names to :class:`~tmlt.analytics.ColumnDescriptor`\ s, rather than a specialized ``Schema`` type.
   This brings them more in line with the rest of the Tumult Analytics API, but could impact code that used some functionality available through the ``Schema`` type.
   Uses of these methods where the result is treated as a dictionary should not be impacted.
-- :class:`~tmlt.analytics.query_builder.QueryBuilder` now returns a :class:`~tmlt.analytics.query_builder.Query` object instead of a ``QueryExpr`` or ``AggregatedQueryBuilder`` when a query is created.
-  This should not affect code using :class:`~tmlt.analytics.query_builder.QueryBuilder` unless it directly inspects these objects.
-- GroupbyCount queries now return :class:`~tmlt.analytics.query_builder.GroupbyCountQuery`, a subclass of :class:`~tmlt.analytics.query_builder.Query` that has the :meth:`~tmlt.analytics.query_builder.GroupbyCountQuery.suppress` post-process method.
-- :meth:`~tmlt.analytics.session.Session.evaluate` now accepts :class:`~tmlt.analytics.query_builder.Query` objects instead of ``QueryExpr`` objects.
+- :class:`~tmlt.analytics.QueryBuilder` now returns a :class:`~tmlt.analytics.Query` object instead of a ``QueryExpr`` or ``AggregatedQueryBuilder`` when a query is created.
+  This should not affect code using :class:`~tmlt.analytics.QueryBuilder` unless it directly inspects these objects.
+- GroupbyCount queries now return :class:`~tmlt.analytics.GroupbyCountQuery`, a subclass of :class:`~tmlt.analytics.Query` that has the :meth:`~tmlt.analytics.GroupbyCountQuery.suppress` post-process method.
+- :meth:`~tmlt.analytics.Session.evaluate` now accepts :class:`~tmlt.analytics.Query` objects instead of ``QueryExpr`` objects.
 - Replaced asserts with custom exceptions in cases where internal errors are detected.
   Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
 - Updated to Tumult Core 0.16.1.
@@ -117,8 +120,8 @@ Changed
 Removed
 ~~~~~~~
 - QueryExprs (previously in ``tmlt.analytics.query_expr``) have been removed from the Tumult Analytics public API.
-  Queries should be created using :class:`~tmlt.analytics.query_builder.QueryBuilder`, which returns a new :class:`~tmlt.analytics.query_builder.Query` when a query is created.
-- Removed the ``query_expr`` attribute from the :class:`~tmlt.analytics.query_builder.QueryBuilder` class.
+  Queries should be created using :class:`~tmlt.analytics.QueryBuilder`, which returns a new :class:`~tmlt.analytics.Query` when a query is created.
+- Removed the ``query_expr`` attribute from the :class:`~tmlt.analytics.QueryBuilder` class.
 - Removed support for Pandas 1.2 and 1.3 due to a known bug in Pandas versions below 1.4.
 
 .. _v0.14.0:
@@ -140,7 +143,7 @@ Added
 
 Changed
 ~~~~~~~
-- Mechanism enums (e.g. :class:`~tmlt.analytics.query_builder.CountMechanism`) should now be imported from :mod:`tmlt.analytics.query_builder`.
+- Mechanism enums (e.g. :class:`~tmlt.analytics.CountMechanism`) should now be imported from ``tmlt.analytics.query_builder``.
   The current query expression module (``tmlt.analytics.query_expr``) will be removed from the public API in an upcoming release.
 
 Removed
@@ -150,7 +153,7 @@ Removed
 Deprecated
 ~~~~~~~~~~
 - QueryExprs (previously in ``tmlt.analytics.query_expr``) will be removed from the Tumult Analytics public API in an upcoming release.
-  Queries should be created using :class:`~tmlt.analytics.query_builder.QueryBuilder` instead.
+  Queries should be created using :class:`~tmlt.analytics.QueryBuilder` instead.
 
 .. _v0.13.0:
 
@@ -161,7 +164,7 @@ This release makes some supporting classes immutable.
 
 Changed
 ~~~~~~~
-- Made :class:`~tmlt.analytics.binning_spec.BinningSpec` immutable.
+- Made :class:`~tmlt.analytics.BinningSpec` immutable.
 
 .. _v0.12.0:
 
@@ -192,16 +195,16 @@ Added
 ~~~~~
 - Added a ``tmlt.analytics.query_expr.SuppressAggregates`` query type, for suppressing aggregates less than a certain threshold.
   This is currently only supported for post-processing ``tmlt.analytics.query_expr.GroupByCount`` queries.
-  These can be built using the :class:`~tmlt.analytics.query_builder.QueryBuilder` by calling ``AggregatedQueryBuilder.suppress`` after building a GroupByCount query.
-  As part of this change, query builders now return an ``tmlt.analytics.query_builder.AggregatedQueryBuilder`` instead of a ``tmlt.analytics.query_expr.QueryExpr`` when aggregating;
-  the ``tmlt.analytics.query_builder.AggregatedQueryBuilder`` can be passed to :meth:`Session.evaluate <tmlt.analytics.session.Session.evaluate>` so most existing code should not need to be migrated.
-- Added :meth:`~tmlt.analytics.keyset.KeySet.cache` and :meth:`~tmlt.analytics.keyset.KeySet.uncache` methods to :class:`~tmlt.analytics.keyset.KeySet` for caching and uncaching the underlying Spark dataframe.
+  These can be built using the :class:`~tmlt.analytics.QueryBuilder` by calling ``AggregatedQueryBuilder.suppress`` after building a GroupByCount query.
+  As part of this change, query builders now return an ``tmlt.analytics.AggregatedQueryBuilder`` instead of a ``tmlt.analytics.query_expr.QueryExpr`` when aggregating;
+  the ``tmlt.analytics.AggregatedQueryBuilder`` can be passed to :meth:`Session.evaluate <tmlt.analytics.Session.evaluate>` so most existing code should not need to be migrated.
+- Added :meth:`~tmlt.analytics.KeySet.cache` and :meth:`~tmlt.analytics.KeySet.uncache` methods to :class:`~tmlt.analytics.KeySet` for caching and uncaching the underlying Spark dataframe.
   These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
 
 Changed
 ~~~~~~~
-- :class:`~tmlt.analytics.privacy_budget.PureDPBudget`, :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`, and :class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget` are now immutable classes.
-- :class:`~tmlt.analytics.privacy_budget.PureDPBudget` and :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` are no longer considered equal if they have the same epsilon and the :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` has a delta of zero.
+- :class:`~tmlt.analytics.PureDPBudget`, :class:`~tmlt.analytics.ApproxDPBudget`, and :class:`~tmlt.analytics.RhoZCDPBudget` are now immutable classes.
+- :class:`~tmlt.analytics.PureDPBudget` and :class:`~tmlt.analytics.ApproxDPBudget` are no longer considered equal if they have the same epsilon and the :class:`~tmlt.analytics.ApproxDPBudget` has a delta of zero.
 
 .. _v0.10.2:
 
@@ -210,7 +213,7 @@ Changed
 
 Changed
 ~~~~~~~
-- Column order is now preserved when selecting columns from a :class:`~tmlt.analytics.keyset.KeySet`.
+- Column order is now preserved when selecting columns from a :class:`~tmlt.analytics.KeySet`.
 
 .. _v0.10.1:
 
@@ -225,25 +228,25 @@ This release contains no externally-visible changes from the previous version.
 0.10.0 - 2024-05-17
 -------------------
 
-This release adds a new :meth:`~tmlt.analytics.query_builder.QueryBuilder.get_bounds` aggregation.
-It also includes performance improvements for :class:`~tmlt.analytics.keyset.KeySet`\ s, and other quality-of-life improvements.
+This release adds a new :meth:`~tmlt.analytics.QueryBuilder.get_bounds` aggregation.
+It also includes performance improvements for :class:`~tmlt.analytics.KeySet`\ s, and other quality-of-life improvements.
 
 Added
 ~~~~~
-- Added the :meth:`QueryBuilder.get_bounds <tmlt.analytics.query_builder.QueryBuilder.get_bounds>` function, for determining upper and lower bounds for a column in a differentially private way.
+- Added the :meth:`QueryBuilder.get_bounds <tmlt.analytics.QueryBuilder.get_bounds>` function, for determining upper and lower bounds for a column in a differentially private way.
 
 Changed
 ~~~~~~~
-- If a :class:`~tmlt.analytics.session.Session.Builder` has only one
+- If a :class:`~tmlt.analytics.Session.Builder` has only one
   private dataframe *and* that dataframe uses the
-  :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change,
+  :class:`~tmlt.analytics.AddRowsWithID` protected change,
   the relevant ID space will automatically be added to the Builder when
-  :meth:`~tmlt.analytics.session.Session.Builder.build` is called.
-- :class:`~tmlt.analytics.keyset.KeySet` is now an abstract class, in order to
+  :meth:`~tmlt.analytics.Session.Builder.build` is called.
+- :class:`~tmlt.analytics.KeySet` is now an abstract class, in order to
   make some KeySet operations (column selection after cross-products) more
   efficient.
-  Behavior is unchanged for users of the :meth:`~tmlt.analytics.keyset.KeySet.from_dict`
-  and :meth:`~tmlt.analytics.keyset.KeySet.from_dataframe` constructors.
+  Behavior is unchanged for users of the :meth:`~tmlt.analytics.KeySet.from_dict`
+  and :meth:`~tmlt.analytics.KeySet.from_dataframe` constructors.
 
 Fixed
 ~~~~~
@@ -262,20 +265,20 @@ If this is a problem, please `reach out to us <mailto:info@tmlt.io>`_.
 
 Changed
 ~~~~~~~
-- :class:`~tmlt.analytics.keyset.KeySet` equality is now performed without converting the underlying dataframe to Pandas.
-- :meth:`~tmlt.analytics.session.Session.partition_and_create`: the ``column`` and ``splits`` arguments are now annotated as required.
+- :class:`~tmlt.analytics.KeySet` equality is now performed without converting the underlying dataframe to Pandas.
+- :meth:`~tmlt.analytics.Session.partition_and_create`: the ``column`` and ``splits`` arguments are now annotated as required.
 - The minimum supported version of Tumult Core is now 0.13.0.
-- The :meth:`QueryBuilder.variance <tmlt.analytics.query_builder.QueryBuilder.variance>`, :meth:`QueryBuilder.stdev <tmlt.analytics.query_builder.QueryBuilder.stdev>`, :meth:`GroupedQueryBuilder.variance <tmlt.analytics.query_builder.GroupedQueryBuilder.variance>`, and :meth:`GroupedQueryBuilder.stdev <tmlt.analytics.query_builder.GroupedQueryBuilder.stdev>` methods now calculate the sample variance or standard deviation, rather than the population variance or standard deviation.
+- The :meth:`QueryBuilder.variance <tmlt.analytics.QueryBuilder.variance>`, :meth:`QueryBuilder.stdev <tmlt.analytics.QueryBuilder.stdev>`, :meth:`GroupedQueryBuilder.variance <tmlt.analytics.GroupedQueryBuilder.variance>`, and :meth:`GroupedQueryBuilder.stdev <tmlt.analytics.GroupedQueryBuilder.stdev>` methods now calculate the sample variance or standard deviation, rather than the population variance or standard deviation.
 
 Removed
 ~~~~~~~
-- *Backwards-incompatible*: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` have been removed (deprecated since :ref:`0.7.0 <v0.7.0>`).
+- *Backwards-incompatible*: The ``stability`` and ``grouping_column`` parameters to :meth:`Session.from_dataframe <tmlt.analytics.Session.from_dataframe>` and :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.Session.Builder.with_private_dataframe>` have been removed (deprecated since :ref:`0.7.0 <v0.7.0>`).
   As a result, the ``protected_change`` parameter to those methods is now required.
 
 Fixed
 ~~~~~
-- The error message when attempting to overspend an :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget` now more clearly indicates which component of the budget was insufficient to evaluate the query.
-- :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` now automatically excludes ID columns if no columns are specified.
+- The error message when attempting to overspend an :class:`~tmlt.analytics.ApproxDPBudget` now more clearly indicates which component of the budget was insufficient to evaluate the query.
+- :meth:`QueryBuilder.get_groups <tmlt.analytics.QueryBuilder.get_groups>` now automatically excludes ID columns if no columns are specified.
 - Flat maps now correctly ignore ``max_rows`` when it does not apply.
   Previously they would raise a warning saying that ``max_rows`` was ignored, but would still use it to limit the number of rows in the output.
 
@@ -321,13 +324,13 @@ This is a maintenance release that addresses a performance regression for comple
 
 Added
 ~~~~~
-- Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.query_builder.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
+- Added the :meth:`QueryBuilder.get_groups <tmlt.analytics.QueryBuilder.get_groups>` function, for determining groupby keys for a table in a differentially private way.
 
 Changed
 ~~~~~~~
-- *Backwards-incompatible*: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.truncation_strategy.TruncationStrategy.DropExcess.max_rows`.
+- *Backwards-incompatible*: Renamed ``DropExcess.max_records`` to :attr:`~tmlt.analytics.TruncationStrategy.DropExcess.max_rows`.
 - *Backwards-incompatible*: Renamed ``FlatMap.max_num_rows`` to ``FlatMap.max_rows``.
-- Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
+- Changed the name of an argument for :meth:`QueryBuilder.flat_map()<tmlt.analytics.QueryBuilder.flat_map>` from ``max_num_rows`` to ``max_rows``. The old ``max_num_rows`` argument is deprecated and will be removed in a future release.
 
 Fixed
 ~~~~~
@@ -358,18 +361,18 @@ Added
 
 Changed
 ~~~~~~~
-- The :meth:`QueryBuilder.replace_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.replace_null_and_nan>` and :meth:`QueryBuilder.drop_null_and_nan()<tmlt.analytics.query_builder.QueryBuilder.drop_null_and_nan>` methods now accept empty column specifications on tables with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+- The :meth:`QueryBuilder.replace_null_and_nan()<tmlt.analytics.QueryBuilder.replace_null_and_nan>` and :meth:`QueryBuilder.drop_null_and_nan()<tmlt.analytics.QueryBuilder.drop_null_and_nan>` methods now accept empty column specifications on tables with an :class:`~tmlt.analytics.AddRowsWithID` protected change.
   Replacing/dropping nulls on ID columns is still not allowed, but the ID column will now automatically be excluded in this case rather than raising an exception.
-- :meth:`BinningSpec.bins()<tmlt.analytics.binning_spec.BinningSpec.bins>` used to only include the NaN bin if the provided bin edges were floats.
-  However, float-valued columns can be binned with integer bin edges, which resulted in a confusing situation where a :class:`~tmlt.analytics.binning_spec.BinningSpec` could indicate that it would not use a NaN bin but still place values in the NaN bin.
-  To avoid this, :meth:`BinningSpec.bins()<tmlt.analytics.binning_spec.BinningSpec.bins>` now always includes the NaN bin if one was specified, regardless of whether the bin edge type can represent NaN values.
-- The automatically-generated bin names in :class:`~tmlt.analytics.binning_spec.BinningSpec` now quote strings when they are used as bin edges.
+- :meth:`BinningSpec.bins()<tmlt.analytics.BinningSpec.bins>` used to only include the NaN bin if the provided bin edges were floats.
+  However, float-valued columns can be binned with integer bin edges, which resulted in a confusing situation where a :class:`~tmlt.analytics.BinningSpec` could indicate that it would not use a NaN bin but still place values in the NaN bin.
+  To avoid this, :meth:`BinningSpec.bins()<tmlt.analytics.BinningSpec.bins>` now always includes the NaN bin if one was specified, regardless of whether the bin edge type can represent NaN values.
+- The automatically-generated bin names in :class:`~tmlt.analytics.BinningSpec` now quote strings when they are used as bin edges.
   For example, the bin generated by ``BinningSpec(["0", "1"])`` is now ``['0', '1']`` where it was previously ``[0, 1]``.
   Bins with edges of other types are not affected.
 
 Fixed
 ~~~~~
-- Creating a :class:`~tmlt.analytics.session.Session` with multiple tables in an ID space used to fail if some of those tables' ID columns allowed nulls and others did not.
+- Creating a :class:`~tmlt.analytics.Session` with multiple tables in an ID space used to fail if some of those tables' ID columns allowed nulls and others did not.
   This no longer occurs, and in such cases all of the tables' ID columns are made nullable.
 
 .. _v0.7.1:
@@ -389,46 +392,45 @@ This release adds support for *privacy identifiers*:
 Tumult Analytics can now protect input tables in which the differential privacy guarantee needs to hide the presence of arbitrarily many rows sharing the same value in a particular column.
 For example, this may be used to protect each user of a service when every row in a table is associated with a user ID.
 
-Privacy identifiers are set up using the new :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
-A number of features have been added to the API to support this, including alternative behaviors for various query transformations when working with IDs and the new concept of :mod:`~tmlt.analytics.constraints`.
+Privacy identifiers are set up using the new :class:`~tmlt.analytics.AddRowsWithID` protected change.
+A number of features have been added to the API to support this, including alternative behaviors for various query transformations when working with IDs and the new concept of :ref:`constraints`.
 To get started with these features, take a look at the new :ref:`Working with privacy IDs <Working with privacy IDs>` and :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorials.
 
 Added
 ~~~~~
-- A new :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change has been added, which protects the addition or removal of all rows with the same value in a specified column.
-  See the documentation for :class:`~tmlt.analytics.protected_change.AddRowsWithID` and the :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorial for more information.
+- A new :class:`~tmlt.analytics.AddRowsWithID` protected change has been added, which protects the addition or removal of all rows with the same value in a specified column.
+  See the documentation for :class:`~tmlt.analytics.AddRowsWithID` and the :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorial for more information.
 
-  - When creating a Session with :class:`~tmlt.analytics.protected_change.AddRowsWithID` using a :class:`Session.Builder<tmlt.analytics.session.Session.Builder>`, you must use the new :meth:`~tmlt.analytics.session.Session.Builder.with_id_space` method to specify the identifier space(s) of tables using this protected change.
-  - When creating a Session with :meth:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>`, specifying an ID space is not necessary.
+  - When creating a Session with :class:`~tmlt.analytics.AddRowsWithID` using a :class:`Session.Builder<tmlt.analytics.Session.Builder>`, you must use the new :meth:`~tmlt.analytics.Session.Builder.with_id_space` method to specify the identifier space(s) of tables using this protected change.
+  - When creating a Session with :meth:`Session.from_dataframe()<tmlt.analytics.Session.from_dataframe>`, specifying an ID space is not necessary.
 
-- :class:`~tmlt.analytics.query_builder.QueryBuilder` has a new method, :meth:`~tmlt.analytics.query_builder.QueryBuilder.enforce`, for enforcing constraints on a table.
-  Types for representing these constraints are located in the new :mod:`tmlt.analytics.constraints` module.
-- A new method, :meth:`Session.describe()<tmlt.analytics.session.Session.describe>`, has been added to provide a summary of the tables in a :class:`~tmlt.analytics.session.Session`, or of a single table or the output of a query.
+- :class:`~tmlt.analytics.QueryBuilder` has a new method, :meth:`~tmlt.analytics.QueryBuilder.enforce`, for enforcing :ref:`constraints` on a table.
+- A new method, :meth:`Session.describe()<tmlt.analytics.Session.describe>`, has been added to provide a summary of the tables in a :class:`~tmlt.analytics.Session`, or of a single table or the output of a query.
 
 Changed
 ~~~~~~~
-- :meth:`QueryBuilder.join_private()<tmlt.analytics.query_builder.QueryBuilder.join_private>` now accepts the name of a private table as ``right_operand``.
+- :meth:`QueryBuilder.join_private()<tmlt.analytics.QueryBuilder.join_private>` now accepts the name of a private table as ``right_operand``.
   For example, ``QueryBuilder("table").join_private("foo")`` is equivalent to ``QueryBuilder("table").join_private(QueryBuilder("foo"))``.
-- The ``max_num_rows`` parameter to :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` is now optional when applied to tables with an :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
-- *Backwards-incompatible*: The parameters to :meth:`QueryBuilder.flat_map()<tmlt.analytics.query_builder.QueryBuilder.flat_map>` have been reordered, moving ``max_num_rows`` to be the last parameter.
+- The ``max_num_rows`` parameter to :meth:`QueryBuilder.flat_map()<tmlt.analytics.QueryBuilder.flat_map>` is now optional when applied to tables with an :class:`~tmlt.analytics.AddRowsWithID` protected change.
+- *Backwards-incompatible*: The parameters to :meth:`QueryBuilder.flat_map()<tmlt.analytics.QueryBuilder.flat_map>` have been reordered, moving ``max_num_rows`` to be the last parameter.
 - *Backwards-incompatible*: The lower and upper bounds for quantile, sum, average, variance, and standard deviation queries can no longer be equal to one another.
   The lower bound must now be strictly less than the upper bound.
-- *Backwards-incompatible*: Renamed :meth:`QueryBuilder.filter()<tmlt.analytics.query_builder.QueryBuilder.filter>` ``predicate`` argument to ``condition``.
+- *Backwards-incompatible*: Renamed :meth:`QueryBuilder.filter()<tmlt.analytics.QueryBuilder.filter>` ``predicate`` argument to ``condition``.
 - *Backwards-incompatible*: Renamed ``tmlt.analytics.query_expr.Filter`` query expression ``predicate`` property to ``condition``.
-- *Backwards-incompatible*: Renamed :meth:`KeySet.filter()<tmlt.analytics.keyset.KeySet.filter>` ``expr`` argument to ``condition``.
+- *Backwards-incompatible*: Renamed :meth:`KeySet.filter()<tmlt.analytics.KeySet.filter>` ``expr`` argument to ``condition``.
 
 Deprecated
 ~~~~~~~~~~
-- The ``stability`` and ``grouping_column`` parameters to :class:`Session.from_dataframe()<tmlt.analytics.session.Session.from_dataframe>` and :class:`Session.Builder.with_private_dataframe()<tmlt.analytics.session.Session.Builder.with_private_dataframe>` are deprecated, and will be removed in a future release.
+- The ``stability`` and ``grouping_column`` parameters to :class:`Session.from_dataframe()<tmlt.analytics.Session.from_dataframe>` and :class:`Session.Builder.with_private_dataframe()<tmlt.analytics.Session.Builder.with_private_dataframe>` are deprecated, and will be removed in a future release.
   The ``protected_change`` parameter should be used instead, and will become required.
 
 Removed
 ~~~~~~~
-- The ``attr_name`` parameter to :class:`Session.partition_and_create()<tmlt.analytics.session.Session.partition_and_create>`, which was deprecated in version 0.5.0, has been removed.
+- The ``attr_name`` parameter to :class:`Session.partition_and_create()<tmlt.analytics.Session.partition_and_create>`, which was deprecated in version 0.5.0, has been removed.
 
 Fixed
 ~~~~~
-- :meth:`Session.add_public_datafame()<tmlt.analytics.session.Session.add_public_dataframe>` used to allow creation of a public table with the same name as an existing public table, which was neither intended nor fully supported by some :class:`~tmlt.analytics.session.Session` methods.
+- :meth:`Session.add_public_datafame()<tmlt.analytics.Session.add_public_dataframe>` used to allow creation of a public table with the same name as an existing public table, which was neither intended nor fully supported by some :class:`~tmlt.analytics.Session` methods.
   It now raises a ``ValueError`` in this case.
 - Some query patterns on tables containing nulls could cause grouped aggregations to produce the wrong set of group keys in their output.
   This no longer happens.
@@ -449,18 +451,18 @@ This is a maintenance release which introduces a number of documentation improve
 
 .. _changelog#protected-change:
 
-This release introduces a new way to specify what unit of data is protected by the privacy guarantee of a :class:`~tmlt.analytics.session.Session`.
-A new ``protected_change`` parameter is available when creating a :class:`~tmlt.analytics.session.Session`, taking an instance of the new :class:`~tmlt.analytics.protected_change.ProtectedChange` class which describes the largest unit of data in the resulting table on which the differential privacy guarantee will hold.
-See the documentation for the :mod:`~tmlt.analytics.protected_change` module for more information about the available protected changes and how to use them.
+This release introduces a new way to specify what unit of data is protected by the privacy guarantee of a :class:`~tmlt.analytics.Session`.
+A new ``protected_change`` parameter is available when creating a :class:`~tmlt.analytics.Session`, taking an instance of the new :class:`~tmlt.analytics.ProtectedChange` class which describes the largest unit of data in the resulting table on which the differential privacy guarantee will hold.
+See the :ref:`API documentation<privacy-guarantees>` for more information about the available protected changes and how to use them.
 
 The ``stability`` and ``grouping_column`` parameters which were used to specify this information are still accepted, and work as before, but they will be deprecated and eventually removed in future releases.
 The default behavior of assuming ``stability=1`` if no other information is given will also be deprecated and removed, on a similar timeline to ``stability`` and ``grouping_column``; instead, explicitly specify ``protected_change=AddOneRow()``.
-These changes should make the privacy guarantees provided by the :class:`~tmlt.analytics.session.Session` interface easier to understand and harder to misuse, and allow for future support for other units of protection that were not representable with the existing API.
+These changes should make the privacy guarantees provided by the :class:`~tmlt.analytics.Session` interface easier to understand and harder to misuse, and allow for future support for other units of protection that were not representable with the existing API.
 
 Added
 ~~~~~
-- As described above, :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.session.Session.Builder.with_private_dataframe>` and :meth:`Session.from_dataframe <tmlt.analytics.session.Session.from_dataframe>` now have a new parameter, ``protected_change``.
-  This parameter takes an instance of one of the classes defined in the new :mod:`~tmlt.analytics.protected_change` module, specifying the unit of data in the corresponding table to be protected.
+- As described above, :meth:`Session.Builder.with_private_dataframe <tmlt.analytics.Session.Builder.with_private_dataframe>` and :meth:`Session.from_dataframe <tmlt.analytics.Session.from_dataframe>` now have a new parameter, ``protected_change``.
+  This parameter takes an instance of one of the classes subclassing :class:`~tmlt.analytics.ProtectedChange` module, specifying the unit of data in the corresponding table to be protected.
 
 0.5.1 - 2022-11-16
 ------------------

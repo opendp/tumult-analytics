@@ -73,11 +73,11 @@ Notice that the *same member* may have checked out *many books*, as illustrated 
 Creating a Session with privacy IDs
 -----------------------------------
 
-Let's initialize our :class:`Session<tmlt.analytics.session.Session>` with a
+Let's initialize our :class:`Session<tmlt.analytics.Session>` with a
 private dataframe containing books checked out from the library.
 
 Since each library member could have checked out any number of books,
-we will use the :class:`~tmlt.analytics.protected_change.AddRowsWithID`
+we will use the :class:`~tmlt.analytics.AddRowsWithID`
 protected change. This protected change will protect adding and removing
 *arbitrarily many* rows all sharing the same ID.
 
@@ -155,10 +155,10 @@ can be arbitrarily large!
 To solve this problem, before performing aggregations, we need to limit the
 maximum impact that a single library patron can have on the statistic we want
 to compute. This is done by *enforcing a constraint* on the data. The simplest
-constraint, :class:`~tmlt.analytics.constraints.MaxRowsPerID`,
+constraint, :class:`~tmlt.analytics.MaxRowsPerID`,
 limits the *total number of rows* contributed by each privacy ID. To enforce
 it, we simply pass it as parameter to the
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.enforce` operation.
+:meth:`~tmlt.analytics.QueryBuilder.enforce` operation.
 For this query, we will limit the maximum number of contributed rows to 20
 per library member.
 
@@ -218,9 +218,9 @@ by computing how many patrons have checked out each of our top five books.
 
 For this query, we will combine two constraints to truncate our data:
 
-* :class:`~tmlt.analytics.constraints.MaxGroupsPerID`: limiting the number of
+* :class:`~tmlt.analytics.MaxGroupsPerID`: limiting the number of
   groups (here, distinct books) that any library patron can contribute to; and
-* :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID`: limiting the number
+* :class:`~tmlt.analytics.MaxRowsPerGroupPerID`: limiting the number
   of rows that any library patron can provide for each group.
 
 We will limit each patron to 5 groups (we only consider the 5 most popular
@@ -271,7 +271,7 @@ Then, we will create a keyset from our top 5 books and perform a count query:
     +--------------------+--------------------+----------+-----+
 
 We could also express this query using
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.count_distinct`: limiting each
+:meth:`~tmlt.analytics.QueryBuilder.count_distinct`: limiting each
 ID to a single row per library member (per ISBN) is the same as counting
 distinct IDs.
 
@@ -311,7 +311,7 @@ distinct IDs.
     |...|...|...|...|
     +--------------------+--------------------+----------+-----+
 
-When using :meth:`~tmlt.analytics.query_builder.QueryBuilder.count_distinct` on the ID column, we no longer need to specify the :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID` constraint:
+When using :meth:`~tmlt.analytics.QueryBuilder.count_distinct` on the ID column, we no longer need to specify the :class:`~tmlt.analytics.MaxRowsPerGroupPerID` constraint:
 Tumult Analytics understands that each ID can contribute at most once per group.
 
 We can then display the results as a graph:
@@ -354,9 +354,9 @@ Summary
 
 We've seen that when using privacy IDs, we need to truncate the data to limit
 how much each privacy ID can contribute to the final statistic. There are two
-ways of doing so: using :class:`~tmlt.analytics.constraints.MaxRowsPerID`,
-or using :class:`~tmlt.analytics.constraints.MaxGroupsPerID` and
-:class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID`.
+ways of doing so: using :class:`~tmlt.analytics.MaxRowsPerID`,
+or using :class:`~tmlt.analytics.MaxGroupsPerID` and
+:class:`~tmlt.analytics.MaxRowsPerGroupPerID`.
 
 .. image:: ../images/flow_chart_truncation.svg
    :alt: A flow chart showing three paths from "data with privacy IDs" to "compute statistic". The first path is "data with privacy IDs" to "truncate using MaxRowsPerID" to "compute statistic". The second and third paths are paired together. The second path is "data with privacy IDs" to "truncate using MaxGroupsPerID" to "truncate using MaxRowsPerGroupPerID" to "compute statistic". The third path is "data with privacy IDs" to "truncate using MaxRowsPerGroupPerID" to "truncate using MaxGroupsPerID" to "compute statistic".
@@ -364,11 +364,11 @@ or using :class:`~tmlt.analytics.constraints.MaxGroupsPerID` and
 
 As a reminder:
 
-* :class:`~tmlt.analytics.constraints.MaxRowsPerID` limits the number of rows
+* :class:`~tmlt.analytics.MaxRowsPerID` limits the number of rows
   associated with each privacy ID in a table.
-* :class:`~tmlt.analytics.constraints.MaxGroupsPerID` limits the number of distinct
+* :class:`~tmlt.analytics.MaxGroupsPerID` limits the number of distinct
   values of the grouping column that may appear for each privacy ID in a table.
-* :class:`~tmlt.analytics.constraints.MaxRowsPerGroupPerID` limits the number of rows
+* :class:`~tmlt.analytics.MaxRowsPerGroupPerID` limits the number of rows
   associated with each (privacy ID, grouping column value) pair in a table.
 
 To understand the impact of the various constraints in more detail,

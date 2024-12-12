@@ -42,7 +42,7 @@ def check_installation():
 
     * create a new Spark session
     * create a Spark dataframe
-    * create a :class:`~tmlt.analytics.session.Session` from that dataframe
+    * create a :class:`~tmlt.analytics.Session` from that dataframe
     * perform a query on that dataframe
 
     If Tumult Analytics is correctly installed, this function should print

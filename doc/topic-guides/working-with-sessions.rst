@@ -8,7 +8,7 @@ Working with Sessions
     Copyright Tumult Labs 2024
 
 This topic guide covers how to work with one of the core abstractions of Tumult
-Analytics: :class:`Session <tmlt.analytics.session.Session>`. In particular, we
+Analytics: :class:`Session <tmlt.analytics.Session>`. In particular, we
 will demonstrate the different ways that a Session can be initialized and
 examined. For a simple end-to-end usage example of a Session, a better place to
 start is the :ref:`privacy budget tutorial <Working with privacy budgets>`.
@@ -49,14 +49,14 @@ There are two ways to construct a Session:
 * or using a Session Builder.
 
 Both options are described below -- for even more details, consult the
-:class:`Session API Reference <tmlt.analytics.session.Session>`.
+:class:`Session API Reference <tmlt.analytics.Session>`.
 
 Initializing from a data source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sessions are constructed from :class:`Spark DataFrames <pyspark.sql.DataFrame>`.
 For example, with a dataframe named :code:`spark_df` you can construct a Session
-using :meth:`~tmlt.analytics.session.Session.from_dataframe` as follows:
+using :meth:`~tmlt.analytics.Session.from_dataframe` as follows:
 
 .. testcode::
     :hide:
@@ -91,9 +91,9 @@ Using a Session Builder
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 For analysis use cases involving only one private data source,
-:meth:`~tmlt.analytics.session.Session.from_dataframe` is a convenient way of
+:meth:`~tmlt.analytics.Session.from_dataframe` is a convenient way of
 initializing a Session. However, when you have multiple sources of data, a
-:class:`Session Builder <tmlt.analytics.session.Session.Builder>` may be used
+:class:`Session Builder <tmlt.analytics.Session.Builder>` may be used
 instead. First, create your Builder:
 
 .. testcode::
@@ -174,7 +174,7 @@ data with your Session (e.g., for use in join operations with the private source
     )
 
 Public sources can also be added retroactively after a Session is created using
-the :meth:`~tmlt.analytics.session.Session.add_public_dataframe` method.
+the :meth:`~tmlt.analytics.Session.add_public_dataframe` method.
 
 When using a Session Builder, you must specify the overall privacy budget separately:
 
@@ -194,8 +194,8 @@ Examining a Session's state
 
 After creation, a Session exposes several pieces of information. You can list the
 string identifiers of available private or public data sources using
-:meth:`private_sources <tmlt.analytics.session.Session.private_sources>` or
-:meth:`public_sources <tmlt.analytics.session.Session.public_sources>`, respectively.
+:meth:`private_sources <tmlt.analytics.Session.private_sources>` or
+:meth:`public_sources <tmlt.analytics.Session.public_sources>`, respectively.
 
 .. testcode::
 
@@ -210,7 +210,7 @@ string identifiers of available private or public data sources using
 These IDs will typically be used when constructing queries, to specify which data
 source a query refers to. They can also be used to access schema information about
 individual data sources, through
-:meth:`~tmlt.analytics.session.Session.get_schema`.
+:meth:`~tmlt.analytics.Session.get_schema`.
 
 .. testcode::
 
@@ -226,14 +226,14 @@ individual data sources, through
 As you can see, Schemas contain information about what columns are in the data, what their types are, and whether each column can contain null, NaN, or infinite values.
 
 You can access the underlying DataFrames of public sources directly using
-:meth:`public_source_dataframes <tmlt.analytics.session.Session.public_source_dataframes>`.
+:meth:`public_source_dataframes <tmlt.analytics.Session.public_source_dataframes>`.
 Note that there is no corresponding accessor for private source DataFrames;
 after creating a Session, the private data should *not* be inspected or modified.
 
 The last key piece of information a Session exposes is how much privacy budget
 the Session has left. As you evaluate queries, the Session's remaining budget will
 decrease. The currently-available privacy budget can be accessed through
-:meth:`remaining_privacy_budget <tmlt.analytics.session.Session.remaining_privacy_budget>`.
+:meth:`remaining_privacy_budget <tmlt.analytics.Session.remaining_privacy_budget>`.
 For example, we can inspect the budget of our Session created from the Builder above:
 
 .. testcode::

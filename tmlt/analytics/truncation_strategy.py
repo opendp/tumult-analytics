@@ -13,7 +13,7 @@ class TruncationStrategy:
     """Strategies for performing truncation in private joins.
 
     These are used to determine the sensitivity of a private join between two tables
-    having :class:`~tmlt.analytics.protected_change.AddMaxRows` as a protected change.
+    having :class:`~tmlt.analytics.AddMaxRows` as a protected change.
     The formula for the sensitivity of the table resulting from a private join is:
 
     :math:`sensitivity=(T_{left}*S_{right}*M_{left}) + (T_{right}*S_{left}*M_{right})`

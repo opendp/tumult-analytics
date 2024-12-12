@@ -310,7 +310,7 @@ there are many members with three, so we set ``max_rows=3``.
 .. _Binning:
 
 Binning
------------
+-------
 
 So far if we wanted to create a histogram of age and gender, we would have needed to use
 separate keys for each age. Instead, we will show how we can use age ranges as keys.
@@ -318,7 +318,7 @@ separate keys for each age. Instead, we will show how we can use age ranges as k
 First, we need to decide on what bins we want to use for ages. Let's use groups of
 10 years. So 0-9, 10-19, and so on.
 
-The simplest way to do this is to define a :class:`~tmlt.analytics.binning_spec.BinningSpec` object,
+The simplest way to do this is to define a :class:`~tmlt.analytics.BinningSpec` object,
 which allows us to assign values to bins based on a list of bin edges.
 
 
@@ -350,7 +350,7 @@ which allows us to assign values to bins based on a list of bin edges.
 
 Now that we have our bins specified, we can use them in a query.
 
-To add the bins to our query, we use the :meth:`bin_column<tmlt.analytics.query_builder.QueryBuilder.bin_column>`
+To add the bins to our query, we use the :meth:`bin_column<tmlt.analytics.QueryBuilder.bin_column>`
 feature of the QueryBuilder interface, which creates a new column by
 assigning the values in a given column to bins. Here, we provide the column
 we want to bin and the BinningSpec object, as well as the optional `name` parameter
@@ -402,7 +402,7 @@ to specify the name of the new column.
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
-Also available is the :meth:`histogram<tmlt.analytics.query_builder.QueryBuilder.histogram>`
+Also available is the :meth:`histogram<tmlt.analytics.QueryBuilder.histogram>`
 method, which provides a shorthand syntax for obtaining binned counts in
 simple cases.
 

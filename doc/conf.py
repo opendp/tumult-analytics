@@ -13,17 +13,12 @@ _logger = logging.getLogger(__name__)
 
 ### Project information
 
-project = "Tumult Analytics"
+project = "Tumult Platform"
 author = "Tumult Labs"
 copyright = "2024 Tumult Labs"
 # Note that this is the name of the module provided by the package, not
 # necessarily the name of the package as pip understands it.
-package_name = "tmlt.analytics"
-
-# TODO(#1256): Fix import failure in nested class; `tmlt.core` and remove
-#     suppress_warnings setting
-suppress_warnings = ["autoapi.python_import_resolution", "autodoc.import_object"]
-
+package_name = "tmlt"
 
 ### Build information
 
@@ -54,11 +49,11 @@ linkcheck_ignore = [
 ### Sphinx configuration
 
 extensions = [
-    "autoapi.extension",
     "sphinxcontrib.images",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     # smart_resolver fixes cases where an object is documented under a name
     # different from its qualname, e.g. due to importing it in an __init__.
     "sphinx_automodapi.smart_resolver",
@@ -84,41 +79,16 @@ napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 
-# Autoapi settings
-autoapi_root = "reference"
-autoapi_dirs = ["../tmlt/"]
-# TODO(#3320): Don't include Tune shortcuts in the documentation for now.
-autoapi_ignore = ["*tmlt/tune/*"]
-autoapi_template_dir = "../doc/templates"
-autoapi_add_toctree_entry = False
-autoapi_python_use_implicit_namespaces = True  # This is important for intersphinx
-autoapi_options = [
-    "members",
-    "show-inheritance",
-    "special-members",
-    "show-module-summary",
-    "imported-members",
-    "inherited-members",
-]
-add_module_names = False
-
-
-def autoapi_prepare_jinja_env(jinja_env):
-    # Set the package_name variable so it can be used in templates.
-    jinja_env.globals["package_name"] = package_name
-    # Define a new test for filtering out objects with @nodoc in their
-    # docstring; this needs to be defined here because Jinja2 doesn't have a
-    # built-in "contains" or "match" test.
-    jinja_env.tests["nodoc"] = lambda obj: "@nodoc" in obj.docstring
-    jinja_env.tests["is_mixin_class"] = lambda classname: classname.endswith("Mixin")
-    jinja_env.tests["is_base_builder"] = (
-        lambda classname: classname == "tmlt.analytics._base_builder.BaseBuilder"
-    )
-
+# Autosummary settings
+autosummary_generate = True
 
 # Autodoc settings
 autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented_params"
 autodoc_member_order = "bysource"
+autodoc_default_options = {
+    "show-inheritance": True,
+}
 
 # General settings
 master_doc = "index"
@@ -135,25 +105,11 @@ nitpick_ignore = [
     ("py:obj", "tmlt.analytics.metrics._base.SingleBaselineMetric"),
     ("py:obj", "tmlt.analytics.metrics._base.MultiBaselineMetric"),
     ("py:obj", "tmlt.analytics.metrics._base.GroupedMetric"),
-    # TODO(#1629): Schema is currently private, even though it appears in the
-    #     public docs in a couple of places. This ignore can be removed once it
-    #     is public.
-    ("py:class", "tmlt.analytics._schema.Schema"),
-    # TODO(#1357): We shouldn't be showing the types for these values at all,
-    #     but they're appearing at the end of class docstrings because
-    #     __init__'s parameters are documented there for some reason. Once we
-    #     fix that, it should be possible to remove this ignore.
-    ("py:class", "tmlt.analytics._table_identifier.Identifier"),
-    # Sphinx can't figure out what this refers to for some reason, perhaps
-    # related to it being a nested class.
-    ("py:class", "tmlt.analytics.synthetics._strategy.AdaptiveMarginals.Case"),
     # TypeVar support: https://github.com/tox-dev/sphinx-autodoc-typehints/issues/39
-    ("py:class", "Row"),
-    ("py:class", "BinT"),
-    ("py:class", "tmlt.analytics.binning_spec.BinT"),
-    ("py:class", "BinNameT"),
-    # Ellipses (Tuple[blah, ...]) confuse Sphinx apparently; suppressing warning
-    ("py:class", "Ellipsis"),
+    ("py:obj", "tmlt.analytics.binning_spec.BinT"),
+    ("py:obj", "tmlt.analytics.binning_spec.BinNameT"),
+    # TODO remove
+    ("py:class", "pandas.core.frame.DataFrame"),
 ]
 
 # Remove this after intersphinx can use core
@@ -162,7 +118,7 @@ nitpick_ignore_regex = [(r"py:.*", r"tmlt.core.*")]
 json_url = "https://docs.tmlt.dev/analytics/versions.json"
 
 # Theme settings
-templates_path = ["_templates"]
+templates_path = ["_templates", "_templates/autosummary"]
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "header_links_before_dropdown": 6,
@@ -189,6 +145,7 @@ html_theme_options = {
             "type": "fontawesome",
         },
     ],
+    "show_toc_level": 3,
 }
 html_context = {
     "default_mode": "light",
@@ -204,7 +161,6 @@ html_show_sourcelink = False
 html_sidebars = {"**": ["package-name", "version-switcher", "sidebar-nav-bs"]}
 
 # Intersphinx mapping
-
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/1.18/", None),
@@ -213,58 +169,58 @@ intersphinx_mapping = {
     "pyspark": ("https://archive.apache.org/dist/spark/docs/3.1.1/api/python/", None),
 }
 
-
 # Substitutions
+rst_epilog = f"""
+.. |PRO| image:: https://img.shields.io/badge/PRO-c53a58
+   :alt: PRO
 
-rst_epilog = """
-.. |PRO| raw:: html
+.. |PRO_NOTE| replace:: |PRO| The features described in this page are only available on a paid version of the Tumult Platform. If you would like to hear more, please contact us at info@tmlt.io.
 
-    <a href="https://tmlt.dev" style="text-decoration : none">
-        <img src="https://img.shields.io/badge/PRO-c53a58" alt="This is only applicable to Analytics Pro." title="This is only available in Analytics Pro">
-    </a>
-.. |PRO_NOTE| replace:: This is only available on a paid version of Tumult Analytics. If you
-    would like to hear more, please contact us at info@tmlt.io.
+.. |project| replace:: {project}
+"""
 
-.. |project| replace:: {}
-""".format(
-    project
-)
+# Customizing what gets shown in API docs
 
+# Members shown for classes whose documentation is split across multiple pages.
+showed_members = {
+    "Session": [],
+    "SessionProgram": ["ProtectedInputs", "UnprotectedInputs", "Parameters", "Outputs", "session_interaction"],
+    "SessionProgramTuner": [],
+    "QueryBuilder": ["__init__", "clone"],
+    "GroupedQueryBuilder": ["__init__"],
+}
+# Classes for which we want to show the __init__ method.
+show_init = {"BinningSpec"}
 
-def skip_members(app, what, name, obj, skip, options):
-    """Skip some members."""
-    excluded_methods = [
-        "__dir__",
-        "__format__",
-        "__hash__",
-        "__post_init__",
-        "__reduce__",
-        "__reduce_ex__",
-        "__repr__",
-        "__setattr__",
-        "__sizeof__",
-        "__str__",
-        "__subclasshook__",
-        "__init_subclass__",
-    ]
-    excluded_attributes = ["__slots__"]
-    if what == "method" and name.split(".")[-1] in excluded_methods:
-        return True
-    if what == "attribute" and name.split(".")[-1] in excluded_attributes:
-        return True
-    if "@nodoc" in obj.docstring:
-        return True
-    # TODO(#3320): Don't include top-level shortcuts in the docs for now.
-    if what not in ["module", "package"] and len(name.split(".")) == 3:
-        # Only top-level object currently in the docs, keep it.
-        if name == "tmlt.analytics.AnalyticsInternalError":
-            return skip
-        return True
-    return skip
+# Methods that are show directly after certain methods
+aggs = [
+    "average", "count", "count_distinct", "get_bounds", "max", "median", "min", "quantile", "stdev", "sum", "variance"
+]
+companion_methods = {
+    f"QueryBuilder.{agg}": f"GroupedQueryBuilder.{agg}"
+    for agg in aggs
+}
+# Classes that are shown directly after certain methods
+companion_classes = {
+    # Aggregation mechanisms
+    "QueryBuilder.average": "AverageMechanism",
+    "QueryBuilder.count": "CountMechanism",
+    "QueryBuilder.count_distinct": "CountDistinctMechanism",
+    "QueryBuilder.stdev": "StdevMechanism",
+    "QueryBuilder.sum": "SumMechanism",
+    "QueryBuilder.variance": "VarianceMechanism",
+    # Private join truncation
+    "QueryBuilder.join_private": "TruncationStrategy",
+}
 
+autosummary_context = {
+    "show_init": show_init,
+    "showed_members": showed_members,
+    "companion_methods": companion_methods,
+    "companion_classes": companion_classes,
+}
 
 def setup(sphinx):
-    sphinx.connect("autoapi-skip-member", skip_members)
     # Write out the version and release numbers (using Sphinx's definitions of
     # them) for use by later automation.
     outdir = Path(sphinx.outdir)

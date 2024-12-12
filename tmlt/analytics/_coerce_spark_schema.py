@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
 
-from typing import Dict
+from typing import Dict, Set
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
@@ -17,7 +17,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-SUPPORTED_SPARK_TYPES = {
+SUPPORTED_SPARK_TYPES: Set[DataType] = {
     IntegerType(),
     LongType(),
     FloatType(),
@@ -26,35 +26,7 @@ SUPPORTED_SPARK_TYPES = {
     DateType(),
     TimestampType(),
 }
-"""Set of Spark data types supported by Tumult Analytics.
-
-Support for Spark data types in Analytics is currently as follows:
-
-.. list-table::
-   :header-rows: 1
-
-   * - Type
-     - Supported
-   * - :class:`~pyspark.sql.types.LongType`
-     - yes
-   * - :class:`~pyspark.sql.types.IntegerType`
-     - yes, by coercion to :class:`~pyspark.sql.types.LongType`
-   * - :class:`~pyspark.sql.types.DoubleType`
-     - yes
-   * - :class:`~pyspark.sql.types.FloatType`
-     - yes, by coercion to :class:`~pyspark.sql.types.DoubleType`
-   * - :class:`~pyspark.sql.types.StringType`
-     - yes
-   * - :class:`~pyspark.sql.types.DateType`
-     - yes
-   * - :class:`~pyspark.sql.types.TimestampType`
-     - yes
-   * - Other Spark types
-     - no
-
-Columns with unsupported types must be dropped or converted to supported ones
-before loading the data into Analytics.
-"""
+"""Set of Spark data types supported by Tumult Analytics."""
 
 TYPE_COERCION_MAP: Dict[DataType, DataType] = {
     IntegerType(): LongType(),

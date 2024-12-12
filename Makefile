@@ -58,6 +58,7 @@ tmlt/**/spark-warehouse/
 test/**/spark-warehouse/
 examples/spark-warehouse/
 .mypy_cache/
+doc/reference/api
 endef
 
 .PHONY: clean

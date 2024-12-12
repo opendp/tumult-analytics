@@ -106,7 +106,35 @@ class FrozenDict(Mapping):
 
 
 class ColumnType(Enum):
-    """The supported SQL92 column types for Analytics data."""
+    """The supported SQL92 column types used by Tumult Analytics.
+
+    Support for Spark data types is currently as follows.
+
+    .. list-table::
+       :header-rows: 1
+
+       * - Spark type
+         - Corresponding Tumult Analytics type
+       * - :class:`~pyspark.sql.types.LongType`
+         - ``INTEGER``
+       * - :class:`~pyspark.sql.types.IntegerType`
+         - ``INTEGER``
+       * - :class:`~pyspark.sql.types.DoubleType`
+         - ``DECIMAL``
+       * - :class:`~pyspark.sql.types.FloatType`
+         - ``DECIMAL``
+       * - :class:`~pyspark.sql.types.StringType`
+         - ``VARCHAR``
+       * - :class:`~pyspark.sql.types.DateType`
+         - ``DATE``
+       * - :class:`~pyspark.sql.types.TimestampType`
+         - ``TIMESTAMP``
+       * - Other Spark types
+         - Not supported in Tumult Analytics
+
+    Columns with unsupported types must be removed or converted to supported ones before
+    loading the data into a :class:`~tmlt.analytics.Session`.
+    """
 
     INTEGER = int
     """Integer column type."""

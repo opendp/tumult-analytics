@@ -4,15 +4,9 @@
     SPDX-License-Identifier: CC-BY-SA-4.0
     Copyright Tumult Labs 2024
 
-.. TODO(#3272): This prevents setting :canonical: on the copy of various docs
-       that appear in the deprecated query_expr module; once that module is removed,
-       this logic can go away.
-
-{% set is_duplicate_alias = "tmlt.analytics.query_expr." in obj.id and obj.name != "QueryExpr" and "QueryExpr" not in obj.bases %}
-
 .. py:{{ obj.type }}:: {{ obj.short_name }}{% if obj.args %}({{ obj.args }}){% endif %}
 
-   {% if obj.imported and not is_duplicate_alias %}
+   {% if obj.imported %}
    :canonical: {{ obj.obj["original_path"] }}
    {% endif %}
 
@@ -47,6 +41,11 @@
       {% endfor %}
 
    {% endif %}
+
+   {% for klass in visible_classes %}
+   {{ klass.rendered|indent(3) }}
+   {% endfor %}
+
    {% if visible_attributes %}
    .. list-table:: Attributes
 
@@ -56,6 +55,7 @@
       {% endfor %}
 
    {% endif %}
+
    {% if visible_properties %}
    .. list-table:: Properties
 
@@ -72,13 +72,8 @@
       * - :meth:`.{{ method.short_name }}`
         - {{ method.summary }}
       {% endfor %}
-
    {% endif %}
    {% endif %}
-
-   {% for klass in visible_classes %}
-   {{ klass.rendered|indent(3) }}
-   {% endfor %}
 
    {% for attribute in visible_attributes %}
    {{ attribute.rendered|indent(3) }}
@@ -91,8 +86,9 @@
    {% if obj.methods | selectattr("short_name", "equalto", "__init__") | reject("nodoc") | list %}
    .. automethod:: __init__
    {% endif %}
+
    {% for method in visible_methods %}
    {{ method.rendered|indent(3) }}
    {% endfor %}
-{% endif %}
-{% endif %}
+   {% endif %}
+   {% endif %}

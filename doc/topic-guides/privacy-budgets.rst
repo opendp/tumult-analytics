@@ -50,12 +50,12 @@ explain in this guide; for simple use cases, pure DP is a good default choice.
 Using privacy budgets in Tumult Analytics
 -----------------------------------------
 
-Tumult Analytics provides the :class:`~tmlt.analytics.privacy_budget.PrivacyBudget`
+Tumult Analytics provides the :class:`~tmlt.analytics.PrivacyBudget`
 interface and concrete implementations for specifying privacy budgets,
 depending on which privacy definition you wish to use:
-:class:`~tmlt.analytics.privacy_budget.PureDPBudget`,
-:class:`~tmlt.analytics.privacy_budget.RhoZCDPBudget`,
-or :class:`~tmlt.analytics.privacy_budget.ApproxDPBudget`.
+:class:`~tmlt.analytics.PureDPBudget`,
+:class:`~tmlt.analytics.RhoZCDPBudget`,
+or :class:`~tmlt.analytics.ApproxDPBudget`.
 
 Recall from tutorials :ref:`first steps<First steps>` and
 :ref:`working with privacy budgets<Working with privacy budgets>` that when you initialize a Session,

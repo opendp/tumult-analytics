@@ -86,7 +86,7 @@ class MaxRowsPerID(Constraint):
 
     This constraint limits how many times each distinct value may appear in the
     ID column of a table with the
-    :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected
+    :class:`~tmlt.analytics.AddRowsWithID` protected
     change. For example, ``MaxRowsPerID(5)`` guarantees that each ID appears in
     at most five rows. It cannot be applied to tables with other protected changes.
     """

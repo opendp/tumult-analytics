@@ -3,8 +3,8 @@
 Defines the :class:`QueryExpr` class, which represents expressions in the
 Tumult Analytics query language. QueryExpr and its subclasses should not be
 directly constructed or deconstructed by most users; interfaces such as
-:class:`tmlt.analytics.query_builder.QueryBuilder` to create them and
-:class:`tmlt.analytics.session.Session` to consume them provide more
+:class:`tmlt.analytics.QueryBuilder` to create them and
+:class:`tmlt.analytics.Session` to consume them provide more
 user-friendly features.
 """
 
@@ -36,7 +36,7 @@ class CountMechanism(Enum):
     """Possible mechanisms for the count() aggregation.
 
     Currently, the
-    :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.count` aggregation
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.count` aggregation
     uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -54,7 +54,7 @@ class CountDistinctMechanism(Enum):
     """Enumerating the possible mechanisms used for the count_distinct aggregation.
 
     Currently, the
-    :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.count_distinct`
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.count_distinct`
     aggregation uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -72,7 +72,7 @@ class SumMechanism(Enum):
     """Possible mechanisms for the sum() aggregation.
 
     Currently, the
-    :meth:`~.tmlt.analytics.query_builder.GroupedQueryBuilder.sum`
+    :meth:`~.tmlt.analytics.GroupedQueryBuilder.sum`
     aggregation uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -94,7 +94,7 @@ class AverageMechanism(Enum):
     """Possible mechanisms for the average() aggregation.
 
     Currently, the
-    :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.average`
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.average`
     aggregation uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -116,7 +116,7 @@ class VarianceMechanism(Enum):
     """Possible mechanisms for the variance() aggregation.
 
     Currently, the
-    :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.variance`
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.variance`
     aggregation uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -138,7 +138,7 @@ class StdevMechanism(Enum):
     """Possible mechanisms for the stdev() aggregation.
 
     Currently, the
-    :meth:`~tmlt.analytics.query_builder.GroupedQueryBuilder.stdev`
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.stdev`
     aggregation uses an additive noise mechanism to achieve differential privacy.
     """
 
@@ -160,8 +160,8 @@ class QueryExpr(ABC):
     """A query expression, base class for relational operators.
 
     In most cases, QueryExpr should not be manipulated directly, but rather
-    created using :class:`tmlt.analytics.query_builder.QueryBuilder` and then
-    consumed by :class:`tmlt.analytics.session.Session`. While they can be
+    created using :class:`tmlt.analytics.QueryBuilder` and then
+    consumed by :class:`tmlt.analytics.Session`. While they can be
     created and modified directly, this is an advanced usage and is not
     recommended for typical users.
 
@@ -491,9 +491,9 @@ class JoinPrivate(QueryExpr):
     """Returns the join of two private tables.
 
     Before performing the join, each table is truncated based on the corresponding
-    :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`.  For a more
+    :class:`~tmlt.analytics.TruncationStrategy`.  For a more
     detailed overview of ``JoinPrivate``'s behavior, see
-    :meth:`~tmlt.analytics.query_builder.QueryBuilder.join_private`.
+    :meth:`~tmlt.analytics.QueryBuilder.join_private`.
     """
 
     child: QueryExpr
@@ -648,7 +648,7 @@ class ReplaceNullAndNan(QueryExpr):
     .. warning::
         after a ``ReplaceNullAndNan`` query has been performed for a column,
         Tumult Analytics will raise an error if you use a
-        :class:`~.tmlt.analytics.keyset.KeySet` for that column
+        :class:`~.tmlt.analytics.KeySet` for that column
         that contains null values.
     """
 
@@ -722,7 +722,7 @@ class DropNullAndNan(QueryExpr):
     .. warning::
         After a ``DropNullAndNan`` query has been performed for a column,
         Tumult Analytics will raise an error if you use a
-        :class:`~.tmlt.analytics.keyset.KeySet` for that column
+        :class:`~.tmlt.analytics.KeySet` for that column
         that contains null values.
     """
 

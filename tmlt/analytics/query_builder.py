@@ -1,28 +1,4 @@
-"""An API for building differentially private queries from basic operations.
-
-The QueryBuilder class allows users to construct differentially private queries
-using SQL-like commands. These queries can then be used with a
-:class:`~tmlt.analytics.session.Session` to obtain results or construct views on
-which further queries can be run.
-
-The QueryBuilder class can apply transformations, such as joins or filters, as
-well as compute aggregations like counts, sums, and standard deviations. See
-:class:`QueryBuilder` for a full list of supported transformations and
-aggregations.
-
-After each transformation, the QueryBuilder is modified and returned with that
-transformation applied. To re-use the transformations in a :class:`QueryBuilder`
-as the base for multiple queries, create a view using
-:func:`~tmlt.analytics.session.Session.create_view` and write queries on that
-view.
-
-At any point, a QueryBuilder instance can have an aggregation like
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.count` applied to it,
-potentially after a
-:meth:`~tmlt.analytics.query_builder.QueryBuilder.groupby`, yielding an
-object that can be passed to :func:`~tmlt.analytics.session.Session.evaluate` to obtain
-differentially private results to the query.
-"""
+"""An API for building differentially private queries from basic operations."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2024
@@ -138,12 +114,12 @@ def _query_expr_recursive_fast_equals(query: QueryExpr, other_query: QueryExpr) 
 
 @dataclass(frozen=True)
 class Query:
-    """Instances of the Query class represent expressions within Tumult Analytics.
+    """A complete query, ready to be evaluated in a differentially private manner.
 
-    A Query and its subclasses should not be directly constructed or deconstructed;
-    use :class:`~tmlt.analytics.query_builder.QueryBuilder` to create them.
-    A Query can be passed to :meth:`~tmlt.analytics.session.Session.evaluate` in order
-    to evaluate the query and obtain differentially private results.
+    A Query and its subclasses should not be directly constructed, but created
+    using a :class:`~tmlt.analytics.QueryBuilder`. A Query can be passed to
+    :meth:`~tmlt.analytics.Session.evaluate` in order to evaluate the query and
+    obtain differentially private results.
     """
 
     _query_expr: QueryExpr
@@ -188,7 +164,7 @@ class _PostProcessSuppressMixin:
         self: _QueryProtocol,
         threshold: float,
     ) -> Query:
-        """Returns a SuppressAggregates query that is ready to be evaluated.
+        """Returns a new query with an added postprocessing thresholding step.
 
         ..
             >>> from tmlt.analytics import (
@@ -316,11 +292,9 @@ class QueryBuilder:
         self._source_id: str = source_id
         self._query_expr: QueryExpr = PrivateSource(source_id)
 
-    def clone(self) -> QueryBuilder:
-        """Construct a new QueryBuilder with the same partial query as the current one.
-
-        @nodoc.
-        """
+    def clone(self) -> QueryBuilder:  # noqa: D102
+        # Returns a new QueryBuilder with the same partial query as the current one.
+        # No docstring to prevent this from showing in docs.
         builder = QueryBuilder(self._source_id)
         builder._query_expr = self._query_expr  # pylint: disable=protected-access
         return builder
@@ -366,8 +340,8 @@ class QueryBuilder:
         will contain :math:`X*Y` rows for this group.
 
         .. note::
-            Tables with a :class:`~tmlt.analytics.protected_change.ProtectedChange` of
-            :class:`~tmlt.analytics.protected_change.AddRowsWithID` must include the
+            Tables with a :class:`~tmlt.analytics.ProtectedChange` of
+            :class:`~tmlt.analytics.AddRowsWithID` must include the
             *privacy ID* column in the join columns.
 
         An illustrated example can be found in the
@@ -505,17 +479,17 @@ class QueryBuilder:
         requirements as :func:`join_public`.
 
         Private joins on tables with a
-        :class:`~tmlt.analytics.protected_change.ProtectedChange` that protects
+        :class:`~tmlt.analytics.ProtectedChange` that protects
         adding or removing rows (e.g.
-        :class:`~tmlt.analytics.protected_change.AddMaxRows`) require
+        :class:`~tmlt.analytics.AddMaxRows`) require
         truncation, which is specified using the two
-        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`
+        :class:`~tmlt.analytics.TruncationStrategy`
         arguments.
 
         In contrast, operations on tables with a
-        :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-        :class:`~tmlt.analytics.protected_change.ProtectedChange` do not require a
-        :class:`~tmlt.analytics.truncation_strategy.TruncationStrategy`, as no
+        :class:`~tmlt.analytics.AddRowsWithID`
+        :class:`~tmlt.analytics.ProtectedChange` do not require a
+        :class:`~tmlt.analytics.TruncationStrategy`, as no
         truncation is necessary to perform the join. In this case, the join
         columns must include the privacy ID columns of both tables, and these
         privacy ID columns must have the same name, and be in the same ID space.
@@ -632,9 +606,9 @@ class QueryBuilder:
 
         .. note::
             Null values *cannot* be replaced in the ID column of a table initialized
-            with a :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-            :class:`~tmlt.analytics.protected_change.ProtectedChange`, nor on a column
-            generated by a :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map`
+            with a :class:`~tmlt.analytics.AddRowsWithID`
+            :class:`~tmlt.analytics.ProtectedChange`, nor on a column
+            generated by a :meth:`~tmlt.analytics.QueryBuilder.flat_map`
             with the grouping parameter set to True.
 
         .. warning::
@@ -798,15 +772,15 @@ class QueryBuilder:
         .. note::
             Null values *cannot* be dropped in the ID column of a table
             initialized with a
-            :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-            :class:`~tmlt.analytics.protected_change.ProtectedChange`, nor on a
+            :class:`~tmlt.analytics.AddRowsWithID`
+            :class:`~tmlt.analytics.ProtectedChange`, nor on a
             column generated by a
-            :meth:`~tmlt.analytics.query_builder.QueryBuilder.flat_map` with the
+            :meth:`~tmlt.analytics.QueryBuilder.flat_map` with the
             grouping parameter set to True.
 
         .. warning::
             If null and NaN values are dropped from a column, then Analytics will
-            raise an error if a :class:`~tmlt.analytics.keyset.KeySet` that
+            raise an error if a :class:`~tmlt.analytics.KeySet` that
             contains a null value is used for that column.
 
         ..
@@ -1176,8 +1150,8 @@ class QueryBuilder:
         """Applies a mapping function to each row.
 
         If the new column types are specified using
-        :class:`~tmlt.analytics.query_builder.ColumnType` and not
-        :class:`~tmlt.analytics.query_builder.ColumnDescriptor`, Tumult
+        :class:`~tmlt.analytics.ColumnType` and not
+        :class:`~tmlt.analytics.ColumnDescriptor`, Tumult
         Analytics assumes that all new columns created may contain null values,
         and that DECIMAL columns may contain NaN or infinite values.
 
@@ -1248,7 +1222,7 @@ class QueryBuilder:
                 (in particular, f cannot raise exceptions).
             new_column_types: Mapping from column names to types, for new columns
                 produced by f. Using
-                :class:`~tmlt.analytics.query_builder.ColumnDescriptor`
+                :class:`~tmlt.analytics.ColumnDescriptor`
                 is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
@@ -1280,14 +1254,14 @@ class QueryBuilder:
         """Applies a mapping function to each row, returning zero or more rows.
 
         If the new column types are specified using
-        :class:`~tmlt.analytics.query_builder.ColumnType` and not
-        :class:`~tmlt.analytics.query_builder.ColumnDescriptor`, Tumult
+        :class:`~tmlt.analytics.ColumnType` and not
+        :class:`~tmlt.analytics.ColumnDescriptor`, Tumult
         Analytics assumes that all new columns created may contain null values,
         and that DECIMAL columns may contain NaN or infinite values.
 
         The ``max_rows`` argument is ignored if the table was initialized with
-        the :class:`~tmlt.analytics.protected_change.AddRowsWithID`
-        :class:`~tmlt.analytics.protected_change.ProtectedChange`. Otherwise, it
+        the :class:`~tmlt.analytics.AddRowsWithID`
+        :class:`~tmlt.analytics.ProtectedChange`. Otherwise, it
         is required (and enforced).
 
         The :ref:`Simple transformations <Flat maps>` and
@@ -1367,7 +1341,7 @@ class QueryBuilder:
                 always return the same output).
             new_column_types: Mapping from column names to types, for new columns
                 produced by ``f``. Using
-                :class:`~tmlt.analytics.query_builder.ColumnDescriptor`
+                :class:`~tmlt.analytics.ColumnDescriptor`
                 is preferred.
             augment: If True, add new columns to the existing dataframe (so new
                      schema = old schema + schema_new_columns).
@@ -1433,7 +1407,7 @@ class QueryBuilder:
         output.
 
         Note that this transformation is only valid on tables with the
-        :class:`~tmlt.analytics.protected_change.AddRowsWithID` protected change.
+        :class:`~tmlt.analytics.AddRowsWithID` protected change.
 
         If you provide only a ColumnType for the new column types, Analytics
         assumes that all new columns created may contain null values (and that
@@ -1511,7 +1485,7 @@ class QueryBuilder:
                 output).
             new_column_types: Mapping from column names to types for the new
                 columns produced by ``f``. Using
-                :class:`~tmlt.analytics.query_builder.ColumnDescriptor` is
+                :class:`~tmlt.analytics.ColumnDescriptor` is
                 preferred. Note that while the result of this transformation
                 includes the ID column, the ID column must *not* be in
                 ``new_column_types``, and must *not* be included in the output
@@ -1615,7 +1589,7 @@ class QueryBuilder:
 
         Args:
             column: Name of the column used to assign bins.
-            spec: A :class:`~tmlt.analytics.binning_spec.BinningSpec` that defines the
+            spec: A :class:`~tmlt.analytics.BinningSpec` that defines the
                 binning operation to be performed.
             name: The name of the column that will be created. If None (the default),
                 the input column name with ``_binned`` appended to it.
@@ -1686,9 +1660,8 @@ class QueryBuilder:
         Args:
             column: Name of the column used to assign bins.
             bin_edges: The bin edges for the histogram; provided as either a
-                :class:`~tmlt.analytics.binning_spec.BinningSpec` or as a list of
-                :data:`supported data types
-                <tmlt.analytics.session.SUPPORTED_SPARK_TYPES>`.
+                :class:`~tmlt.analytics.BinningSpec` or as a list of
+                :class:`supported data types <tmlt.analytics.ColumnType>`.
                 Values outside the range of the provided bins, ``None`` types,
                 and NaN values are all mapped to ``None`` (``null`` in Spark).
 
@@ -1706,11 +1679,11 @@ class QueryBuilder:
         return self.bin_column(column, spec, name).groupby(keys).count()
 
     def enforce(self, constraint: Constraint) -> "QueryBuilder":
-        """Enforces a :class:`~tmlt.analytics.constraints.Constraint` on the table.
+        """Enforces a :class:`~tmlt.analytics.Constraint` on the table.
 
-        This method can be used to enforce constraints on the current table. See
-        the :mod:`~tmlt.analytics.constraints` module for information about the
-        available constraints and what they are used for.
+        This method can be used to enforce constraints on the current table. See the
+        :ref:`API reference<constraints>` for information about the available
+        constraints and what they are used for.
 
         ..
             >>> from tmlt.analytics import (
@@ -1820,8 +1793,8 @@ class QueryBuilder:
             columns: Name of the column used to assign bins. If empty or none
                 are provided, all of the columns in the table will be used, excluding
                 any column marked as a *privacy ID* in a table with a
-                :class:`~tmlt.analytics.protected_change.ProtectedChange` of
-                :class:`~tmlt.analytics.protected_change.AddRowsWithID`.
+                :class:`~tmlt.analytics.ProtectedChange` of
+                :class:`~tmlt.analytics.AddRowsWithID`.
         """
         cols = tuple(columns) if columns is not None else None
         query_expr = GetGroups(child=self._query_expr, columns=cols)
@@ -1910,6 +1883,9 @@ class QueryBuilder:
 
         More information can be found in the :ref:`Group-by queries` tutorial.
 
+        .. warning::
+            A KeySet containing null values for a column cannot be used on a table where
+            that column has had null values dropped or replaced.
         ..
             >>> from tmlt.analytics import (
             ...     AddOneRow,
