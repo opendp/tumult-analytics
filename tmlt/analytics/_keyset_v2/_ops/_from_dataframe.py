@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2024
 
 from dataclasses import dataclass
-from typing import Literal, Optional, overload
+from typing import Any, Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 
@@ -70,6 +70,13 @@ class FromSparkDataFrame(KeySetOp):
         if fast:
             return None
         return self.dataframe().count()
+
+    def __eq__(self, other: Any):
+        """Determine if this KeySetOp is equal to another."""
+        if not isinstance(other, FromSparkDataFrame):
+            return False
+
+        return self.df.sameSemantics(other.df)
 
     def __str__(self):
         """Human-readable string representation."""

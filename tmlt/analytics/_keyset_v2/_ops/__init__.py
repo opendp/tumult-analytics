@@ -10,3 +10,4 @@ from ._filter import Filter
 from ._from_dataframe import FromSparkDataFrame
 from ._from_tuples import FromTuples
 from ._project import Project
+from ._rules import rewrite

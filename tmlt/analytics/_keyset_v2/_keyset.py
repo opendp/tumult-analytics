@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from functools import reduce
-from typing import Iterable, Mapping, Optional, Union, overload
+from typing import Any, Iterable, Mapping, Optional, Union, overload
 
 from pyspark.sql import Column, DataFrame
 
@@ -23,6 +23,7 @@ from ._ops import (
     FromTuples,
     KeySetOp,
     Project,
+    rewrite,
 )
 
 
@@ -55,7 +56,7 @@ class KeySet:
                 f"KeySet columns {columns} do not match "
                 f"the columns of its op-tree {op_tree.columns()}."
             )
-        self._op_tree = op_tree
+        self._op_tree = rewrite(op_tree)
         self._columns = columns
         self._dataframe: Optional[DataFrame] = None
         self._size: Optional[int] = None
@@ -385,6 +386,68 @@ class KeySet:
         if self._dataframe:
             self._dataframe.unpersist()
 
+    def is_equivalent(self, other: Union[KeySet, KeySetPlan]) -> Optional[bool]:
+        """Determine if another KeySet is equivalent to this one, if possible.
+
+        This method is an alternative to :meth:`KeySet.__eq__` which is
+        guaranteed to never evaluate the full KeySet dataframe. This ensures
+        that it is never time-consuming to call, but also means that it cannot
+        always determine if two KeySets are equivalent. If the KeySets are
+        neither definitely equivalent nor easily shown to not be equivalent,
+        this method returns ``None``.
+        """
+        # A KeySet and a KeySetPlan can't be equivalent, but allowing either to
+        # be passed could avoid some user confusion about what is/is not a plan.
+        if not isinstance(other, KeySet):
+            return False
+
+        if self._op_tree == other._op_tree:  # pylint: disable=protected-access
+            return True
+
+        if self.schema() != other.schema():
+            return False
+
+        return None
+
+    def __eq__(self, other: Any):
+        """Determine if another KeySet is equal to this one.
+
+        Two KeySets are equal if they contain the same values for the same
+        columns; the rows and columns may appear in any order.
+
+        Example:
+            >>> ks1 = KeySet.from_dict({"A": [1, 2], "B": [3, 4]})
+            >>> ks2 = KeySet.from_dict({"B": [3, 4], "A": [1, 2]})
+            >>> ks3 = KeySet.from_dict({"B": [4, 3], "A": [2, 1]})
+            >>> ks4 = KeySet.from_dict({"B": [4, 5], "A": [1, 2]})
+            >>> ks1 == ks2
+            True
+            >>> ks1 == ks3
+            True
+            >>> ks1 == ks4
+            False
+        """
+        if not isinstance(other, KeySet):
+            return False
+
+        equivalent = self.is_equivalent(other)
+        if equivalent is not None:
+            return equivalent
+
+        # Reorder columns between the two dataframes to match
+        columns = self.columns()
+        self_df = self.dataframe().select(*columns)
+        other_df = other.dataframe().select(*columns)
+        if self_df.schema != other_df.schema:
+            return False
+        # other_df should contain all rows in self_df
+        if self_df.exceptAll(other_df).count() != 0:
+            return False
+        # and vice versa
+        if other_df.exceptAll(self_df).count() != 0:
+            return False
+        return True
+
 
 class KeySetPlan:
     """A plan for computing a KeySet based on values in a table.
@@ -415,7 +478,7 @@ class KeySetPlan:
                 f"KeySet columns {columns} do not match "
                 f"the columns of its op-tree {op_tree.columns()}."
             )
-        self._op_tree = op_tree
+        self._op_tree = rewrite(op_tree)
         self._columns = columns
 
     def columns(self) -> list[str]:
@@ -491,3 +554,44 @@ class KeySetPlan:
             ['A', 'B']
         """
         return KeySetPlan(Filter(self._op_tree, condition), columns=self.columns())
+
+    def is_equivalent(self, other: Union[KeySet, KeySetPlan]) -> Optional[bool]:
+        """Determine if another KeySetPlan is equivalent to this one, if possible.
+
+        This method is guaranteed to never evaluate any underlying dataframe,
+        ensuring that it is never time-consuming to call. However, this means
+        means that it cannot always determine if two KeySetPlans are
+        equivalent. If the KeySetPlans are neither definitely equivalent nor
+        easily shown to not be equivalent, this method returns ``None``.
+
+        Example:
+            >>> ks1 = KeySet._detect(["A", "B"]) * KeySet.from_dict({"C": [1,2]})
+            >>> ks2 = KeySet.from_dict({"C": [1,2]}) * KeySet._detect(["A", "B"])
+            >>> ks1.is_equivalent(ks2)
+            True
+        """
+        # A KeySet and a KeySetPlan can't be equivalent, but allowing either to
+        # be passed could avoid some user confusion about what is/is not a plan.
+        if not isinstance(other, KeySetPlan):
+            return False
+
+        if self._op_tree == other._op_tree:  # pylint: disable=protected-access
+            return True
+
+        if self.columns() != other.columns():
+            return False
+
+        return None
+
+    def __eq__(self, other: Any):
+        r"""Determine if another :class:`KeySetPlan` is equal to this one.
+
+        Unlike for :meth:`KeySet.__eq__`, there is no fallback full-dataframe
+        comparison here -- this method only relies on :meth:`is_equivalent`, and
+        returns ``False`` if it cannot determine whether the two
+        :class:`KeySetPlan`\ s are equivalent.
+        """
+        if not isinstance(other, KeySetPlan):
+            return False
+
+        return bool(self.is_equivalent(other))
