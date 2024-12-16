@@ -113,13 +113,13 @@ def install_overrides(session):
     # Install Core from dist/, if it exists there
     if os.environ.get("CORE_WHEEL_DIR"):
         core_path = Path(os.environ["CORE_WHEEL_DIR"]).resolve()
-        core_wheels = list(core_path.glob("*tmlt_core*-cp38*"))
+        core_wheels = list(core_path.glob("*tmlt_core*-cp39*"))
         if len(core_wheels) == 0:
             raise AssertionError(
                 "Expected a core wheel since CORE_WHEEL_DIR was set "
                 f"(to {os.environ.get('CORE_WHEEL_DIR')}), but didn't find any. "
                 f"Instead, found these files in {str(core_path)}: "
-                "\n".join([str(path) for path in core_path.glob("*")])
+                + "\n".join([str(path) for path in core_path.glob("*")])
             )
         # Poetry is going to expect, and require, Core version X.Y.Z (ex. "0.6.2"),
         # but the Gitlab-built Core will have a version number
