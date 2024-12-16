@@ -5,7 +5,7 @@
 
 import textwrap
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -89,10 +89,10 @@ class CrossJoin(KeySetOp):
         partition_target = 2 * spark.sparkContext.defaultParallelism
 
         left = _adjust_partitioning(
-            self.left.dataframe(), self.left.size(), partition_target
+            self.left.dataframe(), self.left.size(fast=True), partition_target
         )
         right = _adjust_partitioning(
-            self.right.dataframe(), self.right.size(), partition_target
+            self.right.dataframe(), self.right.size(fast=True), partition_target
         )
         # Because of the way Spark crossjoins handle partitions, both factors
         # need to be repartitioned to have at least two partitions in order to
@@ -113,10 +113,22 @@ class CrossJoin(KeySetOp):
         """Determine whether this plan has any parts requiring partition selection."""
         return self.left.is_plan() or self.right.is_plan()
 
-    def size(self) -> Optional[int]:
+    @overload
+    def size(self, fast: Literal[True]) -> Optional[int]:
+        ...
+
+    @overload
+    def size(self, fast: Literal[False]) -> int:
+        ...
+
+    @overload
+    def size(self, fast: bool) -> Optional[int]:
+        ...
+
+    def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""
-        left = self.left.size()
-        right = self.right.size()
+        left = self.left.size(fast=fast)
+        right = self.right.size(fast=fast)
         if left is not None and right is not None:
             return left * right
         return None

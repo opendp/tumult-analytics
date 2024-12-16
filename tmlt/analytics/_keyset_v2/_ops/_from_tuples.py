@@ -5,7 +5,7 @@
 
 import datetime
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Literal, Optional, Union, overload
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -71,7 +71,19 @@ class FromTuples(KeySetOp):
         """Determine whether this plan has any parts requiring partition selection."""
         return False
 
-    def size(self) -> Optional[int]:
+    @overload
+    def size(self, fast: Literal[True]) -> Optional[int]:
+        ...
+
+    @overload
+    def size(self, fast: Literal[False]) -> int:
+        ...
+
+    @overload
+    def size(self, fast: bool) -> Optional[int]:
+        ...
+
+    def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""
         if len(self.column_descriptors) == 0:
             return 1

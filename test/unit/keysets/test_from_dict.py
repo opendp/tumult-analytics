@@ -101,8 +101,12 @@ def test_valid(
     """Valid parameters work as expected."""
     ks = KeySet.from_dict(domains)
     assert ks.columns() == list(domains.keys())
-    assert_dataframe_equal(ks.dataframe(), expected_df)
     assert ks.schema() == expected_schema
+    if ks.columns():
+        assert ks.size() == len(expected_df)
+    else:
+        assert ks.size() == 1
+    assert_dataframe_equal(ks.dataframe(), expected_df)
 
 
 @parametrize(Case("nullable")(nullable=True), Case("nonnullable")(nullable=False))
@@ -136,6 +140,7 @@ def test_dataframe_schema(nullable: bool):
 def test_large(factors: int, factor_size: int):
     """Operations with large output KeySets work as expected."""
     ks = KeySet.from_dict({str(f): range(factor_size) for f in range(factors)})
+    assert ks.size() == factor_size**factors
     assert ks.dataframe().count() == factor_size**factors
     assert ks.columns() == [str(f) for f in range(factors)]
     assert ks.dataframe().columns == ks.columns()

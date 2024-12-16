@@ -5,7 +5,7 @@
 
 import textwrap
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Literal, Optional, Union, overload
 
 from pyspark.sql import Column, DataFrame
 
@@ -60,13 +60,23 @@ class Filter(KeySetOp):
         """Determine whether this plan has any parts requiring partition selection."""
         return self.child.is_plan()
 
-    def size(self) -> Optional[int]:
-        """Determine the size of the KeySet resulting from this operation.
+    @overload
+    def size(self, fast: Literal[True]) -> Optional[int]:
+        ...
 
-        Filter cannot compute its size in a guaranteed-computationally-cheap
-        way, so this method always returns None for it.
-        """
-        return None
+    @overload
+    def size(self, fast: Literal[False]) -> int:
+        ...
+
+    @overload
+    def size(self, fast: bool) -> Optional[int]:
+        ...
+
+    def size(self, fast):
+        """Determine the size of the KeySet resulting from this operation."""
+        if fast:
+            return None
+        return self.dataframe().count()
 
     def __str__(self):
         """Human-readable string representation."""

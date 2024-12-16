@@ -58,6 +58,7 @@ class KeySet:
         self._op_tree = op_tree
         self._columns = columns
         self._dataframe: Optional[DataFrame] = None
+        self._size: Optional[int] = None
         self._cached = False
 
     @staticmethod
@@ -358,6 +359,16 @@ class KeySet:
                 self._dataframe.cache()
 
         return self._dataframe
+
+    def size(self) -> int:
+        """Returns the number of groups included in this KeySet.
+
+        Note that in some situations this method may need to count the elements
+        in the KeySet's dataframe, which can be extremely slow.
+        """
+        if self._size is None:
+            self._size = self._op_tree.size(fast=False)
+        return self._size
 
     def cache(self) -> None:
         """Caches the KeySet's dataframe in memory."""

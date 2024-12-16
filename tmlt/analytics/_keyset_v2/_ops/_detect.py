@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2024
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 
@@ -63,7 +63,19 @@ class Detect(KeySetOp):
         """Determine whether this plan has any parts requiring partition selection."""
         return True
 
-    def size(self) -> Optional[int]:
+    @overload
+    def size(self, fast: Literal[True]) -> Optional[int]:
+        ...
+
+    @overload
+    def size(self, fast: Literal[False]) -> int:
+        ...
+
+    @overload
+    def size(self, fast: bool) -> Optional[int]:
+        ...
+
+    def size(self, fast):
         """Determine the size of the KeySet resulting from this operation.
 
         Raises ``AnalyticsInternalError``, as the operation's output dataframe

@@ -109,8 +109,12 @@ def test_valid(
     """Valid parameters work as expected."""
     ks = KeySet.from_tuples(tuples, columns)
     assert ks.columns() == list(columns)
-    assert_dataframe_equal(ks.dataframe(), expected_df)
     assert ks.schema() == expected_schema
+    if ks.columns():
+        assert ks.size() == len(expected_df)
+    else:
+        assert ks.size() == 1
+    assert_dataframe_equal(ks.dataframe(), expected_df)
 
 
 @parametrize(Case("nullable")(nullable=True), Case("nonnullable")(nullable=False))

@@ -151,6 +151,10 @@ def test_valid(
     ks = KeySet.from_dataframe(spark.createDataFrame(data, schema=schema))
     assert ks.columns() == list(expected_schema.keys())
     assert ks.schema() == expected_schema
+    if ks.columns():
+        assert ks.size() == len(expected_df)
+    else:
+        assert ks.size() == 1
     assert_dataframe_equal(ks.dataframe(), expected_df)
 
 

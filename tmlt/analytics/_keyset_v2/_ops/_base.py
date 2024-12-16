@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2024
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 
@@ -50,6 +50,21 @@ class KeySetOp(ABC):
     def is_plan(self) -> bool:
         """Determine whether this plan has any parts requiring partition selection."""
 
+    @overload
+    def size(self, fast: Literal[True]) -> Optional[int]:
+        ...
+
+    @overload
+    def size(self, fast: Literal[False]) -> int:
+        ...
+
+    # Needed to make mypy happy, as it won't automatically combine the above
+    # overloads to understand that fast is a bool.
+    #   https://github.com/python/mypy/issues/10194
+    @overload
+    def size(self, fast: bool) -> Optional[int]:
+        ...
+
     @abstractmethod
-    def size(self) -> Optional[int]:
+    def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""

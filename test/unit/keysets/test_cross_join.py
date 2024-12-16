@@ -193,8 +193,12 @@ def test_valid(
         right = KeySet.from_dataframe(right(spark))
     ks = left * right
     assert ks.columns() == left.columns() + right.columns()
-    assert_dataframe_equal(ks.dataframe(), expected_df)
     assert ks.schema() == expected_schema
+    if ks.columns():
+        assert ks.size() == len(expected_df)
+    else:
+        assert ks.size() == 1
+    assert_dataframe_equal(ks.dataframe(), expected_df)
 
 
 # pylint: disable=protected-access
@@ -256,6 +260,7 @@ def test_chained(factors: int, factor_size: int):
         for f in range(factors)
     ]
     ks = reduce(lambda l, r: l * r, keysets)
+    assert ks.size() == factor_size**factors
     assert ks.dataframe().count() == factor_size**factors
     assert ks.columns() == [str(f) for f in range(factors)]
     assert ks.dataframe().columns == ks.columns()
