@@ -12,16 +12,17 @@ import pandas as pd
 from benchmarking_utils import write_as_html
 from pyspark.sql import SparkSession
 
-from tmlt.analytics.keyset import KeySet
+from tmlt.analytics import KeySet
 
 
-def evaluate_runtime(keysets: List[KeySet]) -> float:
+def evaluate_runtime(keysets: List[KeySet]) -> tuple[float, int]:
     """See how long it takes to perform product keyset."""
     start = time.time()
     product_keyset = reduce(lambda a, b: a * b, keysets)
-    product_keyset_size = product_keyset.size()
     product_keyset.dataframe().write.format("noop").mode("overwrite").save()
     running_time = time.time() - start
+
+    product_keyset_size = product_keyset.size()
     return round(running_time, 3), product_keyset_size
 
 
@@ -40,10 +41,16 @@ def add_benchmark_row(benchmark_result, keysets, size, hint):
     print("Benchmark row:", row)
     return pd.concat([benchmark_result, pd.Series(row).to_frame().T], ignore_index=True)
 
+
 def main() -> None:
     """Evaluate running time for selecting subset of columns from product keysets."""
     print("Benchmark keyset cross-product with 2 factors and varying sizes")
-    spark = SparkSession.builder.getOrCreate()
+    spark = (
+        SparkSession.builder.config("spark.memory.offHeap.enabled", "true")
+        .config("spark.memory.offHeap.size", "4g")
+        .getOrCreate()
+    )
+
     keyset_ab = KeySet.from_dataframe(
         spark.createDataFrame(
             pd.DataFrame(
