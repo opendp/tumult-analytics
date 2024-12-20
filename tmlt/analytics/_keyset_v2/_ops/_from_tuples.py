@@ -53,14 +53,16 @@ class FromTuples(KeySetOp):
         """
         schema = analytics_to_spark_schema(Schema(self.schema()))
         spark = SparkSession.builder.getOrCreate()
-        # For small collections of tuples, Spark's default parallelism
-        # results in far too many partitions, leading to poor performance when
+        # For small collections of tuples, Spark's default parallelism results
+        # in far too many partitions, leading to poor performance when
         # cross-joining due to the overhead of managing all of the small
-        # tasks. Instead, coalesce down to one partition for small numbers of
-        # rows, and only slowly add more partitions for larger collections of
-        # tuples.
-        return spark.createDataFrame(self.tuples, schema=schema).coalesce(
-            1 + len(self.tuples) // 64
+        # tasks. Instead, use just a couple of partitions and slowly add more
+        # only for large keysets.
+        return spark.createDataFrame(
+            spark.sparkContext.parallelize(
+                self.tuples, numSlices=2 + len(self.tuples) // 16384
+            ),
+            schema=schema,
         )
 
     def is_empty(self) -> bool:
