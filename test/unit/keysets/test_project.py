@@ -66,15 +66,26 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
             "E": ColumnDescriptor(ColumnType.INTEGER),
         },
     ),
+    Case("remove_detect_columns")(
+        base=KeySet.from_tuples([(1, 2, 3)], ["A", "B", "C"])
+        * KeySet._detect(["D", "E", "F"]),  # pylint: disable=protected-access
+        columns=["A", "B"],
+        expected_df=pd.DataFrame({"A": [1], "B": [2]}),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
 )
 def test_valid(
-    base: KeySet,
+    base: Union[KeySet, KeySetPlan],
     columns: Union[str, Sequence[str]],
     expected_df: pd.DataFrame,
     expected_schema: dict[str, ColumnDescriptor],
 ):
     """Valid parameters work as expected."""
     ks = base[columns]
+    assert isinstance(ks, KeySet)
     assert ks.columns() == list(expected_schema.keys())
     assert ks.schema() == expected_schema
     if ks.columns():

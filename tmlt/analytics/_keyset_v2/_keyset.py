@@ -481,6 +481,11 @@ class KeySetPlan:
         self._op_tree = rewrite(op_tree)
         self._columns = columns
 
+        if not self._op_tree.is_plan():
+            raise AnalyticsInternalError(
+                "KeySetPlan op-tree unexpectedly became not a plan."
+            )
+
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySetPlan."""
         return list(self._columns)
@@ -505,12 +510,9 @@ class KeySetPlan:
             columns=self.columns() + other.columns(),
         )
 
-    # TODO(tumult-labs/tumult#3389): Some optimizations involving projection may
-    #     allow this method to actually return a KeySet rather than a
-    #     KeySetPlan, for example cross-joining a KeySet with a KeySetPlan and
-    #     then only keeping columns from the KeySet. This method will need a bit
-    #     of adjustment to accomodate that.
-    def __getitem__(self, desired_columns: Union[str, Sequence[str]]) -> KeySetPlan:
+    def __getitem__(
+        self, desired_columns: Union[str, Sequence[str]]
+    ) -> Union[KeySet, KeySetPlan]:
         """``KeySetPlan[col, col, ...]`` returns a KeySetPlan with those columns only.
 
         The returned KeySetPlan contains all unique combinations of values in the
@@ -528,9 +530,15 @@ class KeySetPlan:
         if isinstance(desired_columns, str):
             desired_columns = [desired_columns]
 
-        return KeySetPlan(
-            Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
-        )
+        # Projecting is the only operation that can turn a KeySetPlan into a
+        # KeySet (by dropping the detected columns without a join or similar
+        # operation that would force them to be computed anyway), so it works a
+        # bit differently. Do the op-tree rewrite early and use its output to
+        # figure out whether the result is a plan or not.
+        op_tree = rewrite(Project(self._op_tree, frozenset(desired_columns)))
+        if op_tree.is_plan():
+            return KeySetPlan(op_tree, columns=desired_columns)
+        return KeySet(op_tree, columns=desired_columns)
 
     def filter(self, condition: Union[Column, str]) -> KeySetPlan:
         """Filters this KeySetPlan using some condition.

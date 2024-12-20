@@ -63,8 +63,7 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         ks1=_KS_ABCDEF["A", "C", "E"],
         ks2=_KS_A * _KS_C * _KS_DEF["E"],
         equal=True,
-        # TODO(tumult-labs/tumult#3389): We should be able to determine that
-        #     these are equivalent.
+        equivalence_known=True,
     ),
     Case("crossjoin_commutative")(
         ks1=_KS_A * _KS_B,

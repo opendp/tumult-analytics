@@ -27,9 +27,39 @@ from tmlt.analytics._keyset_v2 import KeySet
         )
     ),
     Case("nested_project")(
-        ks=lambda: KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])[
-            "A", "B", "C"
-        ]["A", "B"]["A"]
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B"]["A"]
+        )
+    ),
+    Case("noop_project")(
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B", "C"]
+        )
+    ),
+    Case("crossjoin_project_left")(
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])
+            * KeySet.from_tuples([(4, 5, 6)], columns=["D", "E", "F"])
+        )["A", "B"]
+    ),
+    Case("crossjoin_project_right")(
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])
+            * KeySet.from_tuples([(4, 5, 6)], columns=["D", "E", "F"])
+        )["D", "E"]
+    ),
+    Case("crossjoin_project_both")(
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])
+            * KeySet.from_tuples([(4, 5, 6)], columns=["D", "E", "F"])
+        )["C", "D", "E"]
+    ),
+    Case("crossjoin_project_nested")(
+        ks=lambda: (
+            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])
+            * KeySet.from_tuples([(4, 5, 6)], columns=["D", "E", "F"])
+            * KeySet.from_tuples([(7, 8, 9)], columns=["G", "H", "I"])
+        )["C", "D", "H"]
     ),
 )
 def test_rewrite_equality(ks: Callable[[], KeySet]):

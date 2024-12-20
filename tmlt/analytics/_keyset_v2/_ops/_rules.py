@@ -42,6 +42,70 @@ def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySe
     return wrapped
 
 
+def breadth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
+    """Recursively apply the given method to an op-tree, breadth-first.
+
+    "Breadth-first" is a bit fuzzy in this case, as the op-tree being operated
+    on may be changing at each step. The exact behavior is that it applies the
+    rule to the current node, and if nothing changes, it applies it to the
+    children. If something did happen, it applies the rule at the current node
+    again. This means you *can* accidentally write rules that will loop forever
+    if they alternate between multiple equivalent forms each time they are
+    applied -- be careful not to do this.
+    """
+
+    @wraps(f)
+    def wrapped(op: KeySetOp) -> KeySetOp:
+        new_op = f(op)
+        if new_op != op:
+            return wrapped(new_op)
+
+        if isinstance(new_op, (Detect, FromTuples, FromSparkDataFrame)):
+            return new_op
+        elif isinstance(new_op, CrossJoin):
+            return CrossJoin(wrapped(new_op.left), wrapped(new_op.right))
+        elif isinstance(new_op, Project):
+            return Project(wrapped(new_op.child), new_op.projected_columns)
+        elif isinstance(new_op, Filter):
+            return Filter(wrapped(new_op.child), new_op.condition)
+        else:
+            raise AnalyticsInternalError(
+                f"Unhandled KeySetOp subtype {type(new_op).__qualname__} encountered."
+            )
+
+    return wrapped
+
+
+@breadth_first
+def project_across_crossjoin(op: KeySetOp) -> KeySetOp:
+    """Split projections and move them inside cross-joins.
+
+    If the child of a Project operation is a CrossJoin operation, the Project
+    may be split into two smaller Projects over the children of the
+    CrossJoin. This significantly improves performance, and allows KeySets like
+    ``AB["A"] * C`` and ``(AB * C)["A", "C"]`` to be recognized as equivalent.
+
+    If the Project operation only keeps columns from one side of the CrossJoin,
+    the other side may be dropped entirely, in which case the CrossJoin is
+    removed and the Project applied directly to its relevant child.
+    """
+    if not isinstance(op, Project) or not isinstance(op.child, CrossJoin):
+        return op
+
+    left_overlap = op.projected_columns & set(op.child.left.columns())
+    right_overlap = op.projected_columns & set(op.child.right.columns())
+
+    if not left_overlap:
+        return Project(op.child.right, op.projected_columns)
+    if not right_overlap:
+        return Project(op.child.left, op.projected_columns)
+
+    return CrossJoin(
+        Project(op.child.left, left_overlap),
+        Project(op.child.right, right_overlap),
+    )
+
+
 @depth_first
 def collapse_nested_projections(op: KeySetOp) -> KeySetOp:
     """Combine nested projection operations.
@@ -52,6 +116,19 @@ def collapse_nested_projections(op: KeySetOp) -> KeySetOp:
     """
     if isinstance(op, Project) and isinstance(op.child, Project):
         return Project(op.child.child, op.projected_columns)
+    return op
+
+
+@depth_first
+def remove_noop_projections(op: KeySetOp) -> KeySetOp:
+    """Remove projection operations that have no effect.
+
+    If the child of a Project operation has no columns other than the projected
+    ones, the Project does nothing and can be removed.
+    """
+    if isinstance(op, Project) and op.projected_columns == set(op.child.columns()):
+        return op.child
+
     return op
 
 
@@ -72,7 +149,7 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
 
           *                *
          / \              / \
-        *   *    ->       A *
+        *   *      ->     A *
        / \ / \             / \
        A C D B             B *
                             / \
@@ -115,7 +192,9 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
 
 
 _REWRITE_RULES = [
+    project_across_crossjoin,
     collapse_nested_projections,
+    remove_noop_projections,
     normalize_cross_joins,
 ]
 """A list of all rewrite rules that will be applied, in order.
