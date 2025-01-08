@@ -5,7 +5,7 @@ Introduction to BigQuery
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 BigQuery is a serverless, highly scalable, cost-effective, and fully managed
 cloud data warehouse for analytics.

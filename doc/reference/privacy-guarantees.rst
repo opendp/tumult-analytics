@@ -5,7 +5,7 @@ Specifying privacy guarantees
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 The :class:`~tmlt.analytics.Session` is the main object used to specify formal
 privacy guarantees on sensitive data. Users specify privacy guarantees at

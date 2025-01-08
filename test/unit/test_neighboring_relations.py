@@ -1,7 +1,7 @@
 """Tests for neighboring relations."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from cmath import inf, pi
 from typing import Dict

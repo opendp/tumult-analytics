@@ -1,7 +1,7 @@
 """Contains classes for specifying schemas and constraints for tables."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from abc import ABC
 from dataclasses import dataclass

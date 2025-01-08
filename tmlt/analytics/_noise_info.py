@@ -1,6 +1,6 @@
 """Get noise scale from a Measurement."""
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from copy import deepcopy
 from enum import Enum

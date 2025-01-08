@@ -1,7 +1,7 @@
 """Rules for rewriting KeySetOp trees."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from functools import reduce, wraps
 from typing import Callable

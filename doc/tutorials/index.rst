@@ -5,7 +5,7 @@ Tutorials
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 This tutorial series introduces the key concepts of the Tumult Analytics API, and help you design and implement your first differentially private data publication.
 The series is split in two sections.

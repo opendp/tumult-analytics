@@ -1,7 +1,7 @@
 """Integration tests for aggregations using L0 + L-inf truncation."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 import statistics
 from typing import List, Optional, Set, Tuple

@@ -4,7 +4,7 @@ These are not meant to be exhaustive, but rather to ensure that the Session
 functions properly when used with a mixture of IDs and non-IDs protected changes."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 
 import pytest

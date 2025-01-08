@@ -1,6 +1,6 @@
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 Tumult Analytics documentation
 ==============================
@@ -144,7 +144,7 @@ Both citations can be found below; for the software citation, please replace the
 
 License
 ^^^^^^^
-The Tumult Analytics source code and documentation are copyright Tumult Labs 2024.
+The Tumult Analytics source code and documentation are copyright Tumult Labs 2025.
 
 This documentation is licensed under the
 Creative Commons Attribution-ShareAlike 4.0 Unported License.

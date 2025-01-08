@@ -5,7 +5,7 @@ GCP setup
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 When entering Google Cloud Platform (GCP) for the first time,
 you will be greeted with your project dashboard.

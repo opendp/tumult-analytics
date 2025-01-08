@@ -5,7 +5,7 @@ Privacy budget fundamentals
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 This topic guide goes into more depth on the concept of *privacy budgets* that
 we discussed in :ref:`working with privacy budgets tutorial<Working with privacy budgets>`. At a high

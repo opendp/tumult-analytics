@@ -7,7 +7,7 @@ thorough tests for Session are in
 test/system/session/rows/test_add_max_rows.py."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from typing import Any, Dict, List
 

@@ -1,7 +1,7 @@
 """The Session enforces formal privacy guarantees on sensitive data."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from operator import xor
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast

@@ -1,7 +1,7 @@
 """Defines a visitor for determining the output schemas of query expressions."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from collections.abc import Collection
 from dataclasses import replace

@@ -1,7 +1,7 @@
 """Tests for :mod:`tmlt.analytics.privacy_budget`."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 # pylint: disable=pointless-string-statement
 
 import math

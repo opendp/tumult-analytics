@@ -5,7 +5,7 @@ for seamless transitions of the data representation type.
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 import datetime
 from collections.abc import Hashable, Mapping

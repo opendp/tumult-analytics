@@ -1,7 +1,7 @@
 """Building blocks of modular builders used by various Analytics objects."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from __future__ import annotations
 

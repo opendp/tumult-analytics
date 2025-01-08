@@ -36,7 +36,7 @@ and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 
 """
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 # These gets automatically replaced by the version number during the release process
 # by poetry-dynamic-versioning.

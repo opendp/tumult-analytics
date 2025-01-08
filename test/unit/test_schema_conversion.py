@@ -1,7 +1,7 @@
 """Unit tests conversion functions in :mod:`~tmlt.analytics._schema`."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 import datetime
 

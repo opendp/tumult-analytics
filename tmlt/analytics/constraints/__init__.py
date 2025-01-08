@@ -9,7 +9,7 @@ Illustrated examples using constraints can be found in the
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 # Some manual import sorting here so that classes appear in the order we want in
 # the docs, as opposed to the order isort puts them in.

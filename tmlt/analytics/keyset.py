@@ -7,7 +7,7 @@ group-by queries. An introduction to KeySets can be found in the
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from __future__ import annotations
 

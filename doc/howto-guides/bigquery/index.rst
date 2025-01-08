@@ -3,7 +3,7 @@ Using Tumult Analytics on BigQuery
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 This guide explains how to use Tumult Analytics on BigQuery.
 We will guide you to getting a minimal example of a Tumult

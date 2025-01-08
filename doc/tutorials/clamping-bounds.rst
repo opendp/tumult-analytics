@@ -5,7 +5,7 @@ Numerical aggregations
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 
 Counting queries, which we saw in tutorials :ref:`first steps tutorial<First steps>` and
 :ref:`working with privacy budgets tutorial<Working with privacy budgets>`, are very useful, but we often need a

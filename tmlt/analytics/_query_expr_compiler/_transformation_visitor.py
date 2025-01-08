@@ -1,7 +1,7 @@
 """Defines a visitor for creating a transformation from a query expression."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from tmlt.analytics._query_expr_compiler._base_transformation_visitor import (
     BaseTransformationVisitor,

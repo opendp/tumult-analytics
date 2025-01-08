@@ -1,7 +1,7 @@
 # pylint: skip-file
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 import datetime
 import logging
@@ -15,7 +15,7 @@ _logger = logging.getLogger(__name__)
 
 project = "Tumult Platform"
 author = "Tumult Labs"
-copyright = "2024 Tumult Labs"
+copyright = "2025 Tumult Labs"
 # Note that this is the name of the module provided by the package, not
 # necessarily the name of the package as pip understands it.
 package_name = "tmlt"

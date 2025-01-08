@@ -90,7 +90,7 @@ from tmlt.analytics._schema import (
 from tmlt.analytics._table_identifier import NamedTable
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 
 def chain_to_list(t: ChainTT) -> List[Transformation]:

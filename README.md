@@ -71,7 +71,7 @@ If you use Tumult Analytics for a scientific publication, we would appreciate ci
 
 ## License
 
-Copyright Tumult Labs 2024
+Copyright Tumult Labs 2025
 
 Tumult Analytics' source code is licensed under the Apache License, version 2.0 (Apache-2.0).
 Tumult Analytics' documentation is licensed under

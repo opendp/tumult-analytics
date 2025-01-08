@@ -1,7 +1,7 @@
 """Operation for detecting the KeySet for a group of columns."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from dataclasses import dataclass
 from typing import Literal, Optional, overload

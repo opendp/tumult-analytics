@@ -1,7 +1,7 @@
 """Unit tests for (v2) KeySet.from_dict."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 
 import datetime

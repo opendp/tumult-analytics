@@ -1,7 +1,7 @@
 """Operation for constructing a KeySet from a Spark DataFrame."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2024
+# Copyright Tumult Labs 2025
 
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, overload

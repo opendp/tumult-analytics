@@ -7,7 +7,7 @@
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2024
+    Copyright Tumult Labs 2025
 {% set name_parts = obj.name.split('.') %}
 
 {% if obj.name == package_name %}
