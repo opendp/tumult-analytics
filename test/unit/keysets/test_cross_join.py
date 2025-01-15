@@ -266,6 +266,29 @@ def test_chained(factors: int, factor_size: int):
     assert ks.dataframe().columns == ks.columns()
 
 
+def test_coalesce(spark):
+    """Factors with many partitions are coalesced correctly."""
+    size = 128
+    partition_target = 2 * spark.sparkContext.defaultParallelism
+    ks1 = KeySet.from_dataframe(
+        spark.range(size, numPartitions=4 * partition_target).withColumnRenamed(
+            "id", "A"
+        )
+    )
+    ks2 = KeySet.from_dataframe(
+        spark.range(size, numPartitions=4 * partition_target).withColumnRenamed(
+            "id", "B"
+        )
+    )
+    ks = ks1 * ks2
+
+    assert ks.size() == size**2
+    assert ks.dataframe().count() == size**2
+    assert ks.columns() == ["A", "B"]
+    assert ks.dataframe().columns == ["A", "B"]
+    assert ks.dataframe().rdd.getNumPartitions() <= 2 * partition_target
+
+
 @parametrize(
     Case("overlapping_columns")(
         left=KeySet.from_tuples([(1,)], columns=["A"]),
@@ -293,6 +316,6 @@ def test_chained(factors: int, factor_size: int):
     ),
 )
 def test_invalid(left: KeySet, right: Any, expectation: ContextManager[None]):
-    """Invalid tuples/columns values are rejected."""
+    """Invalid cross-joins are rejected."""
     with expectation:
         _ = left * right
