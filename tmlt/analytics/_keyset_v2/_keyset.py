@@ -21,6 +21,7 @@ from ._ops import (
     Filter,
     FromSparkDataFrame,
     FromTuples,
+    Join,
     KeySetOp,
     Project,
     Subtract,
@@ -51,6 +52,14 @@ class KeySet:
             raise AnalyticsInternalError(
                 "KeySet should not be generated with a plan "
                 "including partition selection."
+            )
+        if len(columns) != len(set(columns)):
+            column_counts: dict[str, int] = {}
+            for c in columns:
+                column_counts[c] = column_counts.get(c, 0) + 1
+            raise AnalyticsInternalError(
+                "KeySet columns are not all distict, duplicates are: "
+                + " ".join(c for c, count in column_counts.items() if count > 1)
             )
         if set(op_tree.columns()) != set(columns):
             raise AnalyticsInternalError(
@@ -298,6 +307,51 @@ class KeySet:
         return KeySet(
             Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
         )
+
+    # Pydocstyle doesn't seem to understand overloads, so we need to disable the
+    # check that a docstring exists for them.
+    @overload
+    def join(self, other: KeySet) -> KeySet:  # noqa: D105
+        ...
+
+    @overload
+    def join(self, other: KeySetPlan) -> KeySetPlan:  # noqa: D105
+        ...
+
+    def join(self, other):
+        r"""The inner natural join of two KeySet or KeySetPlan objects.
+
+        The two KeySets are inner joined on columns with matching names,
+        treating nulls as equal to one another. Joining two :class:`KeySet`\ s
+        together produces another :class:`KeySet`; if either operand is a
+        :class:`KeySetPlan`, then the result is also a :class:`KeySetPlan`.
+
+        Example:
+            >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
+            >>> keyset2 = KeySet.from_tuples(
+            ...     [("a2", "b1"), ("a3", "b2")], columns=["A", "B"]
+            ... )
+            >>> keyset1.join(keyset2).dataframe().sort("A", "B").toPandas()
+                A   B
+            0  a2  b1
+        """
+        if not isinstance(other, (KeySet, KeySetPlan)):
+            raise ValueError(
+                "KeySet join expected another KeySet or KeySetPlan, not "
+                f"{type(other).__qualname__}."
+            )
+        if isinstance(other, KeySet):
+            return KeySet(
+                # pylint: disable-next=protected-access
+                Join(self._op_tree, other._op_tree),
+                columns=list(dict.fromkeys(self.columns() + other.columns())),
+            )
+        else:
+            return KeySetPlan(
+                # pylint: disable-next=protected-access
+                Join(self._op_tree, other._op_tree),
+                columns=list(dict.fromkeys(self.columns() + other.columns())),
+            )
 
     def filter(self, condition: Union[Column, str]) -> KeySet:
         """Filters this KeySet using some condition.
@@ -577,6 +631,31 @@ class KeySetPlan:
         if op_tree.is_plan():
             return KeySetPlan(op_tree, columns=desired_columns)
         return KeySet(op_tree, columns=desired_columns)
+
+    def join(self, other: Union[KeySet, KeySetPlan]) -> KeySetPlan:
+        r"""The inner natural join of two KeySet or KeySetPlan objects.
+
+        The two KeySets are inner joined on columns with matching names,
+        treating nulls as equal to one another. Joining a :class:`KeySetPlan` to
+        any other value always produces a :class:`KeySetPlan`.
+
+        Example:
+            >>> keyset1 = KeySet._detect(["A", "B"])
+            >>> keyset2 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
+            >>> keyset1.join(keyset2).columns()
+            ['A', 'B']
+        """
+        if not isinstance(other, (KeySet, KeySetPlan)):
+            raise ValueError(
+                "KeySet join expected another KeySet or KeySetPlan, not "
+                f"{type(other).__qualname__}."
+            )
+
+        return KeySetPlan(
+            # pylint: disable-next=protected-access
+            Join(self._op_tree, other._op_tree),
+            columns=list(dict.fromkeys(self.columns() + other.columns())),
+        )
 
     def filter(self, condition: Union[Column, str]) -> KeySetPlan:
         """Filters this KeySetPlan using some condition.

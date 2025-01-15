@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2025
 
 from functools import reduce, wraps
-from typing import Callable
+from typing import Callable, Type, Union
 
 from tmlt.analytics import AnalyticsInternalError
 
@@ -14,6 +14,7 @@ from ._detect import Detect
 from ._filter import Filter
 from ._from_dataframe import FromSparkDataFrame
 from ._from_tuples import FromTuples
+from ._join import Join
 from ._project import Project
 from ._subtract import Subtract
 
@@ -29,6 +30,10 @@ def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySe
             left = wrapped(op.left)
             right = wrapped(op.right)
             return f(CrossJoin(left, right))
+        elif isinstance(op, Join):
+            left = wrapped(op.left)
+            right = wrapped(op.right)
+            return f(Join(left, right))
         elif isinstance(op, Project):
             child = wrapped(op.child)
             return f(Project(child, op.projected_columns))
@@ -69,6 +74,8 @@ def breadth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Key
             return new_op
         elif isinstance(new_op, CrossJoin):
             return CrossJoin(wrapped(new_op.left), wrapped(new_op.right))
+        elif isinstance(new_op, Join):
+            return Join(wrapped(new_op.left), wrapped(new_op.right))
         elif isinstance(new_op, Project):
             return Project(wrapped(new_op.child), new_op.projected_columns)
         elif isinstance(new_op, Filter):
@@ -139,18 +146,18 @@ def remove_noop_projections(op: KeySetOp) -> KeySetOp:
     return op
 
 
-def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
-    r"""Restructure CrossJoins into a consistent layout.
+def normalize_joins(op: KeySetOp) -> KeySetOp:
+    r"""Restructure Joins and CrossJoins into a consistent layout.
 
     This rewrite rule applies two related changes to collections of nested
-    CrossJoin operations to ensure a common structure:
-    * The CrossJoins are restructured such that only the right subtree of a
-      CrossJoin can be another CrossJoin.
-    * The leaves of this collection of CrossJoins are sorted by their columns,
+    Join or CrossJoin operations to ensure a common structure:
+    * The joins are restructured such that only the right subtree of a
+      join can be another join.
+    * The leaves of this collection of joins are sorted by their columns,
       with the first near the top.
 
-    As an example (where `*` represents a CrossJoin operation), it would make
-    the following transformation:
+    As an example (where `*` represents a Join/CrossJoin operation), it would
+    make the following transformation:
 
     ::
 
@@ -162,20 +169,24 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
                             / \
                             C D
 
-    Note that this rule also applies to a single non-nested CrossJoin, which
+    Note that this rule also applies to a single non-nested join, which
     would be transformed such that the child whose column list is first in the
     sort becomes the left child and the other becomes the right child.
     """
     if isinstance(op, Project):
-        return Project(normalize_cross_joins(op.child), op.projected_columns)
+        return Project(normalize_joins(op.child), op.projected_columns)
     if isinstance(op, Filter):
-        return Filter(normalize_cross_joins(op.child), op.condition)
+        return Filter(normalize_joins(op.child), op.condition)
     if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
         return op
     if isinstance(op, Subtract):
-        return Subtract(normalize_cross_joins(op.left), normalize_cross_joins(op.right))
+        return Subtract(normalize_joins(op.left), normalize_joins(op.right))
 
-    if not isinstance(op, CrossJoin):
+    if isinstance(op, Join):
+        join_type: Union[Type[Join], Type[CrossJoin]] = Join
+    elif isinstance(op, CrossJoin):
+        join_type = CrossJoin
+    else:
         raise AnalyticsInternalError(
             f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
         )
@@ -184,11 +195,13 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
     joins = [op]
     while joins:
         current = joins.pop()
-        for child in (current.left, current.right):
-            if isinstance(child, CrossJoin):
+        # Mypy really doesn't like this, but we know that current must be either
+        # a Join or a CrossJoin.
+        for child in (current.left, current.right):  # type: ignore
+            if isinstance(child, join_type):
                 joins.append(child)
             else:
-                leaves.append(child)
+                leaves.append(normalize_joins(child))
 
     # Reversing the sort and swapping the right/left parameters in the reduce
     # produces a tree where the topmost leaf is the first in the un-reversed
@@ -197,14 +210,14 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
     # prefer that ordering over a different one, it's just the most obvious one
     # when reading off the op-tree.
     leaves.sort(key=lambda v: tuple(sorted(v.columns())), reverse=True)
-    return reduce(lambda r, l: CrossJoin(l, r), leaves)
+    return reduce(lambda r, l: join_type(l, r), leaves)
 
 
 _REWRITE_RULES = [
     project_across_crossjoin,
     collapse_nested_projections,
     remove_noop_projections,
-    normalize_cross_joins,
+    normalize_joins,
 ]
 """A list of all rewrite rules that will be applied, in order.
 

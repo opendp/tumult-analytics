@@ -26,6 +26,22 @@ from tmlt.analytics._keyset_v2 import KeySet
             * (KeySet.from_dict({"D": [1]}) * KeySet.from_dict({"B": [1]}))
         )
     ),
+    Case("join_reorder")(
+        ks=lambda: KeySet.from_dict({"B": [2], "C": [3]}).join(
+            KeySet.from_dict({"A": [1], "B": [2]})
+        )
+    ),
+    Case("join_linearize")(
+        ks=lambda: (
+            KeySet.from_dict({"B": [2], "C": [3]})
+            .join(KeySet.from_dict({"A": [1], "B": [2]}))
+            .join(
+                KeySet.from_dict({"C": [3], "D": [4]}).join(
+                    KeySet.from_dict({"D": [4], "E": [5]})
+                )
+            )
+        )
+    ),
     Case("nested_project")(
         ks=lambda: (
             KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B"]["A"]

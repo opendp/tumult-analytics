@@ -76,6 +76,28 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
             "B": ColumnDescriptor(ColumnType.INTEGER),
         },
     ),
+    Case("join_child")(
+        base=KeySet.from_tuples([(1, 2, 3)], ["A", "B", "C"]).join(
+            KeySet.from_tuples([(3, 4, 5)], ["C", "D", "E"])
+        ),
+        columns=["A", "B"],
+        expected_df=pd.DataFrame([(1, 2)], columns=["A", "B"]),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
+    Case("join_child_disjoint")(
+        base=KeySet.from_tuples([(1, 2, 3)], ["A", "B", "C"]).join(
+            KeySet.from_tuples([(5, 6, 7)], ["C", "D", "E"])
+        ),
+        columns=["A", "B"],
+        expected_df=pd.DataFrame([], columns=["A", "B"]),
+        expected_schema={
+            "A": ColumnDescriptor(ColumnType.INTEGER),
+            "B": ColumnDescriptor(ColumnType.INTEGER),
+        },
+    ),
 )
 def test_valid(
     base: Union[KeySet, KeySetPlan],

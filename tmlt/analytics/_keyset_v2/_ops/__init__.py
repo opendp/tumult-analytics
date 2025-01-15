@@ -9,6 +9,7 @@ from ._detect import Detect
 from ._filter import Filter
 from ._from_dataframe import FromSparkDataFrame
 from ._from_tuples import FromTuples
+from ._join import Join
 from ._project import Project
 from ._rules import rewrite
 from ._subtract import Subtract
