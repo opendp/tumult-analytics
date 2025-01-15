@@ -23,6 +23,7 @@ from ._ops import (
     FromTuples,
     KeySetOp,
     Project,
+    Subtract,
     rewrite,
 )
 
@@ -237,6 +238,25 @@ class KeySet:
                 CrossJoin(self._op_tree, other._op_tree),
                 columns=self.columns() + other.columns(),
             )
+
+    def __sub__(self, other: KeySet) -> KeySet:
+        """Remove rows in this that match rows in another KeySet.
+
+        Equivalent to a left anti-join between this KeySet and ``other``.
+
+        ``other`` must have a subset of the columns of this KeySet. Any rows in this
+        KeySet where the values in those columns match values in ``other`` are removed.
+
+        Example:
+            >>> keyset1 = KeySet.from_dict({"A": [1, 2], "B": ["a", "b"]})
+            >>> result = keyset1 - KeySet.from_tuples([(1, "b")], columns=["A", "B"])
+            >>> result.dataframe().sort("A", "B").toPandas()
+               A  B
+            0  1  a
+            1  2  a
+            2  2  b
+        """
+        return KeySet(Subtract(self._op_tree, other._op_tree), self.columns())
 
     def __getitem__(self, desired_columns: Union[str, Sequence[str]]) -> KeySet:
         """``KeySet[col, col, ...]`` returns a KeySet with those columns only.
@@ -508,6 +528,24 @@ class KeySetPlan:
         return KeySetPlan(
             CrossJoin(self._op_tree, other._op_tree),
             columns=self.columns() + other.columns(),
+        )
+
+    def __sub__(self, other: KeySet) -> KeySetPlan:
+        """Remove rows in this that match rows in another KeySet.
+
+        Equivalent to a left anti-join between this and other.
+
+        other must have a subset of the columns of this KeySet. Any rows in this
+        KeySet where the values in those columns match values in other are removed.
+
+        Example:
+            >>> keyset1 = KeySet._detect(["A", "B"])
+            >>> result = keyset1 - KeySet.from_tuples([(1, "b")], columns=["A", "B"])
+            >>> result.columns()
+            ['A', 'B']
+        """
+        return KeySetPlan(
+            Subtract(self._op_tree, other._op_tree), columns=self.columns()
         )
 
     def __getitem__(

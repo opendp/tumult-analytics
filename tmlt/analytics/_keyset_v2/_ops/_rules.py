@@ -15,6 +15,7 @@ from ._filter import Filter
 from ._from_dataframe import FromSparkDataFrame
 from ._from_tuples import FromTuples
 from ._project import Project
+from ._subtract import Subtract
 
 
 def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
@@ -34,6 +35,10 @@ def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySe
         elif isinstance(op, Filter):
             child = wrapped(op.child)
             return f(Filter(child, op.condition))
+        elif isinstance(op, Subtract):
+            left = wrapped(op.left)
+            right = wrapped(op.right)
+            return f(Subtract(left, right))
         else:
             raise AnalyticsInternalError(
                 f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
@@ -68,6 +73,8 @@ def breadth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Key
             return Project(wrapped(new_op.child), new_op.projected_columns)
         elif isinstance(new_op, Filter):
             return Filter(wrapped(new_op.child), new_op.condition)
+        elif isinstance(new_op, Subtract):
+            return Subtract(wrapped(new_op.left), wrapped(new_op.right))
         else:
             raise AnalyticsInternalError(
                 f"Unhandled KeySetOp subtype {type(new_op).__qualname__} encountered."
@@ -165,6 +172,8 @@ def normalize_cross_joins(op: KeySetOp) -> KeySetOp:
         return Filter(normalize_cross_joins(op.child), op.condition)
     if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
         return op
+    if isinstance(op, Subtract):
+        return Subtract(normalize_cross_joins(op.left), normalize_cross_joins(op.right))
 
     if not isinstance(op, CrossJoin):
         raise AnalyticsInternalError(
