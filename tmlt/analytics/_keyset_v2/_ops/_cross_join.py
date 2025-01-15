@@ -73,7 +73,7 @@ class CrossJoin(KeySetOp):
         if left.rdd.getNumPartitions() > 2 * partition_target:
             left = left.coalesce(partition_target)
         if right.rdd.getNumPartitions() > 2 * partition_target:
-            right = left.coalesce(partition_target)
+            right = right.coalesce(partition_target)
 
         return left.crossJoin(right)
 
