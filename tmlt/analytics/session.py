@@ -242,7 +242,7 @@ class Session:
     using :meth:`from_dataframe` or with a :class:`Builder`.
 
     A simple introduction to Session initialization and use can be found in the
-    :ref:`first <First steps>` and :ref:`second <Working with privacy budgets>`
+    :ref:`first <first-steps>` and :ref:`second <privacy-budget-basics>`
     tutorials.
     """
 

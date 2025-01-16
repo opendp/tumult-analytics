@@ -3699,6 +3699,20 @@ theme-rtd = ["sphinx-rtd-theme (>=1.0,<2.0)"]
 theme-sbt = ["sphinx-book-theme (>=1.0,<2.0)"]
 
 [[package]]
+name = "sphinx-reredirects"
+version = "0.1.5"
+description = "Handles redirects for moved pages in Sphinx documentation projects"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "sphinx_reredirects-0.1.5-py3-none-any.whl", hash = "sha256:444ae1438fba4418242ca76d6a6de3eaee82aaf0d8f2b0cac71a15d32ce6eba2"},
+    {file = "sphinx_reredirects-0.1.5.tar.gz", hash = "sha256:cfa753b441020a22708ce8eb17d4fd553a28fc87a609330092917ada2a6da0d8"},
+]
+
+[package.dependencies]
+sphinx = ">=7.1"
+
+[[package]]
 name = "sphinxcontrib-applehelp"
 version = "2.0.0"
 description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
@@ -4005,7 +4019,7 @@ nox_poetry = "^1.0.1"
 type = "git"
 url = "git@gitlab.com:tumult-labs/nox-utils.git"
 reference = "HEAD"
-resolved_reference = "e1c3a6731b2b8223991c9f1663803820472a062d"
+resolved_reference = "f3b72982fbfd41a6d4e84f162e7f179785bb1fdb"
 
 [[package]]
 name = "tomli"
@@ -4211,13 +4225,13 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "virtualenv"
-version = "20.28.1"
+version = "20.29.0"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "virtualenv-20.28.1-py3-none-any.whl", hash = "sha256:412773c85d4dab0409b83ec36f7a6499e72eaf08c80e81e9576bca61831c71cb"},
-    {file = "virtualenv-20.28.1.tar.gz", hash = "sha256:5d34ab240fdb5d21549b76f9e8ff3af28252f5499fb6d6f031adac4e5a8c5329"},
+    {file = "virtualenv-20.29.0-py3-none-any.whl", hash = "sha256:c12311863497992dc4b8644f8ea82d3b35bb7ef8ee82e6630d76d0197c39baf9"},
+    {file = "virtualenv-20.29.0.tar.gz", hash = "sha256:6345e1ff19d4b1296954cee076baaf58ff2a12a84a338c62b02eda39f20aa982"},
 ]
 
 [package.dependencies]
@@ -4300,4 +4314,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9.0, <3.13"
-content-hash = "cdd7ae0e7e0ee18f5ec2b599c79955e152457308ecbe2d5fb5d843010790e310"
+content-hash = "b36876deed060f19ec30aeaae3c8afe7b18f04936dbb53d58250464cdc989e11"

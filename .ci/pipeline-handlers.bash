@@ -46,13 +46,6 @@ function release_handler () {
     fi
 
     links="<https://pypi.org/project/tmlt.analytics/|:package: Package Registry>"
-    # Prereleases don't have docs published for them, so skip the docs link in
-    # that case.
-    if [[ ! "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
-        # Convert X.Y.Z semantic version to vX.Y for docs.
-        docs_version="v$(echo $CI_COMMIT_TAG | sed -E 's/^([[:digit:]]+\.[[:digit:]]+).*/\1/')"
-        links="$links    <https://docs.tmlt.dev/analytics/$docs_version|:page_facing_up: Docs>"
-    fi
     links="$links    <$CI_PIPELINE_URL|:factory: Pipeline>"
 
     webhook_url="$RELEASE_SLACK_WEBHOOK_URL"

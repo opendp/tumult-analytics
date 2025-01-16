@@ -345,7 +345,7 @@ class QueryBuilder:
             *privacy ID* column in the join columns.
 
         An illustrated example can be found in the
-        :ref:`Simple transformations <Public joins>` tutorial.
+        :ref:`Simple transformations <public-joins>` tutorial.
 
         ..
             >>> from tmlt.analytics import (
@@ -495,7 +495,7 @@ class QueryBuilder:
         privacy ID columns must have the same name, and be in the same ID space.
 
         An example of a private join can be found in the
-        :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorial.
+        :ref:`Doing more with privacy IDs <advanced-privacy-ids>` tutorial.
 
         ..
             >>> from tmlt.analytics import (
@@ -1156,7 +1156,7 @@ class QueryBuilder:
         and that DECIMAL columns may contain NaN or infinite values.
 
         An illustrated example can be found in the
-        :ref:`Simple transformations <Maps>` tutorial.
+        :ref:`Simple transformations <maps>` tutorial.
 
         ..
             >>> from tmlt.analytics import (
@@ -1264,8 +1264,8 @@ class QueryBuilder:
         :class:`~tmlt.analytics.ProtectedChange`. Otherwise, it
         is required (and enforced).
 
-        The :ref:`Simple transformations <Flat maps>` and
-        :ref:`Doing more with privacy IDs <Advanced IDs features>` tutorials
+        The :ref:`Simple transformations <flat-maps>` and
+        :ref:`Doing more with privacy IDs <advanced-privacy-ids>` tutorials
         contain illustrated examples of flat maps.
 
         ..
@@ -1509,7 +1509,7 @@ class QueryBuilder:
         """Creates a new column by assigning the values in a given column to bins.
 
         An illustrated example can be found in the
-        :ref:`Simple transformations <Binning>` tutorial.
+        :ref:`Simple transformations <binning>` tutorial.
 
         ..
             >>> from tmlt.analytics import (
@@ -1881,7 +1881,8 @@ class QueryBuilder:
         The aggregation will return one row for each key in the KeySet; other
         values present in the data will be discarded.
 
-        More information can be found in the :ref:`Group-by queries` tutorial.
+        More information can be found in the :ref:`Group-by queries<group-by-queries>`
+        tutorial.
 
         .. warning::
             A KeySet containing null values for a column cannot be used on a table where
@@ -2480,8 +2481,8 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -2566,8 +2567,8 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -2652,7 +2653,7 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            Consult the :ref:`Numerical aggregations <Clamping bounds>` tutorial
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
             for more information.
 
         ..
@@ -2738,8 +2739,8 @@ class QueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -3314,8 +3315,8 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -3411,8 +3412,8 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -3508,8 +3509,8 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (
@@ -3606,8 +3607,8 @@ class GroupedQueryBuilder:
             #. The clamping bounds are assumed to be public information. Avoid using \
                 the private data to set these values.
 
-            More information can be found in the :ref:`Numerical aggregations
-            <Clamping bounds>` tutorial.
+            Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
+            for more information.
 
         ..
             >>> from tmlt.analytics import (

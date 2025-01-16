@@ -14,7 +14,6 @@ stages:
   - setup
   - lint
   - test
-  - docs
   - benchmark
   - test-release
   - release
@@ -108,10 +107,6 @@ test:
       allow_failure: true
   tags: [aws-c6a.xlarge]
 
-test_docs:
-  extends: test
-  script:
-    - nox -s test_doctest
 
 test_demos:
   extends: test
@@ -161,27 +156,6 @@ test_dep_matrix:
   tags: [aws-c6a.xlarge]
   interruptible: true
 
-docs:
-  extends: .base
-  stage: docs
-  needs: ["package"]
-  script:
-    - nox -t docs
-    # Remove Sphinx build cache before saving, as it is large and isn't needed anymore.
-    - rm -r public/.doctrees
-  artifacts:
-    paths:
-      - public/
-    expose_as: "Documentation"
-  timeout: 1h
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "trigger" || $PARENT_PIPELINE_ID'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-    - if: '$CI_COMMIT_TAG'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - when: manual
-      allow_failure: true
 
 benchmark_nightly:
   extends: .base
@@ -286,57 +260,6 @@ publish:
     - if: '$CI_COMMIT_TAG'
   interruptible: false
 
-# This job requires the DOCS_TOKEN_USER and DOCS_TOKEN variables to be set. They
-# should be the name and token of a project access token from the
-# tumult-labs/ops/docs.tmlt.dev project with the read_repository and
-# write_repository permissions. The bot user for this token must have permission
-# to push the protected `prod` branch.
-publish_docs:
-  stage: release
-  dependencies: [docs]
-  image: registry.gitlab.com/tumult-labs/ops/ci/ci-full:latest
-  variables:
-    GIT_STRATEGY: none
-    DOCS_GIT: "https://$DOCS_TOKEN_USER:$DOCS_TOKEN@gitlab.com/tumult-labs/ops/docs.tmlt.dev.git"
-    DOCS_ROOT: "docs.tmlt.dev/public/analytics"
-  before_script:
-    - |
-      if [[ -z "$DOCS_TOKEN_USER" || -z "$DOCS_TOKEN" ]]; then
-        echo "Credentials for publishing to docs repo are not set"
-        exit 1
-      fi
-    - |
-      if [[ -z "$CI_COMMIT_TAG" ]]; then
-        version="$CI_COMMIT_BRANCH"
-        docs_version="$version"
-      else
-        version="$CI_COMMIT_TAG"
-        # Check if this tag is a pre-release.
-        if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
-          echo "Version $version is a pre-release, skipping docs publication."
-          exit 0
-        fi
-        # Convert X.Y.Z semantic version to vX.Y for docs.
-        docs_version="v$(echo $version | sed -E 's/^([[:digit:]]+\.[[:digit:]]+).*/\1/')"
-      fi
-    - echo "Publishing version $version as $docs_version..."
-  script:
-    - git clone $DOCS_GIT
-    # Remove old docs published as this version, if any
-    - rm -rf $DOCS_ROOT/$docs_version
-    - mv public/ $DOCS_ROOT/$docs_version
-    - cd docs.tmlt.dev
-    - git config user.name "gitlab"
-    - git config user.email "gitlab@tmlt.io"
-    - git add public
-    - git diff --staged --stat
-    - git commit -m "[auto] Publish docs for $version ($CI_COMMIT_SHORT_SHA)" --author "$CI_COMMIT_AUTHOR"
-    - git push
-  timeout: 3m
-  interruptible: false
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_TAG'
 
 # Requires the following CI variables to be set:
 # * RELEASE_SLACK_WEBHOOK_URL, a Slack incoming webhook for posting to the appropriate

@@ -8,7 +8,7 @@ readme = "README.md"
 authors = []
 homepage = "https://www.tmlt.dev/"
 repository = "https://gitlab.com/tumult-labs/analytics"
-documentation = "https://docs.tmlt.dev/analytics/latest"
+documentation = "https://docs.tmlt.dev/platform/latest"
 
 # The version field is required in this file format, even though it's ignored because of poetry-dynamic-versioning.
 version = "0.0.0"
@@ -108,8 +108,9 @@ sphinx-autoapi = "^3.1.1"
 sphinx-autodoc-typehints = "^2.0.1"
 sphinx-automodapi = "^0.17.0"
 sphinx-copybutton = "^0.5.2"
-sphinxcontrib-bibtex = "^2.6.2"
 sphinx-design = "^0.5.0"
+sphinx-reredirects = "^0.1.5"
+sphinxcontrib-bibtex = "^2.6.2"
 sphinxcontrib-images = "^0.9.4"
 
 # Needed for examples, and for testing examples

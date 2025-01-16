@@ -6,8 +6,8 @@
 
 SHELL = /bin/bash
 
-.PHONY: lint test test-fast test-slow test-doctest test-examples \
-        docs docs-linkcheck docs-doctest package
+.PHONY: lint test test-fast test-slow test-doctest test-examples package
+
 # This causes all targets to execute their entire script within a single shell,
 # as opposed to using a subshell per line. See
 # https://www.gnu.org/software/make/manual/html_node/One-Shell.html.
@@ -27,12 +27,6 @@ test-doctest:
 test-examples:
 	nox --no-venv -s test_examples
 
-docs:
-	nox --no-venv -s docs
-docs-linkcheck:
-	nox --no-venv -s docs_linkcheck
-docs-doctest:
-	nox --no-venv -s docs_doctest
 
 package:
 	nox --no-venv -s build
@@ -58,7 +52,9 @@ tmlt/**/spark-warehouse/
 test/**/spark-warehouse/
 examples/spark-warehouse/
 .mypy_cache/
-doc/reference/api
+doc/analytics/api
+doc/synthetics/api
+doc/tune/api
 endef
 
 .PHONY: clean

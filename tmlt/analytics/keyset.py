@@ -1,9 +1,8 @@
 """A KeySet specifies a list of values for one or more columns.
 
-They are used as input to the
-:meth:`~tmlt.analytics.QueryBuilder.groupby` method to build
-group-by queries. An introduction to KeySets can be found in the
-:ref:`Group-by queries` tutorial.
+They are used as input to the :meth:`~tmlt.analytics.QueryBuilder.groupby` method to
+build group-by queries. An introduction to KeySets can be found in the :ref:`Group-by
+queries<group-by-queries>` tutorial.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -127,8 +126,8 @@ class KeySet(ABC):
 
     KeySets can be constructed using :meth:`~.KeySet.from_dict`,
     :meth:`~.KeySet.from_tuples`, or :meth:`~.KeySet.from_dataframe`. An introduction to
-    KeySet initialization and manipulation can be found in the :ref:`Group-by queries`
-    tutorial.
+    KeySet initialization and manipulation can be found in the
+    :ref:`Group-by queries<group-by-queries>` tutorial.
     """
 
     @classmethod
