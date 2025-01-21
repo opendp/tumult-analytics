@@ -118,6 +118,9 @@ def test_frozen_dict():
     assert a.get("a") == 1
     assert a.get("c", 10) == 10
 
+    assert dict(a | b) == dict(a) | dict(b)
+    assert list((a | b).keys()) == ["a", "b", "x", "y"]
+
 
 def test_frozen_dict_order():
     """FrozenDict preserves element order when converting to/from a dict."""

@@ -107,6 +107,15 @@ class FrozenDict(Mapping):
         """Hashes a FrozenDict based on the tuple of elements."""
         return hash(self.elements)
 
+    def __or__(self, other):
+        """Merge a dict or FrozenDict with this one, producing a new FrozenDict."""
+        if not isinstance(other, (dict, FrozenDict)):
+            raise TypeError(
+                "unsupported operand type(s) for |: "
+                f"'{type(self).__name__}' and '{type(other).__name__}'"
+            )
+        return FrozenDict.from_dict(dict(self) | dict(other))
+
 
 class ColumnType(Enum):
     """The supported SQL92 column types used by Tumult Analytics.
