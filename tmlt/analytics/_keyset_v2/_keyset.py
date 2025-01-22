@@ -239,12 +239,12 @@ class KeySet:
             )
         if isinstance(other, KeySet):
             return KeySet(
-                CrossJoin(self._op_tree, other._op_tree),
+                CrossJoin((self._op_tree, other._op_tree)),
                 columns=self.columns() + other.columns(),
             )
         else:
             return KeySetPlan(
-                CrossJoin(self._op_tree, other._op_tree),
+                CrossJoin((self._op_tree, other._op_tree)),
                 columns=self.columns() + other.columns(),
             )
 
@@ -580,7 +580,7 @@ class KeySetPlan:
                 f"{type(other).__qualname__}, as right-hand value."
             )
         return KeySetPlan(
-            CrossJoin(self._op_tree, other._op_tree),
+            CrossJoin((self._op_tree, other._op_tree)),
             columns=self.columns() + other.columns(),
         )
 

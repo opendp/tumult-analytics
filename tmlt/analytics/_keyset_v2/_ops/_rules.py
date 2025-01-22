@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2025
 
 from functools import reduce, wraps
-from typing import Callable, Type, Union
+from typing import Callable
 
 from tmlt.analytics import AnalyticsInternalError
 
@@ -19,31 +19,29 @@ from ._project import Project
 from ._subtract import Subtract
 
 
-def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
+def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
     """Recursively apply the given method to an op-tree, depth-first."""
 
-    @wraps(f)
+    @wraps(func)
     def wrapped(op: KeySetOp) -> KeySetOp:
         if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
-            return f(op)
+            return func(op)
         elif isinstance(op, CrossJoin):
-            left = wrapped(op.left)
-            right = wrapped(op.right)
-            return f(CrossJoin(left, right))
+            return func(CrossJoin(tuple(wrapped(f) for f in op.factors)))
         elif isinstance(op, Join):
             left = wrapped(op.left)
             right = wrapped(op.right)
-            return f(Join(left, right))
+            return func(Join(left, right))
         elif isinstance(op, Project):
             child = wrapped(op.child)
-            return f(Project(child, op.projected_columns))
+            return func(Project(child, op.projected_columns))
         elif isinstance(op, Filter):
             child = wrapped(op.child)
-            return f(Filter(child, op.condition))
+            return func(Filter(child, op.condition))
         elif isinstance(op, Subtract):
             left = wrapped(op.left)
             right = wrapped(op.right)
-            return f(Subtract(left, right))
+            return func(Subtract(left, right))
         else:
             raise AnalyticsInternalError(
                 f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
@@ -52,7 +50,9 @@ def depth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySe
     return wrapped
 
 
-def breadth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
+def breadth_first(
+    func: Callable[[KeySetOp], KeySetOp]
+) -> Callable[[KeySetOp], KeySetOp]:
     """Recursively apply the given method to an op-tree, breadth-first.
 
     "Breadth-first" is a bit fuzzy in this case, as the op-tree being operated
@@ -64,16 +64,16 @@ def breadth_first(f: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Key
     applied -- be careful not to do this.
     """
 
-    @wraps(f)
+    @wraps(func)
     def wrapped(op: KeySetOp) -> KeySetOp:
-        new_op = f(op)
+        new_op = func(op)
         if new_op != op:
             return wrapped(new_op)
 
         if isinstance(new_op, (Detect, FromTuples, FromSparkDataFrame)):
             return new_op
         elif isinstance(new_op, CrossJoin):
-            return CrossJoin(wrapped(new_op.left), wrapped(new_op.right))
+            return CrossJoin(tuple(wrapped(f) for f in new_op.factors))
         elif isinstance(new_op, Join):
             return Join(wrapped(new_op.left), wrapped(new_op.right))
         elif isinstance(new_op, Project):
@@ -99,25 +99,22 @@ def project_across_crossjoin(op: KeySetOp) -> KeySetOp:
     CrossJoin. This significantly improves performance, and allows KeySets like
     ``AB["A"] * C`` and ``(AB * C)["A", "C"]`` to be recognized as equivalent.
 
-    If the Project operation only keeps columns from one side of the CrossJoin,
-    the other side may be dropped entirely, in which case the CrossJoin is
-    removed and the Project applied directly to its relevant child.
+    If the Project operation doesn't keep any columns from a CrossJoin factor,
+    that factor is dropped. If all but one factor is dropped, the CrossJoin is
+    removed altogether.
     """
     if not isinstance(op, Project) or not isinstance(op.child, CrossJoin):
         return op
 
-    left_overlap = op.projected_columns & set(op.child.left.columns())
-    right_overlap = op.projected_columns & set(op.child.right.columns())
-
-    if not left_overlap:
-        return Project(op.child.right, op.projected_columns)
-    if not right_overlap:
-        return Project(op.child.left, op.projected_columns)
-
-    return CrossJoin(
-        Project(op.child.left, left_overlap),
-        Project(op.child.right, right_overlap),
+    included_factors = tuple(
+        Project(f, frozenset(f.columns() & op.projected_columns))
+        for f in op.child.factors
+        if f.columns() & op.projected_columns
     )
+    if len(included_factors) == 1:
+        return included_factors[0]
+
+    return CrossJoin(included_factors)
 
 
 @depth_first
@@ -146,17 +143,46 @@ def remove_noop_projections(op: KeySetOp) -> KeySetOp:
     return op
 
 
+@depth_first
+def merge_cross_joins(op: KeySetOp) -> KeySetOp:
+    """Merge adjacent CrossJoin operations."""
+    if not isinstance(op, CrossJoin):
+        return op
+
+    factors: list[KeySetOp] = []
+    for f in op.factors:
+        if isinstance(f, CrossJoin):
+            factors.extend(f.factors)
+        else:
+            factors.append(f)
+
+    if len(factors) == 1:
+        return factors[0]
+    return CrossJoin(tuple(factors))
+
+
+@depth_first
+def order_cross_joins(op: KeySetOp) -> KeySetOp:
+    """Order the factors in each CrossJoin in a standard way."""
+    if not isinstance(op, CrossJoin):
+        return op
+
+    return CrossJoin(
+        tuple(sorted(op.factors, key=lambda f: tuple(sorted(f.columns()))))
+    )
+
+
 def normalize_joins(op: KeySetOp) -> KeySetOp:
-    r"""Restructure Joins and CrossJoins into a consistent layout.
+    r"""Restructure Joins into a consistent layout.
 
     This rewrite rule applies two related changes to collections of nested
-    Join or CrossJoin operations to ensure a common structure:
+    Join operations to ensure a common structure:
     * The joins are restructured such that only the right subtree of a
       join can be another join.
     * The leaves of this collection of joins are sorted by their columns,
       with the first near the top.
 
-    As an example (where `*` represents a Join/CrossJoin operation), it would
+    As an example (where `*` represents a Join operation), it would
     make the following transformation:
 
     ::
@@ -173,6 +199,8 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     would be transformed such that the child whose column list is first in the
     sort becomes the left child and the other becomes the right child.
     """
+    if isinstance(op, CrossJoin):
+        return CrossJoin(tuple(normalize_joins(f) for f in op.factors))
     if isinstance(op, Project):
         return Project(normalize_joins(op.child), op.projected_columns)
     if isinstance(op, Filter):
@@ -182,11 +210,7 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     if isinstance(op, Subtract):
         return Subtract(normalize_joins(op.left), normalize_joins(op.right))
 
-    if isinstance(op, Join):
-        join_type: Union[Type[Join], Type[CrossJoin]] = Join
-    elif isinstance(op, CrossJoin):
-        join_type = CrossJoin
-    else:
+    if not isinstance(op, Join):
         raise AnalyticsInternalError(
             f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
         )
@@ -195,28 +219,27 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     joins = [op]
     while joins:
         current = joins.pop()
-        # Mypy really doesn't like this, but we know that current must be either
-        # a Join or a CrossJoin.
-        for child in (current.left, current.right):  # type: ignore
-            if isinstance(child, join_type):
+        for child in (current.left, current.right):
+            if isinstance(child, Join):
                 joins.append(child)
             else:
                 leaves.append(normalize_joins(child))
 
     # Reversing the sort and swapping the right/left parameters in the reduce
     # produces a tree where the topmost leaf is the first in the un-reversed
-    # order. For example, for a cross-join with three factors A, B, and C, it
-    # produces CrossJoin(A, CrossJoin(B, C)). There's not a technical reason to
+    # order, for example Join(AB, Join(BC, CD)). There's not a technical reason to
     # prefer that ordering over a different one, it's just the most obvious one
     # when reading off the op-tree.
     leaves.sort(key=lambda v: tuple(sorted(v.columns())), reverse=True)
-    return reduce(lambda r, l: join_type(l, r), leaves)
+    return reduce(lambda r, l: Join(l, r), leaves)
 
 
 _REWRITE_RULES = [
     project_across_crossjoin,
     collapse_nested_projections,
     remove_noop_projections,
+    merge_cross_joins,
+    order_cross_joins,
     normalize_joins,
 ]
 """A list of all rewrite rules that will be applied, in order.
