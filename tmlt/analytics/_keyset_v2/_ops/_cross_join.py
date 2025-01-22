@@ -70,9 +70,15 @@ class CrossJoin(KeySetOp):
 
         left = self.left.dataframe()
         right = self.right.dataframe()
-        if left.rdd.getNumPartitions() > 2 * partition_target:
+        left_partitions = left.rdd.getNumPartitions()
+        right_partitions = right.rdd.getNumPartitions()
+        if left_partitions == 1:
+            left = left.repartition(2)
+        elif left_partitions > 2 * partition_target:
             left = left.coalesce(partition_target)
-        if right.rdd.getNumPartitions() > 2 * partition_target:
+        if right_partitions == 1:
+            right = right.repartition(2)
+        if right_partitions > 2 * partition_target:
             right = right.coalesce(partition_target)
 
         return left.crossJoin(right)

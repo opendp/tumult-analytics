@@ -60,7 +60,7 @@ class FromTuples(KeySetOp):
         # only for large keysets.
         return spark.createDataFrame(
             spark.sparkContext.parallelize(
-                self.tuples, numSlices=2 + len(self.tuples) // 16384
+                self.tuples, numSlices=2 + len(self.tuples) // 1024
             ),
             schema=schema,
         )
