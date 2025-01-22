@@ -15,7 +15,7 @@ class KeySetOp(ABC):
     """Base class for operations used to define KeySets."""
 
     @abstractmethod
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         r"""Get a list of the columns included in the output of this operation.
 
         The column order of a :class:`KeySetOp` is an implementation detail, and

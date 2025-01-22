@@ -33,7 +33,7 @@ class Filter(KeySetOp):
         if isinstance(self.condition, str) and self.condition == "":
             raise ValueError("A KeySet cannot be filtered by an empty condition.")
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
         return self.child.columns()
 

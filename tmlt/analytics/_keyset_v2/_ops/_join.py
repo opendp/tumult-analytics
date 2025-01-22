@@ -48,9 +48,9 @@ class Join(KeySetOp):
     def _join_columns(self) -> set[str]:
         return set(self.left.columns()) & set(self.right.columns())
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return list(dict.fromkeys(self.left.columns() + self.right.columns()))
+        return self.left.columns() | self.right.columns()
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation."""

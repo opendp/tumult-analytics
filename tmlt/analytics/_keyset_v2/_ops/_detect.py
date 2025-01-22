@@ -29,9 +29,9 @@ class Detect(KeySetOp):
             )
         validate_column_names(self.detect_columns)
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return list(self.detect_columns)
+        return set(self.detect_columns)
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation.

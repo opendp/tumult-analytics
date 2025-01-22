@@ -32,14 +32,14 @@ class Subtract(KeySetOp):
                 "Cannot subtract a KeySetPlan from a KeySet or KeySetPlan."
             )
 
-        non_subset_columns = set(self.right.columns()) - set(self.left.columns())
+        non_subset_columns = self.right.columns() - self.left.columns()
         if non_subset_columns:
             raise ValueError(
                 "Unable to subtract KeySets, right hand side has columns that "
                 f"do not exist in the left hand side: {', '.join(non_subset_columns)}"
             )
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
         return self.left.columns()
 
@@ -56,7 +56,7 @@ class Subtract(KeySetOp):
         return join(
             self.left.dataframe(),
             self.right.dataframe(),
-            on=self.right.columns(),
+            on=list(self.right.columns()),
             how="left_anti",
             nulls_are_equal=True,
         )

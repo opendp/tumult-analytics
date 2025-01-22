@@ -54,9 +54,9 @@ class Project(KeySetOp):
                 f"KeySet, available columns are: {', '.join(self.child.columns())}"
             )
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return list(self.projected_columns)
+        return set(self.projected_columns)
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation."""

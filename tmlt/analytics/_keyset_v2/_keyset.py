@@ -61,7 +61,7 @@ class KeySet:
                 "KeySet columns are not all distict, duplicates are: "
                 + " ".join(c for c, count in column_counts.items() if count > 1)
             )
-        if set(op_tree.columns()) != set(columns):
+        if op_tree.columns() != set(columns):
             raise AnalyticsInternalError(
                 f"KeySet columns {columns} do not match "
                 f"the columns of its op-tree {op_tree.columns()}."
@@ -547,7 +547,7 @@ class KeySetPlan:
                 "KeySetPlan must be generated with a plan "
                 "including partition selection."
             )
-        if set(op_tree.columns()) != set(columns):
+        if op_tree.columns() != set(columns):
             raise AnalyticsInternalError(
                 f"KeySet columns {columns} do not match "
                 f"the columns of its op-tree {op_tree.columns()}."

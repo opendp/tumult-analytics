@@ -37,9 +37,9 @@ class FromTuples(KeySetOp):
         if len(self.column_descriptors) == 0 and len(self.tuples) > 0:
             raise ValueError("A KeySet with no columns must not have any rows.")
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return list(self.column_descriptors.keys())
+        return set(self.column_descriptors.keys())
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation."""

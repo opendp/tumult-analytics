@@ -34,9 +34,9 @@ class CrossJoin(KeySetOp):
                 f"overlapping columns: {' '.join(overlapping_columns)}"
             )
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return self.left.columns() + self.right.columns()
+        return self.left.columns() | self.right.columns()
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation."""
@@ -53,9 +53,9 @@ class CrossJoin(KeySetOp):
         # factor. A Spark crossjoin produces an empty dataframe in this case
         # because the total aggregation has no rows, so skip the cross-join in
         # those cases.
-        if self.left.columns() == []:
+        if len(self.left.columns()) == 0:
             return self.right.dataframe()
-        if self.right.columns() == []:
+        if len(self.right.columns()) == 0:
             return self.left.dataframe()
 
         # Repeated Spark crossjoins can have terrible performance if the number

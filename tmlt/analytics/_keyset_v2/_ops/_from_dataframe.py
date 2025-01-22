@@ -27,9 +27,9 @@ class FromSparkDataFrame(KeySetOp):
         if len(self.columns()) == 0 and not self.df.isEmpty():
             raise ValueError("A KeySet with no columns must not have any rows.")
 
-    def columns(self) -> list[str]:
+    def columns(self) -> set[str]:
         """Get a list of the columns included in the output of this operation."""
-        return list(self.df.columns)
+        return set(self.df.columns)
 
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation."""
