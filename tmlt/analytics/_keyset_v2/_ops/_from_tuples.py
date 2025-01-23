@@ -67,7 +67,7 @@ class FromTuples(KeySetOp):
 
     def is_empty(self) -> bool:
         """Determine whether the dataframe corresponding to this operation is empty."""
-        return len(self.tuples) == 0
+        return len(self.column_descriptors) > 0 and len(self.tuples) == 0
 
     def is_plan(self) -> bool:
         """Determine whether this plan has any parts requiring partition selection."""
@@ -98,3 +98,7 @@ class FromTuples(KeySetOp):
             for col, desc in self.column_descriptors.items()
         )
         return f"FromTuples ({len(self.tuples)} rows)\n  {cols}"
+
+    def __iter__(self):
+        """Return an iterator of tuples corresponding to keys."""
+        return iter(self.tuples)

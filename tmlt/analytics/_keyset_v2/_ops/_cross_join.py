@@ -3,18 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+from __future__ import annotations
+
+import itertools
 import operator
 import textwrap
 from dataclasses import dataclass
 from functools import reduce
-from typing import Literal, Optional, overload
+from typing import Iterator, Literal, Optional, overload
 
 from pyspark.sql import DataFrame, SparkSession
 
 from tmlt.analytics import AnalyticsInternalError
-from tmlt.analytics._schema import ColumnDescriptor
+from tmlt.analytics._schema import ColumnDescriptor, Schema, analytics_to_spark_schema
 
 from ._base import KeySetOp
+from ._from_tuples import FromTuples
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,65 @@ class CrossJoin(KeySetOp):
 
     def __str__(self):
         """Human-readable string representation."""
-        return "CrossJoin\n" + "\n".join(
+        return f"{type(self).__name__}\n" + "\n".join(
             textwrap.indent(str(f), "  ") for f in self.factors
+        )
+
+
+@dataclass(frozen=True)
+class InMemoryCrossJoin(CrossJoin):
+    """A specialized CrossJoin where the join is performed directly in Python.
+
+    All factors of an InMemoryCrossJoin must be instances of FromTuples, and
+    they must all contain columns -- factors that would correspond to a total
+    aggregation are not allowed.
+    """
+
+    factors: tuple[FromTuples, ...]
+
+    def __post_init__(self):
+        """Validation."""
+        super().__post_init__()
+
+        if not all(
+            isinstance(f, (FromTuples, InMemoryCrossJoin)) for f in self.factors
+        ):
+            raise AnalyticsInternalError(
+                "InMemoryCrossJoin instantiated with invalid factor type."
+            )
+        if any(len(f.columns()) == 0 for f in self.factors):
+            raise AnalyticsInternalError(
+                "InMemoryCrossJoin instantiated with total-aggregation factor."
+            )
+
+    def dataframe(self):
+        """Generate the Spark dataframe corresponding to this operation.
+
+        This operation may be computationally expensive, even though the full
+        dataframe is not evaluated until it is used elsewhere.
+        """
+        schema = analytics_to_spark_schema(
+            Schema(reduce(operator.or_, (f.column_descriptors for f in self.factors)))
+        )
+        spark = SparkSession.builder.getOrCreate()
+
+        size = self.size(fast=True)
+        if size is None:
+            raise AnalyticsInternalError(
+                "Size of CrossJoinFromTuples should always be able to "
+                "be determined quickly."
+            )
+        return spark.createDataFrame(
+            spark.sparkContext.parallelize(iter(self), numSlices=2 + size // 1024),
+            schema=schema,
+        )
+
+    def __iter__(self) -> Iterator[tuple]:
+        """Return an iterator of tuples corresponding to keys."""
+        # Compute Cartesian product of factors with itertools.product, then
+        # flatten the inner tuples with from_iterable and convert to a single
+        # tuple per row.
+        return map(
+            lambda l: tuple(itertools.chain.from_iterable(l)),
+            itertools.product(*self.factors),
         )

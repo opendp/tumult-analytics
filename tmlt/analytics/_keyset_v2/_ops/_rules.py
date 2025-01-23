@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+from collections import deque
 from functools import reduce, wraps
-from typing import Callable
+from typing import Callable, cast
 
 from tmlt.analytics import AnalyticsInternalError
 
 from ._base import KeySetOp
-from ._cross_join import CrossJoin
+from ._cross_join import CrossJoin, InMemoryCrossJoin
 from ._detect import Detect
 from ._filter import Filter
 from ._from_dataframe import FromSparkDataFrame
@@ -17,6 +18,9 @@ from ._from_tuples import FromTuples
 from ._join import Join
 from ._project import Project
 from ._subtract import Subtract
+
+_IN_MEMORY_CROSS_JOIN_THRESHOLD = 2**20
+"""The maximum number of output rows where an InMemoryCrossJoin will be applied."""
 
 
 def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
@@ -27,7 +31,7 @@ def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Ke
         if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
             return func(op)
         elif isinstance(op, CrossJoin):
-            return func(CrossJoin(tuple(wrapped(f) for f in op.factors)))
+            return func(type(op)(tuple(wrapped(f) for f in op.factors)))
         elif isinstance(op, Join):
             left = wrapped(op.left)
             right = wrapped(op.right)
@@ -73,7 +77,7 @@ def breadth_first(
         if isinstance(new_op, (Detect, FromTuples, FromSparkDataFrame)):
             return new_op
         elif isinstance(new_op, CrossJoin):
-            return CrossJoin(tuple(wrapped(f) for f in new_op.factors))
+            return type(new_op)(tuple(wrapped(f) for f in new_op.factors))
         elif isinstance(new_op, Join):
             return Join(wrapped(new_op.left), wrapped(new_op.right))
         elif isinstance(new_op, Project):
@@ -145,7 +149,16 @@ def remove_noop_projections(op: KeySetOp) -> KeySetOp:
 
 @depth_first
 def merge_cross_joins(op: KeySetOp) -> KeySetOp:
-    """Merge adjacent CrossJoin operations."""
+    """Merge adjacent CrossJoin operations.
+
+    When one CrossJoin operation is a factor of another, combine the two into a
+    single, bigger CrossJoin. Also drops any factors corresponding to total
+    aggregations, as these do not affect the resulting set of keys.
+
+    Note that this will convert InMemoryCrossJoin back into CrossJoin if an
+    InMemoryCrossJoin is a child of a CrossJoin. This is desirable, as it allows
+    recomputing the in-memory groups to potentially include the new factors.
+    """
     if not isinstance(op, CrossJoin):
         return op
 
@@ -156,9 +169,15 @@ def merge_cross_joins(op: KeySetOp) -> KeySetOp:
         else:
             factors.append(f)
 
-    if len(factors) == 1:
+    non_total_factors = [f for f in factors if len(f.columns()) > 0]
+
+    # If all of the factors correspond to total aggregations, just pick one and
+    # return it.
+    if len(non_total_factors) == 0:
         return factors[0]
-    return CrossJoin(tuple(factors))
+    elif len(non_total_factors) == 1:
+        return non_total_factors[0]
+    return CrossJoin(tuple(non_total_factors))
 
 
 @depth_first
@@ -167,9 +186,75 @@ def order_cross_joins(op: KeySetOp) -> KeySetOp:
     if not isinstance(op, CrossJoin):
         return op
 
-    return CrossJoin(
-        tuple(sorted(op.factors, key=lambda f: tuple(sorted(f.columns()))))
+    return type(op)(tuple(sorted(op.factors, key=lambda f: tuple(sorted(f.columns())))))
+
+
+@depth_first
+def apply_cross_joins_in_memory(op: KeySetOp) -> KeySetOp:
+    """Apply small cross-joins of FromTuples using InMemoryCrossJoin.
+
+    Assumes that merge_cross_joins has already been applied, as
+    total-aggregation factors are not allowed by InMemoryCrossJoin.
+    """
+    # Don't re-apply this rule to InMemoryCrossJoin, as they're already assumed
+    # to be structured appropriately, and don't apply it to plans because
+    # optimizing conversion to a dataframe isn't relevant if the KeySetOp can't
+    # be converted to a dataframe.
+    if (
+        not isinstance(op, CrossJoin)
+        or isinstance(op, InMemoryCrossJoin)
+        or op.is_plan()
+    ):
+        return op
+
+    large_factors = []
+    small_factors = []
+    for f in op.factors:
+        size = f.size(fast=True)
+        if (
+            isinstance(f, FromTuples)
+            and size is not None
+            and size < _IN_MEMORY_CROSS_JOIN_THRESHOLD // 2
+        ):
+            small_factors.append(f)
+        else:
+            large_factors.append(f)
+
+    # Not enough factors small enough to optimize, just return the original op
+    if len(small_factors) < 2:
+        return op
+
+    in_memory_factor_iter = cast(
+        list[tuple[int, FromTuples]],
+        [(f.size(fast=True), f) for f in small_factors],
     )
+    if any(f[0] is None for f in in_memory_factor_iter):
+        raise AnalyticsInternalError(
+            "Size of CrossJoinFromTuples should always be able to "
+            "be determined quickly."
+        )
+
+    in_memory_factors = deque(sorted(in_memory_factor_iter, key=lambda t: t[0]))
+
+    while in_memory_factors:
+        size, large_f = in_memory_factors.pop()
+        group = [large_f]
+        while (
+            in_memory_factors
+            and in_memory_factors[0][0] * size < _IN_MEMORY_CROSS_JOIN_THRESHOLD
+        ):
+            small_size, small_f = in_memory_factors.popleft()
+            size *= small_size
+            group.append(small_f)
+
+        if len(group) == 1:
+            large_factors.append(group[0])
+        else:
+            large_factors.append(InMemoryCrossJoin(tuple(group)))
+
+    if len(large_factors) == 1:
+        return large_factors[0]
+    return CrossJoin(tuple(large_factors))
 
 
 def normalize_joins(op: KeySetOp) -> KeySetOp:
@@ -200,7 +285,7 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     sort becomes the left child and the other becomes the right child.
     """
     if isinstance(op, CrossJoin):
-        return CrossJoin(tuple(normalize_joins(f) for f in op.factors))
+        return type(op)(tuple(normalize_joins(f) for f in op.factors))
     if isinstance(op, Project):
         return Project(normalize_joins(op.child), op.projected_columns)
     if isinstance(op, Filter):
@@ -240,6 +325,7 @@ _REWRITE_RULES = [
     remove_noop_projections,
     merge_cross_joins,
     order_cross_joins,
+    apply_cross_joins_in_memory,
     normalize_joins,
 ]
 """A list of all rewrite rules that will be applied, in order.
