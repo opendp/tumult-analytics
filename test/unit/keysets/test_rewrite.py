@@ -8,7 +8,7 @@ to hit known-tricky pieces of the rewriting logic.
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Callable
+from typing import Callable, Optional
 from unittest.mock import patch
 
 import pandas as pd
@@ -150,16 +150,52 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
             - KeySet.from_tuples([(4, 7)], columns=["B", "C"])
         )
     ),
+    Case("extract_crossjoin_from_join_left")(
+        ks=lambda spark: (
+            KeySet.from_tuples([(2, 8), (4, 10)], columns=["B", "C"])
+            * KeySet.from_dict({"D": [1, 2], "E": [3]})
+        ).join(KeySet.from_tuples([(1, 2), (3, 4), (5, 6)], columns=["A", "B"]))
+    ),
+    Case("extract_crossjoin_from_join_right")(
+        ks=lambda spark: KeySet.from_tuples(
+            [(1, 2), (3, 4), (5, 6)], columns=["A", "B"]
+        ).join(
+            KeySet.from_tuples([(2, 8), (4, 10)], columns=["B", "C"])
+            * KeySet.from_dict({"D": [1, 2], "E": [3]})
+        )
+    ),
+    Case("extract_crossjoin_from_join_both")(
+        ks=lambda spark: (
+            KeySet.from_tuples([(1, 2), (3, 4), (5, 6)], columns=["A", "B"])
+            * KeySet.from_dict({"D": [1, 2]})
+        ).join(
+            KeySet.from_tuples([(2, 8), (4, 10)], columns=["B", "C"])
+            * KeySet.from_dict({"E": [3]})
+        )
+    ),
+    Case("extract_crossjoin_from_join_neither")(
+        ks=lambda spark: (
+            KeySet.from_tuples([(1, 2), (3, 4)], columns=["A", "B"])
+            * KeySet.from_tuples([(5, 6), (7, 8)], columns=["C", "D"])
+        ).join(
+            KeySet.from_tuples([(1, 11), (3, 12)], columns=["A", "E"])
+            * KeySet.from_tuples([(13, 6), (14, 8)], columns=["F", "D"])
+        ),
+        allow_unchanged=True,
+    ),
 )
-def test_rewrite_equality(ks: Callable[[SparkSession], KeySet], spark):
+def test_rewrite_equality(
+    ks: Callable[[SparkSession], KeySet], allow_unchanged: Optional[bool], spark
+):
     """Rewritten KeySets have the same semantics as the original ones."""
     ks_rewritten = ks(spark)
     with patch("tmlt.analytics._keyset_v2._keyset.rewrite", lambda op: op):
         ks_original = ks(spark)
 
-    # Ensure that rewriting actually happened
-    # pylint: disable-next=protected-access
-    assert ks_rewritten._op_tree != ks_original._op_tree
+    if not allow_unchanged:
+        # Ensure that rewriting actually happened
+        # pylint: disable-next=protected-access
+        assert ks_rewritten._op_tree != ks_original._op_tree
 
     assert ks_rewritten.columns() == ks_original.columns()
     assert ks_rewritten.schema() == ks_original.schema()

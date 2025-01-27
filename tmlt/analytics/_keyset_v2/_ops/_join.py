@@ -28,7 +28,7 @@ class Join(KeySetOp):
 
     def __post_init__(self):
         """Validation."""
-        if not self._join_columns():
+        if not self.join_columns():
             raise ValueError(
                 "Unable to join KeySets, they have no "
                 f"overlapping columns (left: {' '.join(self.left.columns())}, "
@@ -36,7 +36,7 @@ class Join(KeySetOp):
             )
 
         if not self.is_plan():
-            for c in self._join_columns():
+            for c in self.join_columns():
                 l_type = self.left.schema()[c]
                 r_type = self.right.schema()[c]
                 if l_type.column_type != r_type.column_type:
@@ -45,7 +45,8 @@ class Join(KeySetOp):
                         f"same type in both KeySets (left: {l_type}, right: {r_type})."
                     )
 
-    def _join_columns(self) -> set[str]:
+    def join_columns(self) -> set[str]:
+        """The columns being joined on."""
         return set(self.left.columns()) & set(self.right.columns())
 
     def columns(self) -> set[str]:
@@ -60,7 +61,7 @@ class Join(KeySetOp):
             # allowed in both joined KeySets. For other columns (those appearing
             # only on the right), just add the column descriptor to the schema
             # as-is.
-            if c in self._join_columns():
+            if c in self.join_columns():
                 schema[c] = ColumnDescriptor(
                     schema[c].column_type,
                     allow_null=schema[c].allow_null and desc.allow_null,
@@ -79,7 +80,7 @@ class Join(KeySetOp):
         return join(
             self.left.dataframe(),
             self.right.dataframe(),
-            on=list(self._join_columns()),
+            on=list(self.join_columns()),
             nulls_are_equal=True,
         )
 

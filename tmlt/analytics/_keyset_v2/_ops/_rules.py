@@ -148,6 +148,54 @@ def remove_noop_projections(op: KeySetOp) -> KeySetOp:
 
 
 @depth_first
+def extract_crossjoin_from_join(op: KeySetOp) -> KeySetOp:
+    """Extract CrossJoin factors that aren't involved in the join from Joins.
+
+    For example, turn ``Join(CrossJoin(A, B), BC)`` into ``CrossJoin(A, Join(B, BC))``.
+    """
+    if not isinstance(op, Join):
+        return op
+
+    if isinstance(op.left, CrossJoin):
+        left_factors = op.left.factors
+    else:
+        left_factors = (op.left,)
+    if isinstance(op.right, CrossJoin):
+        right_factors = op.right.factors
+    else:
+        right_factors = (op.right,)
+
+    final_left_factors = []
+    final_right_factors = []
+    extracted_factors = []
+    for f in left_factors:
+        if f.columns() & op.join_columns():
+            final_left_factors.append(f)
+        else:
+            extracted_factors.append(f)
+    for f in right_factors:
+        if f.columns() & op.join_columns():
+            final_right_factors.append(f)
+        else:
+            extracted_factors.append(f)
+
+    if not extracted_factors:
+        return op
+
+    join_left = (
+        CrossJoin(tuple(final_left_factors))
+        if len(final_left_factors) > 1
+        else final_left_factors[0]
+    )
+    join_right = (
+        CrossJoin(tuple(final_right_factors))
+        if len(final_right_factors) > 1
+        else final_right_factors[0]
+    )
+    return CrossJoin(tuple(extracted_factors + [Join(join_left, join_right)]))
+
+
+@depth_first
 def merge_cross_joins(op: KeySetOp) -> KeySetOp:
     """Merge adjacent CrossJoin operations.
 
@@ -361,6 +409,10 @@ _REWRITE_RULES = [
     project_across_crossjoin,
     collapse_nested_projections,
     remove_noop_projections,
+    merge_cross_joins,
+    extract_crossjoin_from_join,
+    # Re-apply merge_cross_joins, as some cross-joins have been moved through
+    # other operations since it was last applied.
     merge_cross_joins,
     order_cross_joins,
     apply_cross_joins_in_memory,

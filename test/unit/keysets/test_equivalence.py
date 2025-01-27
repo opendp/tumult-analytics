@@ -128,6 +128,19 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         equal=True,
         equivalence_known=True,
     ),
+    Case("extract_crossjoin_from_join")(
+        ks1=KeySet.from_tuples([(1, 2), (3, 4), (5, 6)], columns=["A", "B"]).join(
+            KeySet.from_tuples([(2, 7), (4, 8)], columns=["B", "C"])
+            * KeySet.from_dict({"D": [1, 2], "E": [3]})
+        )
+        * KeySet.from_dict({"F": [11, 12]}),
+        ks2=KeySet.from_tuples([(1, 2), (3, 4), (5, 6)], columns=["A", "B"]).join(
+            KeySet.from_tuples([(2, 7), (4, 8)], columns=["B", "C"])
+        )
+        * KeySet.from_dict({"D": [1, 2], "E": [3], "F": [11, 12]}),
+        equal=True,
+        equivalence_known=True,
+    ),
 )
 def test_equivalence(
     ks1: KeySet, ks2: KeySet, equal: bool, equivalence_known: Optional[bool]
