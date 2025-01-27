@@ -131,6 +131,25 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
             * _from_df({"G": [7], "H": [8], "I": [9]}, spark)
         )["C", "D", "H"]
     ),
+    Case("subtract_reorder")(
+        ks=lambda spark: (
+            KeySet.from_dict({"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]})
+            - KeySet.from_tuples([(1, 7)], columns=["A", "C"])
+            - KeySet.from_tuples([(5, 2), (6, 2)], columns=["B", "A"])
+            - KeySet.from_tuples([(4, 7)], columns=["B", "C"])
+        )
+    ),
+    Case("subtract_reorder_nested")(
+        ks=lambda spark: (
+            KeySet.from_dict({"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]})
+            - KeySet.from_tuples([(1, 7)], columns=["A", "C"])
+            - (
+                KeySet.from_tuples([(5, 2), (6, 2)], columns=["B", "A"])
+                - KeySet.from_tuples([(6, 2)], columns=["B", "A"])
+            )
+            - KeySet.from_tuples([(4, 7)], columns=["B", "C"])
+        )
+    ),
 )
 def test_rewrite_equality(ks: Callable[[SparkSession], KeySet], spark):
     """Rewritten KeySets have the same semantics as the original ones."""

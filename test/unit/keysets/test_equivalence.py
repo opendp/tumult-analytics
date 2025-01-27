@@ -116,6 +116,18 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         equal=False,
         equivalence_known=True,
     ),
+    Case("subtraction_order")(
+        ks1=_KS_ABCDEF
+        - KeySet.from_dict({"A": [1, 2]})
+        - KeySet.from_dict({"E": [9]})
+        - KeySet.from_dict({"C": [6]}),
+        ks2=_KS_ABCDEF
+        - KeySet.from_dict({"C": [6]})
+        - KeySet.from_dict({"E": [9]})
+        - KeySet.from_dict({"A": [1, 2]}),
+        equal=True,
+        equivalence_known=True,
+    ),
 )
 def test_equivalence(
     ks1: KeySet, ks2: KeySet, equal: bool, equivalence_known: Optional[bool]

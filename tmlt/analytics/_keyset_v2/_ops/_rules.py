@@ -319,6 +319,43 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     return reduce(lambda r, l: Join(l, r), leaves)
 
 
+def normalize_subtracts(op: KeySetOp) -> KeySetOp:
+    """Restructure Subtracts into a consistent layout.
+
+    Reorders chained Subtract operations to be in a consistent order, if
+    possible. Note that there are some cases that can't easily be handled like
+    this: ABC - BC - other_BC has no obvious ordering between BC and other_BC
+    that doesn't involve looking at the records in each one (which would be
+    slow), since they have the same columns.
+    """
+    if isinstance(op, CrossJoin):
+        return type(op)(tuple(normalize_subtracts(f) for f in op.factors))
+    if isinstance(op, Join):
+        return Join(normalize_subtracts(op.left), normalize_subtracts(op.right))
+    if isinstance(op, Project):
+        return Project(normalize_subtracts(op.child), op.projected_columns)
+    if isinstance(op, Filter):
+        return Filter(normalize_subtracts(op.child), op.condition)
+    if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
+        return op
+
+    if not isinstance(op, Subtract):
+        raise AnalyticsInternalError(
+            f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
+        )
+
+    current = op
+    subtracted_values = [current.right]
+    while isinstance(current.left, Subtract):
+        current = current.left
+        subtracted_values.append(current.right)
+
+    subtracted_values = sorted(
+        subtracted_values, key=lambda v: tuple(sorted(v.columns()))
+    )
+    return reduce(Subtract, subtracted_values, current.left)
+
+
 _REWRITE_RULES = [
     project_across_crossjoin,
     collapse_nested_projections,
@@ -327,6 +364,7 @@ _REWRITE_RULES = [
     order_cross_joins,
     apply_cross_joins_in_memory,
     normalize_joins,
+    normalize_subtracts,
 ]
 """A list of all rewrite rules that will be applied, in order.
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+import textwrap
 from dataclasses import dataclass
 from typing import Literal, Optional, overload
 
@@ -92,3 +93,12 @@ class Subtract(KeySetOp):
         if fast:
             return None
         return self.dataframe().count()
+
+    def __str__(self):
+        """Human-readable string representation."""
+        return (
+            "Subtract\n"
+            + textwrap.indent(str(self.left), "  ")
+            + "\n"
+            + textwrap.indent(str(self.right), "  ")
+        )
