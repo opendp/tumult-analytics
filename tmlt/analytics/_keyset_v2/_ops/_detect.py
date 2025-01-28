@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Literal, Optional, overload
+from typing import Collection, Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 
@@ -36,8 +38,8 @@ class Detect(KeySetOp):
     def schema(self) -> dict[str, ColumnDescriptor]:
         """Get the schema of the output of this operation.
 
-        Raises ``AnalyticsInternalError``, as the schema is not known until the
-        column values are supplied.
+        Raises ``AnalyticsInternalError``, as the schema is not known until
+        fixed values are supplied for detected columns.
         """
         raise AnalyticsInternalError("KeySetPlan does not have a fixed schema.")
 
@@ -45,7 +47,7 @@ class Detect(KeySetOp):
         """Generate the Spark dataframe corresponding to this operation.
 
         Raises ``AnalyticsInternalError``, as the dataframe is not known until
-        the fixed values are supplied.
+        fixed values are supplied.
         """
         raise AnalyticsInternalError(
             "KeySetPlan does not have a fixed dataframe representation."
@@ -55,7 +57,7 @@ class Detect(KeySetOp):
         """Determine whether the dataframe corresponding to this operation is empty.
 
         Raises ``AnalyticsInternalError``, as whether the operation's output
-        dataframe is empty is not known until the fixed values are supplied.
+        dataframe is empty is not known until fixed values are supplied.
         """
         raise AnalyticsInternalError("KeySetPlan does not have a fixed size.")
 
@@ -79,10 +81,20 @@ class Detect(KeySetOp):
         """Determine the size of the KeySet resulting from this operation.
 
         Raises ``AnalyticsInternalError``, as the operation's output dataframe
-        size is not known until the fixed values are supplied.
+        size is not known until fixed values are supplied.
         """
         raise AnalyticsInternalError("KeySetPlan does not have a fixed size.")
 
     def __str__(self):
         """Human-readable string representation."""
         return f"Detect {', '.join(self.detect_columns)}"
+
+    def decompose(
+        self, split_columns: Collection[str]
+    ) -> tuple[list[KeySetOp], list[KeySetOp]]:
+        """Decompose this KeySetOp into a collection of factors and subtracted values.
+
+        See :meth:`KeySet._decompose` for details. Raises ``AnalyticsInternalError``, as
+        the operation cannot be decomposed until fixed values are supplied.
+        """
+        raise AnalyticsInternalError("KeySetPlan cannot be decomposed.")

@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from functools import reduce
-from typing import Any, Iterable, Mapping, Optional, Union, overload
+from typing import Any, Collection, Iterable, Mapping, Optional, Union, overload
 
 from pyspark.sql import Column, DataFrame
 
@@ -521,6 +521,51 @@ class KeySet:
         if other_df.exceptAll(self_df).count() != 0:
             return False
         return True
+
+    def _decompose(
+        self, split_columns: Optional[Collection[str]] = None
+    ) -> tuple[list[KeySet], list[KeySet]]:
+        """Decompose this KeySet into a collection of factors and subtracted values.
+
+        Express this KeySet as a collection of factors and subtracted values.
+        When ``split_columns`` is provided, this decomposition will assume that
+        the factors are independent of those columns. For example, splitting on
+        ``B`` would allow this decomposition:
+
+        .. code-block::
+
+           AB.join(BC) -> factors=[AB, BC], subtracted_values=[]
+
+        Without splitting, this would instead decompose as
+
+        .. code-block::
+
+           AB.join(BC) -> factors=[AB.join(BC)], subtracted_values=[]
+
+
+        If ``split_columns`` is not provided, the ``(factors, subtracted_values)``
+        tuple has the property that
+
+        .. code-block::
+
+           reduce(
+               lambda l,r: l - r,
+               subtracted_values,
+               initial=reduce(lambda l,r: l * r, factors)
+           )
+
+        produces the same set of keys the original KeySet contained. If it is
+        provided, then a similar property applies, but ``l * r`` must be
+        replaced with ``l.join(r)`` if ``l`` and ``r`` have overlapping
+        columns. These overlapping columns must be a subset of the split
+        columns, other columns must still only appear in one factor.
+        """
+
+        def as_keyset(op: KeySetOp) -> KeySet:
+            return KeySet(op, columns=[c for c in self.columns() if c in op.columns()])
+
+        f_optrees, sv_optrees = self._op_tree.decompose(split_columns or [])
+        return [as_keyset(f) for f in f_optrees], [as_keyset(sv) for sv in sv_optrees]
 
 
 class KeySetPlan:

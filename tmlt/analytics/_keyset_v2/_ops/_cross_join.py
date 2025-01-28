@@ -10,7 +10,7 @@ import operator
 import textwrap
 from dataclasses import dataclass
 from functools import reduce
-from typing import Iterator, Literal, Optional, overload
+from typing import Collection, Iterator, Literal, Optional, overload
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -131,6 +131,20 @@ class CrossJoin(KeySetOp):
         return f"{type(self).__name__}\n" + "\n".join(
             textwrap.indent(str(f), "  ") for f in self.factors
         )
+
+    def decompose(
+        self, split_columns: Collection[str]
+    ) -> tuple[list[KeySetOp], list[KeySetOp]]:
+        """Decompose this KeySetOp into a collection of factors and subtracted values.
+
+        See :meth:`KeySet._decompose` for details.
+        """
+        factors = []
+        subtracted_values = []
+        for fs, svs in map(lambda f: f.decompose(split_columns), self.factors):
+            factors.extend(fs)
+            subtracted_values.extend(svs)
+        return factors, subtracted_values
 
 
 @dataclass(frozen=True)

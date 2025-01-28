@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Literal, Optional, overload
+from typing import Collection, Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 
@@ -68,3 +70,13 @@ class KeySetOp(ABC):
     @abstractmethod
     def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""
+
+    def decompose(
+        self, split_columns: Collection[str]
+    ) -> tuple[list[KeySetOp], list[KeySetOp]]:
+        """Decompose this KeySetOp into a collection of factors and subtracted values.
+
+        See :meth:`KeySet._decompose` for details.
+        """
+        _ = split_columns
+        return [self], []

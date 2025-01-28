@@ -5,7 +5,7 @@
 
 import textwrap
 from dataclasses import dataclass
-from typing import Literal, Optional, overload
+from typing import Collection, Literal, Optional, overload
 
 from pyspark.sql import DataFrame
 from tmlt.core.utils.join import join
@@ -118,3 +118,18 @@ class Join(KeySetOp):
             + "\n"
             + textwrap.indent(str(self.right), "  ")
         )
+
+    def decompose(
+        self, split_columns: Collection[str]
+    ) -> tuple[list[KeySetOp], list[KeySetOp]]:
+        """Decompose this KeySetOp into a collection of factors and subtracted values.
+
+        See :meth:`KeySet._decompose` for details.
+        """
+        if self.join_columns() <= set(split_columns):
+            l_fs, l_svs = self.left.decompose(split_columns)
+            r_fs, r_svs = self.right.decompose(split_columns)
+
+            return l_fs + r_fs, l_svs + r_svs
+        else:
+            return [self], []
