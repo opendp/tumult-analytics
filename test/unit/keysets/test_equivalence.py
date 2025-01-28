@@ -141,6 +141,38 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         equal=True,
         equivalence_known=True,
     ),
+    Case("extract_crossjoin_from_subtract")(
+        ks1=KeySet.from_dict({"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]})
+        - KeySet.from_tuples([(5, 7), (6, 8)], columns=["B", "C"]),
+        ks2=KeySet.from_dict({"A": [1, 2, 3]})
+        * (
+            KeySet.from_dict({"B": [4, 5, 6], "C": [7, 8, 9]})
+            - KeySet.from_tuples([(5, 7), (6, 8)], columns=["B", "C"])
+        ),
+        equal=True,
+        equivalence_known=True,
+    ),
+    Case("nested_extract_crossjoin")(
+        ks1=(
+            (
+                KeySet.from_dict({"A": [1, 2, 3, 4, 5], "B": [6, 7, 8]}).join(
+                    KeySet.from_dict({"A": [2, 3, 4, 5]})
+                )
+            )
+            - KeySet.from_dict({"A": [2]})
+        ).join(KeySet.from_dict({"A": [2, 3, 4]})),
+        ks2=KeySet.from_dict({"B": [6, 7, 8]})
+        * (
+            (
+                KeySet.from_dict({"A": [1, 2, 3, 4, 5]}).join(
+                    KeySet.from_dict({"A": [2, 3, 4, 5]})
+                )
+            )
+            - KeySet.from_dict({"A": [2]})
+        ).join(KeySet.from_dict({"A": [2, 3, 4]})),
+        equal=True,
+        equivalence_known=True,
+    ),
 )
 def test_equivalence(
     ks1: KeySet, ks2: KeySet, equal: bool, equivalence_known: Optional[bool]

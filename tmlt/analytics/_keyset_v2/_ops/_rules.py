@@ -23,6 +23,15 @@ _IN_MEMORY_CROSS_JOIN_THRESHOLD = 2**20
 """The maximum number of output rows where an InMemoryCrossJoin will be applied."""
 
 
+def compose(*fs: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
+    """Given a collection of functions, return a function that applies them all."""
+
+    def apply(op: KeySetOp) -> KeySetOp:
+        return reduce(lambda acc, f: f(acc), fs, op)
+
+    return apply
+
+
 def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], KeySetOp]:
     """Recursively apply the given method to an op-tree, depth-first."""
 
@@ -147,7 +156,6 @@ def remove_noop_projections(op: KeySetOp) -> KeySetOp:
     return op
 
 
-@depth_first
 def extract_crossjoin_from_join(op: KeySetOp) -> KeySetOp:
     """Extract CrossJoin factors that aren't involved in the join from Joins.
 
@@ -193,6 +201,32 @@ def extract_crossjoin_from_join(op: KeySetOp) -> KeySetOp:
         else final_right_factors[0]
     )
     return CrossJoin(tuple(extracted_factors + [Join(join_left, join_right)]))
+
+
+def extract_crossjoin_from_subtract(op: KeySetOp) -> KeySetOp:
+    """Extract CrossJoin factors that don't include any subtracted columns.
+
+    For example, turn ``Subtract(CrossJoin(AB, CD), A)`` into
+    ``CrossJoin(CD, Subtract(AB, A))``.
+    """
+    if not (isinstance(op, Subtract) and isinstance(op.left, CrossJoin)):
+        return op
+
+    left_factors = []
+    extracted_factors = []
+    for f in op.left.factors:
+        if f.columns() & op.right.columns():
+            left_factors.append(f)
+        else:
+            extracted_factors.append(f)
+
+    if not extracted_factors:
+        return op
+
+    subtract_left = (
+        CrossJoin(tuple(left_factors)) if len(left_factors) > 1 else left_factors[0]
+    )
+    return CrossJoin(tuple(extracted_factors + [Subtract(subtract_left, op.right)]))
 
 
 @depth_first
@@ -410,7 +444,15 @@ _REWRITE_RULES = [
     collapse_nested_projections,
     remove_noop_projections,
     merge_cross_joins,
-    extract_crossjoin_from_join,
+    # extract_crossjoin_from_* all introduce situations where the extracted
+    # CrossJoin could apply to any of these rules, so apply them all
+    # collectively rather than one at a time.
+    depth_first(
+        compose(
+            extract_crossjoin_from_join,
+            extract_crossjoin_from_subtract,
+        )
+    ),
     # Re-apply merge_cross_joins, as some cross-joins have been moved through
     # other operations since it was last applied.
     merge_cross_joins,

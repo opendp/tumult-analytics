@@ -183,6 +183,12 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
         ),
         allow_unchanged=True,
     ),
+    Case("extract_crossjoin_from_subtract")(
+        ks=lambda spark: KeySet.from_dict(
+            {"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]}
+        )
+        - KeySet.from_tuples([(5, 7), (6, 8)], columns=["B", "C"])
+    ),
 )
 def test_rewrite_equality(
     ks: Callable[[SparkSession], KeySet], allow_unchanged: Optional[bool], spark
