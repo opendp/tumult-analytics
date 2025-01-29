@@ -312,10 +312,11 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
 
     # Reversing the sort and swapping the right/left parameters in the reduce
     # produces a tree where the topmost leaf is the first in the un-reversed
-    # order, for example Join(AB, Join(BC, CD)). There's not a technical reason to
-    # prefer that ordering over a different one, it's just the most obvious one
-    # when reading off the op-tree.
-    leaves.sort(key=lambda v: tuple(sorted(v.columns())), reverse=True)
+    # order, for example Join(AB, Join(BC, CD)). There's not a technical reason
+    # to prefer that ordering over a different one, it's just the most obvious
+    # one when reading off the op-tree. Break ties (joining two tables with the
+    # same set of columns) based on the op-tree hash.
+    leaves.sort(key=lambda v: (tuple(sorted(v.columns())), hash(v)), reverse=True)
     return reduce(lambda r, l: Join(l, r), leaves)
 
 
@@ -351,7 +352,7 @@ def normalize_subtracts(op: KeySetOp) -> KeySetOp:
         subtracted_values.append(current.right)
 
     subtracted_values = sorted(
-        subtracted_values, key=lambda v: tuple(sorted(v.columns()))
+        subtracted_values, key=lambda v: (tuple(sorted(v.columns())), hash(v))
     )
     return reduce(Subtract, subtracted_values, current.left)
 
