@@ -58,7 +58,7 @@ class KeySet:
             for c in columns:
                 column_counts[c] = column_counts.get(c, 0) + 1
             raise AnalyticsInternalError(
-                "KeySet columns are not all distict, duplicates are: "
+                "KeySet columns are not all distinct, duplicates are: "
                 + " ".join(c for c, count in column_counts.items() if count > 1)
             )
         if op_tree.columns() != set(columns):
@@ -303,6 +303,15 @@ class KeySet:
         """
         if isinstance(desired_columns, str):
             desired_columns = [desired_columns]
+
+        if len(desired_columns) != len(set(desired_columns)):
+            column_counts: dict[str, int] = {}
+            for c in desired_columns:
+                column_counts[c] = column_counts.get(c, 0) + 1
+            raise ValueError(
+                "Selected columns are not all distinct, duplicates are: "
+                + " ".join(c for c, count in column_counts.items() if count > 1)
+            )
 
         return KeySet(
             Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
@@ -675,6 +684,14 @@ class KeySetPlan:
         if isinstance(desired_columns, str):
             desired_columns = [desired_columns]
 
+        if len(desired_columns) != len(set(desired_columns)):
+            column_counts: dict[str, int] = {}
+            for c in desired_columns:
+                column_counts[c] = column_counts.get(c, 0) + 1
+            raise ValueError(
+                "Selected columns are not all distinct, duplicates are: "
+                + " ".join(c for c, count in column_counts.items() if count > 1)
+            )
         # Projecting is the only operation that can turn a KeySetPlan into a
         # KeySet (by dropping the detected columns without a join or similar
         # operation that would force them to be computed anyway), so it works a
