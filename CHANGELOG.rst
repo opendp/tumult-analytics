@@ -18,6 +18,9 @@ Changed
 - All Python objects should now be imported directly from ``tmlt.analytics``, ``tmlt.synthetics``, and ``tmlt.tune``. The documentation and demos have been updated accordingly. Existing import paths still work but will be removed in a future release, so users should switch to the new import statements.
 - Numpy arrays can now be used when initializing a :class:`~tmlt.analytics.binning_spec.BinningSpec`.
 - |PRO| Renamed ``CountReleasedRows`` to :class:`~tmlt.tune.CountDPRows` and ``HighRelativeErrorFraction`` to :class:`~tmlt.tune.HighRelativeErrorRate`.
+- |PRO| Significant behind-the-scenes refactor of the synthetic data generation code.
+  - This addresses an OOM crash when generating synthetic data where the number of rows is large relative to the model size.
+  - The way numeric columns are generated based on sums has been changed to be significantly more accurate and reliable.
 
 Fixed
 ~~~~~
