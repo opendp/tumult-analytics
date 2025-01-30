@@ -12,8 +12,9 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import LongType, StructField, StructType
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
+from tmlt.analytics import KeySet
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType
+from tmlt.analytics.keyset._keyset import KeySetPlan
 
 
 @parametrize(

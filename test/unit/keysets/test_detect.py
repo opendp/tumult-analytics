@@ -8,7 +8,8 @@ from typing import Any, ContextManager
 import pytest
 from tmlt.core.utils.testing import Case, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
+from tmlt.analytics import KeySet
+from tmlt.analytics.keyset._keyset import KeySetPlan
 
 
 def test_detect():

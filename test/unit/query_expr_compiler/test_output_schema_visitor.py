@@ -48,7 +48,6 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.config import config
-from tmlt.analytics.keyset import _MaterializedKeySet
 
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
@@ -317,7 +316,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
                 augment=True,
                 max_rows=2,
             ),
-            groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_A),
+            groupby_keys=KeySet.from_dataframe(GET_GROUPBY_COLUMN_A()),
         ),
         "Column 'i' produced by grouping transformation is not in groupby columns",
     ),
@@ -407,12 +406,12 @@ class TestValidation:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -453,17 +452,17 @@ class TestValidation:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_B),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_B()),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -581,12 +580,12 @@ class TestValidationWithNulls:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "
@@ -627,17 +626,17 @@ class TestValidationWithNulls:
                 "Groupby column 'Y' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_B),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_B()),
                 ValueError,
                 "Column to aggregate must be a non-grouped column, not 'B'",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_NON_EXISTING_COLUMN),
+                KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
                 "Groupby column 'yay' is not in the input schema.",
             ),
             (
-                _MaterializedKeySet(dataframe=GET_GROUPBY_COLUMN_WRONG_TYPE),
+                KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
                 ValueError,
                 (
                     "Groupby column 'A' has type 'INTEGER', but the column "

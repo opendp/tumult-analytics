@@ -15,7 +15,7 @@ import pandas as pd
 from pyspark.sql import SparkSession
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet
+from tmlt.analytics import KeySet
 
 
 def _from_df(data: dict, spark: SparkSession) -> KeySet:
@@ -195,7 +195,7 @@ def test_rewrite_equality(
 ):
     """Rewritten KeySets have the same semantics as the original ones."""
     ks_rewritten = ks(spark)
-    with patch("tmlt.analytics._keyset_v2._keyset.rewrite", lambda op: op):
+    with patch("tmlt.analytics.keyset._keyset.rewrite", lambda op: op):
         ks_original = ks(spark)
 
     if not allow_unchanged:

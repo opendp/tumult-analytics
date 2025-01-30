@@ -9,8 +9,9 @@ import pandas as pd
 import pytest
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
+from tmlt.analytics import KeySet
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType
+from tmlt.analytics.keyset._keyset import KeySetPlan
 
 
 @parametrize(
@@ -202,6 +203,20 @@ def test_valid_plan(
         columns=["A", ""],
         expectation=pytest.raises(
             ValueError, match="Empty column names are not allowed"
+        ),
+    ),
+    Case("duplicate_column_name")(
+        base=KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"]),
+        columns=["A", "B", "A"],
+        expectation=pytest.raises(
+            ValueError, match="Selected columns are not all distinct"
+        ),
+    ),
+    Case("duplicate_column_plan")(
+        base=KeySet._detect(["A", "B", "C"]),
+        columns=["A", "B", "A"],
+        expectation=pytest.raises(
+            ValueError, match="Selected columns are not all distinct"
         ),
     ),
 )

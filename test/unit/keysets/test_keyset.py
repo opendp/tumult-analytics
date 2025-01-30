@@ -10,97 +10,23 @@ import tempfile
 from typing import Dict, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
+import pyspark.sql.functions as sf
 import pytest
 from pyspark.sql import Column
-from pyspark.sql.functions import lit
 from pyspark.sql.types import (
     DataType,
     DateType,
-    FloatType,
     IntegerType,
     LongType,
     StringType,
     StructField,
     StructType,
-    TimestampType,
 )
 from tmlt.core.utils.testing import Case, parametrize
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
-from tmlt.analytics.keyset import _check_df_schema, _check_dict_schema
 
 from ...conftest import assert_frame_equal_with_sort
-
-
-@pytest.mark.parametrize(
-    "types",
-    [
-        (StructType([StructField("A", LongType(), False)])),
-        (
-            StructType(
-                [
-                    StructField("A", LongType(), False),
-                    StructField("B", DateType(), False),
-                    StructField("C", StringType(), False),
-                ]
-            )
-        ),
-    ],
-)
-def test_check_df_schema_valid(types: StructType):
-    """_check_df_schema does not raise an exception on valid inputs."""
-    _check_df_schema(types)
-
-
-@pytest.mark.parametrize(
-    "types,expected_err_msg",
-    [
-        (
-            StructType([StructField("A", FloatType(), False)]),
-            r"Column A has type FloatType\(?\)?, which is not allowed in KeySets",
-        ),
-        (
-            StructType(
-                [
-                    StructField("A", LongType(), False),
-                    StructField("B", TimestampType(), False),
-                ]
-            ),
-            r"Column B has type TimestampType\(?\)?, which is not allowed in KeySets",
-        ),
-    ],
-)
-def test_check_df_schema_invalid(types: StructType, expected_err_msg: str):
-    """_check_df_schema raises an appropriate exception on invalid inputs."""
-    with pytest.raises(ValueError, match=expected_err_msg):
-        _check_df_schema(types)
-
-
-@pytest.mark.parametrize(
-    "types", [({"A": int}), ({"A": int, "B": str, "C": datetime.date})]
-)
-def test_check_dict_schema_valid(types: Dict[str, type]):
-    """_check_dict_schema does not raise an exception on valid inputs."""
-    _check_dict_schema(types)
-
-
-@pytest.mark.parametrize(
-    "types,expected_err_msg",
-    [
-        ({"A": float}, "Column A has type float, which is not allowed in KeySets"),
-        (
-            {"A": int, "B": datetime.datetime},
-            "Column B has type datetime, which is not allowed in KeySets",
-        ),
-    ],
-)
-def test_check_dict_schema_invalid(types: Dict[str, type], expected_err_msg: str):
-    """_check_dict_schema raises an appropriate exception on invalid inputs."""
-    with pytest.raises(ValueError, match=expected_err_msg):
-        _check_dict_schema(types)
-
-
-###TESTS FOR THE KEYSET CLASS###
 
 
 @pytest.mark.parametrize(
@@ -189,21 +115,24 @@ def test_from_dict_empty_list(
     ]
 ) -> None:
     """Test that calls like ``KeySet.from_dict({'A': []})`` raise a friendly error."""
-    with pytest.raises(ValueError, match="has an empty list of values"):
+    with pytest.raises(
+        ValueError,
+        match="Unable to infer column types for an empty collection of values",
+    ):
         KeySet.from_dict(d)
 
 
 @pytest.mark.parametrize(
     "d,expected_err_msg",
     [
-        ({"A": [3.1]}, "Column A has type float, which is not allowed in KeySets"),
+        ({"A": [3.1]}, "Column 'A' has type DECIMAL"),
         (
             {"A": [3.1], "B": [datetime.datetime.now()]},
-            "Column A has type float, which is not allowed in KeySets",
+            "Column 'A' has type DECIMAL",
         ),
         (
             {"A": [3], "B": [datetime.datetime.now()]},
-            "Column B has type datetime, which is not allowed in KeySets",
+            "Column 'B' has type TIMESTAMP",
         ),
     ],
 )
@@ -296,76 +225,60 @@ def test_from_tuples(
         tuples=[("a1", "b2"), ("a2",)],
         columns=("A",),
         expected_err_msg=(
-            "Mismatch between tuple ('a1', 'b2'), which has 2 elements, and "
-            "columns argument ('A',), which has 1."
+            "Tuples must contain the same number of values as there are columns"
         ),
     ),
     Case("Tuple too small")(
         tuples=[("a1", "b2"), ("a2",)],
         columns=("A", "B"),
         expected_err_msg=(
-            "Mismatch between tuple ('a2',), which has 1 elements, and "
-            "columns argument ('A', 'B'), which has 2."
+            "Tuples must contain the same number of values as there are columns"
         ),
     ),
     Case("Empty tuple")(
         tuples=[(), ("a1", "b2")],
         columns=("A", "B"),
         expected_err_msg=(
-            "Mismatch between tuple (), which has 0 elements, and "
-            "columns argument ('A', 'B'), which has 2."
+            "Tuples must contain the same number of values as there are columns"
         ),
     ),
     Case("Floats are forbidden")(
         tuples=[(42.17, "b2")],
         columns=("A", "B"),
-        expected_err_msg=(
-            "Element 42.17 of tuple (42.17, 'b2') has type float, "
-            "which is not allowed in KeySets."
-        ),
+        expected_err_msg="Column 'A' has type DECIMAL",
     ),
     Case("Timestamps are forbidden")(
         tuples=[(datetime.datetime.now(), "b2")],
         columns=("A", "B"),
-        expected_err_msg="has type datetime, which is not allowed in KeySets.",
+        expected_err_msg="Column 'A' has type TIMESTAMP",
     ),
     Case("Mismatched types: str to int")(
         tuples=[("a1", "b2"), ("a2", 42)],
         columns=("A", "B"),
-        expected_err_msg=(
-            "Element 42 of tuple ('a2', 42) (for column 'B') has type int, "
-            "expected type str from a previous tuple."
-        ),
+        expected_err_msg="Column 'B' contains values of multiple types",
     ),
     Case("Mismatched types: int to str")(
         tuples=[(42, "b1"), ("a2", "b2")],
         columns=("A", "B"),
-        expected_err_msg=(
-            "Element a2 of tuple ('a2', 'b2') (for column 'A') has type str, "
-            "expected type int from a previous tuple."
-        ),
+        expected_err_msg="Column 'A' contains values of multiple types",
     ),
     Case("Mismatched types with None")(
         tuples=[(None, None), (None, "b2"), ("a1", None), ("a2", 42)],
         columns=("A", "B"),
-        expected_err_msg=(
-            "Element 42 of tuple ('a2', 42) (for column 'B') has type int, "
-            "expected type str from a previous tuple."
-        ),
+        expected_err_msg="Column 'B' contains values of multiple types",
     ),
     Case("Columns full of None")(
         tuples=[(None, None), (None, "b2"), (None, None), (None, "b1")],
         columns=("A", "B"),
         expected_err_msg=(
-            "Could not infer type for column 'A': all its values are None."
+            "Column 'A' contains only null values, unable to infer its type"
         ),
     ),
     Case("Empty tuples, no-empty columns")(
         tuples=[],
         columns=("A", "B"),
         expected_err_msg=(
-            "Cannot initialize a KeySet using from_tuples with no tuples "
-            "and non-zero columns."
+            "Unable to infer column types for an empty collection of values"
         ),
     ),
 )
@@ -438,17 +351,14 @@ def test_from_dataframe_with_null(
 @pytest.mark.parametrize(
     "df,expected_err_msg",
     [
-        (
-            pd.DataFrame({"A": [3.1]}),
-            r"Column A has type DoubleType\(?\)?, which is not allowed in KeySets",
-        ),
+        (pd.DataFrame({"A": [3.1]}), "Column 'A' has type DECIMAL"),
         (
             pd.DataFrame({"A": [3.1], "B": [datetime.datetime.now()]}),
-            r"Column A has type DoubleType\(?\)?, which is not allowed in KeySets",
+            "Column 'A' has type DECIMAL",
         ),
         (
             pd.DataFrame({"A": [3], "B": [datetime.datetime.now()]}),
-            r"Column B has type TimestampType\(?\)?, which is not allowed in KeySets",
+            "Column 'B' has type TIMESTAMP",
         ),
     ],
 )
@@ -594,13 +504,13 @@ def test_type_coercion_from_tuples(
 def test_filter_condition() -> None:
     """Test KeySet.filter with Columns conditions."""
     keyset = KeySet.from_dict({"A": ["abc", "def", "ghi"], "B": [0, 100]})
-    filtered = keyset.filter(keyset.dataframe().B > 0)
+    filtered = keyset.filter(sf.col("B") > 0)
     expected = pd.DataFrame(
         [["abc", 100], ["def", 100], ["ghi", 100]], columns=["A", "B"]
     )
     assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expected)
 
-    filtered2 = keyset.filter(keyset.dataframe().A != "string that is not there")
+    filtered2 = keyset.filter(sf.col("A") != "string that is not there")
     assert_frame_equal_with_sort(
         filtered2.dataframe().toPandas(), keyset.dataframe().toPandas()
     )
@@ -617,7 +527,7 @@ def test_filter_to_empty() -> None:
     assert pd_df.empty
 
     keyset2 = KeySet.from_dict({"A": ["a1", "a2", "a3"], "B": ["irrelevant"]})
-    filtered2 = keyset2.filter(keyset2.dataframe().A == "string that is not there")
+    filtered2 = keyset2.filter(sf.col("A") == "string that is not there")
     pd_df2 = filtered2.dataframe().toPandas()
     assert isinstance(pd_df2, pd.DataFrame)
     assert pd_df2.empty
@@ -777,23 +687,23 @@ def test_crossproduct(other: KeySet, expected_df: pd.DataFrame) -> None:
     [
         (
             KeySet.from_dict({"A": ["a1", "a2"]}),
-            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
+            {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False)},
         ),
         (
             KeySet.from_dict({"A": [0, 1, 2], "B": ["abc"]}),
             {
-                "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                "B": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
             },
         ),
         (
             KeySet.from_dict(
-                {"A": ["abc"], "B": [0], "C": ["def"], "D": [-1000000000]}
+                {"A": ["abc"], "B": [0], "C": ["def"], "D": [-1000000000, None]}
             ),
             {
-                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "C": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
+                "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                "C": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
                 "D": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             },
         ),
@@ -920,9 +830,11 @@ def _eq_hashing_test_data(spark):
             spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
         ),
         "df_ac": KeySet.from_dataframe(df_ac),
-        "df_ab_with_c": KeySet.from_dataframe(df_ab.withColumn("C", lit(1))),
-        "df_ab_with_d_int": KeySet.from_dataframe(df_ab.withColumn("D", lit(2))),
-        "df_ab_with_d_string": KeySet.from_dataframe(df_ab.withColumn("D", lit("2"))),
+        "df_ab_with_c": KeySet.from_dataframe(df_ab.withColumn("C", sf.lit(1))),
+        "df_ab_with_d_int": KeySet.from_dataframe(df_ab.withColumn("D", sf.lit(2))),
+        "df_ab_with_d_string": KeySet.from_dataframe(
+            df_ab.withColumn("D", sf.lit("2"))
+        ),
         "df_ab_from_file1": KeySet.from_dataframe(
             spark.read.csv(filepath1, header=True)
         ),
@@ -944,18 +856,16 @@ def _eq_hashing_test_data(spark):
         ("df_ab_from_file1", "df_ac_from_file2", False),
     ],
 )
-def test_fast_equality_check(_eq_hashing_test_data, key1, key2, equal):
-    """Test the _fast_equality_check function for accuracy."""
+def test_is_equivalent(_eq_hashing_test_data, key1, key2, equal):
+    """Test the is_equivalent function for accuracy."""
     ks1 = _eq_hashing_test_data[key1]
     ks2 = _eq_hashing_test_data[key2]
 
-    # pylint: disable=protected-access
-    assert ks1._fast_equality_check(ks2) == equal
-    # pylint: enable=protected-access
+    assert ks1.is_equivalent(ks2) == equal
 
 
-def test_fast_equality_check_same_file_read(spark):
-    """Test the _fast_equality_check when same file read twice."""
+def test_is_equivalent_same_file_read(spark):
+    """Test the is_equivalent when same file read twice."""
     pdf_ab = pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]})
     temp_dir = tempfile.gettempdir()
     filepath1 = os.path.join(temp_dir, "keyset1.csv")
@@ -964,9 +874,7 @@ def test_fast_equality_check_same_file_read(spark):
     ks1 = KeySet.from_dataframe(spark.read.csv(filepath1, header=True))
     ks2 = KeySet.from_dataframe(spark.read.csv(filepath1, header=True))
 
-    # pylint: disable=protected-access
-    assert ks1._fast_equality_check(ks2)
-    # pylint: enable=protected-access
+    assert ks1.is_equivalent(ks2)
 
 
 @pytest.mark.parametrize(

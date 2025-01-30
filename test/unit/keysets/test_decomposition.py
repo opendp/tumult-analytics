@@ -8,7 +8,7 @@ from typing import Collection, Optional, Sequence
 
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet
+from tmlt.analytics import KeySet
 
 
 def _order_keysets(keysets: Collection[KeySet]) -> list[KeySet]:

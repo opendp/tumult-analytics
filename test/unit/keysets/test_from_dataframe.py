@@ -21,7 +21,7 @@ from pyspark.sql.types import (
 )
 from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet
+from tmlt.analytics import KeySet
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType
 
 

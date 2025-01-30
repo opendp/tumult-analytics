@@ -5,7 +5,7 @@
 
 from typing import Iterable, Mapping
 
-from tmlt.analytics import ColumnDescriptor, ColumnType
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType
 
 KEYSET_COLUMN_TYPES = [ColumnType.INTEGER, ColumnType.DATE, ColumnType.VARCHAR]
 """Column types that are allowed in KeySets."""

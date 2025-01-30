@@ -286,9 +286,14 @@ def _generate_constrained_count_distinct(
     return None
 
 
-def _create_single_row_df_with_spark_schema(schema: StructType) -> DataFrame:
+def _build_keyset_for_spark_schema(schema: StructType) -> KeySet:
     """Create a single-row DataFrame with the given schema."""
     spark = SparkSession.builder.getOrCreate()
+
+    # KeySets with no columns aren't allowed to have rows.
+    if not schema.fields:
+        return KeySet.from_dataframe(spark.createDataFrame([], schema=schema))
+
     default_values = []
     for field in schema.fields:
         default_value: Any
@@ -318,7 +323,7 @@ def _create_single_row_df_with_spark_schema(schema: StructType) -> DataFrame:
         raise AnalyticsInternalError(
             f"Failed to create a DataFrame with schema {schema}."
         )
-    return df
+    return KeySet.from_dataframe(df)
 
 
 def _split_auto_partition_budget(
@@ -484,16 +489,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 if struct_field.name in columns
             ]
         )
-        one_row_keyset = KeySet.from_dataframe(
-            _create_single_row_df_with_spark_schema(groupby_schema)
+        sample_keyset = _build_keyset_for_spark_schema(groupby_schema)
+        groupby_sample_keyset = self._build_groupby(
+            input_domain, input_metric, mechanism, sample_keyset
         )
-        groupby_one_row_keyset = self._build_groupby(
-            input_domain, input_metric, mechanism, one_row_keyset
+        groupby_agg_sample_keyset = build_groupby_agg_from_groupby(
+            groupby_sample_keyset
         )
-        groupby_agg_one_row_keyset = build_groupby_agg_from_groupby(
-            groupby_one_row_keyset
-        )
-        noise_info = _noise_from_measurement(groupby_agg_one_row_keyset)
+        noise_info = _noise_from_measurement(groupby_agg_sample_keyset)
         return groupby_agg, noise_info
 
     @abstractmethod

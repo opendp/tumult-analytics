@@ -5,9 +5,8 @@
 
 
 import itertools
-import re
 from functools import reduce
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import Dict, List, Sequence, Tuple
 
 import pandas as pd
 import pytest
@@ -15,7 +14,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
-from tmlt.analytics.keyset import _MaterializedKeySet, _ProductKeySet
 
 from ...conftest import assert_frame_equal_with_sort
 
@@ -42,10 +40,14 @@ def test_init_fails_with_duplicate_columns(spark: SparkSession) -> None:
     ks2 = KeySet.from_dict({"B": ["a"]})
     ks3 = KeySet.from_dict({"A": [1, 2, 3], "C": ["c"]})
 
-    with pytest.raises(ValueError, match=re.escape("they share a column: A")):
+    with pytest.raises(
+        ValueError, match="Unable to cross-join KeySets, they have overlapping columns"
+    ):
         _ = ks1 * ks2 * ks3
 
-    with pytest.raises(ValueError, match=re.escape("they share a column: A")):
+    with pytest.raises(
+        ValueError, match="Unable to cross-join KeySets, they have overlapping columns"
+    ):
         _ = ks1 * ks3
 
 
@@ -205,36 +207,12 @@ def test_getitem_from_subset_of_columns(spark: SparkSession) -> None:
     assert_frame_equal_with_sort(filtered_ab.dataframe().toPandas(), expect_df_ab)
 
 
-@pytest.mark.parametrize(
-    "columns",
-    [
-        "nonexistent_column",
-        ("A", "B", "nonexistent_column"),
-        ["A", "B", "nonexistent_column"],
-        ["not a column", "neither is this one"],
-    ],
-)
-def test_getitem_errors_with_missing_columns(
-    spark: SparkSession, columns: Union[str, Tuple[str, ...], List[str]]
-) -> None:
-    """Test __getitem__ fails if the specified column doesn't exist."""
-    keyset_a = KeySet.from_dict({"A": [1]})
-    keyset_b = KeySet.from_dict({"B": ["b"]})
-    product = keyset_a * keyset_b
-
-    with pytest.raises(
-        ValueError,
-        match="Cannot select columns .* because those columns are not in this KeySet",
-    ):
-        _ = product[columns]
-
-
 def test_getitem_errors_with_duplicate_columns(
     spark: SparkSession,
 ) -> None:
     """Test __getitem__ fails if you pass it the same column multiple times."""
     product = KeySet.from_dict({"A": [1]}) * KeySet.from_dict({"B": ["b"]})
-    with pytest.raises(ValueError, match="duplicate columns were present"):
+    with pytest.raises(ValueError, match="Selected columns are not all distinct"):
         _ = product["A", "A"]
 
 
@@ -284,7 +262,6 @@ def test_complex_filter(spark: SparkSession) -> None:
 
     product = keyset_a * keyset_b
     filtered = product.filter("A >= 1 AND B < 10")
-    assert not isinstance(filtered, _ProductKeySet)
 
     expect_df = pd.DataFrame(
         [
@@ -371,7 +348,7 @@ KS_D = KeySet.from_dict({"E": [100, 200, 300], "F": ["G", "H", "I"]})
         (KS_D * KS_C, KS_D * KS_C, True),
     ],
 )
-def test_equality(ks_a: _ProductKeySet, ks_b: _ProductKeySet, equal: bool):
+def test_equality(ks_a: KeySet, ks_b: KeySet, equal: bool):
     """Test custom equality function of two ProductKeySets."""
     assert (ks_a == ks_b) == equal
 
@@ -436,10 +413,10 @@ def _eq_hashing_test_data(spark):
     "factors1, factors2, equal",
     [
         (("df_ab", "df_ij"), ("df_ab", "df_ij"), True),
-        (  # Due to column ordering, this returns False.
+        (  # Column order is not considered when checking equality
             ("df_ab", "df_ij"),
             ("df_ij", "df_ab"),
-            False,
+            True,
         ),
         (("df_ab", "df_ij"), ("df_ab", "df_dc"), False),
         (
@@ -458,9 +435,7 @@ def test_fast_equality_check(_eq_hashing_test_data, factors1, factors2, equal):
     """Test the _fast_equality_check function for accuracy."""
     ks1 = _eq_hashing_test_data[factors1[0]] * _eq_hashing_test_data[factors1[1]]
     ks2 = _eq_hashing_test_data[factors2[0]] * _eq_hashing_test_data[factors2[1]]
-    # pylint: disable=protected-access
-    assert ks1._fast_equality_check(ks2) == equal
-    # pylint: enable=protected-access
+    assert ks1.is_equivalent(ks2) == equal
 
 
 def test_fast_equality_check_with_keyset_projection():
@@ -468,9 +443,7 @@ def test_fast_equality_check_with_keyset_projection():
     ks1 = KeySet.from_dict({"A": ["a1", "a2"], "C": [0, 1]})
     ks2 = KeySet.from_dict({"B": [0, 1]})
     ks = ks1 * ks2
-    # pylint: disable=protected-access
-    assert ks1._fast_equality_check(ks["A", "C"])
-    # pylint: enable=protected-access
+    assert ks1.is_equivalent(ks["A", "C"])
 
 
 def test_fast_equality_check_with_different_types(_eq_hashing_test_data):
@@ -479,9 +452,4 @@ def test_fast_equality_check_with_different_types(_eq_hashing_test_data):
     ks2_keys = ("df_ab", "df_ij")
     ks2 = _eq_hashing_test_data[ks2_keys[0]] * _eq_hashing_test_data[ks2_keys[1]]
     projected_ks2 = ks2["A", "B"]
-    # pylint: disable=protected-access
-    assert isinstance(ks1, _ProductKeySet)
-    assert isinstance(ks2, _ProductKeySet)
-    assert isinstance(projected_ks2, _MaterializedKeySet)
-    assert not ks1._fast_equality_check(projected_ks2)
-    # pylint: enable=protected-access
+    assert not ks1.is_equivalent(projected_ks2)

@@ -33,7 +33,7 @@ class KeySet:
     """A class containing a set of values for specific columns.
 
        An introduction to KeySet initialization and manipulation can be found in
-       the :ref:`Group-by queries` tutorial.
+       the :ref:`group-by-queries` tutorial.
 
     .. warning::
         If a column has null values dropped or replaced, then Analytics
@@ -42,7 +42,7 @@ class KeySet:
     """
 
     def __init__(self, op_tree: KeySetOp, columns: Sequence[str]):
-        """Constructor. @nodoc."""
+        """Constructor."""
         if not isinstance(op_tree, KeySetOp):
             raise ValueError(
                 "KeySets should not be initialized using their constructor, "
@@ -215,11 +215,7 @@ class KeySet:
         ...
 
     def __mul__(self, other):
-        r"""The Cartesian product of the two KeySet or KeySetPlan factors.
-
-        Multiplying two :class:`KeySet`\ s together produces another
-        :class:`KeySet`; if either factor is a :class:`KeySetPlan`, then the
-        result is a :class:`KeySetPlan`.
+        r"""The Cartesian product of the two KeySet factors.
 
         Example:
             >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
@@ -232,9 +228,13 @@ class KeySet:
             2  a2  b1
             3  a2  b2
         """
+        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and to
+        #     the below error message.
+
         if not isinstance(other, (KeySet, KeySetPlan)):
             raise ValueError(
-                "KeySet multiplication expected another KeySet or KeySetPlan, not "
+                "KeySet multiplication expected another KeySet, not "
                 f"{type(other).__qualname__}, as right-hand value."
             )
         if isinstance(other, KeySet):
@@ -328,12 +328,10 @@ class KeySet:
         ...
 
     def join(self, other):
-        r"""The inner natural join of two KeySet or KeySetPlan objects.
+        r"""The inner natural join of two KeySet objects.
 
         The two KeySets are inner joined on columns with matching names,
-        treating nulls as equal to one another. Joining two :class:`KeySet`\ s
-        together produces another :class:`KeySet`; if either operand is a
-        :class:`KeySetPlan`, then the result is also a :class:`KeySetPlan`.
+        treating nulls as equal to one another.
 
         Example:
             >>> keyset1 = KeySet.from_tuples([("a1",), ("a2",)], columns=["A"])
@@ -344,9 +342,13 @@ class KeySet:
                 A   B
             0  a2  b1
         """
+        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and to
+        #     the below error message.
+
         if not isinstance(other, (KeySet, KeySetPlan)):
             raise ValueError(
-                "KeySet join expected another KeySet or KeySetPlan, not "
+                "KeySet join expected another KeySet, not "
                 f"{type(other).__qualname__}."
             )
         if isinstance(other, KeySet):
@@ -398,6 +400,11 @@ class KeySet:
             1  a2  1
             2  a2  2
             3  a2  3
+
+        Args:
+            condition: A string of SQL expressions or a PySpark
+                :class:`~pyspark.sql.Column` specifying the filter to apply to
+                the data.
         """
         return KeySet(Filter(self._op_tree, condition), columns=self.columns())
 
@@ -598,7 +605,7 @@ class KeySetPlan:
     """
 
     def __init__(self, op_tree: KeySetOp, columns: Sequence[str]):
-        """Constructor. @nodoc."""
+        """Constructor."""
         if not isinstance(op_tree, KeySetOp):
             raise ValueError(
                 "KeySets should not be initialized using their constructor, "

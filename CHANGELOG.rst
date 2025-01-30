@@ -10,14 +10,27 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+
+- The :class:`.KeySet` class now supports additional mechanisms for combining KeySets: :meth:`.KeySet.join` and :meth:`.KeySet.__sub__`.
+
 Changed
 ~~~~~~~
 
 - The documentation is now split in three distinct product-level documentation pages, for :ref:`Tumult Analytics<analytics>`, :ref:`Tumult Synthetics<synthetics>`, and :ref:`Tumult Tune<tune>`.
-- The API reference is now organized into semantically-grouped subpages and no longer follows the internal module structure. 
+- The API reference is now organized into semantically-grouped subpages and no longer follows the internal module structure.
 - All Python objects should now be imported directly from ``tmlt.analytics``, ``tmlt.synthetics``, and ``tmlt.tune``. The documentation and demos have been updated accordingly. Existing import paths still work but will be removed in a future release, so users should switch to the new import statements.
+- :meth:`.KeySet.__eq__` now ignores column order when comparing KeySets.
+- :meth:`.KeySet.__getitem__` can no longer be used to drop all of the columns in KeySet, for example with ``keyset[[]]``.
+- :meth:`.KeySet.filter` no longer allows using the KeySet's dataframe to be used when specifying columns (e.g. writing expressions like ``ks.filter(ks.dataframe().A > 5)``).
+  Use ``pyspark.sql.functions.col`` to identify the columns instead.
+  Passing filter conditions as strings is unaffected.
+- :meth:`.KeySet.schema` reports column nullability more accurately than it did previously, for example identifying that passing a column with no ``None`` values to :meth:`.KeySet.from_dict` will cause that column to not contain nulls.
 - Numpy arrays can now be used when initializing a :class:`~tmlt.analytics.binning_spec.BinningSpec`.
 - |PRO| Renamed ``CountReleasedRows`` to :class:`~tmlt.tune.CountDPRows` and ``HighRelativeErrorFraction`` to :class:`~tmlt.tune.HighRelativeErrorRate`.
+- |PRO| *Backwards-incompatible*: :func:`~.synthetics.generate_synthetic_data` no longer accepts a separate ``count_structural_zeroes`` argument.
+  Instead, build these structural zeroes into the ``keyset`` argument using :meth:`.KeySet.__sub__`.
 - |PRO| Significant behind-the-scenes refactor of the synthetic data generation code.
   - This addresses an OOM crash when generating synthetic data where the number of rows is large relative to the model size.
   - The way numeric columns are generated based on sums has been changed to be significantly more accurate and reliable.

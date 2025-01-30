@@ -1403,5 +1403,5 @@ def test_query_immutability(query: Query):
 def test_query_fast_equality_check(query1: Query, query2: Query, equal: bool):
     """Tests that Query objects are equal when they should be."""
     # pylint: disable=protected-access
-    assert query1._fast_equality_check(query2) == equal
+    assert query1._is_equivalent(query2) == equal
     # pylint: enable=protected-access

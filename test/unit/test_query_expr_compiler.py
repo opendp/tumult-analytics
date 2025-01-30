@@ -69,7 +69,6 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
-from tmlt.analytics.keyset import _MaterializedKeySet
 
 from ..conftest import assert_frame_equal_with_sort
 
@@ -121,7 +120,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         [
             GroupByCount(
                 child=PrivateSource("private"),
-                groupby_keys=_MaterializedKeySet(dataframe=GET_GROUPBY_TWO),
+                groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO()),
             )
         ],
         [pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]})],

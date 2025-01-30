@@ -7,9 +7,11 @@
 
 from typing import Optional, Union
 
+import pyspark.sql.functions as sf
 from tmlt.core.utils.testing import Case, parametrize
 
-from tmlt.analytics._keyset_v2 import KeySet, KeySetPlan
+from tmlt.analytics import KeySet
+from tmlt.analytics.keyset._keyset import KeySetPlan
 
 _KS_A = KeySet.from_dict({"A": [1, 2, 3]})
 _KS_B = KeySet.from_dict({"B": [4, 5]})
@@ -24,6 +26,11 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         ks2=KeySet.from_tuples([(4, 5, 6), (1, 2, 3)], columns=["A", "B", "C"]),
         equal=True,
         equivalence_known=True,
+    ),
+    Case("tuples_eq_different_column_order")(
+        ks1=KeySet.from_tuples([(3, 2, 1), (6, 5, 4)], columns=["C", "B", "A"]),
+        ks2=KeySet.from_tuples([(4, 5, 6), (1, 2, 3)], columns=["A", "B", "C"]),
+        equal=True,
     ),
     Case("tuples_ne_different_columns")(
         ks1=KeySet.from_tuples([(1, 2, 3), (4, 5, 6)], columns=["A", "B", "C"]),
@@ -202,6 +209,7 @@ def test_equivalence_dataframes(spark):
     df1 = spark.range(10)
     df2 = spark.range(10)
     df3 = spark.range(12)
+    df4 = spark.range(10).withColumnRenamed("id", "other")
 
     assert df1 is not df2
     assert df1.sameSemantics(df2)
@@ -209,17 +217,45 @@ def test_equivalence_dataframes(spark):
     ks1 = KeySet.from_dataframe(df1)
     ks2 = KeySet.from_dataframe(df2)
     ks3 = KeySet.from_dataframe(df3)
+    ks4 = KeySet.from_dataframe(df4)
 
+    # KeySets are equivalent to themselves
     assert ks1 == ks1
+    assert ks1.is_equivalent(ks1)
+
+    # KeySets created from dataframes with the same semantics are equivalent
     assert ks1 == ks2
     assert ks2 == ks1
-    assert ks1 != ks3
-    assert ks3 != ks1
-    assert ks1.is_equivalent(ks1)
     assert ks1.is_equivalent(ks2)
     assert ks2.is_equivalent(ks1)
+
+    # KeySets created from dataframes with different semantics but the same
+    # schema may be equal.
+    assert ks1 != ks3
+    assert ks3 != ks1
     assert ks1.is_equivalent(ks3) is not True
     assert ks3.is_equivalent(ks1) is not True
+
+    # Different schemas, definitely not equal
+    assert ks1 != ks4
+    assert ks4 != ks1
+    assert not ks1.is_equivalent(ks4)
+    assert not ks4.is_equivalent(ks1)
+
+
+def test_equivalence_different_schemas():
+    """Equality and equivalence of KeySets with nullable columns work as expected."""
+    ks1 = KeySet.from_dict({"A": [1, 2, 3]})
+    ks2 = KeySet.from_dict({"A": [1, 2, 3, None]}).filter(sf.col("A").isNotNull())
+    ks3 = KeySet.from_dict({"A": ["1", "2", "3"]})
+
+    # Schemas differing only by nullability can be equal
+    assert ks1 == ks2
+    assert ks1.is_equivalent(ks2) is not False
+
+    # But schemas with mismatched column types definitely aren't equal
+    assert ks1 != ks3
+    assert ks1.is_equivalent(ks3) is False
 
 
 # pylint: disable=protected-access
