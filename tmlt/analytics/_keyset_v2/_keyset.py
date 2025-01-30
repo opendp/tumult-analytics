@@ -526,6 +526,10 @@ class KeySet:
             return False
         return True
 
+    def __hash__(self):
+        """Hash the KeySet based on its schema."""
+        return hash(FrozenDict.from_dict(self.schema()))
+
     def _decompose(
         self, split_columns: Optional[Collection[str]] = None
     ) -> tuple[list[KeySet], list[KeySet]]:
