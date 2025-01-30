@@ -478,7 +478,13 @@ class KeySet:
         if self._op_tree == other._op_tree:  # pylint: disable=protected-access
             return True
 
-        if self.schema() != other.schema():
+        # Differing column nullability doesn't necessarily mean that two KeySets
+        # are different, as the one with the nullable column might not actually
+        # contain any nulls. Thus, only consider column type when comparing
+        # schemas.
+        if {c: d.column_type for c, d in self.schema().items()} != {
+            c: d.column_type for c, d in other.schema().items()
+        }:
             return False
 
         return None
@@ -512,8 +518,6 @@ class KeySet:
         columns = self.columns()
         self_df = self.dataframe().select(*columns)
         other_df = other.dataframe().select(*columns)
-        if self_df.schema != other_df.schema:
-            return False
         # other_df should contain all rows in self_df
         if self_df.exceptAll(other_df).count() != 0:
             return False

@@ -76,7 +76,7 @@ class FromSparkDataFrame(KeySetOp):
         if not isinstance(other, FromSparkDataFrame):
             return False
 
-        return self.df.sameSemantics(other.df)
+        return self.df.schema == other.df.schema and self.df.sameSemantics(other.df)
 
     def __str__(self):
         """Human-readable string representation."""
