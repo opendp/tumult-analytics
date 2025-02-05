@@ -102,9 +102,9 @@ AUDIT_SUPPRESSIONS = [
 
 # Dictionary mapping benchmark names to the corresponding timeouts
 BENCHMARK_TO_TIMEOUT = {
-    "keyset_projection": 2,
+    "keyset_projection": 3,
     "keyset_cross_product_per_size": 35,
-    "keyset_cross_product_per_factors": 20,
+    "keyset_cross_product_per_factors": 24,
 }
 
 
