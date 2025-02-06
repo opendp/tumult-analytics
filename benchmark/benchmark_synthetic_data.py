@@ -13,6 +13,7 @@ from benchmarking_utils import write_as_html
 from pyspark.sql import SparkSession
 
 from tmlt.analytics import ApproxDPBudget, AddOneRow, KeySet, Session 
+from tmlt.analytics.synthetics._generate_synthetic_data import generate_synthetic_data
 from tmlt.synthetics import ClampingBounds, Count, FixedMarginals, Sum
 from tmlt.analytics.synthetics._toolkit import SyntheticDataToolkit
 
@@ -93,12 +94,12 @@ def evaluate_runtime(
     start = time.time()
     toolkit.fit.fit_model(
         split_columns=split_columns,
-        model_iterations=1,
     )
     model_fitting_time = time.time() - start
     print(f"Model fitting time: {model_fitting_time} seconds")
     start = time.time()
     toolkit.generate.generate_from_model()
+    toolkit.synthetic_data.cache()
     toolkit.synthetic_data.count() # Force computation
     categorical_data_generation_time = time.time() - start
     print(f"Categorical data generation time: {categorical_data_generation_time} seconds")
@@ -108,6 +109,7 @@ def evaluate_runtime(
         new_column="X",
         split_columns=split_columns,
     )
+    toolkit.synthetic_data.cache()
     toolkit.synthetic_data.count() # Force computation
     numeric_data_generation_time = time.time() - start
     print(f"Numeric data generation time: {numeric_data_generation_time} seconds")
@@ -116,7 +118,34 @@ def evaluate_runtime(
         "model_fitting_time": model_fitting_time,
         "categorical_data_generation_time": categorical_data_generation_time,
         "numeric_data_generation_time": numeric_data_generation_time,
+        "total_time": measurement_time + model_fitting_time + categorical_data_generation_time + numeric_data_generation_time,
     }
+
+
+def evaluate_using_generate_synthetic_data(
+    session: Session,
+    keyset: KeySet,
+    count_marginals: List[Count],
+    sum_marginals: List[Sum],
+    split_columns: Optional[List[str]],
+    clamping_bounds: ClampingBounds,
+    privacy_budget: ApproxDPBudget,
+) -> float:
+    """Simple benchmark that measures total time to generate synthetic data."""
+    measurement_strategies = [FixedMarginals(marginals=count_marginals + sum_marginals)]
+    
+    start = time.time()
+    synthetic_data = generate_synthetic_data(
+        session=session,
+        source_id="private",
+        keyset=keyset,
+        measurement_strategies=measurement_strategies,
+        clamping_bounds=clamping_bounds,
+        privacy_budget=privacy_budget,
+        split_columns=split_columns,
+    )
+    synthetic_data.count()
+    return time.time() - start
 
 
 def main() -> None:
@@ -210,20 +239,7 @@ def main() -> None:
     ]
 
     benchmark_result = pd.DataFrame(
-        [],
-        columns=[
-            "Test Case",
-            "Size",
-            "Num Attributes",
-            "Attribute Domain",
-            "Chain Size",
-            "Include First N",
-            "Split First M",
-            "Measurement time (s)",
-            "Model fitting time (s)",
-            "Categorical data generation time (s)",
-            "Numeric data generation time (s)",
-        ],
+        []
     )
 
     for case in test_cases:
@@ -262,7 +278,6 @@ def main() -> None:
             }
         )
 
-        # measurement
         running_time = evaluate_runtime(
             session=session,
             keyset=keyset,
@@ -288,8 +303,65 @@ def main() -> None:
             [benchmark_result, pd.Series(row).to_frame().T], ignore_index=True
         )
 
-    spark.stop()
     write_as_html(benchmark_result, "synthetic_data_generation.html")
+
+
+    print("Running benchmark for generate_synthetic_data (no intermediate caching/performance break-down)")
+    parameters = {
+        "size": 100_000,
+        "num_attributes": 10,
+        "attribute_domain": 10,
+        "chain_size": 2,
+        "include_first_n": 1,
+        "split_first_m": 1,
+    }
+
+    columns = [f"A{i+1}" for i in range(parameters["num_attributes"])]
+    domain = list(range(parameters["attribute_domain"]))
+    df_dict = {col: [random.randint(0, parameters["attribute_domain"] - 1) for _ in range(parameters["size"])] for col in columns}
+    df_dict["X"] = [random.random() for _ in range(parameters["size"])]
+    df = spark.createDataFrame(pd.DataFrame(df_dict))
+    keyset_dict = {col: domain for col in columns}
+    keyset = KeySet.from_dict(keyset_dict)
+    
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(epsilon=float("inf"), delta=1e-6),
+        protected_change=AddOneRow(),
+        source_id="private",
+        dataframe=df,
+    )
+
+    count_marginals, sum_marginals = create_chain_marginals(
+        parameters["num_attributes"],
+        parameters["chain_size"],
+        parameters["include_first_n"]
+    )
+    clamping_bounds = ClampingBounds(bounds_per_column={"X": (0, 1)})
+
+    total_time = evaluate_using_generate_synthetic_data(
+        session=session,
+        keyset=keyset,
+        count_marginals=count_marginals,
+        sum_marginals=sum_marginals,
+        split_columns=columns[:parameters["split_first_m"]] if parameters["split_first_m"] is not None else None,
+        clamping_bounds=clamping_bounds,
+        privacy_budget=ApproxDPBudget(epsilon=1.0, delta=1e-6),
+    )
+
+    simple_result = pd.DataFrame([{
+        "Test Case": "Simple baseline with split columns (no caching)",
+        "Size": parameters["size"],
+        "Num Attributes": parameters["num_attributes"],
+        "Attribute Domain": parameters["attribute_domain"],
+        "Chain Size": parameters["chain_size"],
+        "Include First N": parameters["include_first_n"],
+        "Split First M": parameters["split_first_m"],
+        "Total time (s)": total_time
+    }])
+    
+    write_as_html(simple_result, "synthetic_data_generation.html")
+
+    spark.stop()
 
 
 if __name__ == "__main__":
