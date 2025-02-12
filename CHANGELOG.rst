@@ -10,6 +10,10 @@ Changelog
 Unreleased
 ----------
 
+This release introduces a major overhaul of KeySets, including several new operations and tweaks to existing ones. 
+It also features reorganized documentation. 
+For Pro users, we've used the new KeySet capabilities to slightly simplify the Synthetics API and introduced some behind-the-scenes performance and accuracy improvements.
+
 Added
 ~~~~~
 
@@ -38,7 +42,7 @@ Changed
 Fixed
 ~~~~~
 - |PRO| Fixed a crash when using :class:`.AutomaticBounds` with :func:`~.synthetics.generate_synthetic_data`.
-- |PRO| Fixed a crash when using dates or timestamps when there are empty groups for `split_columns` in the generated data.
+- |PRO| Fixed a crash when using dates or timestamps when there are empty groups for ``split_columns`` in the generated data.
 - |PRO| Fixed a bug in tuners run with :meth:`.SessionProgramTuner.Builder.with_cache`; the option should now give a much more substantial performance improvement.
 
 .. _v0.19.0:
