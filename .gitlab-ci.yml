@@ -204,8 +204,11 @@ test_release_linux:
   stage: test-release
   needs: ["package"]
   parallel:
-    matrix:
-      - PYTHON_VERSION: ["3.9", "3.10", "3.11", "3.12"]
+    matrix: # 3.10, 3.11, and 3.12 run out of memory on a c6a.xlarge.
+      - PYTHON_VERSION: ["3.9"]
+        INSTANCE: aws-c6a.xlarge
+      - PYTHON_VERSION: ["3.10", "3.11", "3.12"]
+        INSTANCE: aws-m6a.2xlarge
   image: registry.gitlab.com/tumult-labs/ops/ci/linux:python${PYTHON_VERSION}
   script:
     - nox -s release_smoketest release_test
@@ -224,7 +227,8 @@ test_release_linux:
       when: never
     - when: manual
       allow_failure: true
-  tags: [aws-c6a.xlarge]
+  tags: 
+    - ${INSTANCE}
 
 audit:
   extends: .base
