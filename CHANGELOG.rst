@@ -7,8 +7,10 @@
 Changelog
 =========
 
-Unreleased
-----------
+.. _v0.20.0:
+
+0.20.0 - 2025-02-25
+-------------------
 
 This release introduces a major overhaul of KeySets, including several new operations and tweaks to existing ones. 
 It also features reorganized documentation. 
