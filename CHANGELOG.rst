@@ -10,6 +10,10 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- Updated tutorials and guides to pull example data from gitlab rather than s3.
+
 .. _v0.20.0:
 
 0.20.0 - 2025-02-25
