@@ -8,6 +8,12 @@ Tumult Analytics is a library that allows users to execute differentially privat
 data without having to worry about the privacy implementation, which is handled
 automatically by the API. It is built atop the [Tumult Core library](https://gitlab.com/tumult-labs/core).
 
+## 🚨 Important Update: the Tumult Labs Team is Joining LinkedIn 🚨
+The [Tumult Labs team has joined LinkedIn](https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye)! 🎉 As part of this transition, we are exploring options for the future of Tumult Analytics, including finding a new home for the project. 🏡
+We greatly appreciate the community’s support and contributions. If your organization is interested in maintaining or adopting Tumult Analytics, please reach out! 📩
+For now, the repository remains available, and we encourage users to continue engaging with the project. We’ll provide updates as soon as we have more to share.
+— The Tumult Labs Team 💙
+
 ## Demo video
 
 Want to see Tumult Analytics in action? Check out this video introducing the
