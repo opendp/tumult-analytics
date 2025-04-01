@@ -7,8 +7,21 @@
 Changelog
 =========
 
+🚨 Important Update: the Tumult Labs Team is Joining LinkedIn 🚨
+----------------------------------------------------------------
+
+The `Tumult Labs team has joined LinkedIn <https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye>`__! 🎉 As part of this transition, we are exploring options for the future of Tumult Analytics, including finding a new home for the project. 🏡
+We greatly appreciate the community’s support and contributions. If your organization is interested in maintaining or adopting Tumult Analytics, please reach out! 📩
+For now, the repository remains available, and we encourage users to continue engaging with the project. We’ll provide updates as soon as we have more to share.
+
+— The Tumult Labs Team 💙
+
 Unreleased
 ----------
+
+Added
+~~~~~
+- Add LinkedIn announcement to CHANGELOG.rst.
 
 Changed
 ~~~~~~~
