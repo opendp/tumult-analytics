@@ -16,8 +16,10 @@ For now, the repository remains available, and we encourage users to continue en
 
 — The Tumult Labs Team 💙
 
-Unreleased
-----------
+.. _v0.20.1:
+
+0.20.1 - 2025-04-02
+-------------------
 
 Added
 ~~~~~
