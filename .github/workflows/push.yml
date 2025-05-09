@@ -12,6 +12,7 @@ jobs:
           python-version: '3.11'
       - run: java -version
       - run: python --version
+      - run: curl -sSL https://install.python-poetry.org | python3 -
       - run: poetry self show
       - run: poetry install --only scripting
       - run: nox -s build
