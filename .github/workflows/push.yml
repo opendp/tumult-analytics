@@ -13,6 +13,7 @@ jobs:
       - run: java -version
       - run: python --version
       - run: pwd
+      - run: ls
       - run: curl -sSL https://install.python-poetry.org | python3 -
       - run: poetry self show
       - run: poetry install --only scripting
