@@ -10,9 +10,9 @@ Tumult Analytics is a Python library to execute differentially private
 operations on data, with a strong emphasis on usability and scalability. It is
 built atop the [Tumult Core library](https://github.com/opendp/tumult-core).
 
-It was originally developed by [Tumult Labs](https://tmlt.io), and was
-transferred to [OpenDP](https://opendp.org) following the startup's acquisition
-by LinkedIn.
+It was originally developed by
+[Tumult Labs](https://www.linkedin.com/company/tmltlabs), and joined the
+[OpenDP project](https://opendp.org) after the Tumult Labs team joined LinkedIn.
 
 ## Demo video
 
