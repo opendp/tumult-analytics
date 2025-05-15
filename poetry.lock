@@ -4178,22 +4178,22 @@ typeguard = ">=4.0.0,<5.0.0"
 [[package]]
 name = "tmlt-nox-utils"
 version = "0.0.0"
-description = "Tumult's internal nox utilities."
+description = ""
 optional = false
-python-versions = "^3.8.0"
+python-versions = ">=3.9"
 groups = ["scripting"]
 files = []
 develop = false
 
 [package.dependencies]
-nox = "^2022.8.7"
-nox_poetry = "^1.0.1"
+nox = ">=2022.8.7"
 
 [package.source]
 type = "git"
-url = "ssh://git@gitlab.com/tumult-labs/nox-utils.git"
-reference = "HEAD"
-resolved_reference = "e5d8e83b007e7c6fc30d39ec59469c86283d1ece"
+url = "https://github.com/opendp/tumult-tools.git"
+reference = "4663655567e2819bf5116364e347897a12652487"
+resolved_reference = "4663655567e2819bf5116364e347897a12652487"
+subdirectory = "nox-utils"
 
 [[package]]
 name = "tomli"
@@ -4509,4 +4509,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9.0, <3.13"
-content-hash = "2c8b695919692d31d55378d81fd206fe20cfe51e1715a0c2c29abf35e7689593"
+content-hash = "4fafa1365c4abe285efd4f7bbe4d27082e81cac6a6d9f6b8830504c6bd946666"

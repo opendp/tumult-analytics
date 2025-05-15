@@ -145,7 +145,7 @@ seaborn = [
 [tool.poetry.group.scripting.dependencies]
 nox = "2022.8.7"
 nox_poetry = "1.0.1"
-"tmlt.nox_utils" = { git = "git@gitlab.com:tumult-labs/nox-utils.git" }
+"tmlt.nox_utils" = { git = "https://github.com/opendp/tumult-tools.git", subdirectory = "nox-utils", rev = "4663655567e2819bf5116364e347897a12652487" }
 
 [tool.poetry.group.ci-tools.dependencies]
 requests = "^2.31.0"
