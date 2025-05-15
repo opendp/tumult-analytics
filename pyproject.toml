@@ -1,17 +1,24 @@
-[tool.poetry]
+[project]
 
 name = "tmlt.analytics"
-license = "Apache-2.0"
+
+# The version field is required in this file format, even though it's ignored because of poetry-dynamic-versioning.
+version = "0.0.0"
 
 description = "Tumult's differential privacy analytics API"
+license = "Apache-2.0"
 readme = "README.md"
 authors = []
+dynamic = [ "version", "classifiers", "dependencies", "requires-python" ]
+
+[project.urls]
+
 homepage = "https://www.tmlt.dev/"
 repository = "https://gitlab.com/tumult-labs/analytics"
 documentation = "https://docs.tmlt.dev/platform/latest"
 
-# The version field is required in this file format, even though it's ignored because of poetry-dynamic-versioning.
-version = "0.0.0"
+[tool.poetry]
+requires-poetry = ">=2.0"
 
 classifiers = [
    "Development Status :: 4 - Beta",
@@ -36,6 +43,9 @@ include = [
 packages = [
   { include = "tmlt" },
 ]
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 
 
 [tool.poetry.dependencies]
