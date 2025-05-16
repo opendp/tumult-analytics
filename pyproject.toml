@@ -41,7 +41,7 @@ include = [
   { path = "LICENSE", format = "sdist" },
 ]
 packages = [
-  { include = "tmlt" },
+  { include = "tmlt", from = "src" },
 ]
 
 [tool.poetry.requires-plugins]
@@ -161,7 +161,7 @@ style = "semver"
 pattern = "^(?P<base>\\d+\\.\\d+\\.\\d+)(-(?P<stage>[a-zA-Z]+)\\.(?P<revision>\\d+))?"
 fix-shallow-repository = true
 [tool.poetry-dynamic-versioning.substitution]
-files = ["tmlt/analytics/__init__.py"]
+files = ["src/tmlt/analytics/__init__.py"]
 
 [tool.black]
 force-exclude = "noxfile.py"
