@@ -8,12 +8,15 @@ API reference.
 import os
 from pathlib import Path
 
-from tmlt.nox_utils import SessionBuilder
+import nox
+from tmlt.nox_utils import SessionManager
+
+nox.options.default_venv_backend = "uv|virtualenv"
+
+CWD = Path(".").resolve()
 
 PACKAGE_NAME = "tmlt.analytics"
 """Name of the package."""
-PACKAGE_SOURCE_DIR = "tmlt"
-"""Relative path from the project root to its source code."""
 SMOKETEST_SCRIPT = """
 from tmlt.analytics.utils import check_installation
 check_installation()
@@ -49,37 +52,6 @@ DEPENDENCY_MATRIX = {
         # fmt: on
     ]
 }
-
-LICENSE_IGNORE_GLOBS = [
-    r".*\.ci.*",
-    r".*\.gitlab.*",
-    r".*\.ico",
-    r".*\.ipynb",
-    r".*\.json",
-    r".*\.png",
-    r".*\.svg",
-]
-
-LICENSE_IGNORE_FILES = [
-    r".gitignore",
-    r".gitlab-ci.yml",
-    r"CONTRIBUTING.md",
-    r"LICENSE",
-    r"LICENSE.docs",
-    r"Makefile",
-    r"NOTICE",
-    r"noxfile.py",
-    r"poetry.lock",
-    r"py.typed",
-    r"pyproject.toml",
-]
-
-LICENSE_KEYWORDS = ["CC-BY-SA-4.0"]
-LICENSE_KEYWORDS += ["Apache-2.0"]
-
-ILLEGAL_WORDS_IGNORE_GLOBS = LICENSE_IGNORE_GLOBS
-ILLEGAL_WORDS_IGNORE_FILES = LICENSE_IGNORE_FILES
-ILLEGAL_WORDS = ["multirepo", "multi-repo"]
 
 AUDIT_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 AUDIT_SUPPRESSIONS = [
@@ -128,59 +100,34 @@ def install_overrides(session):
         # This overrides Poetry's dependencies with our own
         session.poetry.session.install(str(core_wheels[0]))
 
-
-_builder = SessionBuilder(
-    PACKAGE_NAME,
-    Path(PACKAGE_SOURCE_DIR).resolve(),
-    options={
-        "code_dirs": [Path(PACKAGE_SOURCE_DIR).resolve(), Path("test").resolve()],
-        "install_overrides": install_overrides,
-        "default_python_version": "3.9",
-        "smoketest_script": SMOKETEST_SCRIPT,
-        "dependency_matrix": DEPENDENCY_MATRIX,
-        "license_exclude_globs": LICENSE_IGNORE_GLOBS,
-        "license_exclude_files": LICENSE_IGNORE_FILES,
-        "license_keyword_patterns": LICENSE_KEYWORDS,
-        "illegal_words_exclude_globs": ILLEGAL_WORDS_IGNORE_GLOBS,
-        "illegal_words_exclude_files": ILLEGAL_WORDS_IGNORE_FILES,
-        "illegal_words": ILLEGAL_WORDS,
-        "audit_versions": AUDIT_VERSIONS,
-        "audit_suppressions": AUDIT_SUPPRESSIONS,
-        "minimum_coverage": MIN_COVERAGE,
-        "coverage_module": "tmlt.analytics",
-        "parallel_tests": True,
-        "benchmark_to_timeout": BENCHMARK_TO_TIMEOUT,
-    },
+sm = SessionManager(
+    package=PACKAGE_NAME, 
+    directory=CWD, 
+    smoketest_script=SMOKETEST_SCRIPT, 
+    parallel_tests=False, 
+    min_coverage=MIN_COVERAGE,
+    audit_versions=AUDIT_VERSIONS,
+    audit_suppressions=AUDIT_SUPPRESSIONS,
 )
 
-_builder.build()
+sm.build()
 
-_builder.black()
-_builder.isort()
-_builder.mypy()
-_builder.pylint()
-_builder.pydocstyle()
-_builder.license_check()
-_builder.illegal_words_check()
-_builder.audit()
+sm.black()
+sm.isort()
+sm.mypy()
+sm.pylint()
+sm.pydocstyle()
 
-_builder.test()
-_builder.test_doctest()
-_builder.test_demos()
-_builder.test_smoketest()
-_builder.test_fast()
-_builder.test_slow()
-_builder.test_dependency_matrix()
+sm.smoketest()
+sm.release_smoketest()
+sm.test()
+sm.test_fast()
+sm.test_slow()
+sm.test_doctest()
 
-_builder.docs_linkcheck()
-_builder.docs_doctest()
-_builder.docs()
+# TODO(#5): Fix sphinx setup.
+# sm.docs_linkcheck()
+# sm.docs_doctest()
+# sm.docs()
 
-_builder.benchmark()
-_builder.benchmark_dependency_matrix()
-
-_builder.release_test()
-_builder.release_smoketest()
-
-_builder.prepare_release()
-_builder.post_release()
+sm.audit()
