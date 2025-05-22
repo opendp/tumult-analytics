@@ -1,4 +1,4 @@
-.. _Working with privacy IDs:
+.. _privacy-id-basics:
 
 Working with privacy IDs
 ========================
@@ -125,7 +125,7 @@ Let's find out what the most popular books in our library are! We can do this
 by counting how many times each book has been checked out.
 
 This sounds like a simple query combining a group-by operation and a count;
-we know :ref:`how to perform those<Group-by queries>`. But if we try to evaluate this
+we know :ref:`how to perform those<group-by-queries>`. But if we try to evaluate this
 query on our data, we will get an error:
 
 .. code-block::
@@ -149,7 +149,7 @@ This error occurs because there is no limit to how many rows a single person
 could contribute to the data: a single library member could borrow 10000 books
 or even more! But differential privacy needs to hide the impact of a single
 person behind statistical noise… and as we saw with
-:ref:`clamping bounds<Clamping bounds>`, this is impossible if this impact
+:ref:`clamping bounds<clamping-bounds>`, this is impossible if this impact
 can be arbitrarily large!
 
 To solve this problem, before performing aggregations, we need to limit the
@@ -374,4 +374,4 @@ As a reminder:
 To understand the impact of the various constraints in more detail,
 you can consult our :ref:`topic guide about sensitivity<Understanding sensitivity>`.
 To learn more about how to perform more complex queries on tables initialized with
-privacy IDs, you can proceed to the :ref:`next tutorial<Advanced IDs features>`.
+privacy IDs, you can proceed to the :ref:`next tutorial<advanced-privacy-ids>`.

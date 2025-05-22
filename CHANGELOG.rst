@@ -7,15 +7,6 @@
 Changelog
 =========
 
-🚨 Important Update: the Tumult Labs Team is Joining LinkedIn 🚨
-----------------------------------------------------------------
-
-The `Tumult Labs team has joined LinkedIn <https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye>`__! 🎉 As part of this transition, we are exploring options for the future of Tumult Analytics, including finding a new home for the project. 🏡
-We greatly appreciate the community’s support and contributions. If your organization is interested in maintaining or adopting Tumult Analytics, please reach out! 📩
-For now, the repository remains available, and we encourage users to continue engaging with the project. We’ll provide updates as soon as we have more to share.
-
-— The Tumult Labs Team 💙
-
 Unreleased
 ----------
 
@@ -24,13 +15,12 @@ Unreleased
 0.20.1 - 2025-04-02
 -------------------
 
-Added
-~~~~~
-- Add LinkedIn announcement to CHANGELOG.rst.
+This is the last version of Tumult Analytics released by Tumult Labs. The ownership of the project was transferred to OpenDP after the Tumult Labs team joined `LinkedIn<https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye>`__.
+The project is now hosted on `GitHub<https://github.com/opendp/tumult-analytics>`__, and accepts external contributions.
 
 Changed
 ~~~~~~~
-- Updated tutorials and guides to pull example data from gitlab rather than s3.
+- Updated tutorials and guides to pull example data from GitLab rather than s3.
 
 .. _v0.20.0:
 
@@ -39,7 +29,6 @@ Changed
 
 This release introduces a major overhaul of KeySets, including several new operations and tweaks to existing ones. 
 It also features reorganized documentation. 
-For Pro users, we've used the new KeySet capabilities to slightly simplify the Synthetics API and introduced some behind-the-scenes performance and accuracy improvements.
 
 Added
 ~~~~~
@@ -49,9 +38,8 @@ Added
 Changed
 ~~~~~~~
 
-- The documentation is now split in three distinct product-level documentation pages, for :ref:`Tumult Analytics<analytics>`, :ref:`Tumult Synthetics<synthetics>`, and :ref:`Tumult Tune<tune>`.
 - The API reference is now organized into semantically-grouped subpages and no longer follows the internal module structure.
-- All Python objects should now be imported directly from ``tmlt.analytics``, ``tmlt.synthetics``, and ``tmlt.tune``. The documentation and demos have been updated accordingly. Existing import paths still work but will be removed in a future release, so users should switch to the new import statements.
+- All Python objects should now be imported directly from ``tmlt.analytics``. The documentation and demos have been updated accordingly. Existing import paths still work but will be removed in a future release, so users should switch to the new import statements.
 - :meth:`.KeySet.__eq__` now ignores column order when comparing KeySets.
 - :meth:`.KeySet.__getitem__` can no longer be used to drop all of the columns in KeySet, for example with ``keyset[[]]``.
 - :meth:`.KeySet.filter` no longer allows using the KeySet's dataframe to be used when specifying columns (e.g. writing expressions like ``ks.filter(ks.dataframe().A > 5)``).
@@ -59,63 +47,24 @@ Changed
   Passing filter conditions as strings is unaffected.
 - :meth:`.KeySet.schema` reports column nullability more accurately than it did previously, for example identifying that passing a column with no ``None`` values to :meth:`.KeySet.from_dict` will cause that column to not contain nulls.
 - Numpy arrays can now be used when initializing a :class:`~tmlt.analytics.binning_spec.BinningSpec`.
-- |PRO| Renamed ``CountReleasedRows`` to :class:`~tmlt.tune.CountDPRows` and ``HighRelativeErrorFraction`` to :class:`~tmlt.tune.HighRelativeErrorRate`.
-- |PRO| *Backwards-incompatible*: :func:`~.synthetics.generate_synthetic_data` no longer accepts a separate ``count_structural_zeroes`` argument.
-  Instead, build these structural zeroes into the ``keyset`` argument using :meth:`.KeySet.__sub__`.
-- |PRO| Significant behind-the-scenes refactor of the synthetic data generation code.
-  - This addresses an OOM crash when generating synthetic data where the number of rows is large relative to the model size.
-  - The way numeric columns are generated based on sums has been changed to be significantly more accurate and reliable.
-
-Fixed
-~~~~~
-- |PRO| Fixed a crash when using :class:`.AutomaticBounds` with :func:`~.synthetics.generate_synthetic_data`.
-- |PRO| Fixed a crash when using dates or timestamps when there are empty groups for ``split_columns`` in the generated data.
-- |PRO| Fixed a bug in tuners run with :meth:`.SessionProgramTuner.Builder.with_cache`; the option should now give a much more substantial performance improvement.
 
 .. _v0.19.0:
 
 0.19.0 - 2024-11-21
 -------------------
 
-This release includes a number of improvements and bug fixes to the Tumult Synthetics API.
-
-Changed
-~~~~~~~
-- |PRO| :meth:`.ErrorReport.dataframes` and :meth:`.MultiErrorReport.dataframes` now return an empty dict if there are no metrics.
-- |PRO| Pandas DataFrames produced by :meth:`.ErrorReport.dataframe`, :meth:`.ErrorReport.dataframes`, and equivalent :class:`~tmlt.tune.MultiErrorReport` methods now have column types that allow null values.
-- |PRO| The ``BinningStrategy`` class has been removed.
-  Instead, use :class:`.BinningSpec` directly for binning in :func:`~.synthetics.generate_synthetic_data`.
-  The behavior is the same as if you had used ``BinningStrategy`` with ``generate_nulls=True``.
-
-Fixed
-~~~~~
-- |PRO| Using :class:`.AutomaticBounds` when generating synthetic data no longer produces an error.
+This release includes no user-visible changes to Tumult Analytics.
 
 .. _v0.18.0:
 
 0.18.0 - 2024-11-19
 -------------------
 
-This release adds an initial version of Tumult Synthetics, Tumult Labs' new differentially private synthetic data generator.
-The :ref:`API for this generator<synthetics-api>` is still under development and may undergo significant changes.
-
-Additionally, this release increases the minimum supported Python version to 3.9, and the minimum supported PySpark version to 3.3.1.
-
-Added
-~~~~~
-- |PRO| Added :meth:`.ErrorReport.dataframe`, which combines the metric results in this error in a single DataFrame, if possible.
-- |PRO| Added :class:`~tmlt.tune.NamedValue`, which allows users to pass a name along with a parameter value when using a :class:`.SessionProgramTuner`. The name is then used when printing error reports or converting them to DataFrames.
+This release increases the minimum supported Python version to 3.9, and the minimum supported PySpark version to 3.3.1.
 
 Changed
 ~~~~~~~
-- |PRO| *Backwards-incompatible*: The ``with_cache_enabled`` method on Tuner builders has been renamed to :meth:`.SessionProgramTuner.Builder.with_cache`.
-- |PRO| :meth:`.ErrorReport.dataframes` and :meth:`.MultiErrorReport.dataframes` now return an empty dict if there are no metrics.
-- |PRO| Pandas DataFrames produced by :meth:`.ErrorReport.dataframe`, :meth:`.ErrorReport.dataframes`, and equivalent :class:`~tmlt.tune.MultiErrorReport` methods now have column types that allow null values.
-
-Fixed
-~~~~~
 - The ``columns`` argument to :meth:`.KeySet.from_tuples` is no longer required to be a tuple, any sequence type (e.g. a list) is now acceptable.
-- |PRO| Fixes a bug where some metric values would be matched to incorrect parameters when calling :meth:`.MultiErrorReport.dataframe`.
 
 .. _v0.17.0:
 
@@ -123,10 +72,6 @@ Fixed
 -------------------
 
 This release provides a number of quality of life improvements, including a new :meth:`.KeySet.from_tuples` method and support for basic arithmetic on privacy budgets.
-
-For Pro users, it also introduces query caching in :class:`.SessionProgramTuner`\ s, which can be enabled by using ``with_cache_enabled`` when initializing the tuner.
-This stores query results so that they can be reused in subsequent runs that evaluate the same queries.
-It also includes some significant changes to metrics and error reports, some new metrics, and minor changes to :class:`.SessionProgram`.
 
 .. note::
 
@@ -137,16 +82,6 @@ Changed
 ~~~~~~~
 - The :meth:`~tmlt.analytics.QueryBuilder.map`, :meth:`~tmlt.analytics.QueryBuilder.flat_map`, and :meth:`~tmlt.analytics.QueryBuilder.flat_map_by_id` transformations now more strictly check their outputs against the provided new column types.
   This may cause some existing programs to produce errors if they relied on the previous, less-strict behavior.
-- |PRO| Users are now allowed to define abstract subclasses of :class:`~tmlt.analytics.SessionProgram`, and non-concrete subclasses of :class:`~tmlt.tune.SessionProgramTuner` (without an associated :class:`~tmlt.analytics.SessionProgram`).
-- |PRO| :class:`~tmlt.analytics.SessionProgram` outputs may now be optional.
-  A :class:`~tmlt.analytics.SessionProgram` can be constructed without specifying parameters that are of type ``Optional``.
-- |PRO| *Backwards-incompatible*: :class:`~tmlt.tune.MetricResult` no longer contains the ``metric`` field.
-  In its place, some key information from the metric is now included in the :class:`~tmlt.tune.MetricResult`, and some :class:`~tmlt.tune.Metric` classes have their own :class:`~tmlt.tune.MetricResult` subclasses that add further information (e.g. :class:`~tmlt.tune.JoinedOutputMetricResult` for :class:`~tmlt.tune.JoinedOutputMetric`).
-- |PRO| *Backwards-incompatible*: ``SessionProgram.outputs`` has been replaced with :meth:`.SessionProgram.run`.
-- |PRO| *Backwards-incompatible*: ``SessionProgramTuner.outputs`` has been replaced with :meth:`.SessionProgramTuner.run`.
-  The output of :meth:`.SessionProgramTuner.run` can be passed as input to :meth:`.SessionProgramTuner.error_report`, to compute views and metrics without re-computing DP and baseline outputs.
-- |PRO| *Backwards-incompatible*: ``program_parameters`` was renamed to ``parameters`` across :class:`~tmlt.tune.SessionProgramTuner` metrics, baselines, and views.
-- |PRO| *Backwards-incompatible*: ``ErrorReport.result_dataframes()`` and ``MultiErrorReport.result_dataframes()`` (deprecated in 0.16.0) were removed in favor of :meth:`.ErrorReport.dataframes` and :meth:`.MultiErrorReport.dataframes`.
 - Log messages are now emitted via Python's built-in ``logging`` module.
 - The supported version of typeguard has been updated to 4.*.
 
@@ -154,47 +89,32 @@ Added
 ~~~~~
 - Privacy budgets now support division, multiplication, addition and subtraction.
 - KeySets can now be initialized directly from a collection of Python tuples using :meth:`.KeySet.from_tuples`.
-- |PRO| Added new metrics: :class:`~tmlt.tune.SpuriousCount`, :class:`~tmlt.tune.SuppressionCount`, :class:`~tmlt.tune.HighRelativeErrorCount`, ``CountReleasedRows``, and :class:`~tmlt.tune.CountBaselineRows`.
-- |PRO| Added a :meth:`~tmlt.analytics.SessionProgram.output_types` method that returns the types of a program's outputs.
-- |PRO| Added a new tuner builder method, ``with_cache_enabled``, for storing query results in cache so that they can be reused in subsequent runs for same queries.
-
-Fixed
-~~~~~
-- |PRO| Fixed a crash in :meth:`.MultiErrorReport.dataframe` when using non-hashable parameters.
 
 .. _v0.16.1:
 
 0.16.1 - 2024-09-04
 -------------------
 
-This release fixes a bug where :class:`~tmlt.analytics.no_privacy_session.NoPrivacySession` would crash when evaluating queries while a view was defined. This affected any users of ``NoPrivacySession``, and any attempt to use a :class:`~tmlt.tune.SessionProgramTuner` on a program that calls :meth:`tmlt.analytics.Session.create_view`.
+This release includes no user-visible changes to Tumult Analytics.
 
 .. _v0.16.0:
 
 0.16.0 - 2024-08-21
 -------------------
+
 This release adds a new :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.QueryBuilder.flat_map_by_id>` transformation, improved constraint support when using :meth:`~tmlt.analytics.Session.partition_and_create`, and performance improvements.
 It also makes minor (but potentially breaking) changes to metrics and error reports.
 
 Added
 ~~~~~
 - Added a new transformation, :meth:`QueryBuilder.flat_map_by_id <tmlt.analytics.QueryBuilder.flat_map_by_id>`, which allows user-defined transformations to be applied to groups of rows sharing an ID on tables with the :class:`~tmlt.analytics.AddRowsWithID` protected change.
-- |PRO| Metrics can now return booleans or strings.
-
-Deprecated
-~~~~~~~~~~
-- |PRO| Deprecated ``ErrorReport.result_dataframes()`` and ``MultiErrorReport.result_dataframes()`` in favor of new :meth:`tmlt.tune.ErrorReport.dataframes()` and :meth:`tmlt.tune.MultiErrorReport.dataframes()` methods.
 
 Fixed
 ~~~~~
 - Significantly improved the performance of coercing Session input dataframe columns to supported types.
-- |PRO| Fixed a crash in :meth:`~tmlt.tune.MultiErrorReport.dataframe()` when using list parameters and grouped metrics.
 
 Changed
 ~~~~~~~
-- |PRO| :meth:`~tmlt.tune.ErrorReport.show()` now shows which columns each metric was grouped by.
-- |PRO| *Backwards-incompatible*: Metric functions, view functions, and baseline functions are no longer allowed to have a ``self`` parameter. They should instead be annotated with ``@staticmethod``.
-- |PRO| :class:`~tmlt.tune.SpuriousRate` and :class:`~tmlt.tune.SuppressionRate` no longer require the user to specify an output if only one exists.
 - :meth:`~tmlt.analytics.Session.partition_and_create` can now be used on a table with an :class:`~tmlt.analytics.AddRowsWithID` protected change if a :class:`~tmlt.analytics.MaxRowsPerID` constraint is present, converting the table being partitioned into one with an :class:`~tmlt.analytics.AddMaxRows` protected change.
   The behavior when using :meth:`~tmlt.analytics.Session.partition_and_create` on such a table with a :class:`~tmlt.analytics.MaxGroupsPerID` constraint has not changed.
   If both :class:`~tmlt.analytics.MaxRowsPerID` and :class:`~tmlt.analytics.MaxGroupsPerID` constraints are present, the :class:`~tmlt.analytics.MaxRowsPerID` constraint is ignored and only the :class:`~tmlt.analytics.MaxGroupsPerID` constraint gets applied.
@@ -203,16 +123,13 @@ Changed
 
 0.15.0 - 2024-08-12
 -------------------
+
 This release extends the :meth:`~tmlt.analytics.GroupedQueryBuilder.get_bounds` method so it can get upper and lower bounds for each group in a dataframe.
 In addition, it changes the object used to represent queries to the new :class:`~tmlt.analytics.Query` class, and updates the format in which table schemas are returned.
-
-It also changes the way custom metrics are specified, with new decorators, a new behavior for the :func:`@metric<tmlt.tune.metric>` decorator, and the old custom metric classes replaced with updated base metric classes.
 
 Added
 ~~~~~
 - Added a dependency on the library ``tabulate`` to improve table displays from :meth:`~tmlt.analytics.Session.describe`.
-- |PRO| Ability to specify views on output tables in a list using :data:`tmlt.tune.SessionProgramTuner.views` class variable.
-- |PRO| Output validation for custom views/baselines/metrics that cause `RuntimeError` if the output is not valid.
 - Added the ability to :meth:`~tmlt.analytics.GroupedQueryBuilder.get_bounds` after calling :meth:`~tmlt.analytics.QueryBuilder.groupby`, for determining upper and lower bounds for a column per group in a differentially private way.
 
 Changed
@@ -227,13 +144,6 @@ Changed
 - :meth:`~tmlt.analytics.Session.evaluate` now accepts :class:`~tmlt.analytics.Query` objects instead of ``QueryExpr`` objects.
 - Replaced asserts with custom exceptions in cases where internal errors are detected.
   Internal errors are now raised as :class:`~tmlt.analytics.AnalyticsInternalError`.
-- |PRO| *Backwards-incompatible*: :class:`~tmlt.tune.Metric` and its subclasses only return a single result.
-  As a consequence, most metrics now only work on a single baseline, rather than being applied separately to each one.
-- |PRO| *Backwards-incompatible*: ``SingleBaselineMetric`` has been renamed to :class:`~tmlt.tune.SingleOutputMetric`.
-- |PRO| :class:`~tmlt.tune.Metric`, :class:`~tmlt.tune.SingleOutputMetric`, and :class:`~tmlt.tune.JoinedOutputMetric` now support grouping columns, measure columns, and empty values.
-  Accordingly, ``GroupedMetric`` and ``MeasureColumnMetric`` have been removed.
-- |PRO| :class:`~tmlt.tune.Metric`, :class:`~tmlt.tune.SingleOutputMetric`, and :class:`~tmlt.tune.JoinedOutputMetric` now support calculating the metric based on a user-supplied function (replacing ``CustomMultiBaselineMetric``, ``CustomSingleOutputMetric``, and ``CustomGroupedMetric``).
-- |PRO| :class:`~tmlt.tune.SpuriousRate` and :class:`~tmlt.tune.SuppressionRate` now support calculating error for each group in an output table.
 - Updated to Tumult Core 0.16.1.
 
 Removed
@@ -241,7 +151,6 @@ Removed
 - QueryExprs (previously in ``tmlt.analytics.query_expr``) have been removed from the Tumult Analytics public API.
   Queries should be created using :class:`~tmlt.analytics.QueryBuilder`, which returns a new :class:`~tmlt.analytics.Query` when a query is created.
 - Removed the ``query_expr`` attribute from the :class:`~tmlt.analytics.QueryBuilder` class.
-- |PRO| Removed scalar metrics: ``AbsoluteError`` and ``RelativeError``. We recommend using :class:`~tmlt.tune.MedianAbsoluteError` and :class:`~tmlt.tune.MedianRelativeError` instead.
 - Removed support for Pandas 1.2 and 1.3 due to a known bug in Pandas versions below 1.4.
 
 .. _v0.14.0:
@@ -260,13 +169,11 @@ Other types from this module have been moved into the ``tmlt.analytics.query_bui
 Added
 ~~~~~
 - Tumult Analytics now has experimental support for Python 3.12 using Pandas 2.
-- Added a progress bar to :meth:`SessionProgramTuner.multi_error_report <tmlt.tune.SessionProgramTuner.multi_error_report>`.
 
 Changed
 ~~~~~~~
 - Mechanism enums (e.g. :class:`~tmlt.analytics.CountMechanism`) should now be imported from ``tmlt.analytics.query_builder``.
   The current query expression module (``tmlt.analytics.query_expr``) will be removed from the public API in an upcoming release.
-- |PRO| Made the return type of ``ErrorReport.result_dataframes`` consistent with ``MultiErrorReport.result_dataframes``.
 
 Removed
 ~~~~~~~
@@ -281,39 +188,15 @@ Deprecated
 
 0.13.0 - 2024-07-03
 -------------------
-This release makes some supporting classes immutable.
-For Pro users, it also adds the ability to calculate metrics for each group in the output. Initially this is available for relative, absolute, and custom error metrics.
 
-Added
-~~~~~
-- |PRO| Added the ability to calculate metric results for each output group, rather than over the entire dataset. Absolute and relative error metrics support grouping.
-- |PRO| Added custom grouped metrics via the ``CustomGroupedMetric`` class.
-
-Changed
-~~~~~~~
-- Made :class:`~tmlt.analytics.BinningSpec` immutable.
-- |PRO| the :func:`@metric<tmlt.tune.metric>` decorator now creates a grouped metric.
+This release makes some supporting classes, like :class:`~tmlt.analytics.BinningSpec`, immutable. It contains no other user-visible changes.
 
 .. _v0.12.0:
 
 0.12.0 - 2024-06-18
 -------------------
 
-This release adds support for left public joins.
-It also includes a new way to specify license file locations.
-
-Added
-~~~~~
-- |PRO| The Analytics Pro license file path can now be configured programmatically via the :data:`tmlt.cfg.analytics.license_file_path_override` variable instead of using an environment variable.
-- Added support for left public joins to :meth:`~.join_public`, previously only inner joins were supported.
-
-Changed
-~~~~~~~
-- |PRO| Renamed `tmlt.tune.MetricOutput` to :class:`tmlt.tune.MetricResult`.
-
-Fixed
-~~~~~
-- |PRO| Unpersist cache on ``SessionProgramTuner.outputs``.
+This release adds support for left public joins to :meth:`~.join_public`; previously, only inner joins were supported.
 
 .. _v0.11.0:
 
@@ -334,7 +217,6 @@ Added
   These can be built using the :class:`~tmlt.analytics.QueryBuilder` by calling ``AggregatedQueryBuilder.suppress`` after building a GroupByCount query.
   As part of this change, query builders now return an ``tmlt.analytics.AggregatedQueryBuilder`` instead of a ``tmlt.analytics.query_expr.QueryExpr`` when aggregating;
   the ``tmlt.analytics.AggregatedQueryBuilder`` can be passed to :meth:`Session.evaluate <tmlt.analytics.Session.evaluate>` so most existing code should not need to be migrated.
-- :class:`~tmlt.analytics.no_privacy_session.NoPrivacySession` now has an option for whether to enforce suppression (:meth:`NoPrivacySession.Options.enforce_suppression <tmlt.tune.NoPrivacySession.Options.enforce_suppression>`).
 - Added :meth:`~tmlt.analytics.KeySet.cache` and :meth:`~tmlt.analytics.KeySet.uncache` methods to :class:`~tmlt.analytics.KeySet` for caching and uncaching the underlying Spark dataframe.
   These methods can be used to improve performance because KeySets follow Spark's lazy evaluation model.
 
@@ -357,16 +239,7 @@ Changed
 0.10.1 - 2024-05-28
 -------------------
 
-This release includes a number of bug fixes.
-
-Changed
-~~~~~~~
-- |PRO| Error reports now always specify the baseline name for each metric, even if only a single baseline is used.
-
-Fixed
-~~~~~
-- |PRO| Accessing a program's unprotected inputs and parameters when creating a view on an output table now works as expected.
-- |PRO| :meth:`NoPrivacySession.evaluate <tmlt.analytics.no_privacy_session.NoPrivacySession.evaluate>` no longer performs an unnecessary DP evaluation, improving its performance considerably.
+This release includes no user-visible changes to Tumult Analytics.
 
 .. _v0.10.0:
 
@@ -375,7 +248,6 @@ Fixed
 
 This release adds a new :meth:`~tmlt.analytics.QueryBuilder.get_bounds` aggregation.
 It also includes performance improvements for :class:`~tmlt.analytics.KeySet`\ s, and other quality-of-life improvements.
-For Pro users, it includes an easier way to define custom metrics, a way for tuners to define views over outputs, and further quality-of-life improvements.
 
 Added
 ~~~~~
@@ -383,23 +255,16 @@ Added
 
 Changed
 ~~~~~~~
-- |PRO| Metric values are now printed in scientific notation if their absolute value
-  is greater than 10,000 or less than 1/100.
 - If a :class:`~tmlt.analytics.Session.Builder` has only one
   private dataframe *and* that dataframe uses the
   :class:`~tmlt.analytics.AddRowsWithID` protected change,
   the relevant ID space will automatically be added to the Builder when
   :meth:`~tmlt.analytics.Session.Builder.build` is called.
-- |PRO| The same is true for :class:`SessionProgram.Builder<tmlt.analytics.SessionProgram.Builder>`
-  and :class:`SessionProgramTuner.Builder<tmlt.tune.SessionProgramTuner.Builder>`.
-- |PRO| Custom metrics can be defined using the :func:`@metric<tmlt.tune.metric>` decorator.
 - :class:`~tmlt.analytics.KeySet` is now an abstract class, in order to
   make some KeySet operations (column selection after cross-products) more
   efficient.
   Behavior is unchanged for users of the :meth:`~tmlt.analytics.KeySet.from_dict`
   and :meth:`~tmlt.analytics.KeySet.from_dataframe` constructors.
-- |PRO| Allow views on output tables before applying metrics by using the :func:`@view<tmlt.tune.view>` decorator.
-  The views are persisted by default and unpersisted before the tuner is destroyed.
 
 Fixed
 ~~~~~
@@ -411,17 +276,10 @@ Fixed
 0.9.0 - 2024-04-16
 ------------------
 
-This release introduces a number of proprietary features for parameterizing and tuning differentially private programs.
-It also contains bug fixes and documentation improvements.
+This release contains bug fixes and documentation improvements.
 
 Note that the 0.9.x release series will be the last to support Python 3.7, which has not been receiving security updates for several months.
 If this is a problem, please `reach out to us <mailto:info@tmlt.io>`_.
-
-Added
-~~~~~
-- |PRO| Added :class:`~.SessionProgram` for defining structured DP programs using the :class:`~.Session` API.
-- |PRO| Added :class:`~.SessionProgramTuner` and a collection of :ref:`metrics<metrics>` for tuning :class:`~.SessionProgram`\ s.
-- |PRO| Added :class:`~.no_privacy_session.NoPrivacySession`, which allows non-private query execution with the same interface as :class:`~.Session`.
 
 Changed
 ~~~~~~~

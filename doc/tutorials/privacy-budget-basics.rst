@@ -1,4 +1,4 @@
-.. _Working with privacy budgets:
+.. _privacy-budget-basics:
 
 Working with privacy budgets
 ============================
@@ -8,7 +8,7 @@ Working with privacy budgets
     Copyright Tumult Labs 2025
 
 
-In our :ref:`first steps tutorial<First steps>`, we saw how to run a simple aggregation
+In our :ref:`first steps tutorial<first-steps>`, we saw how to run a simple aggregation
 query on private data. When loading the private data into a Session, we had to
 specify a *privacy budget*. This raises two kinds of questions.
 

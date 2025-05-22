@@ -1,4 +1,4 @@
-.. _Clamping bounds:
+.. _clamping-bounds:
 
 Numerical aggregations
 ======================
@@ -7,8 +7,8 @@ Numerical aggregations
     SPDX-License-Identifier: CC-BY-SA-4.0
     Copyright Tumult Labs 2025
 
-Counting queries, which we saw in tutorials :ref:`first steps tutorial<First steps>` and
-:ref:`working with privacy budgets tutorial<Working with privacy budgets>`, are very useful, but we often need a
+Counting queries, which we saw in tutorials :ref:`first steps tutorial<first-steps>` and
+:ref:`working with privacy budgets tutorial<privacy-budget-basics>`, are very useful, but we often need a
 little more: sums, averages, medians… In this tutorial, we'll see how to compute
 this larger class of aggregations with Tumult Analytics. These operations
 require us to learn and use a new concept: *clamping bounds*. In this tutorial,

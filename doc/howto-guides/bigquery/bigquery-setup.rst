@@ -11,7 +11,7 @@ BigQuery is a serverless, highly scalable, cost-effective, and fully managed
 cloud data warehouse for analytics.
 
 In this first section, we will upload a file to BigQuery to use as input for our DP query.
-We will use the same input data as for the Tumult Analytics :ref:`tutorial<first steps>`, which is provided
+We will use the same input data as for the Tumult Analytics :ref:`tutorial<first-steps>`, which is provided
 as a CSV file.
 
 1. Go to the `BigQuery interface`_

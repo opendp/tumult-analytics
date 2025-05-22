@@ -1,4 +1,4 @@
-.. _Simple transformations:
+.. _simple-transformations:
 
 Simple transformations
 ======================
@@ -56,7 +56,7 @@ Revisiting the filter transformation
 ------------------------------------
 
 You might recall that we already used a transformation in
-:ref:`working with privacy budgets tutorial<Working with privacy budgets>`! Let's run that query again.
+:ref:`working with privacy budgets tutorial<privacy-budget-basics>`! Let's run that query again.
 
 .. testcode::
 
@@ -93,7 +93,7 @@ SQL <https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-where.html>`
 With Tumult Analytics, using transformations is that easy, and we will see that other
 transformations can be similarly expressed.
 
-.. _Maps:
+.. _maps:
 
 Maps
 ----
@@ -196,7 +196,7 @@ column would no longer be available: the only column in the transformed data wou
     :alt: A bar chart plotting the count of members by each age bin and gender. The chart is bimodal with peaks at 10-19 and 50-59 with no significant interaction between age and gender.
     :align: center
 
-.. _Flat maps:
+.. _flat-maps:
 
 Flat maps
 ---------
@@ -241,9 +241,9 @@ In this example, we leave ``augment`` with its default value of ``False``.
 
 Unlike ``map``, ``flat_map`` has an argument ``max_rows``. It clamps the maximum number
 of new rows that can be created for each input row. This serves a similar function as
-the clamping bounds on aggregations we used in :ref:`clamping bounds tutorial<Clamping bounds>`, and
-also has the analogous trade-offs: higher values for ``max_rows`` will result in more
-noise in the final results, while lower values may cause more rows to be silently
+the clamping bounds on aggregations we used in :ref:`clamping bounds tutorial<clamping-bounds>`,
+and also has the analogous trade-offs: higher values for ``max_rows`` will result in
+more noise in the final results, while lower values may cause more rows to be silently
 dropped. In this case, the choice is easy: no members have more than three favorites and
 there are many members with three, so we set ``max_rows=3``.
 
@@ -307,7 +307,7 @@ there are many members with three, so we set ``max_rows=3``.
     :alt: A bar chart plotting the count of members favoring each genre. The chart is sorted so that the genres are in descending order of popularity, starting with "Mystery/thriller/crime"
     :align: center
 
-.. _Binning:
+.. _binning:
 
 Binning
 -------
@@ -406,7 +406,7 @@ Also available is the :meth:`histogram<tmlt.analytics.QueryBuilder.histogram>`
 method, which provides a shorthand syntax for obtaining binned counts in
 simple cases.
 
-.. _Public joins:
+.. _public-joins:
 
 Public joins
 --------------
@@ -501,7 +501,6 @@ Now we can join the public data and then count how many members are in each city
     |...|
     +------------+-----+
     only showing top 10 rows
-
 
 
 .. code-block::

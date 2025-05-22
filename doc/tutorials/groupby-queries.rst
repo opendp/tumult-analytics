@@ -1,4 +1,4 @@
-.. _Group-by queries:
+.. _group-by-queries:
 
 Group-by queries
 ================

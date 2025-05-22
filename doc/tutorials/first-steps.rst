@@ -1,4 +1,4 @@
-.. _First steps:
+.. _first-steps:
 
 First steps with Tumult Analytics
 =================================

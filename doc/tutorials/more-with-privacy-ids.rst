@@ -1,4 +1,4 @@
-.. _Advanced IDs features:
+.. _advanced-privacy-ids:
 
 Doing more with privacy IDs
 ===========================
@@ -162,7 +162,7 @@ We now have an expanded version of our checkouts table that contains one
 genre per row.
 
 This example is much like the flat map from the :ref:`simple transformations tutorial
-<Simple transformations>`, but there is one key difference: we do not need to provide a
+<simple-transformations>`, but there is one key difference: we do not need to provide a
 ``max_rows`` parameter to the ``flat_map``. The reason is that we are protecting the
 number of unique *IDs* in the table, not the number of *rows*. Thus, we can generate
 arbitrarily many new rows per ID without needing to truncate the output table at this
