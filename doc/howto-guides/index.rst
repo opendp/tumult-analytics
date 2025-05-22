@@ -13,6 +13,5 @@ troubleshoot the library locally or on a cloud platform.
 
    installation
    aws-glue
-   bigquery/index
    databricks
    troubleshooting
