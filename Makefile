@@ -6,7 +6,8 @@
 
 SHELL = /bin/bash
 
-.PHONY: lint test test-fast test-slow test-doctest test-examples package
+.PHONY: lint test test-fast test-slow test-doctest test-examples \
+        docs docs-linkcheck docs-doctest package
 
 # This causes all targets to execute their entire script within a single shell,
 # as opposed to using a subshell per line. See
@@ -27,6 +28,12 @@ test-doctest:
 test-examples:
 	nox --no-venv -s test_examples
 
+docs:
+	nox --no-venv -s docs
+docs-linkcheck:
+	nox --no-venv -s docs_linkcheck
+docs-doctest:
+	nox --no-venv -s docs_doctest
 
 package:
 	nox --no-venv -s build
@@ -37,7 +44,7 @@ package:
 # those files/directories up.
 
 define clean-files
-tmlt/**/__pycache__/
+src/**/__pycache__/
 test/**/__pycache__/
 junit.xml
 coverage.xml
@@ -48,13 +55,11 @@ benchmark_output/
 dist/
 public/
 spark-warehouse/
-tmlt/**/spark-warehouse/
+src/**/spark-warehouse/
 test/**/spark-warehouse/
 examples/spark-warehouse/
 .mypy_cache/
-doc/analytics/api
-doc/synthetics/api
-doc/tune/api
+doc/reference/api
 endef
 
 .PHONY: clean
