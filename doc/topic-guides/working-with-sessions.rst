@@ -1,4 +1,4 @@
-.. _Working with Sessions:
+.. _working-with-sessions:
 
 Working with Sessions
 =====================
@@ -11,14 +11,14 @@ This topic guide covers how to work with one of the core abstractions of Tumult
 Analytics: :class:`Session <tmlt.analytics.Session>`. In particular, we
 will demonstrate the different ways that a Session can be initialized and
 examined. For a simple end-to-end usage example of a Session, a better place to
-start is the :ref:`privacy budget tutorial <Working with privacy budgets>`.
+start is the :ref:`privacy budget tutorial <privacy-budget-basics>`.
 
 At a high level, a Session allows you to evaluate queries on private data in a
 way that satisfies differential privacy. When creating a Session, private data
 must first be loaded into it, along with a *privacy budget*. You can then use
 pieces of the total privacy budget to evaluate queries and return differentially
 private results. Tumult Analytics' privacy promise and its caveats are described
-in detail in the :ref:`privacy promise topic guide<Privacy promise>`.
+in detail in the :ref:`privacy promise topic guide<privacy-promise>`.
 
 ..
     TODO(#1585): Add a link to the topic guide about privacy accounting.
@@ -83,7 +83,7 @@ using :meth:`~tmlt.analytics.Session.from_dataframe` as follows:
 
 When you load a Spark DataFrame into a Session, you don't need to specify the
 schema of the source; it is automatically inferred from the DataFrame's schema.
-Recall from the :ref:`first steps tutorial<First steps>` that :code:`source_id` is
+Recall from the :ref:`first steps tutorial<first-steps>` that :code:`source_id` is
 simply a unique identifier for the private data that is used when constructing
 queries.
 

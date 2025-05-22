@@ -1,4 +1,4 @@
-.. _Understanding sensitivity:
+.. _understanding-sensitivity:
 
 
 Understanding sensitivity
@@ -21,11 +21,14 @@ to hide a fixed number of rows, using
 rows sharing the same privacy identifier, using
 :class:`AddRowsWithID<tmlt.analytics.AddRowsWithID>`.
 
-A simple example of sensitivity is the explanation of clamping bounds in :ref:`tutorial
-three <Clamping bounds>`: larger clamping bounds mean that a single row can have more influence, and more noise needs to be added. However, the sensitivity is not always so
-straightforward to estimate. In this topic guide, we will examine how different types of inputs and transformations to a
-query can affect its sensitivity. Understand this relationship will help you
-choose what transformations to use to ensure accurate results while maintaining strong privacy guarantees.
+A simple example of sensitivity is the explanation of clamping bounds in
+:ref:`the third tutorial <clamping-bounds>`: larger clamping bounds mean
+that a single row can have more influence, and more noise needs to be added.
+However, the sensitivity is not always so straightforward to estimate. In this
+topic guide, we will examine how different types of inputs and transformations
+to a query can affect its sensitivity. Understand this relationship will help
+you choose what transformations to use to ensure accurate results while
+maintaining strong privacy guarantees.
 
 
 Queries on tables using ``AddMaxRows``
@@ -49,7 +52,7 @@ Flat maps
 
 A :meth:`flat_map<tmlt.analytics.QueryBuilder.flat_map>` maps each
 input row to zero or more new rows. Consider the example from
-:ref:`Simple transformations<Flat maps>` tutorial, where each input row is mapped to up
+:ref:`Simple transformations<flat-maps>` tutorial, where each input row is mapped to up
 to three new rows, using to the ``max_rows=3`` parameter. On a per-row basis, this operation might look like this:
 
 .. image:: ../images/flat_map_row_example.svg

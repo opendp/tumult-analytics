@@ -20,10 +20,11 @@ particular, queries evaluated using :meth:`~tmlt.analytics.Session.evaluate`
 cannot consume more than the specified privacy budget.
 
 A simple introduction to Session initialization and use can be found in the
-:ref:`First steps` and :ref:`Working with privacy budgets` tutorials. More
+:ref:`First steps<first-steps>` and
+:ref:`Working with privacy budgets<privacy-budget-basics>` tutorials. More
 details on the exact privacy promise provided by the
-:class:`~tmlt.analytics.Session` can be found in the :ref:`Privacy promise`
-topic guide.
+:class:`~tmlt.analytics.Session` can be found in the
+:ref:`Privacy promise<privacy-promise>` topic guide.
 
 .. currentmodule:: tmlt.analytics
 

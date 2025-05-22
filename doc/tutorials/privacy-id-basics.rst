@@ -372,6 +372,6 @@ As a reminder:
   associated with each (privacy ID, grouping column value) pair in a table.
 
 To understand the impact of the various constraints in more detail,
-you can consult our :ref:`topic guide about sensitivity<Understanding sensitivity>`.
+you can consult our :ref:`topic guide about sensitivity<understanding-sensitivity>`.
 To learn more about how to perform more complex queries on tables initialized with
 privacy IDs, you can proceed to the :ref:`next tutorial<advanced-privacy-ids>`.

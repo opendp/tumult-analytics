@@ -10,8 +10,8 @@ First steps with Tumult Analytics
 In this first tutorial, we will demonstrate how to load data, run a simple
 aggregation query, and get our first differentially private results. You can run
 this tutorial (as well as the next ones) as you go: simply follow the
-:ref:`installation instructions <Installation instructions>`, and use the
-copy/paste button of each code block to reproduce it.
+:ref:`installation instructions <installation>`, and use the copy/paste button
+of each code block to reproduce it.
 
 Throughout these tutorials, we'll imagine we are the data protection officer for
 a fictional institution, the Pierre-Simon Laplace Public Library. We want to
@@ -26,7 +26,7 @@ understanding of differential privacy. In these tutorials, we will gloss over
 all the details of what happens behind the scenes, and focus on how to
 accomplish common tasks. To learn more about the trade-offs involved in
 parameter setting and mechanism design, you can consult our
-:ref:`topic guides <Topic guides>`.
+:ref:`topic guides <topic-guides>`.
 
 .. _differential privacy: https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html
 
@@ -52,7 +52,7 @@ Next, we initialize the Spark session.
 
    spark = SparkSession.builder.getOrCreate()
 
-This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark topic guide <Spark>`.
+This creates an Analytics-ready Spark Session. For more details on using Spark sessions with Analytics, or to troubleshoot, see the :ref:`Spark topic guide <spark>`.
 
 Now, we need to load our first dataset, containing information about the
 members of our public library. Here, we get the data from a public ``s3``
@@ -95,8 +95,8 @@ Note that in addition to the data itself, we needed to provide a couple of addit
 - The ``protected_change`` for this dataset, which defines what unit of data the differential privacy guarantee holds for.
   Here, ``AddOneRow()`` corresponds to protecting individual rows in the dataset.
 
-For a more complete description of the various ways a Session can be initialized, you can consult the relevant :ref:`topic guide<Working with Sessions>`.
-For more complex values for the ``protected_change`` parameter, see the :ref:`privacy promise topic guide<privacy-promise#unit-of-protection>` and the :ref:`API documentation on privacy guarantees<privacy-guarantees>`.
+For a more complete description of the various ways a Session can be initialized, you can consult the relevant :ref:`topic guide<working-with-sessions>`.
+For more complex values for the ``protected_change`` parameter, see the :ref:`privacy promise topic guide<unit-of-protection>` and the :ref:`API documentation on privacy guarantees<privacy-guarantees>`.
 
 Evaluating queries in a Session
 -------------------------------

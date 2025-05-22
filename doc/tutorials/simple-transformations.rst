@@ -109,7 +109,7 @@ containing the calculated age.
 
     Functions used in maps and flat maps should be
     `pure functions <https://en.wikipedia.org/wiki/Pure_function>`_. For more
-    information, consult the :ref:`privacy promise <Privacy Promise>` topic guide.
+    information, consult the :ref:`privacy promise <privacy-promise>` topic guide.
 
 .. testcode::
 

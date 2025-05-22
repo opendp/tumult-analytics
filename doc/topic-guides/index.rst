@@ -1,4 +1,4 @@
-.. _Topic guides:
+.. _topic-guides:
 
 Topic guides
 ============

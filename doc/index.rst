@@ -32,9 +32,9 @@ Tumult Analytics is…
   to very large datasets.
 
 For new users, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
-To explore further, start with the :ref:`installation instructions <installation instructions>`, then follow our :ref:`tutorial series <First steps>`.
+To explore further, start with the :ref:`installation instructions <installation>`, then follow our :ref:`tutorial series <first-steps>`.
 
-If you have any questions, feedback, or feature requests, please `let us know on Slack <https://tmlt.dev/slack>`__!
+If you have any questions, feedback, or feature requests, please `let us know on Slack <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`__!
 
 .. grid:: 1 2 2 2
    :gutter: 2
@@ -111,7 +111,7 @@ Additional resources
 
 Contact us
 ^^^^^^^^^^
-The best place to ask questions, file feature requests, or give feedback about Tumult Analytics is our `Slack server <https://tmlt.dev/slack>`__.
+The best place to ask questions, file feature requests, or give feedback about Tumult Analytics is our `Slack server <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`__.
 We also use it for announcements of new releases and feature additions.
 
 Cite us
@@ -144,17 +144,9 @@ Both citations can be found below; for the software citation, please replace the
 
 License
 ^^^^^^^
-The Tumult Analytics source code and documentation are copyright Tumult Labs 2025.
-
 This documentation is licensed under the
 Creative Commons Attribution-ShareAlike 4.0 Unported License.
 To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
 or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 The Tumult Analytics source code is licensed under the Apache License, version 2.0 (`Apache-2.0 <https://gitlab.com/tumult-labs/core/-/blob/dev/LICENSE>`_).
-
-Privacy policy
-^^^^^^^^^^^^^^
-
-See our :ref:`privacy policy <privacy-policy>` for how your
-information is used.

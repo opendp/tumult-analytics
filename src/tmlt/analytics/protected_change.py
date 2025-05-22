@@ -16,8 +16,7 @@ class ProtectedChange(ABC):
     under Tumult Analytics' DP guarantee. The appropriate protected change to
     use is one corresponding to the largest possible change to the table when
     adding or removing a unit of protection, e.g. a person. For more
-    information, see the :ref:`privacy promise topic guide
-    <privacy-promise#unit-of-protection>`.
+    information, see the :ref:`privacy promise topic guide <unit-of-protection>`.
     """
 
 

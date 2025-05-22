@@ -1,3 +1,5 @@
+.. _databricks:
+
 Using Tumult Analytics on Databricks
 ====================================
 
@@ -37,7 +39,7 @@ Use "PyPI" as the library source, enter ``tmlt.analytics`` as the package, and h
 After a few moments, the package will show as installed, and you can begin using Tumult Analytics in any notebooks attached to this cluster.
 Python version specifiers, e.g. ``tmlt.analytics>=0.7.0,<0.8``, are also supported if you wish to install a particular version.
 
-Regardless of which installation process you used, the installation check described in the :ref:`local installation instructions <Installation instructions>` can be run by adding a new cell to your notebook with the following content:
+Regardless of which installation process you used, the installation check described in the :ref:`local installation instructions <installation>` can be run by adding a new cell to your notebook with the following content:
 
 .. code-block::
 
@@ -45,7 +47,7 @@ Regardless of which installation process you used, the installation check descri
    check_installation()
 
 and then running it.
-If you encounter an error at this stage, please `let us know <https://gitlab.com/tumult-labs/analytics/-/issues>`__!
+If you encounter an error at this stage, please `let us know <https://github.com/opendp/tumult-analytics/issues>`__!
 
 
 Loading and Saving Data in Databricks
@@ -62,7 +64,7 @@ To begin, let's initialize a Databricks table by loading a dataset from S3 and s
    df.write.saveAsTable("main.library.members")
 
 This creates two new Databricks schemas in the default ``main`` catalog, ``library`` and ``library_output``, which are used respectively for inputs and outputs in this guide.
-It then writes the library members dataset from our :ref:`tutorials <Tutorials>` into Databricks as the ``members`` table in the ``library`` schema.
+It then writes the library members dataset from our :ref:`tutorials <tutorials>` into Databricks as the ``members`` table in the ``library`` schema.
 
 .. note::
 

@@ -1,4 +1,4 @@
-.. _Nulls, NaNs, and infinite values:
+.. _nulls-nans-infinities:
 
 Nulls, NaNs, and infinite values
 ================================

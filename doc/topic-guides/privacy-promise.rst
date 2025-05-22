@@ -1,4 +1,4 @@
-.. _Privacy promise:
+.. _privacy-promise:
 
 Tumult Analytics' privacy promise
 =================================
@@ -13,12 +13,11 @@ of Tumult Analytics: :class:`Sessions <tmlt.analytics.Session>`.
 
 At a high level, a Session allows you to evaluate queries on private data in a
 way that satisfies differential privacy. When creating a Session, private data
-must first be loaded into it, along with
-a :mod:`protected change<tmlt.analytics.ProtectedChange>` for each
-table, and a Session-wide :ref:`privacy budget<Privacy budget fundamentals>`. You
-can then evaluate
-queries on your private data, consuming at most the privacy budget provided at
-initialization time.
+must first be loaded into it, along with a
+:mod:`protected change<tmlt.analytics.ProtectedChange>` for each
+table, and a Session-wide :ref:`privacy budget<privacy-budget-fundamentals>`.
+You can then evaluate queries on your private data, consuming at most the
+privacy budget provided at initialization time.
 
 The privacy promise in more detail
 ----------------------------------
@@ -40,7 +39,7 @@ using the specified parameters. For example, a Session initialized with
 :code:`PureDPBudget(1)` provides :math:`{\varepsilon}`-differential privacy with
 :math:`{\varepsilon}=1`.
 
-.. _privacy-promise#unit-of-protection:
+.. _unit-of-protection:
 
 Understanding the protected change
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

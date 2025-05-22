@@ -1,3 +1,5 @@
+.. _aws-glue:
+
 Using Tumult Analytics on AWS Glue
 ==================================
 

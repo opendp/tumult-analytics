@@ -1,4 +1,4 @@
-.. _Privacy budget fundamentals:
+.. _privacy-budget-fundamentals:
 
 Privacy budget fundamentals
 ===========================
@@ -8,15 +8,15 @@ Privacy budget fundamentals
     Copyright Tumult Labs 2025
 
 This topic guide goes into more depth on the concept of *privacy budgets* that
-we discussed in :ref:`working with privacy budgets tutorial<Working with privacy budgets>`. At a high
-level, a privacy budget associates one or more numeric *privacy parameters* with
-a *privacy definition*. Together, this information determines the privacy
-guarantees provided by each query, and by the Session as a whole.
+we discussed in :ref:`working with privacy budgets tutorial<privacy-budget-basics>`.
+At a high level, a privacy budget associates one or more numeric *privacy
+parameters* with a *privacy definition*. Together, this information determines
+the privacy guarantees provided by each query, and by the Session as a whole.
 
 In particular, a privacy budget determines how much randomization is added
 to the computation of a query. Choosing an appropriate budget
 for a given query is ultimately an exercise in balancing privacy and accuracy
-needs; we discuss this topic more :ref:`below <Privacy tradeoff>`.
+needs; we discuss this topic more :ref:`below <privacy-tradeoff>`.
 
 Tumult Analytics currently supports three distinct privacy definitions:
 
@@ -57,14 +57,14 @@ depending on which privacy definition you wish to use:
 :class:`~tmlt.analytics.RhoZCDPBudget`,
 or :class:`~tmlt.analytics.ApproxDPBudget`.
 
-Recall from tutorials :ref:`first steps<First steps>` and
-:ref:`working with privacy budgets<Working with privacy budgets>` that when you initialize a Session,
-you must allocate a total privacy budget for it. Then, each time you evaluate a
-query through the Session, you must specify how much budget the query should
-use, which is then subtracted from the Session's total. For example, if you
-initialize a Session with :code:`PureDPBudget(epsilon=5)`, and then evaluate a
-query with :code:`PureDPBudget(epsilon=2)`, then your Session's remaining budget
-will be :code:`PureDPBudget(epsilon=3)`.
+Recall from tutorials :ref:`first steps<first-steps>` and
+:ref:`working with privacy budgets<privacy-budget-basics>` that when you
+initialize a Session, you must allocate a total privacy budget for it. Then,
+each time you evaluate a query through the Session, you must specify how much
+budget the query should use, which is then subtracted from the Session's total.
+For example, if you initialize a Session with :code:`PureDPBudget(epsilon=5)`,
+and then evaluate a query with :code:`PureDPBudget(epsilon=2)`, then your
+Session's remaining budget will be :code:`PureDPBudget(epsilon=3)`.
 
 There are a few additional constraints worth noting:
 
@@ -77,7 +77,7 @@ There are a few additional constraints worth noting:
   If you attempt to evaluate a query with a greater budget than your Session has
   remaining, the Session will raise an exception.
 
-.. _Privacy tradeoff:
+.. _privacy-tradeoff:
 
 Choosing a budget: privacy vs. accuracy
 ---------------------------------------
@@ -89,10 +89,11 @@ yielding noisier results and higher budgets yielding more accurate
 (and thus less private) results.
 
 To better understand how epsilon impacts this trade-off, let's look at a simple
-example. We'll use the example dataset from the :ref:`first steps tutorial<First steps>`,
-and we'll perform a simple query to count the number of rows in the dataset.
-The figure below plots the results of running this count query using a
-:code:`PureDPBudget` with 3 different epsilon values, 50 times each:
+example. We'll use the example dataset from the
+:ref:`first steps tutorial<first-steps>`, and we'll perform a simple query to
+count the number of rows in the dataset. The figure below plots the results of
+running this count query using a :code:`PureDPBudget` with 3 different epsilon
+values, 50 times each:
 
 .. image:: ../images/chart_counts_different_eps.png
     :scale: 100%

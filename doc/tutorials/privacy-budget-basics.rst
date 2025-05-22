@@ -115,8 +115,7 @@ measures the potential privacy *loss*: a lower epsilon gives a stricter limit on
 the privacy loss, and therefore a higher level of protection. Here, the
 corresponding interface promise is a *privacy guarantee*: it enforces a minimum
 level of protection on the private data. For more information about this promise
-and its caveats, you can consult the :ref:`relevant topic guide<Privacy
-promise>`.
+and its caveats, you can consult the :ref:`relevant topic guide<privacy-promise>`.
 
 Now, how does the Session enforce that guarantee in practice?
 
@@ -288,4 +287,4 @@ we have left.
 Now, suppose you have a fixed privacy budget, and your task is to publish the
 result of multiple queries. How to split the privacy budget across the different
 queries? To learn more about this question, you can consult our longer
-:ref:`topic guide <Privacy Budget Fundamentals>` about privacy budget fundamentals.
+:ref:`topic guide <privacy-budget-fundamentals>` about privacy budget fundamentals.

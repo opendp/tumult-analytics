@@ -95,7 +95,7 @@ Constraints
 """""""""""
 :meth:`~tmlt.analytics.QueryBuilder.enforce` truncates the sensitive data to limit the maximum impact
 of the protected change. More information about it can be found in the
-:ref:`Working with privacy IDs` tutorial.
+:ref:`Working with privacy IDs<privacy-id-basics>` tutorial.
 
 .. autosummary::
    :toctree: api/
@@ -121,9 +121,9 @@ Group-by
 --------
 A transformation that groups the data by the value of one or more columns. The
 group-by keys can be specified using a :class:`KeySet`; more information about
-it can be found in the :ref:`Group-by queries` tutorial. The transformation
-returns a :class:`GroupedQueryBuilder`, a object representing a partial query on
-which only aggregations can be run.
+it can be found in the :ref:`Group-by queries<group-by-queries>` tutorial. The
+transformation returns a :class:`GroupedQueryBuilder`, a object representing a
+partial query on which only aggregations can be run.
 
 .. autosummary::
    :toctree: api/

@@ -1,4 +1,4 @@
-.. _Spark:
+.. _spark:
 
 Spark
 =====

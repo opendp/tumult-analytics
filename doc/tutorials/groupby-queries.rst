@@ -581,7 +581,7 @@ privacy* (Approx DP) in our Session, and using
 :meth:`~tmlt.analytics.QueryBuilder.get_groups` to collect a list of
 names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries.
 
-For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals`.
+For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals <privacy-budget-fundamentals>`.
 
 .. testcode::
 
