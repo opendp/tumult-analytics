@@ -149,4 +149,4 @@ Creative Commons Attribution-ShareAlike 4.0 Unported License.
 To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
 or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-The Tumult Analytics source code is licensed under the Apache License, version 2.0 (`Apache-2.0 <https://gitlab.com/tumult-labs/core/-/blob/dev/LICENSE>`_).
+The Tumult Analytics source code is licensed under the Apache License, version 2.0 (`Apache-2.0 <https://github.com/opendp/tumult-analytics/blob/main/LICENSE>`_).

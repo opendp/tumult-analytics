@@ -13,9 +13,9 @@ _logger = logging.getLogger(__name__)
 
 ### Project information
 
-project = "Tumult Platform"
+project = "Tumult Analytics"
 author = "Tumult Labs"
-copyright = "2025 Tumult Labs"
+copyright = "2025"
 # Note that this is the name of the module provided by the package, not
 # necessarily the name of the package as pip understands it.
 package_name = "tmlt"
@@ -121,30 +121,30 @@ json_url = "https://docs.tmlt.dev/analytics/versions.json"
 templates_path = ["_templates", "_templates/autosummary"]
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
-    "header_links_before_dropdown": 6,
     "collapse_navigation": True,
-    "navigation_depth": 4,
-    "navbar_end": ["navbar-icon-links"],
     "footer_start": ["copyright", "build-info"],
     "footer_end": ["sphinx-version", "theme-version"],
-    "switcher": {
-        "json_url": json_url,
-        "version_match": version,
-    },
+    "header_links_before_dropdown": 6,
     "icon_links": [
         {
-            "name": "GitLab",
-            "url": "https://gitlab.com/tumult-labs/analytics",
-            "icon": "fab fa-gitlab",
+            "name": "GitHub",
+            "url": "https://github.com/opendp/tumult-analytics",
+            "icon": "fab fa-github",
             "type": "fontawesome",
         },
         {
             "name": "Slack",
-            "url": "https://tmlt.dev/slack",
+            "url": "https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w",
             "icon": "fab fa-slack",
             "type": "fontawesome",
         },
     ],
+    "navigation_depth": 4,
+    "navbar_end": ["navbar-icon-links"],
+    "switcher": {
+        "json_url": json_url,
+        "version_match": version,
+    },
     "show_toc_level": 3,
 }
 html_context = {
@@ -171,11 +171,6 @@ intersphinx_mapping = {
 
 # Substitutions
 rst_epilog = f"""
-.. |PRO| image:: https://img.shields.io/badge/PRO-c53a58
-   :alt: PRO
-
-.. |PRO_NOTE| replace:: |PRO| The features described in this page are only available on a paid version of the Tumult Platform. If you would like to hear more, please contact us at info@tmlt.io.
-
 .. |project| replace:: {project}
 """
 
@@ -185,7 +180,6 @@ rst_epilog = f"""
 showed_members = {
     "Session": [],
     "SessionProgram": ["ProtectedInputs", "UnprotectedInputs", "Parameters", "Outputs", "session_interaction"],
-    "SessionProgramTuner": [],
     "QueryBuilder": ["__init__", "clone"],
     "GroupedQueryBuilder": ["__init__"],
 }

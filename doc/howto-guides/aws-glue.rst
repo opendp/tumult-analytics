@@ -178,4 +178,4 @@ It will take a couple of minutes to start up, but should then succeed and write 
 As you can see, Tumult Analytics provides a convenient way to integrate differential privacy into your AWS Glue ETL jobs.
 While the job shown here is relatively simple, you can also use Tumult Analytics as part of larger and more complex jobs that involve many inputs and outputs and use other Glue features for post-processing or other transformations.
 
-If you encounter any unexpected issues, please let us know by reaching out on our `Slack server <https://tmlt.dev/slack>`__ or `filing an issue <https://gitlab.com/tumult-labs/analytics/-/issues>`__.
+If you encounter any unexpected issues, please let us know by reaching out on our `Slack server <https://github.com/opendp/tumult-analytics/commit/4ad8f09580bab60f4862167fac0bf3a7069aecd3>`__ or `filing an issue <https://github.com/opendp/tumult-analytics/issues>`__.

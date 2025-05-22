@@ -137,4 +137,4 @@ These can be removed by running the :func:`~tmlt.analytics.utils.cleanup` functi
 If many such temporary tables have accumulated over time, the :func:`~tmlt.analytics.utils.remove_all_temp_tables` function can be used to clean them all up, though this may erase query results for any active notebooks if they haven't been saved elsewhere.
 
 As you can see, using Tumult Analytics on Databricks is very straightforward.
-If you encounter any unexpected issues, please let us know by `filing an issue <https://gitlab.com/tumult-labs/analytics/-/issues>`__ or reaching out on our `Slack server <https://tmlt.dev/slack>`__.
+If you encounter any unexpected issues, please let us know by reaching out on our `Slack server <https://github.com/opendp/tumult-analytics/commit/4ad8f09580bab60f4862167fac0bf3a7069aecd3>`__ or `filing an issue <https://github.com/opendp/tumult-analytics/issues>`__.

@@ -20,7 +20,7 @@ Tumult Analytics supports the ``x86_64`` processor architecture, as well as Appl
 
 Below are instructions for installing these prerequisites on several common platforms.
 If none of these apply to you, install Python 3 and Java from your OS package manager or manually, then proceed with the `pip` installation.
-If you encounter any issues during the installation process, please `let us know <https://gitlab.com/tumult-labs/analytics/-/issues>`__!
+If you encounter any issues during the installation process, please `let us know <https://github.com/tumult-analytics/issues>`__!
 
 .. tab-set::
    .. tab-item:: Linux (Debian-based)
