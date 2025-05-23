@@ -12,7 +12,7 @@ jobs:
           python-version: '3.11'
       - run: java -version
       - run: python --version
-      - run: curl -sSL https://install.python-poetry.org | python3 - --version 1.8.4
+      - run: curl -sSL https://install.python-poetry.org | python3 -
       - run: poetry self lock
       - run: poetry self show
       - run: pwd
