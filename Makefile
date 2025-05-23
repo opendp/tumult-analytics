@@ -37,7 +37,7 @@ package:
 # those files/directories up.
 
 define clean-files
-tmlt/**/__pycache__/
+src/**/__pycache__/
 test/**/__pycache__/
 junit.xml
 coverage.xml
@@ -48,7 +48,7 @@ benchmark_output/
 dist/
 public/
 spark-warehouse/
-tmlt/**/spark-warehouse/
+src/**/spark-warehouse/
 test/**/spark-warehouse/
 examples/spark-warehouse/
 .mypy_cache/
