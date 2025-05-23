@@ -15,6 +15,7 @@ jobs:
       - run: curl -sSL https://install.python-poetry.org | python3 -
       - run: poetry self lock
       - run: poetry self show
+      - run: poetry --version
       - run: pwd
       - run: ls
       - run: cat pyproject.toml
