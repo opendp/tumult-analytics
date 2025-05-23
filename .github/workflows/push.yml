@@ -16,11 +16,8 @@ jobs:
       - run: poetry self lock
       - run: poetry self show
       - run: poetry --version
-      - run: pwd
-      - run: ls
-      - run: cat pyproject.toml
       - run: poetry install --only scripting
-      - run: nox -s build
+      - run: poetry run nox -s build
   # Lint:
   #   runs-on: ubuntu-latest
   #   needs: Package
