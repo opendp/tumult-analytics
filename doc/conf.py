@@ -179,7 +179,6 @@ rst_epilog = f"""
 # Members shown for classes whose documentation is split across multiple pages.
 showed_members = {
     "Session": [],
-    "SessionProgram": ["ProtectedInputs", "UnprotectedInputs", "Parameters", "Outputs", "session_interaction"],
     "QueryBuilder": ["__init__", "clone"],
     "GroupedQueryBuilder": ["__init__"],
 }

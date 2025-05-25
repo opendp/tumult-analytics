@@ -31,7 +31,7 @@ Tumult Analytics is…
 - … *scalable*: it runs on `Spark <http://spark.apache.org>`__, so it can scale
   to very large datasets.
 
-For new users, `this Colab notebook <https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
+For new users, `this Colab notebook <https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
 To explore further, start with the :ref:`installation instructions <installation>`, then follow our :ref:`tutorial series <first-steps>`.
 
 If you have any questions, feedback, or feature requests, please `let us know on Slack <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`__!
@@ -99,7 +99,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
 Users who wish to learn more about the fundamentals of differential privacy can consult
 `this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
-or `this longer introduction <https://privacytools.seas.harvard.edu/files/privacytools/files/pedagogical-document-dp_0.pdf>`__.
+or `this longer introduction <https://scholarship.law.vanderbilt.edu/jetlaw/vol21/iss1/4/>`__.
 
 ..
    This Additional Resources section forces "Contact Us", etc to be subsubsections.

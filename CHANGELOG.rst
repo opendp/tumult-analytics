@@ -10,12 +10,17 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+
+- Updated documentation to reflect the move to OpenDP.
+
 .. _v0.20.1:
 
 0.20.1 - 2025-04-02
 -------------------
 
-This is the last version of Tumult Analytics released by Tumult Labs. The ownership of the project was transferred to OpenDP after the Tumult Labs team joined `LinkedIn <https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye>`__.
+This is the last version of Tumult Analytics released by Tumult Labs. The project was transferred to OpenDP after the Tumult Labs team joined `LinkedIn <https://www.linkedin.com/pulse/whats-next-us-tumult-labs-gerome-miklau-zmpye>`__.
 The project is now hosted on `GitHub <https://github.com/opendp/tumult-analytics>`__, and accepts external contributions.
 
 Changed
