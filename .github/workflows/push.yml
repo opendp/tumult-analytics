@@ -6,17 +6,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-      - run: java -version
-      - run: python --version
-      - run: curl -sSL https://install.python-poetry.org | python3 -
-      - run: poetry self lock
-      - run: poetry self show
-      - run: poetry --version
-      - run: poetry install --only scripting
+      - name: Set up runner
+        uses: ./.github/actions/setup
       - run: poetry run nox -s build
       - name: Archive packaged library
         uses: actions/upload-artifact@v4

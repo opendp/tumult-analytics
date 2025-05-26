@@ -1,0 +1,25 @@
+name: 'Setup'
+description: 'Initialize a github actions runner for Analytics CI jobs.'
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    - run: java -version
+      shell: bash
+    - run: python --version
+      shell: bash
+    - run: curl -sSL https://install.python-poetry.org | python3 -
+      shell: bash
+    - run: poetry self lock
+      shell: bash
+    - run: poetry self show
+      shell: bash
+    - run: poetry --version
+      shell: bash
+    - run: poetry install --only scripting
+      shell: bash
