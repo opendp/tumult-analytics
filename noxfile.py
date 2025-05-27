@@ -101,10 +101,10 @@ def install_overrides(session):
         session.poetry.session.install(str(core_wheels[0]))
 
 sm = SessionManager(
-    package=PACKAGE_NAME, 
-    directory=CWD, 
-    smoketest_script=SMOKETEST_SCRIPT, 
-    parallel_tests=False, 
+    package=PACKAGE_NAME,
+    directory=CWD,
+    smoketest_script=SMOKETEST_SCRIPT,
+    parallel_tests=False,
     min_coverage=MIN_COVERAGE,
     audit_versions=AUDIT_VERSIONS,
     audit_suppressions=AUDIT_SUPPRESSIONS,
@@ -125,9 +125,8 @@ sm.test_fast()
 sm.test_slow()
 sm.test_doctest()
 
-# TODO(#5): Fix sphinx setup.
-# sm.docs_linkcheck()
-# sm.docs_doctest()
-# sm.docs()
+sm.docs_linkcheck()
+sm.docs_doctest()
+sm.docs()
 
 sm.audit()
