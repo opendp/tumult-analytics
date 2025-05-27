@@ -50,3 +50,17 @@ jobs:
           name: dist
           path: dist
       - run: poetry run nox -s smoketest test-doctest test-fast
+  Docs:
+    runs-on: ubuntu-latest
+    needs: Package
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: poetry run nox -t docs
