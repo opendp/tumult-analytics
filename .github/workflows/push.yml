@@ -1,5 +1,12 @@
 name: Push Pipeline
+
 on: [push]
+
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
+
 jobs:
   Package:
     runs-on: ubuntu-latest
