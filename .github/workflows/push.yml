@@ -27,6 +27,7 @@ jobs:
         with:
           name: dist
           path: dist
+      - run: poetry check --lock
       - run: poetry run nox -t lint
   Test:
     runs-on: ubuntu-latest
