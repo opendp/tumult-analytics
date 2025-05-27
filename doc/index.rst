@@ -31,7 +31,7 @@ Tumult Analytics is…
 - … *scalable*: it runs on `Spark <http://spark.apache.org>`__, so it can scale
   to very large datasets.
 
-For new users, `this Colab notebook <https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U#offline=true&sandboxMode=true>`__ demonstrates basic features of the library without requiring a local installation.
+For new users, `this Colab notebook <https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U>`__ demonstrates basic features of the library without requiring a local installation.
 To explore further, start with the :ref:`installation instructions <installation>`, then follow our :ref:`tutorial series <first-steps>`.
 
 If you have any questions, feedback, or feature requests, please `let us know on Slack <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`__!
