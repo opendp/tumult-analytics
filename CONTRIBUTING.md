@@ -1,21 +1,54 @@
 # Contributing
 
-We do not yet have a process to accept external contributions.
-If you are interested in contributing, you can let us know on our [Slack workspace](https://join.slack.com/t/tmltdev/shared_invite/zt-1bky0mh9v-vOB8azKAVoxmzJDUdWd5Wg) or by email at [support@tmlt.io](mailto:support@tmlt.io).
+We are happy to accept external contributions! 💖
+
+## Contact
+
+First, let us know what you would like to contribute. Feel free to:
+
+- report a bug or request a feature on [GitHub](https://github.com/opendp/tumult-analytics/issues);
+- send general queries to info@opendp.org, or email security@opendp.org if it is related to security;
+- ask any question on our [Slack][slack] instance.
+
+[slack]: https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w
 
 ## Local development
 
-We use [Poetry](https://python-poetry.org/) for dependency management during development.
-To work locally, install Poetry, and then install our dev dependencies by running `poetry install` from the root of this repository.
+### Installation
 
-See the [installation instructions](https://docs.tmlt.dev/analytics/latest/installation.html#installation-instructions) for more information about prerequisites.
+We recommend using a Python virtual environment to do local development, for example using [pyenv](https://github.com/pyenv/pyenv): it is useful to make sure you're working with a supported Python version, and minimize interactions with your system Python environment.
 
-Our linters and tests can be run locally with
+We use [Poetry](https://python-poetry.org/) for dependency management during development. To set up your environment, start by installing the prerequisites listed in the [installation instructions](https://docs.tmlt.dev/platform/latest/installation.html#prerequisites), then install Poetry using `pip install poetry`, and finally install our dev dependencies by running `poetry install` from the root of this repository.
+
+### Basic usage
+
+You can then locally run our linters and tests by running:
 ```bash
 make lint
 make test
 ```
-from the repository root directory.
-This requires having an activated virtual environment with our dev dependencies installed.
+from the repository root directory. There are a few other commands available in the [Makefile](./Makefile) which can come in handy. 
 
-Note that some operating systems, including macOS, include versions of make that are too old to run this Makefile correctly. macOS users should [install a newer version of make using Homebrew](https://formulae.brew.sh/formula/make#default).
+Note that some operating systems, including macOS, include versions of `make` that are too old to run this project's [Makefile](./Makefile) correctly. macOS users should [install a newer version of make using Homebrew](https://formulae.brew.sh/formula/make#default).
+
+Behind the scenes, these commands use the Poetry environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. For more information about how it works, see our [nox-utils](https://github.com/opendp/tumult-tools/tree/main/nox-utils) repository.
+
+### Documentation
+
+The documentation is built using [Sphinx](https://www.sphinx-doc.org/), and relies on [autosummary](https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html) to generate the API reference.
+
+To build the documentation locally, run:
+```bash
+make docs
+```
+the generated HTML pages are available in the `public` directory.
+
+Note that our API reference is manually organized, and does not follow the internal package structure. If you add a new public class or method to Tumult Analytics, add it to an `autosummary` directive in the relevant `.rst` file under `doc/reference`.
+
+### Cleanup
+
+Running linters, tests, or building docs tends to generate a lot of files in the repository that you generally don't want to keep around. Simply run `make clean` to get rid of all those. This is particularly useful when working on the documentation; Sphinx tends to get confused by files generated in previous documentation builds.
+
+## Final thoughts
+
+We want to actively encourage contributions and help you merge your bug fixes or new features. Please don't hesitate to ask us for help on [Slack][slack] if you encounter any difficulty during the process!

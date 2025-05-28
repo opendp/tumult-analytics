@@ -14,29 +14,41 @@ SHELL = /bin/bash
 # https://www.gnu.org/software/make/manual/html_node/One-Shell.html.
 .ONESHELL:
 
+# Run all linters
 lint:
-	nox --no-venv -t lint
+	poetry run nox --no-venv -t lint
 
+# Run all tests
 test:
-	nox --no-venv -s test
+	poetry run nox --no-venv -s test
+
+# Run only fast tests
 test-fast:
-	nox --no-venv -s test_fast
+	poetry run nox --no-venv -s test_fast
+
+# Run only slow tests
 test-slow:
-	nox --no-venv -s test_slow
+	poetry run nox --no-venv -s test_slow
+
+# Run code examples in docstrings
 test-doctest:
-	nox --no-venv -s test_doctest
-test-examples:
-	nox --no-venv -s test_examples
+	poetry run nox --no-venv -s test_doctest
 
+# Build the docs
 docs:
-	nox --no-venv -s docs
-docs-linkcheck:
-	nox --no-venv -s docs_linkcheck
-docs-doctest:
-	nox --no-venv -s docs_doctest
+	poetry run nox --no-venv -s docs
 
+# Check that none of the links in the documentation return 404 errors
+docs-linkcheck:
+	poetry run nox --no-venv -s docs_linkcheck
+
+# Run code examples in Sphinx documentation
+docs-doctest:
+	poetry run nox --no-venv -s docs_doctest
+
+# Builds 
 package:
-	nox --no-venv -s build
+	poetry run nox --no-venv -s build
 
 
 # The above scripts (especially tests) generate a bunch of junk in the
