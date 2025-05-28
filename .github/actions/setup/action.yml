@@ -23,3 +23,8 @@ runs:
       shell: bash
     - run: poetry install --only scripting
       shell: bash
+    # Use same abbreviated SHA of first 7 characters across different CI jobs for the same commit.
+    # Without this there are random failures due to different abbreviations while installing apro package.
+    # https://github.com/mtkennerly/dunamai/issues/89
+    - run: git config core.abbrev 7
+      shell: bash
