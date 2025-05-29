@@ -1,6 +1,10 @@
 name: Push Pipeline
 
-on: [push]
+on:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+  
 
 env:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
