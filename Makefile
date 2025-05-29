@@ -6,42 +6,31 @@
 
 SHELL = /bin/bash
 
-.PHONY: lint test test-fast test-slow test-doctest test-examples \
-        docs docs-linkcheck docs-doctest package
+.PHONY: lint test docs package
 
 # This causes all targets to execute their entire script within a single shell,
 # as opposed to using a subshell per line. See
 # https://www.gnu.org/software/make/manual/html_node/One-Shell.html.
 .ONESHELL:
 
+# Run all linters
 lint:
-	nox --no-venv -t lint
+	poetry run nox --no-venv -t lint
 
+# Run all tests
 test:
-	nox --no-venv -s test
-test-fast:
-	nox --no-venv -s test_fast
-test-slow:
-	nox --no-venv -s test_slow
-test-doctest:
-	nox --no-venv -s test_doctest
-test-examples:
-	nox --no-venv -s test_examples
+	poetry run nox --no-venv -s smoketest test-fast test-slow test-doctest docs-doctest
 
+# Builds the docs and checks links
 docs:
-	nox --no-venv -s docs
-docs-linkcheck:
-	nox --no-venv -s docs_linkcheck
-docs-doctest:
-	nox --no-venv -s docs_doctest
+	poetry run nox --no-venv -s docs docs-linkcheck
 
+# Builds the source distribution and wheels
 package:
-	nox --no-venv -s build
+	poetry run nox --no-venv -s build
 
-
-# The above scripts (especially tests) generate a bunch of junk in the
-# repository that isn't generally useful to keep around. This helps clean all of
-# those files/directories up.
+# The scripts generate a bunch of junk in the repository that isn't generally
+# useful to keep around. This cleans up all of those files/directories.
 
 define clean-files
 src/**/__pycache__/
