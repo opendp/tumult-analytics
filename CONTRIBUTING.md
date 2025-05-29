@@ -18,7 +18,7 @@ First, let us know what you would like to contribute. Feel free to:
 
 We recommend using the lowest supported Python version for local development. Tools like [pyenv](https://github.com/pyenv/pyenv) may be useful for managing your Python version.
 
-We use [Poetry](https://python-poetry.org/) for dependency management during development. To set up your environment, start by installing the prerequisites listed in the [installation instructions](https://docs.tmlt.dev/platform/latest/installation.html#prerequisites), then install Poetry using `pip install poetry`, and finally install our dev dependencies by running `poetry install` from the root of this repository.
+We use [Poetry](https://python-poetry.org/) for dependency management during development. To set up your environment, start by installing the prerequisites listed in the [installation instructions](https://docs.tmlt.dev/platform/latest/installation.html#prerequisites), then install Poetry by following the [installation instructions](https://python-poetry.org/docs/#installation), and finally install our dev dependencies by running `poetry install` from the root of this repository.
 
 ### Basic usage
 
@@ -32,12 +32,21 @@ from the repository root directory.
 Note that some operating systems, including macOS, include versions of `make` that are too old to run this project's [Makefile](./Makefile) correctly. macOS users should [install a newer version of make using Homebrew](https://formulae.brew.sh/formula/make#default).
 
 Behind the scenes, these commands use the Poetry environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `poetry run nox --list`, then run one of these sessions using e.g. `poetry run nox -s test-fast`.
+
 ### Testing
 
-Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. E.g., to check tests in a particular test file, you can run:
+Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. For example, to check tests in a particular test file, run:
 
 ```bash
 poetry run pytest test/unit/a_test_file.py
+```
+
+You can also filter to specific tests or specific groups of tests using [pytest filters](https://docs.pytest.org/en/stable/how-to/usage.html#specifying-which-tests-to-run). We tag all of our longest-running tests with the `slow` tag, so they can be skipped easily when you want faster feedback (though make sure they pass before you submit!):
+
+```bash
+poetry run pytest -m "not slow"
+```
+
 ### Documentation
 
 The documentation is built using [Sphinx](https://www.sphinx-doc.org/), and relies on [autosummary](https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html) to generate the API reference.
