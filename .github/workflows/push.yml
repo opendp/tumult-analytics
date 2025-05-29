@@ -68,3 +68,9 @@ jobs:
           name: dist
           path: dist
       - run: poetry run nox -t docs
+      - run: rm -r public/.doctrees
+      - name: Archive docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: public
