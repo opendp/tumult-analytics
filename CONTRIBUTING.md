@@ -16,7 +16,7 @@ First, let us know what you would like to contribute. Feel free to:
 
 ### Installation
 
-We recommend using the lowest supported python version for local development. Tools like [pyenv](https://github.com/pyenv/pyenv) may be useful for managing your python version.
+We recommend using the lowest supported Python version for local development. Tools like [pyenv](https://github.com/pyenv/pyenv) may be useful for managing your Python version.
 
 We use [Poetry](https://python-poetry.org/) for dependency management during development. To set up your environment, start by installing the prerequisites listed in the [installation instructions](https://docs.tmlt.dev/platform/latest/installation.html#prerequisites), then install Poetry using `pip install poetry`, and finally install our dev dependencies by running `poetry install` from the root of this repository.
 
@@ -27,11 +27,11 @@ You can then locally run our linters and tests by running:
 make lint
 make test
 ```
-from the repository root directory. There are a few other commands available in the [Makefile](./Makefile) which can come in handy. 
+from the repository root directory.
 
 Note that some operating systems, including macOS, include versions of `make` that are too old to run this project's [Makefile](./Makefile) correctly. macOS users should [install a newer version of make using Homebrew](https://formulae.brew.sh/formula/make#default).
 
-Behind the scenes, these commands use the Poetry environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). For a list of available nox sessions, you can run `poetry run nox --list`.
+Behind the scenes, these commands use the Poetry environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `poetry run nox --list`, then running one of these sessions using e.g. `poetry run nox -s test-fast`.
 
 ### Documentation
 

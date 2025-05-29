@@ -6,8 +6,7 @@
 
 SHELL = /bin/bash
 
-.PHONY: lint test test-fast test-slow test-doctest test-examples \
-        docs docs-linkcheck docs-doctest package
+.PHONY: lint test docs package
 
 # This causes all targets to execute their entire script within a single shell,
 # as opposed to using a subshell per line. See
@@ -18,42 +17,20 @@ SHELL = /bin/bash
 lint:
 	poetry run nox --no-venv -t lint
 
-# Run all tests
+# Run all tests (in Python files)
 test:
-	poetry run nox --no-venv -s test
+	poetry run nox --no-venv -s smoketest test-fast test-slow test-doctest
 
-# Run only fast tests
-test-fast:
-	poetry run nox --no-venv -s test_fast
-
-# Run only slow tests
-test-slow:
-	poetry run nox --no-venv -s test_slow
-
-# Run code examples in docstrings
-test-doctest:
-	poetry run nox --no-venv -s test_doctest
-
-# Build the docs
+# Builds the docs and runs all tests in documentation files
 docs:
-	poetry run nox --no-venv -s docs
+	poetry run nox --no-venv -s docs docs-linkcheck docs-doctest
 
-# Check that none of the links in the documentation return 404 errors
-docs-linkcheck:
-	poetry run nox --no-venv -s docs_linkcheck
-
-# Run code examples in Sphinx documentation
-docs-doctest:
-	poetry run nox --no-venv -s docs_doctest
-
-# Builds 
+# Builds the source distribution and wheels
 package:
 	poetry run nox --no-venv -s build
 
-
-# The above scripts (especially tests) generate a bunch of junk in the
-# repository that isn't generally useful to keep around. This helps clean all of
-# those files/directories up.
+# The scripts generate a bunch of junk in the repository that isn't generally
+# useful to keep around. This cleans up all of those files/directories.
 
 define clean-files
 src/**/__pycache__/
