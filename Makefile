@@ -17,13 +17,13 @@ SHELL = /bin/bash
 lint:
 	poetry run nox --no-venv -t lint
 
-# Run all tests (in Python files)
+# Run all tests
 test:
-	poetry run nox --no-venv -s smoketest test-fast test-slow test-doctest
+	poetry run nox --no-venv -s smoketest test-fast test-slow test-doctest docs-doctest
 
-# Builds the docs and runs all tests in documentation files
+# Builds the docs and checks links
 docs:
-	poetry run nox --no-venv -s docs docs-linkcheck docs-doctest
+	poetry run nox --no-venv -s docs docs-linkcheck
 
 # Builds the source distribution and wheels
 package:
