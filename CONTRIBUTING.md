@@ -16,7 +16,7 @@ First, let us know what you would like to contribute. Feel free to:
 
 ### Installation
 
-We recommend using a Python virtual environment to do local development, for example using [pyenv](https://github.com/pyenv/pyenv): it is useful to make sure you're working with a supported Python version, and minimize interactions with your system Python environment.
+We recommend using the lowest supported python version for local development. Tools like [pyenv](https://github.com/pyenv/pyenv) may be useful for managing your python version.
 
 We use [Poetry](https://python-poetry.org/) for dependency management during development. To set up your environment, start by installing the prerequisites listed in the [installation instructions](https://docs.tmlt.dev/platform/latest/installation.html#prerequisites), then install Poetry using `pip install poetry`, and finally install our dev dependencies by running `poetry install` from the root of this repository.
 
