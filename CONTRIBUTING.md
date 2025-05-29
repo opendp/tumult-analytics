@@ -32,7 +32,12 @@ from the repository root directory.
 Note that some operating systems, including macOS, include versions of `make` that are too old to run this project's [Makefile](./Makefile) correctly. macOS users should [install a newer version of make using Homebrew](https://formulae.brew.sh/formula/make#default).
 
 Behind the scenes, these commands use the Poetry environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `poetry run nox --list`, then running one of these sessions using e.g. `poetry run nox -s test-fast`.
+### Testing
 
+Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. E.g., to check tests in a particular test file, you can run:
+
+```bash
+poetry run pytest test/unit/a_test_file.py
 ### Documentation
 
 The documentation is built using [Sphinx](https://www.sphinx-doc.org/), and relies on [autosummary](https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html) to generate the API reference.
