@@ -135,17 +135,7 @@ nbconvert = "^6.0.7"
 lxml = { version = "5.1.0", extras = ["html-clean"] }
 # Needed for code snippets in tutorials, examples
 matplotlib = "^3.0.0"
-# Seaborn triggers a weird bug in poetry-plugin-export [0] where it gets
-# confused by transitive dependencies that show up in the lock multiple times
-# with different constraints. Explicitly splitting seaborn into two dependencies
-# depending on Python version works around this problem. Keep an eye on [1] to
-# see when the fix gets merged.
-# [0] https://github.com/python-poetry/poetry-plugin-export/issues/176
-# [1] https://github.com/python-poetry/poetry-plugin-export/pull/286
-seaborn = [
-  { version = "^0.13.2", python = "<3.12" },
-  { version = "^0.13.2", python = ">=3.12" }
-]
+seaborn = "^0.13.2"
 
 [tool.poetry.group.audit.dependencies]
 pip-audit = "^2.9.0"
