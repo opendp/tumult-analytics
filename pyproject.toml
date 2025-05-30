@@ -85,13 +85,11 @@ types-tabulate = "^0.8.10"
 # such constraints, but having an extra irrelevant version constraint prevents
 # that behavior.
 numpy = [
-  { version = "*,!=0.0.2", python = "<3.9" },
   { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
   { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
   { version = "*,!=0.0.5", python = ">=3.11" },
 ]
 scipy = [
-  { version = "*,!=0.0.2", python = "<3.9" },
   { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
   { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
   { version = "*,!=0.0.5", python = ">=3.11" },
