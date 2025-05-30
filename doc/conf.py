@@ -42,7 +42,7 @@ build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 # Linkcheck will complain that these anchors don't exist,
 # even though the link works.
 linkcheck_ignore = [
-    "https://colab.research.google.com/drive/18J_UrHAKJf52RMRxi4OOpk59dV9tvKxO#offline=true&sandboxMode=true",
+    "https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U#offline=true&sandboxMode=true",
     "https://docs.databricks.com/release-notes/runtime/releases.html",
 ]
 
@@ -187,11 +187,20 @@ show_init = {"BinningSpec"}
 
 # Methods that are show directly after certain methods
 aggs = [
-    "average", "count", "count_distinct", "get_bounds", "max", "median", "min", "quantile", "stdev", "sum", "variance"
+    "average",
+    "count",
+    "count_distinct",
+    "get_bounds",
+    "max",
+    "median",
+    "min",
+    "quantile",
+    "stdev",
+    "sum",
+    "variance",
 ]
 companion_methods = {
-    f"QueryBuilder.{agg}": f"GroupedQueryBuilder.{agg}"
-    for agg in aggs
+    f"QueryBuilder.{agg}": f"GroupedQueryBuilder.{agg}" for agg in aggs
 }
 # Classes that are shown directly after certain methods
 companion_classes = {
@@ -212,6 +221,7 @@ autosummary_context = {
     "companion_methods": companion_methods,
     "companion_classes": companion_classes,
 }
+
 
 def setup(sphinx):
     # Write out the version and release numbers (using Sphinx's definitions of
