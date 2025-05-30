@@ -14,7 +14,7 @@ dynamic = [ "version", "classifiers", "dependencies", "requires-python" ]
 [project.urls]
 
 homepage = "https://www.tmlt.dev/"
-repository = "https://gitlab.com/tumult-labs/analytics"
+repository = "https://github.com/opendp/tumult-analytics"
 documentation = "https://docs.tmlt.dev/platform/latest"
 
 [tool.poetry]
@@ -85,13 +85,11 @@ types-tabulate = "^0.8.10"
 # such constraints, but having an extra irrelevant version constraint prevents
 # that behavior.
 numpy = [
-  { version = "*,!=0.0.2", python = "<3.9" },
   { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
   { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
   { version = "*,!=0.0.5", python = ">=3.11" },
 ]
 scipy = [
-  { version = "*,!=0.0.2", python = "<3.9" },
   { version = "*,!=0.0.3", python = ">=3.9,<3.10" },
   { version = "*,!=0.0.4", python = ">=3.10,<3.11" },
   { version = "*,!=0.0.5", python = ">=3.11" },
@@ -137,17 +135,7 @@ nbconvert = "^6.0.7"
 lxml = { version = "5.1.0", extras = ["html-clean"] }
 # Needed for code snippets in tutorials, examples
 matplotlib = "^3.0.0"
-# Seaborn triggers a weird bug in poetry-plugin-export [0] where it gets
-# confused by transitive dependencies that show up in the lock multiple times
-# with different constraints. Explicitly splitting seaborn into two dependencies
-# depending on Python version works around this problem. Keep an eye on [1] to
-# see when the fix gets merged.
-# [0] https://github.com/python-poetry/poetry-plugin-export/issues/176
-# [1] https://github.com/python-poetry/poetry-plugin-export/pull/286
-seaborn = [
-  { version = "^0.13.2", python = "<3.12" },
-  { version = "^0.13.2", python = ">=3.12" }
-]
+seaborn = "^0.13.2"
 
 [tool.poetry.group.audit.dependencies]
 pip-audit = "^2.9.0"
@@ -250,8 +238,7 @@ disable = [
   'unsubscriptable-object',
   'use-dict-literal',
   # There are a lot of false positives for unsupported-binary-operation
-  # on Python 3.8 and 3.9;
-  # see: https://github.com/pylint-dev/pylint/issues/7381
+  # on Python 3.9: https://github.com/pylint-dev/pylint/issues/7381
   'unsupported-binary-operation',
   # black and isort group tmlt.core separately from tmlt.analytics,
   # but pylint thinks they should both be grouped as 'tmlt'.
