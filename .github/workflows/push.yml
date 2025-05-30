@@ -1,0 +1,76 @@
+name: Push Pipeline
+
+on:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+  
+
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
+
+jobs:
+  Package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - run: poetry run nox -s build
+      - name: Archive packaged library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+  Lint:
+    runs-on: ubuntu-latest
+    needs: Package
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: poetry check --lock
+      - run: poetry run nox -t lint
+  Test:
+    runs-on: ubuntu-latest
+    needs: Package
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: poetry run nox -s smoketest test-doctest test-fast
+  Docs:
+    runs-on: ubuntu-latest
+    needs: Package
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: poetry run nox -t docs
+      - run: rm -r public/.doctrees
+      - name: Archive docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: public
