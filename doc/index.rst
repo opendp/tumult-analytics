@@ -9,10 +9,10 @@ Tumult Analytics documentation
    :hidden:
    :maxdepth: 1
 
-   Installation <howto-guides/installation>
+   Installation <installation>
    tutorials/index
-   How-to guides <howto-guides/index>
    topic-guides/index
+   How-to guides <deployment/index>
    API reference <reference/index>
    Release notes <changelog>
 
@@ -50,22 +50,8 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **Tutorials**
       ^^^^^^^^^^^^^
 
-      Tutorials are the place where new users can learn the basics of how to use
-      the library. No prior knowledge of differential privacy is required!
-
-   .. grid-item-card::
-      :img-top: /images/index_howto_guides.svg
-      :class-img-top: intro-card-icon
-      :link: howto-guides/index
-      :link-type: doc
-      :link-alt: How-to guides
-      :text-align: center
-
-      **How-to guides**
-      ^^^^^^^^^^^^^^^^
-
-      How-to guides are step-by-step instructions on how to install and
-      troubleshoot the library locally or on a cloud platform.
+      For new users to learn the basics of how to use the library.
+      No prior knowledge of differential privacy is required!
 
    .. grid-item-card::
       :img-top: /images/index_topic_guides.svg
@@ -78,8 +64,22 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **Topic guides**
       ^^^^^^^^^^^^^^^^
 
-      Topic guides dive deeper into specific aspects of the library, and explain in
+      To dive deeper into specific aspects of the library, and understand in
       more detail how it works behind the scenes.
+
+   .. grid-item-card::
+      :img-top: /images/index_howto_guides.svg
+      :class-img-top: intro-card-icon
+      :link: deployment/index
+      :link-type: doc
+      :link-alt: How-to guides
+      :text-align: center
+
+      **Deployment**
+      ^^^^^^^^^^^^^^^^
+
+      Step-by-step instructions on how to deploy and troubleshoot Tumult
+      Analytics in a variety of environments.
 
    .. grid-item-card::
       :img-top: /images/index_api.svg
@@ -92,9 +92,8 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **API reference**
       ^^^^^^^^^^^^^^^^^
 
-      The API reference contains a detailed description of the packages, classes,
-      and methods available in Tumult Analytics. It assumes that you have an
-      understanding of the key concepts.
+      Detailed documentation of all packages, classes, and methods in
+      Tumult Analytics.
 
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
 Users who wish to learn more about the fundamentals of differential privacy can consult
