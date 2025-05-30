@@ -14,7 +14,7 @@ dynamic = [ "version", "classifiers", "dependencies", "requires-python" ]
 [project.urls]
 
 homepage = "https://www.tmlt.dev/"
-repository = "https://gitlab.com/tumult-labs/analytics"
+repository = "https://github.com/opendp/tumult-analytics"
 documentation = "https://docs.tmlt.dev/platform/latest"
 
 [tool.poetry]
@@ -238,8 +238,7 @@ disable = [
   'unsubscriptable-object',
   'use-dict-literal',
   # There are a lot of false positives for unsupported-binary-operation
-  # on Python 3.8 and 3.9;
-  # see: https://github.com/pylint-dev/pylint/issues/7381
+  # on Python 3.9: https://github.com/pylint-dev/pylint/issues/7381
   'unsupported-binary-operation',
   # black and isort group tmlt.core separately from tmlt.analytics,
   # but pylint thinks they should both be grouped as 'tmlt'.
