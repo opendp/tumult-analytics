@@ -4518,8 +4518,8 @@ nox = ">=2022.8.7"
 [package.source]
 type = "git"
 url = "https://github.com/opendp/tumult-tools.git"
-reference = "4663655567e2819bf5116364e347897a12652487"
-resolved_reference = "4663655567e2819bf5116364e347897a12652487"
+reference = "ffc41a989635236155f4f2a30cafd1dc26fd9a4a"
+resolved_reference = "ffc41a989635236155f4f2a30cafd1dc26fd9a4a"
 subdirectory = "nox-utils"
 
 [[package]]
@@ -4849,4 +4849,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9.0, <3.13"
-content-hash = "66080ff5229742575b68870582dec360df632e4bc3bea606fe78853312109978"
+content-hash = "5aa9a569e01adb8e91517d019b9e945ac2bf99b5e0b21fa234f34730999f35bc"
