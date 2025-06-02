@@ -12,7 +12,7 @@ Tumult Analytics documentation
    Installation <installation>
    tutorials/index
    topic-guides/index
-   How-to guides <deployment/index>
+   Deployment <deployment/index>
    API reference <reference/index>
    Release notes <changelog>
 
