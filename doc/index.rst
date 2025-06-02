@@ -50,7 +50,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **Tutorials**
       ^^^^^^^^^^^^^
 
-      For new users to learn the basics of how to use the library.
+      Learn the basics of how to use the library.
       No prior knowledge of differential privacy is required!
 
    .. grid-item-card::
@@ -64,7 +64,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **Topic guides**
       ^^^^^^^^^^^^^^^^
 
-      To dive deeper into specific aspects of the library, and understand in
+      Dive deeper into specific aspects of the library, and understand in
       more detail how it works behind the scenes.
 
    .. grid-item-card::
@@ -78,7 +78,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **Deployment**
       ^^^^^^^^^^^^^^^^
 
-      Step-by-step instructions on how to deploy and troubleshoot Tumult
+      Find step-by-step instructions on how to deploy and troubleshoot Tumult
       Analytics in a variety of environments.
 
    .. grid-item-card::
@@ -92,7 +92,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
       **API reference**
       ^^^^^^^^^^^^^^^^^
 
-      Detailed documentation of all packages, classes, and methods in
+      Browse detailed documentation of all packages, classes, and methods in
       Tumult Analytics.
 
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
