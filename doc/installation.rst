@@ -109,11 +109,11 @@ Installation
     to minimize interactions with your system Python environment.
 
 
-Once the above prerequisites are installed, Tumult Analytics can be installed using ``pip3`` with:
+Once the above prerequisites are installed, Tumult Analytics can be installed using ``pip`` with:
 
 .. code-block:: bash
 
-  pip3 install tmlt.analytics
+  pip install tmlt.analytics
 
 This will automatically install all of its Python dependencies as well.
 

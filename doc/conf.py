@@ -121,6 +121,7 @@ json_url = "https://docs.tmlt.dev/analytics/versions.json"
 templates_path = ["_templates", "_templates/autosummary"]
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
+    "back_to_top_button": False,
     "collapse_navigation": True,
     "footer_start": ["copyright", "build-info"],
     "footer_end": ["sphinx-version", "theme-version"],
@@ -145,6 +146,7 @@ html_theme_options = {
         "json_url": json_url,
         "version_match": version,
     },
+    "show_nav_level": 2,
     "show_toc_level": 3,
 }
 html_context = {
@@ -158,7 +160,7 @@ html_js_files = ["js/version-banner.js"]
 html_logo = "_static/logo.png"
 html_favicon = "_static/favicon.ico"
 html_show_sourcelink = False
-html_sidebars = {"**": ["package-name", "version-switcher", "sidebar-nav-bs"]}
+html_sidebars = {"**": ["package-name", "version-switcher", "left-sidebar"]}
 
 # Intersphinx mapping
 intersphinx_mapping = {
