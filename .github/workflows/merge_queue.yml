@@ -1,4 +1,4 @@
-name: Push Pipeline
+name: Merge Queue Pipeline
 
 on:
   merge_group:
