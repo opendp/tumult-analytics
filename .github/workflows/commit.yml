@@ -1,0 +1,67 @@
+name: Commit Pipeline
+
+concurrency: docs-push
+
+on:
+  push:
+    branches:
+      - 'main'
+
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
+
+jobs:
+  Package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - run: poetry run nox -s build
+      - name: Archive packaged library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  Push-Docs:
+    runs-on: ubuntu-latest
+    environment: docs-push
+    needs: Package
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: ./.github/actions/setup
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Get commit
+        id: commit
+        run: echo "COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - run: poetry run nox -s docs
+      - run: rm -r public/.doctrees
+      - name: Checkout docs repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'opendp/tumult-docs'
+          token: ${{ secrets.DOCS_REPO_PAT}}
+          path: tumult-docs
+      - run: rm -r tumult-docs/docs/analytics/dev
+      - run: mv public tumult-docs/docs/analytics/dev
+      - name: commit to docs repo
+        working-directory: tumult-docs
+        env:
+          COMMIT: ${{ steps.commit.outputs.COMMIT}}
+        run: |
+          git config user.name "docs-bot"
+          git config user.email "87283505+opendp-dev@users.noreply.github.com"
+          git add docs/analytics/dev
+          git commit -m "[auto] Publish docs for dev ($COMMIT)"
+          git push
+
