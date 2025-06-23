@@ -22,21 +22,23 @@ package_name = "tmlt"
 
 ### Build information
 
-ci_tag = os.getenv("CI_COMMIT_TAG")
-ci_branch = os.getenv("CI_COMMIT_BRANCH")
+pipeline_type = os.getenv("GITHUB_REF_TYPE")
+ref_name = os.getenv("GITHUB_REF_NAME")
 
 # For non-prerelease tags, make the version "vX.Y" to match how we show it in
 # the version switcher and the docs URLs. Sphinx's nomenclature around versions
 # can be a bit confusing -- "version" means sort of the documentation version
 # (for us, the minor release), while "release" is the full version number of the
 # package on which the docs were built.
-if ci_tag and "-" not in ci_tag:
-    release = ci_tag
-    version = "v" + ".".join(ci_tag.split(".")[:2])
+if pipeline_type and pipeline_type == "tag" and "-" not in ref_name:
+    release = ref_name
+    version = "v" + ".".join(ref_name.split(".")[:2])
 else:
-    release = version = ci_tag or ci_branch or "HEAD"
+    release = version = ref_name or "HEAD"
 
-commit_hash = os.getenv("CI_COMMIT_SHORT_SHA") or "unknown version"
+commit_sha = os.getenv("GITHUB_SHA")
+
+commit_hash = commit_sha[:8] if commit_sha else "unknown version"
 build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 
 # Linkcheck will complain that these anchors don't exist,
