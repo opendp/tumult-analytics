@@ -20,6 +20,8 @@ copyright = "2025"
 # necessarily the name of the package as pip understands it.
 package_name = "tmlt"
 
+default_branch = "main"
+
 ### Build information
 
 pipeline_type = os.getenv("GITHUB_REF_TYPE")
@@ -33,6 +35,8 @@ ref_name = os.getenv("GITHUB_REF_NAME")
 if pipeline_type and pipeline_type == "tag" and "-" not in ref_name:
     release = ref_name
     version = "v" + ".".join(ref_name.split(".")[:2])
+elif ref_name and ref_name == default_branch:
+    release = version = "dev"
 else:
     release = version = ref_name or "HEAD"
 
