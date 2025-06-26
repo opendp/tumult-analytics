@@ -6,7 +6,7 @@
 # pylint: disable=protected-access
 
 import datetime
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -658,7 +658,7 @@ class TestQueryExprCompiler:
         """Tests that compiled measurement produces correct results.
 
         Args:
-            query_exprs: The queries to evaluate.
+            query_expr: The queries to evaluate.
             expected: The expected answers.
         """
         measurement, _ = self.compiler(
@@ -1256,27 +1256,25 @@ class TestQueryExprCompiler:
         [
             (
                 # Top-level query needs to be instance of measurement QueryExpr
-                    FlatMap(
-                        child=PrivateSource("private"),
-                        f=lambda row: [{}, {}],
-                        schema_new_columns=Schema({}),
-                        augment=True,
-                        max_rows=2,
-                    )
+                FlatMap(
+                    child=PrivateSource("private"),
+                    f=lambda row: [{}, {}],
+                    schema_new_columns=Schema({}),
+                    augment=True,
+                    max_rows=2,
+                )
             ),
             (  # Query's child has to be transformation QueryExpr
-                    GroupByBoundedSum(
-                        child=GroupByCount(
-                            child=PrivateSource("private"),
-                            groupby_keys=KeySet.from_dict(
-                                {"A": ["0", "1"], "B": [0, 1]}
-                            ),
-                        ),
-                        groupby_keys=KeySet.from_dict({}),
-                        measure_column="B",
-                        low=0,
-                        high=3,
-                    )
+                GroupByBoundedSum(
+                    child=GroupByCount(
+                        child=PrivateSource("private"),
+                        groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
+                    ),
+                    groupby_keys=KeySet.from_dict({}),
+                    measure_column="B",
+                    low=0,
+                    high=3,
+                )
             ),
         ],
     )
@@ -1350,6 +1348,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in stability.keys()},
         )
         assert measurement.privacy_relation(stability, sp.Integer(10))
+
 
 class TestCompileGroupByQuantile:
     """Test compiling GroupByQuantile.

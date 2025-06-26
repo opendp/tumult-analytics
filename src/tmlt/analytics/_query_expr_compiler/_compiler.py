@@ -7,13 +7,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from pyspark.sql import DataFrame
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
 from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.composition import Composition
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric
 from tmlt.core.transformations.base import Transformation
@@ -167,8 +166,7 @@ class QueryExprCompiler:
             )
         else:
             privacy_function_budget_mismatch = (
-                measurement.privacy_function(stability)
-                != visitor.adjusted_budget.value
+                measurement.privacy_function(stability) != visitor.adjusted_budget.value
             )
         if privacy_function_budget_mismatch:
             raise AnalyticsInternalError(
