@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: ./.github/actions/setup
+        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
       - run: poetry run nox -s build
       - name: Archive packaged library
         uses: actions/upload-artifact@v4
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: ./.github/actions/setup
+        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -47,7 +47,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: ./.github/actions/setup
+        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -61,7 +61,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: ./.github/actions/setup
+        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
