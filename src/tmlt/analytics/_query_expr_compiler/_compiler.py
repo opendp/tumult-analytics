@@ -7,13 +7,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from pyspark.sql import DataFrame
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
 from tmlt.core.measurements.base import Measurement
-from tmlt.core.measurements.composition import Composition
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric
 from tmlt.core.transformations.base import Transformation
@@ -119,7 +118,7 @@ class QueryExprCompiler:
 
     def __call__(
         self,
-        queries: Sequence[QueryExpr],
+        query: QueryExpr,
         privacy_budget: PrivacyBudget,
         stability: Any,
         input_domain: DictDomain,
@@ -131,7 +130,7 @@ class QueryExprCompiler:
         """Returns a compiled DP measurement and its noise information.
 
         Args:
-            queries: Queries representing measurements to compile.
+            query: The query representing a measurement to compile.
             privacy_budget: The total privacy budget for answering the queries.
             stability: The stability of the input to compiled query.
             input_domain: The input domain of the compiled query.
@@ -140,11 +139,6 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
-        if len(queries) == 0:
-            raise ValueError("At least one query needs to be provided")
-
-        if len(queries) != 1:
-            raise NotImplementedError("Only one query is supported at this time.")
         visitor = MeasurementVisitor(
             privacy_budget=privacy_budget,
             stability=stability,
@@ -157,42 +151,9 @@ class QueryExprCompiler:
             table_constraints=table_constraints,
         )
 
-        measurements: List[Measurement] = []
-        noise_infos: List[NoiseInfo] = []
-        # Note: Each query is re-using the adjusted_budget from the same visitor, which
-        # could become a problem if we go back to supporting multiple queries.
-        for query in queries:
-            query_measurement, noise_info = query.accept(visitor)
-            if not isinstance(query_measurement, Measurement):
-                raise AnalyticsInternalError("This query did not create a measurement.")
-
-            if isinstance(visitor.adjusted_budget.value, tuple):
-                # TODO(#2754): add a log message.
-                privacy_function_budget_mismatch = any(
-                    x > y
-                    for x, y in zip(
-                        query_measurement.privacy_function(stability),
-                        visitor.adjusted_budget.value,
-                    )
-                )
-            else:
-                privacy_function_budget_mismatch = (
-                    query_measurement.privacy_function(stability)
-                    != visitor.adjusted_budget.value
-                )
-
-            if privacy_function_budget_mismatch:
-                raise AnalyticsInternalError(
-                    "Query measurement privacy function does not match "
-                    "privacy budget value."
-                )
-            measurements.append(query_measurement)
-            noise_infos.append(noise_info)
-
-        measurement = Composition(measurements)
-        if len(noise_infos) != 1:
-            raise AnalyticsInternalError("Noise info should be length one.")
-        noise_info = noise_infos[0]
+        measurement, noise_info = query.accept(visitor)
+        if not isinstance(measurement, Measurement):
+            raise AnalyticsInternalError("This query did not create a measurement.")
 
         if isinstance(visitor.adjusted_budget.value, tuple):
             # TODO(#2754): add a log message.
@@ -207,11 +168,12 @@ class QueryExprCompiler:
             privacy_function_budget_mismatch = (
                 measurement.privacy_function(stability) != visitor.adjusted_budget.value
             )
-
         if privacy_function_budget_mismatch:
             raise AnalyticsInternalError(
-                "Measurement privacy function does not match privacy budget value."
+                "Query measurement privacy function does not match "
+                "privacy budget value."
             )
+
         return measurement, noise_info
 
     def build_transformation(

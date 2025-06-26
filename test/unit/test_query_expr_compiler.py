@@ -6,7 +6,7 @@
 # pylint: disable=protected-access
 
 import datetime
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -84,372 +84,314 @@ GROUPBY_ONE_DICT = {"A": ["0", "1", "2"]}
 
 QUERY_EXPR_COMPILER_TESTS = [
     (  # Total
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({}),
-                output_column="total",
-            )
-        ],
-        [pd.DataFrame({"total": [4]})],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({}),
+            output_column="total",
+        ),
+        pd.DataFrame({"total": [4]}),
     ),
     (
-        [
-            GroupByCountDistinct(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({}),
-                output_column="total",
-            )
-        ],
-        [pd.DataFrame({"total": [4]})],
+        GroupByCountDistinct(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({}),
+            output_column="total",
+        ),
+        pd.DataFrame({"total": [4]}),
     ),
     (  # Full marginal from domain description
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
-            )
-        ],
-        [
-            pd.DataFrame(
-                {"A": ["0", "0", "1", "1"], "B": [0, 1, 0, 1], "count": [2, 1, 1, 0]}
-            )
-        ],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
+        ),
+        pd.DataFrame(
+            {"A": ["0", "0", "1", "1"], "B": [0, 1, 0, 1], "count": [2, 1, 1, 0]}
+        ),
     ),
     (  # Incomplete two-column marginal with a dataframe
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO()),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]})],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO()),
+        ),
+        pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
     ),
     (  # One-column marginal with additional value
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]})],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
+        ),
+        pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # BoundedAverage
-        [
-            GroupByBoundedAverage(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                measure_column="X",
-                low=0.0,
-                high=1.0,
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "average": [0.666667, 1.0]})],
+        GroupByBoundedAverage(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="X",
+            low=0.0,
+            high=1.0,
+        ),
+        pd.DataFrame({"A": ["0", "1"], "average": [0.666667, 1.0]}),
     ),
     (  # BoundedSTDEV
-        [
-            GroupByBoundedSTDEV(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                measure_column="X",
-                low=0.0,
-                high=1.0,
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
+        GroupByBoundedSTDEV(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="X",
+            low=0.0,
+            high=1.0,
+        ),
+        pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
     ),
     (  # BoundedVariance
-        [
-            GroupByBoundedVariance(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                measure_column="X",
-                low=0.0,
-                high=1.0,
-                output_column="var",
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
+        GroupByBoundedVariance(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="X",
+            low=0.0,
+            high=1.0,
+            output_column="var",
+        ),
+        pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]}),
     ),
     (  # BoundedSum
-        [
-            GroupByBoundedSum(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                measure_column="X",
-                low=0.0,
-                high=1.0,
-                output_column="sum",
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})],
+        GroupByBoundedSum(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="X",
+            low=0.0,
+            high=1.0,
+            output_column="sum",
+        ),
+        pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]}),
     ),
     (  # Marginal over A
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
     ),
     (  # Marginal over B
-        [
-            GroupByCount(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-            )
-        ],
-        [pd.DataFrame({"B": [0, 1], "count": [3, 1]})],
+        GroupByCount(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"B": [0, 1]}),
+        ),
+        pd.DataFrame({"B": [0, 1], "count": [3, 1]}),
     ),
     (  # FlatMap
-        [
-            GroupByBoundedSum(
-                child=ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
-                    child=FlatMap(
-                        child=PrivateSource("private"),
-                        f=lambda row: [{}, {}],
-                        schema_new_columns=Schema({}),
-                        augment=True,
-                        max_rows=2,
-                    ),
+        GroupByBoundedSum(
+            child=ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=FlatMap(
+                    child=PrivateSource("private"),
+                    f=lambda row: [{}, {}],
+                    schema_new_columns=Schema({}),
+                    augment=True,
+                    max_rows=2,
                 ),
-                groupby_keys=KeySet.from_dict({}),
-                measure_column="X",
-                low=0.0,
-                high=3.0,
-            )
-        ],
-        [pd.DataFrame({"sum": [12.0]})],
+            ),
+            groupby_keys=KeySet.from_dict({}),
+            measure_column="X",
+            low=0.0,
+            high=3.0,
+        ),
+        pd.DataFrame({"sum": [12.0]}),
     ),
     (  # Multiple flat maps
-        [
-            GroupByBoundedSum(
-                child=ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
+        GroupByBoundedSum(
+            child=ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=FlatMap(
                     child=FlatMap(
-                        child=FlatMap(
-                            child=PrivateSource("private"),
-                            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                            schema_new_columns=Schema({"Repeat": "INTEGER"}),
-                            augment=True,
-                            max_rows=1,
-                        ),
-                        f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                        schema_new_columns=Schema({"i": "DECIMAL"}),
-                        augment=False,
-                        max_rows=2,
+                        child=PrivateSource("private"),
+                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                        schema_new_columns=Schema({"Repeat": "INTEGER"}),
+                        augment=True,
+                        max_rows=1,
                     ),
+                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                    schema_new_columns=Schema({"i": "DECIMAL"}),
+                    augment=False,
+                    max_rows=2,
                 ),
-                groupby_keys=KeySet.from_dict({}),
-                measure_column="i",
-                low=0.0,
-                high=3.0,
-            )
-        ],
-        [pd.DataFrame({"sum": [9.0]})],
+            ),
+            groupby_keys=KeySet.from_dict({}),
+            measure_column="i",
+            low=0.0,
+            high=3.0,
+        ),
+        pd.DataFrame({"sum": [9.0]}),
     ),
     (  # Grouping flat map
-        [
-            GroupByBoundedSum(
-                child=ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
+        GroupByBoundedSum(
+            child=ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=FlatMap(
                     child=FlatMap(
-                        child=FlatMap(
-                            child=PrivateSource("private"),
-                            f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
-                            schema_new_columns=Schema(
-                                {"Repeat": "INTEGER"}, grouping_column="Repeat"
-                            ),
-                            augment=True,
-                            max_rows=1,
+                        child=PrivateSource("private"),
+                        f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
+                        schema_new_columns=Schema(
+                            {"Repeat": "INTEGER"}, grouping_column="Repeat"
                         ),
-                        f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
-                        schema_new_columns=Schema({"i": "DECIMAL"}),
                         augment=True,
-                        max_rows=2,
+                        max_rows=1,
                     ),
+                    f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
+                    schema_new_columns=Schema({"i": "DECIMAL"}),
+                    augment=True,
+                    max_rows=2,
                 ),
-                groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
-                measure_column="i",
-                low=0.0,
-                high=3.0,
-            )
-        ],
-        [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
+            ),
+            groupby_keys=KeySet.from_dict({"Repeat": [1, 2]}),
+            measure_column="i",
+            low=0.0,
+            high=3.0,
+        ),
+        pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]}),
     ),
     (  # Filter
-        [
-            GroupByCount(
-                child=Filter(child=PrivateSource("private"), condition="A == '0'"),
-                groupby_keys=KeySet.from_dict({}),
-            )
-        ],
-        [pd.DataFrame({"count": [3]})],
+        GroupByCount(
+            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
+            groupby_keys=KeySet.from_dict({}),
+        ),
+        pd.DataFrame({"count": [3]}),
     ),
     (  # Rename
-        [
-            GroupByCount(
-                child=Rename(
-                    child=PrivateSource("private"),
-                    column_mapper=FrozenDict.from_dict({"A": "Z"}),
-                ),
-                groupby_keys=KeySet.from_dict({"Z": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"Z": ["0", "1"], "count": [3, 1]})],
+        GroupByCount(
+            child=Rename(
+                child=PrivateSource("private"),
+                column_mapper=FrozenDict.from_dict({"A": "Z"}),
+            ),
+            groupby_keys=KeySet.from_dict({"Z": ["0", "1"]}),
+        ),
+        pd.DataFrame({"Z": ["0", "1"], "count": [3, 1]}),
     ),
     (  # Select
-        [
-            GroupByCount(
-                child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
-                groupby_keys=KeySet.from_dict({}),
-            )
-        ],
-        [pd.DataFrame({"count": [4]})],
+        GroupByCount(
+            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
+            groupby_keys=KeySet.from_dict({}),
+        ),
+        pd.DataFrame({"count": [4]}),
     ),
     (  # Map
-        [
-            GroupByCount(
-                child=ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
-                    child=Map(
-                        child=PrivateSource("private"),
-                        f=lambda row: {"C": 2 * str(row["B"])},
-                        schema_new_columns=Schema({"C": "VARCHAR"}),
-                        augment=True,
-                    ),
+        GroupByCount(
+            child=ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=Map(
+                    child=PrivateSource("private"),
+                    f=lambda row: {"C": 2 * str(row["B"])},
+                    schema_new_columns=Schema({"C": "VARCHAR"}),
+                    augment=True,
                 ),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}),
-            )
-        ],
-        [
-            pd.DataFrame(
-                [["0", "00", 2], ["0", "11", 1], ["1", "00", 1], ["1", "11", 0]],
-                columns=["A", "C", "count"],
-            )
-        ],
+            ),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}),
+        ),
+        pd.DataFrame(
+            [["0", "00", 2], ["0", "11", 1], ["1", "00", 1], ["1", "11", 0]],
+            columns=["A", "C", "count"],
+        ),
     ),
     (  # JoinPublic
-        [
-            GroupByCount(
-                child=JoinPublic(child=PrivateSource("private"), public_table="public"),
-                groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
-            )
-        ],
-        [pd.DataFrame({"A+B": [0, 1, 2], "count": [2, 2, 0]})],
+        GroupByCount(
+            child=JoinPublic(child=PrivateSource("private"), public_table="public"),
+            groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
+        ),
+        pd.DataFrame({"A+B": [0, 1, 2], "count": [2, 2, 0]}),
     ),
     (  # JoinPublic with One Join Column
-        [
-            GroupByCount(
-                child=JoinPublic(
-                    child=PrivateSource("private"),
-                    public_table="public",
-                    join_columns=tuple(["A"]),
-                ),
-                groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
-            )
-        ],
-        [pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]})],
+        GroupByCount(
+            child=JoinPublic(
+                child=PrivateSource("private"),
+                public_table="public",
+                join_columns=tuple(["A"]),
+            ),
+            groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
+        ),
+        pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]}),
     ),
     # Tests on less-common data types
     (
-        [
-            GroupByCount(
+        GroupByCount(
+            JoinPublic(PrivateSource("private"), "dtypes"),
+            KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
+    ),
+    (
+        GroupByCount(
+            Filter(
                 JoinPublic(PrivateSource("private"), "dtypes"),
-                KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [3, 1]})],
+                "date < '2022-01-02'",
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [3, 0]}),
     ),
     (
-        [
-            GroupByCount(
-                Filter(
+        GroupByCount(
+            Filter(
+                JoinPublic(PrivateSource("private"), "dtypes"),
+                "date = '2022-01-02'",
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [0, 1]}),
+    ),
+    (
+        GroupByCount(
+            Filter(
+                JoinPublic(PrivateSource("private"), "dtypes"),
+                "timestamp < '2022-01-01T12:40:00'",
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [3, 0]}),
+    ),
+    (
+        GroupByCount(
+            Filter(
+                JoinPublic(PrivateSource("private"), "dtypes"),
+                "timestamp >= '2022-01-01T12:45:00'",
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+        ),
+        pd.DataFrame({"A": ["0", "1"], "count": [0, 1]}),
+    ),
+    (
+        GroupByBoundedSum(
+            ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
-                    "date < '2022-01-02'",
+                    lambda row: {"day": row["date"].day},
+                    Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
+                    augment=True,
                 ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [3, 0]})],
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "day",
+            0,
+            2,
+        ),
+        pd.DataFrame({"A": ["0", "1"], "sum": [3, 2]}),
     ),
     (
-        [
-            GroupByCount(
-                Filter(
+        GroupByBoundedSum(
+            ReplaceNullAndNan(
+                replace_with=FrozenDict.from_dict({}),
+                child=Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
-                    "date = '2022-01-02'",
+                    lambda row: {"minute": row["timestamp"].minute},
+                    Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
+                    augment=True,
                 ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [0, 1]})],
-    ),
-    (
-        [
-            GroupByCount(
-                Filter(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    "timestamp < '2022-01-01T12:40:00'",
-                ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [3, 0]})],
-    ),
-    (
-        [
-            GroupByCount(
-                Filter(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    "timestamp >= '2022-01-01T12:45:00'",
-                ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "count": [0, 1]})],
-    ),
-    (
-        [
-            GroupByBoundedSum(
-                ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
-                    child=Map(
-                        JoinPublic(PrivateSource("private"), "dtypes"),
-                        lambda row: {"day": row["date"].day},
-                        Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
-                        augment=True,
-                    ),
-                ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-                "day",
-                0,
-                2,
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "sum": [3, 2]})],
-    ),
-    (
-        [
-            GroupByBoundedSum(
-                ReplaceNullAndNan(
-                    replace_with=FrozenDict.from_dict({}),
-                    child=Map(
-                        JoinPublic(PrivateSource("private"), "dtypes"),
-                        lambda row: {"minute": row["timestamp"].minute},
-                        Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
-                        augment=True,
-                    ),
-                ),
-                KeySet.from_dict({"A": ["0", "1"]}),
-                "minute",
-                0,
-                59,
-            )
-        ],
-        [pd.DataFrame({"A": ["0", "1"], "sum": [90, 45]})],
+            ),
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "minute",
+            0,
+            59,
+        ),
+        pd.DataFrame({"A": ["0", "1"], "sum": [90, 45]}),
     ),
 ]
 
@@ -695,7 +637,7 @@ class TestQueryExprCompiler:
             )
         )
         measurement, _ = self.compiler(
-            [query_expr],
+            query_expr,
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
@@ -709,19 +651,18 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): count_distinct_df})
-        assert len(actual) == 1
-        assert_frame_equal_with_sort(actual[0].toPandas(), expected)
+        assert_frame_equal_with_sort(actual.toPandas(), expected)
 
-    @pytest.mark.parametrize("query_exprs,expected", QUERY_EXPR_COMPILER_TESTS)
-    def test_queries(self, query_exprs: List[QueryExpr], expected: List[pd.DataFrame]):
+    @pytest.mark.parametrize("query_expr,expected", QUERY_EXPR_COMPILER_TESTS)
+    def test_queries(self, query_expr: QueryExpr, expected: pd.DataFrame):
         """Tests that compiled measurement produces correct results.
 
         Args:
-            query_exprs: The queries to evaluate.
+            query_expr: The queries to evaluate.
             expected: The expected answers.
         """
         measurement, _ = self.compiler(
-            query_exprs,
+            query_expr,
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
@@ -736,9 +677,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
-        assert len(actual) == len(expected)
-        for actual_sdf, expected_df in zip(actual, expected):
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_frame_equal_with_sort(actual.toPandas(), expected)
 
     @pytest.mark.parametrize(
         "query,output_measure,expected",
@@ -751,7 +690,7 @@ class TestQueryExprCompiler:
                     mechanism=CountMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"total": [4]})],
+                pd.DataFrame({"total": [4]}),
             ),
             (  # Total with GAUSSIAN
                 GroupByCount(
@@ -761,7 +700,7 @@ class TestQueryExprCompiler:
                     mechanism=CountMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"total": [4]})],
+                pd.DataFrame({"total": [4]}),
             ),
             (  # BoundedAverage on floating-point valued measure column with LAPLACE
                 GroupByBoundedAverage(
@@ -773,7 +712,7 @@ class TestQueryExprCompiler:
                     mechanism=AverageMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "average": [0.666667, 1.0]})],
+                pd.DataFrame({"A": ["0", "1"], "average": [0.666667, 1.0]}),
             ),
             (  # BoundedAverage with integer valued measure column with LAPLACE
                 GroupByBoundedAverage(
@@ -785,7 +724,7 @@ class TestQueryExprCompiler:
                     mechanism=AverageMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]})],
+                pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]}),
             ),
             (  # BoundedAverage with integer valued measure column with GAUSSIAN
                 GroupByBoundedAverage(
@@ -797,7 +736,7 @@ class TestQueryExprCompiler:
                     mechanism=AverageMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]})],
+                pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]}),
             ),
             (  # BoundedSTDEV on floating-point valued measure column with LAPLACE
                 GroupByBoundedSTDEV(
@@ -809,7 +748,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
             ),
             (  # BoundedSTDEV on integer valued measure column with LAPLACE
                 GroupByBoundedSTDEV(
@@ -821,7 +760,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
             ),
             (  # BoundedSTDEV on integer valued measure column with GAUSSIAN
                 GroupByBoundedSTDEV(
@@ -833,7 +772,7 @@ class TestQueryExprCompiler:
                     mechanism=StdevMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
             ),
             (  # BoundedVariance on floating-point valued measure column with LAPLACE
                 GroupByBoundedVariance(
@@ -846,7 +785,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]}),
             ),
             (  # BoundedVariance on integer valued measure column with LAPLACE
                 GroupByBoundedVariance(
@@ -859,7 +798,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]}),
             ),
             (  # BoundedVariance on integer valued measure column with GAUSSIAN
                 GroupByBoundedVariance(
@@ -872,7 +811,7 @@ class TestQueryExprCompiler:
                     mechanism=VarianceMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
+                pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]}),
             ),
             (  # BoundedSum on floating-point valued measure column with LAPLACE
                 GroupByBoundedSum(
@@ -885,7 +824,7 @@ class TestQueryExprCompiler:
                     mechanism=SumMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})],
+                pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]}),
             ),
             (  # BoundedSum on integer valued measure column with LAPLACE
                 GroupByBoundedSum(
@@ -898,7 +837,7 @@ class TestQueryExprCompiler:
                     mechanism=SumMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"A": ["0", "1"], "sum": [1, 0]})],
+                pd.DataFrame({"A": ["0", "1"], "sum": [1, 0]}),
             ),
             (  # BoundedSum on integer valued measure column with GAUSSIAN
                 GroupByBoundedSum(
@@ -911,7 +850,7 @@ class TestQueryExprCompiler:
                     mechanism=SumMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                [pd.DataFrame({"A": ["0", "1"], "sum": [1, 0]})],
+                pd.DataFrame({"A": ["0", "1"], "sum": [1, 0]}),
             ),
             (  # Grouping flat map with LAPLACE
                 GroupByBoundedSum(
@@ -942,7 +881,7 @@ class TestQueryExprCompiler:
                     mechanism=SumMechanism.LAPLACE,
                 ),
                 PureDP(),
-                [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
+                pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]}),
             ),
             (  # BoundedAverage with floating-point valued measure column with GAUSSIAN
                 [
@@ -955,7 +894,7 @@ class TestQueryExprCompiler:
                         mechanism=AverageMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "average": [2 / 3, 1.0]})],
+                    pd.DataFrame({"A": ["0", "1"], "average": [2 / 3, 1.0]}),
                 ]
             ),
             (  # BoundedSTDEV on floating-point valued measure column with GAUSSIAN
@@ -969,7 +908,7 @@ class TestQueryExprCompiler:
                         mechanism=StdevMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]})],
+                    pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
                 ]
             ),
             (  # BoundedVariance on floating-point valued measure column with GAUSSIAN
@@ -984,7 +923,7 @@ class TestQueryExprCompiler:
                         mechanism=VarianceMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]})],
+                    pd.DataFrame({"A": ["0", "1"], "var": [0.25, np.NaN]}),
                 ]
             ),
             (  # BoundedSum on floating-point valued measure column with GAUSSIAN
@@ -999,7 +938,7 @@ class TestQueryExprCompiler:
                         mechanism=SumMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})],
+                    pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]}),
                 ]
             ),
             (  # Grouping flat map with GAUSSIAN
@@ -1034,7 +973,7 @@ class TestQueryExprCompiler:
                         mechanism=SumMechanism.GAUSSIAN,
                     ),
                     RhoZCDP(),
-                    [pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]})],
+                    pd.DataFrame({"Repeat": [1, 2], "sum": [3.0, 6.0]}),
                 ]
             ),
         ],
@@ -1043,7 +982,7 @@ class TestQueryExprCompiler:
         self,
         query: QueryExpr,
         output_measure: Union[PureDP, RhoZCDP],
-        expected: List[pd.DataFrame],
+        expected: pd.DataFrame,
     ):
         """Tests aggregation with various privacy definition and mechanism."""
         compiler = QueryExprCompiler(output_measure=output_measure)
@@ -1053,7 +992,7 @@ class TestQueryExprCompiler:
             else RhoZCDPBudget(float("inf"))
         )
         measurement, _ = compiler(
-            [query],
+            query,
             privacy_budget=privacy_budget,
             stability=self.stability,
             input_domain=self.input_domain,
@@ -1063,9 +1002,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
-        assert len(actual) == len(expected)
-        for actual_sdf, expected_df in zip(actual, expected):
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_frame_equal_with_sort(actual.toPandas(), expected)
 
     def test_join_public_dataframe(self, spark):
         """Public join works with public tables given as Spark dataframes."""
@@ -1291,19 +1228,17 @@ class TestQueryExprCompiler:
                 columns=["A", "B", "X"],
             )
         )
-        query_exprs = [
-            GroupByBoundedSum(
-                child=PrivateSource("private"),
-                groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
-                measure_column="X",
-                low=0.0,
-                high=1.0,
-                output_column="sum",
-                mechanism=SumMechanism.LAPLACE,
-            )
-        ]
+        query_expr = GroupByBoundedSum(
+            child=PrivateSource("private"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="X",
+            low=0.0,
+            high=1.0,
+            output_column="sum",
+            mechanism=SumMechanism.LAPLACE,
+        )
         measurement, _ = QueryExprCompiler()(
-            query_exprs,
+            query_expr,
             privacy_budget=PureDPBudget(float("inf")),
             stability=self.stability,
             input_domain=self.input_domain,
@@ -1313,48 +1248,41 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): sdf_float})
-        expected = [pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})]
-        for actual_sdf, expected_df in zip(actual, expected):
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        expected = pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})
+        assert_frame_equal_with_sort(actual.toPandas(), expected)
 
     @pytest.mark.parametrize(
-        "query_exprs",
+        "query_expr",
         [
             (
                 # Top-level query needs to be instance of measurement QueryExpr
-                [
-                    FlatMap(
-                        child=PrivateSource("private"),
-                        f=lambda row: [{}, {}],
-                        schema_new_columns=Schema({}),
-                        augment=True,
-                        max_rows=2,
-                    )
-                ]
+                FlatMap(
+                    child=PrivateSource("private"),
+                    f=lambda row: [{}, {}],
+                    schema_new_columns=Schema({}),
+                    augment=True,
+                    max_rows=2,
+                )
             ),
             (  # Query's child has to be transformation QueryExpr
-                [
-                    GroupByBoundedSum(
-                        child=GroupByCount(
-                            child=PrivateSource("private"),
-                            groupby_keys=KeySet.from_dict(
-                                {"A": ["0", "1"], "B": [0, 1]}
-                            ),
-                        ),
-                        groupby_keys=KeySet.from_dict({}),
-                        measure_column="B",
-                        low=0,
-                        high=3,
-                    )
-                ]
+                GroupByBoundedSum(
+                    child=GroupByCount(
+                        child=PrivateSource("private"),
+                        groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
+                    ),
+                    groupby_keys=KeySet.from_dict({}),
+                    measure_column="B",
+                    low=0,
+                    high=3,
+                )
             ),
         ],
     )
-    def test_invalid_queries(self, query_exprs: List[QueryExpr]):
+    def test_invalid_queries(self, query_expr: QueryExpr):
         """QueryExprCompiler raises error on unsupported queries."""
         with pytest.raises(NotImplementedError):
             self.compiler(
-                query_exprs,
+                query_expr,
                 privacy_budget=PureDPBudget(float("inf")),
                 stability=self.stability,
                 input_domain=self.input_domain,
@@ -1365,27 +1293,23 @@ class TestQueryExprCompiler:
             )
 
     @pytest.mark.parametrize(
-        "query_exprs",
+        "query_expr",
         [
             (
-                [
-                    GroupByCount(
-                        child=PrivateSource("private"),
-                        groupby_keys=KeySet.from_dict({}),
-                    )
-                ]
+                GroupByCount(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                )
             ),
             (
-                [
-                    GroupByCount(
-                        child=PrivateSource("doubled"),
-                        groupby_keys=KeySet.from_dict({}),
-                    )
-                ]
+                GroupByCount(
+                    child=PrivateSource("doubled"),
+                    groupby_keys=KeySet.from_dict({}),
+                )
             ),
         ],
     )
-    def test_different_source_id(self, query_exprs: List[QueryExpr]):
+    def test_different_source_id(self, query_expr: QueryExpr):
         """Tests that different source ids are allowed."""
         if not self.catalog.tables.get("doubled"):
             self.catalog.add_private_table(
@@ -1414,7 +1338,7 @@ class TestQueryExprCompiler:
         )
 
         measurement, _ = self.compiler(
-            query_exprs,
+            query_expr,
             privacy_budget=PureDPBudget(10),
             stability=stability,
             input_domain=input_domain,
@@ -1424,22 +1348,6 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in stability.keys()},
         )
         assert measurement.privacy_relation(stability, sp.Integer(10))
-
-    def test_call_no_queries(self):
-        """``__call__`` raises error if the sequence of queries has length 0."""
-        with pytest.raises(
-            ValueError, match=r"At least one query needs to be provided"
-        ):
-            self.compiler(
-                queries=[],
-                privacy_budget=PureDPBudget(10),
-                stability=self.stability,
-                input_domain=self.input_domain,
-                input_metric=self.input_metric,
-                public_sources={"public": self.join_df},
-                catalog=self.catalog,
-                table_constraints={t: [] for t in self.stability.keys()},
-            )
 
 
 class TestCompileGroupByQuantile:
@@ -1507,7 +1415,7 @@ class TestCompileGroupByQuantile:
             output_column="out",
         )
         measurement, _ = compiler(
-            [query_expr],
+            query_expr,
             privacy_budget=privacy_budget,
             stability=stability,
             input_domain=input_domain,
@@ -1521,7 +1429,7 @@ class TestCompileGroupByQuantile:
         assert measurement.output_measure == output_measure
         assert measurement.privacy_function(stability) == privacy_budget.value
 
-        [actual] = measurement({NamedTable("private"): sdf})
+        actual = measurement({NamedTable("private"): sdf})
 
         assert 26 < actual.filter(col("Gender") == "F").collect()[0]["out"] <= 28
         assert 22 < actual.filter(col("Gender") == "M").collect()[0]["out"] <= 24

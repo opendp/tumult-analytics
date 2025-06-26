@@ -1001,7 +1001,7 @@ class Session:
         adjusted_budget = self._process_requested_budget(privacy_budget)
 
         measurement, noise_info = QueryExprCompiler(self._output_measure)(
-            queries=[query_expr],
+            query=query_expr,
             privacy_budget=adjusted_budget,
             stability=self._accountant.d_in,
             input_domain=self._input_domain,
@@ -1145,7 +1145,7 @@ class Session:
                     " *not* produce similar outputs."
                 )
             try:
-                answers = self._accountant.measure(
+                return self._accountant.measure(
                     measurement, d_out=adjusted_budget.value
                 )
             except InsufficientBudgetError as err:
@@ -1158,15 +1158,6 @@ class Session:
                     "Cannot answer query without exceeding the Session privacy budget."
                     + msg
                 ) from err
-
-            if len(answers) != 1:
-                raise AssertionError(
-                    "Expected exactly one answer, but got "
-                    f"{len(answers)} answers instead. This is "
-                    "probably a bug; please let us know about it so "
-                    "we can fix it!"
-                )
-            return answers[0]
         except InactiveAccountantError as e:
             raise RuntimeError(
                 "This session is no longer active. Either it was manually stopped "
