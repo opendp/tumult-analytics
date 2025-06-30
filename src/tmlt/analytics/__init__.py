@@ -38,10 +38,8 @@ and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# These gets automatically replaced by the version number during the release process
-# by poetry-dynamic-versioning.
-__version__ = "0.0.0"
-__version_tuple__ = (0, 0, 0)
+# This version file is populated during build -- do not commit it.
+from ._version import __version__
 
 from typing import List
 
