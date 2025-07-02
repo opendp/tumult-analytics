@@ -79,27 +79,6 @@ BENCHMARK_TO_TIMEOUT = {
     "keyset_cross_product_per_factors": 24,
 }
 
-
-def install_overrides(session):
-    """Custom logic run after installing the current package."""
-    # Install Core from dist/, if it exists there
-    if os.environ.get("CORE_WHEEL_DIR"):
-        core_path = Path(os.environ["CORE_WHEEL_DIR"]).resolve()
-        core_wheels = list(core_path.glob("*tmlt_core*-cp39*"))
-        if len(core_wheels) == 0:
-            raise AssertionError(
-                "Expected a core wheel since CORE_WHEEL_DIR was set "
-                f"(to {os.environ.get('CORE_WHEEL_DIR')}), but didn't find any. "
-                f"Instead, found these files in {str(core_path)}: "
-                + "\n".join([str(path) for path in core_path.glob("*")])
-            )
-        # Poetry is going to expect, and require, Core version X.Y.Z (ex. "0.6.2"),
-        # but the Gitlab-built Core will have a version number
-        # X.Y.Z-<some other stuff>-<git commit hash>
-        # (ex. "0.6.2-post11+ea346f3")
-        # This overrides Poetry's dependencies with our own
-        session.poetry.session.install(str(core_wheels[0]))
-
 sm = SessionManager(
     package=PACKAGE_NAME,
     directory=CWD,

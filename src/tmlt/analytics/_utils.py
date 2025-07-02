@@ -29,7 +29,7 @@ class AnalyticsInternalError(AssertionError):
         """
         common_message = (
             "\n\nThis is probably a bug! Please let us know about it at:\n"
-            "https://gitlab.com/tumult-labs/analytics/-/issues/new\n"
+            "https://github.com/opendp/tumult-analytics/issues/new\n"
         )
         super().__init__(message + common_message)
 

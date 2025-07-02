@@ -38,9 +38,6 @@ and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# This version file is populated during build -- do not commit it.
-from ._version import __version__
-
 from typing import List
 
 from tmlt.analytics._utils import AnalyticsInternalError
@@ -84,5 +81,8 @@ from tmlt.analytics.query_builder import (
 )
 from tmlt.analytics.session import Session
 from tmlt.analytics.truncation_strategy import TruncationStrategy
+
+# This version file is populated during build -- do not commit it.
+from ._version import __version__
 
 # isort: off

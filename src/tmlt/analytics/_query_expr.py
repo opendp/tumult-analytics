@@ -611,7 +611,7 @@ class JoinPublic(QueryExpr):
                     .sort_index()
                     .reset_index()
                 )
-                if not self_table.equals(other_table):  # type: ignore
+                if not self_table.equals(other_table):
                     return False
         return (
             self.join_columns == other.join_columns
@@ -899,7 +899,7 @@ class GroupByQuantile(QueryExpr):
             raise ValueError(
                 f"Quantile must be between 0 and 1, and not '{self.quantile}'."
             )
-        if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
+        if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))
@@ -960,7 +960,7 @@ class GroupByBoundedSum(QueryExpr):
         check_type(self.output_column, str)
         check_type(self.mechanism, SumMechanism)
 
-        if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
+        if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))
@@ -1021,7 +1021,7 @@ class GroupByBoundedAverage(QueryExpr):
         check_type(self.output_column, str)
         check_type(self.mechanism, AverageMechanism)
 
-        if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
+        if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))
@@ -1082,7 +1082,7 @@ class GroupByBoundedVariance(QueryExpr):
         check_type(self.output_column, str)
         check_type(self.mechanism, VarianceMechanism)
 
-        if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
+        if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))
@@ -1143,7 +1143,7 @@ class GroupByBoundedSTDEV(QueryExpr):
         check_type(self.output_column, str)
         check_type(self.mechanism, StdevMechanism)
 
-        if type(self.low) != type(self.high):  # pylint: disable=unidiomatic-typecheck
+        if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))

@@ -94,15 +94,6 @@ scripting = [
 # "tmlt.nox_utils" = { path = "../tumult-tools/nox-utils", editable = true }
 "tmlt.nox_utils" = { git = "https://github.com/opendp/tumult-tools.git", subdirectory = "nox-utils" }
 
-# [tool.poetry.group.docs-examples.dependencies]
-# notebook = "^6.1.6"
-# nbconvert = "^6.0.7"
-# # TODO: Remove this dependency when we update nbconvert to >= 7.1.0.
-# lxml = { version = "5.1.0", extras = ["html-clean"] }
-# # Needed for code snippets in tutorials, examples
-# matplotlib = "^3.0.0"
-# seaborn = "^0.13.2"
-
 ################################################################################
 # Build configuration
 
