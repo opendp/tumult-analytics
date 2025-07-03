@@ -101,5 +101,5 @@ function have *any* references to Spark objects, the map function will succeed:
 Having problems with something else?
 ------------------------------------
 
-Ask for help on `our Slack server <https://www.tmlt.dev/slack>`_ in the
+Ask for help on `our Slack server <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`_ in the
 **#library-questions** channel!
