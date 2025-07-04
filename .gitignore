@@ -1,5 +1,6 @@
-
 doc/*/reference/api/
+# Auto-populated version file
+src/tmlt/analytics/_version.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -80,9 +81,6 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 *.nbconvert.ipynb
-
-# pyenv
-.python-version
 
 # celery beat schedule file
 celerybeat-schedule

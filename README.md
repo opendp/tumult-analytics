@@ -48,7 +48,7 @@ If you have any questions, feedback, or feature requests, please reach out via t
 We welcome external volunteers! If you are interested in contributing, please
 let us know on [Slack][slack].
 
-See [CONTRIBUTING.md](https://gitlab.com/tumult-labs/analytics/-/blob/dev/CONTRIBUTING.md) for information about installing our development dependencies and running tests.
+See [CONTRIBUTING.md](https://github.com/opendp/tumult-analytics/blob/main/CONTRIBUTING.md) for information about installing our development dependencies and running tests.
 
 ## Citing Tumult Analytics
 
