@@ -34,7 +34,7 @@ As usual, we need to create a Session with our dataset.
 
     spark = SparkSession.builder.getOrCreate()
     spark.sparkContext.addFile(
-        "https://tumult-public.s3.amazonaws.com/library-members.csv"
+        "https://raw.githubusercontent.com/opendp/tumult-demo-data/refs/heads/main/library-members.csv"
     )
     members_df = spark.read.csv(
        SparkFiles.get("library-members.csv"), header=True, inferSchema=True
@@ -419,7 +419,7 @@ ZIP code.
 
     # ZIP code data is based on https://worldpopulationreview.com/zips/north-carolina
     spark.sparkContext.addFile(
-        "https://tumult-public.s3.amazonaws.com/nc-zip-codes.csv"
+        "https://raw.githubusercontent.com/opendp/tumult-demo-data/refs/heads/main/nc-zip-codes.csv"
     )
     nc_zip_df = spark.read.csv(
        SparkFiles.get("nc-zip-codes.csv"), header=True, inferSchema=True
