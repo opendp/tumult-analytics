@@ -61,7 +61,7 @@ repository, and load it into a Spark :class:`~pyspark.sql.DataFrame`.
 .. testcode::
 
    spark.sparkContext.addFile(
-       "https://tumult-public.s3.amazonaws.com/library-members.csv"
+       "https://raw.githubusercontent.com/opendp/tumult-demo-data/refs/heads/main/library-members.csv"
    )
    members_df = spark.read.csv(
        SparkFiles.get("library-members.csv"), header=True, inferSchema=True

@@ -78,7 +78,7 @@ infinite privacy budget—not to be used in production!
 
    spark = SparkSession.builder.getOrCreate()
    spark.sparkContext.addFile(
-       "https://tumult-public.s3.amazonaws.com/library-members.csv"
+       "https://raw.githubusercontent.com/opendp/tumult-demo-data/refs/heads/main/library-members.csv"
    )
    members_df = spark.read.csv(
        SparkFiles.get("library-members.csv"), header=True, inferSchema=True

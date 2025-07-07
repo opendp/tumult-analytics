@@ -50,6 +50,7 @@ build_time = datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes")
 linkcheck_ignore = [
     "https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U#offline=true&sandboxMode=true",
     "https://docs.databricks.com/release-notes/runtime/releases.html",
+    "http://creativecommons.org/licenses/by-sa/4.0/",
 ]
 
 ### Sphinx configuration

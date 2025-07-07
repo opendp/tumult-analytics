@@ -225,8 +225,8 @@ post`_.
 
 While this topic guide covers the most common cases of sensitivity tracking in Tumult
 Analytics, it is certainly not exhaustive. If you have additional questions, feel free
-to reach out to us on `our Slack server <https://www.tmlt.dev/slack>`_ in the
-**#library-questions** channel!
+to reach out to us on 
+`our Slack server <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`_!
 
 .. _blog post: https://desfontain.es/privacy/gaussian-noise.html
 

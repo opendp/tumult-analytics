@@ -58,10 +58,10 @@ Notice that the *same member* may have checked out *many books*, as illustrated 
 
     spark = SparkSession.builder.getOrCreate()
     spark.sparkContext.addFile(
-        "https://tumult-public.s3.amazonaws.com/checkout-logs.csv"
+        "https://media.githubusercontent.com/media/opendp/tumult-demo-data/refs/heads/main/checkout-logs.csv"
     )
     spark.sparkContext.addFile(
-        "https://tumult-public.s3.amazonaws.com/library_books.csv"
+        "https://raw.githubusercontent.com/opendp/tumult-demo-data/refs/heads/main/library_books.csv"
     )
     checkouts_df = spark.read.csv(
         SparkFiles.get("checkout-logs.csv"), header=True, inferSchema=True
