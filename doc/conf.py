@@ -122,7 +122,7 @@ nitpick_ignore = [
 # Remove this after intersphinx can use core
 nitpick_ignore_regex = [(r"py:.*", r"tmlt.core.*")]
 
-json_url = "https://opendp.github.io/tumult-docs/analytics/versions.json"
+json_url = "https://tmlt.dev/analytics/versions.json"
 
 # Theme settings
 templates_path = ["_templates", "_templates/autosummary"]
