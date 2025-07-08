@@ -8,7 +8,6 @@ on:
       - 'main'
 
 env:
-  POETRY_VIRTUALENVS_IN_PROJECT: "true"
   # Force nox to produce colorful logs:
   FORCE_COLOR: "true"
 
@@ -19,8 +18,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
-      - run: poetry run nox -s build
+        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+      - run: uv run nox -s build
       - name: Archive packaged library
         uses: actions/upload-artifact@v4
         with:
@@ -35,7 +34,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@8c782791336723e50fa70576a220b7aa023b2864
+        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -44,7 +43,7 @@ jobs:
       - name: Get commit
         id: commit
         run: echo "COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - run: poetry run nox -s docs
+      - run: uv run nox -s docs
       - run: rm -r public/.doctrees
       - name: Checkout docs repository
         uses: actions/checkout@v4
@@ -67,4 +66,3 @@ jobs:
           git add docs/analytics
           git commit -m "[auto] Publish docs for dev ($COMMIT)"
           git push
-

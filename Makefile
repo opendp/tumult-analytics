@@ -15,19 +15,19 @@ SHELL = /bin/bash
 
 # Run all linters
 lint:
-	poetry run nox --no-venv -t lint
+	uv run nox --no-venv -t lint
 
 # Run all tests
 test:
-	poetry run nox --no-venv -s smoketest test-fast test-slow test-doctest docs-doctest
+	uv run nox --no-venv -s smoketest test-fast test-slow test-doctest docs-doctest
 
 # Builds the docs and checks links
 docs:
-	poetry run nox --no-venv -s docs docs-linkcheck
+	uv run nox --no-venv -s docs docs-linkcheck
 
 # Builds the source distribution and wheels
 package:
-	poetry run nox --no-venv -s build
+	uv run nox --no-venv -s build
 
 # The scripts generate a bunch of junk in the repository that isn't generally
 # useful to keep around. This cleans up all of those files/directories.
@@ -58,5 +58,3 @@ clean:
 	if [[ "$$CLEAN" = "y" || "$$CLEAN" = "yes" ]]; then
 	  git clean -x -f -- $(foreach f, $(clean-files),'$(f)')
 	fi
-
-
