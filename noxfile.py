@@ -17,6 +17,8 @@ CWD = Path(".").resolve()
 
 PACKAGE_NAME = "tmlt.analytics"
 """Name of the package."""
+PACKAGE_GITHUB = "opendp/tumult-analytics"
+"""GitHub organization/project."""
 SMOKETEST_SCRIPT = """
 from tmlt.analytics.utils import check_installation
 check_installation()
@@ -81,6 +83,7 @@ BENCHMARK_TO_TIMEOUT = {
 
 sm = SessionManager(
     package=PACKAGE_NAME,
+    package_github=PACKAGE_GITHUB,
     directory=CWD,
     smoketest_script=SMOKETEST_SCRIPT,
     parallel_tests=False,
@@ -109,3 +112,5 @@ sm.docs_doctest()
 sm.docs()
 
 sm.audit()
+
+sm.make_release()
