@@ -1,0 +1,57 @@
+name: 'Push Docs'
+description: 'Build the docs in the current repository, and push it to another.'
+inputs:
+  docs-repository:
+    description: The organization/name of the docs repository.
+    required: true
+  docs-repository-token:
+    description: A token that grants read/write access to the docs repository.
+    required: true
+  docs-path:
+    description: The path to the current set of docs (e.g. core vs analytics) within the docs repository.
+    required: true
+  version:
+    description: The version of the docs to push to.
+    required: true
+  dry-run:
+    description: If true, pushes to a new branch rather than the default branch.
+    required: false
+    default: false
+runs:
+  using: composite
+  steps:
+    - name: Get commit
+      id: commit
+      run: echo "COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      shell: bash
+    - run: uv run nox -s docs
+      shell: bash
+    - run: rm -r public/.doctrees
+      shell: bash
+    - name: Checkout docs repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.docs-repository }}
+        token: ${{ inputs.docs-repository-token }}
+        path: docs-repo
+    - run: rm -r docs-repo/${{ inputs.docs-path }}/${{ inputs.version }}
+      shell: bash
+    - run: mv public docs-repo/${{ inputs.docs-path }}/${{ inputs.version }}
+      shell: bash
+    - name: update version information
+      working-directory: docs-repo
+      run: python update-versions.py ${{ inputs.docs-path }}/
+      shell: bash
+    - name: commit to docs repo
+      working-directory: docs-repo
+      env:
+        COMMIT: ${{ steps.commit.outputs.COMMIT}}
+      run: |
+        git config user.name "docs-bot"
+        git config user.email "87283505+opendp-dev@users.noreply.github.com"
+        git config --global push.autoSetupRemote true
+        if [ ${{ inputs.dry-run }} ]; then git checkout -b dry-run/$COMMIT; fi
+        git add ${{ inputs.docs-path }}
+        git commit -m "[auto] Publish docs for ${{ inputs.docs-path }} version ${{ inputs.version }} ($COMMIT)"
+        git push
+      shell: bash

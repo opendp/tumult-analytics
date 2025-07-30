@@ -7,6 +7,7 @@ on:
     branches:
       - 'main'
 
+
 env:
   # Force nox to produce colorful logs:
   FORCE_COLOR: "true"
@@ -40,29 +41,10 @@ jobs:
         with:
           name: dist
           path: dist
-      - name: Get commit
-        id: commit
-        run: echo "COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - run: uv run nox -s docs
-      - run: rm -r public/.doctrees
-      - name: Checkout docs repository
-        uses: actions/checkout@v4
+      - name: Push docs
+        uses: ./.github/actions/push_docs
         with:
-          repository: 'opendp/tumult-docs'
-          token: ${{ secrets.DOCS_REPO_PAT}}
-          path: tumult-docs
-      - run: rm -r tumult-docs/docs/analytics/dev
-      - run: mv public tumult-docs/docs/analytics/dev
-      - name: update version information
-        working-directory: tumult-docs
-        run: python update-versions.py docs/analytics/
-      - name: commit to docs repo
-        working-directory: tumult-docs
-        env:
-          COMMIT: ${{ steps.commit.outputs.COMMIT}}
-        run: |
-          git config user.name "docs-bot"
-          git config user.email "87283505+opendp-dev@users.noreply.github.com"
-          git add docs/analytics
-          git commit -m "[auto] Publish docs for dev ($COMMIT)"
-          git push
+          docs-repository: opendp/tumult-docs
+          docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
+          docs-path: docs/analytics
+          version: dev
