@@ -50,7 +50,7 @@ runs:
         git config user.name "docs-bot"
         git config user.email "87283505+opendp-dev@users.noreply.github.com"
         git config --global push.autoSetupRemote true
-        if [ ${{ inputs.dry-run }} ]; then git checkout -b dry-run/$COMMIT; fi
+        if [ ${{ inputs.dry-run }} == 'true' ]; then git checkout -b dry-run/$COMMIT; fi
         git add ${{ inputs.docs-path }}
         git commit -m "[auto] Publish docs for ${{ inputs.docs-path }} version ${{ inputs.version }} ($COMMIT)"
         git push
