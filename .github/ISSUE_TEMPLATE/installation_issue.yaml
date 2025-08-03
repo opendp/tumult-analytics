@@ -25,12 +25,7 @@ body:
       description: >
         Please describe the current issue you're having. Add relevant error messages and logs.
       value: >
-        Describe the issue here.
-
-        <details>
-        Add relevant error messages.
-        </details>
-
-        <details>
-        Replace this line with the installation logs.
-        </details>
+        - Describe the issue here.
+        - Add relevant error messages.
+        - Replace this line with the installation logs.
+        

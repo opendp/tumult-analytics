@@ -33,7 +33,7 @@ body:
       description: >
         Please describe the feature that you are proposing. Include any relevant code examples that describe the feature.
       placeholder: >
-        Enable KeySet Creation using ApproxDP.
+        # Enable KeySet Creation using ApproxDP.
 
         from pyspark.sql import SparkSession
         from tmlt.analytics import Session, ApproxDPBudget, AddOneRow, QueryBuilder
@@ -53,6 +53,7 @@ body:
 
         keyset_query = QueryBuilder("example").get_groups()
         keyset = session.evaluate(keyset_query, budget)
+        
         ...
     validations:
       required: true
