@@ -1,6 +1,5 @@
 name: Feature Request
 description: Suggest an improvement for tmlt.analytics
-title: "Feature Request: "
 labels: [Enhancement, Needs Triage]
 
 body:

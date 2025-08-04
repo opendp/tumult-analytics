@@ -1,6 +1,5 @@
 name: Bug Report
 description: Report incorrect behavior in the tmlt.analytics library
-title: "BUG: "
 labels: [Bug, Needs Triage]
 
 body:
@@ -13,8 +12,8 @@ body:
             I can confirm that there isn't a seperate issue filed related to this bug.
           required: true
         - label: >
-            I can reproduce this bug on the [latest version]
-            (https://tmlt.dev/analytics/latest/changelog.html) of tmlt.analytics.
+            I can reproduce this bug on the [latest version](https://tmlt.dev/analytics/latest/changelog.html)
+            of tmlt.analytics.
           required: true
   - type: textarea
     id: example

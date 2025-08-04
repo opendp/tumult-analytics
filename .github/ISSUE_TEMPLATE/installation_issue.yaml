@@ -1,6 +1,5 @@
 name: Installation Issue
 description: Report issues installing tmlt.analytics.
-title: "Install: "
 labels: [Install, Needs Triage]
 
 body:
@@ -28,4 +27,3 @@ body:
         - Describe the issue here.
         - Add relevant error messages.
         - Replace this line with the installation logs.
-        
