@@ -42,7 +42,7 @@ jobs:
           name: dist
           path: dist
       - name: Push docs
-        uses: ./.github/actions/push_docs
+        uses: opendp/tumult-tools/actions/push_docs@1c7b4b3cfa98ab75f3c5b0b91858c897a81629ad
         with:
           docs-repository: opendp/tumult-docs
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
