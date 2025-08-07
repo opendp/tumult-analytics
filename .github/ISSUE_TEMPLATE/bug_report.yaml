@@ -11,10 +11,6 @@ body:
         - label: >
             I can confirm that there isn't a seperate issue filed related to this bug.
           required: true
-        - label: >
-            I can reproduce this bug on the [latest version](https://tmlt.dev/analytics/latest/changelog.html)
-            of tmlt.analytics.
-          required: true
   - type: textarea
     id: example
     attributes:
@@ -58,3 +54,15 @@ body:
         Please describe what the exepected program outputs of your example code are.
     validations:
       required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: >
+        [Optional] If you think this bug is an installation issue, please describe your system:
+        
+        Import notes for tmlt.analytics: 
+         - What versions of Java, Python, and Spark do you have installed?
+         - What processor architecture (ex: x86_64 or arm) are you installing on?
+         - What operating system and version are you installing on?
+         - What version of tmlt.core are you using?
