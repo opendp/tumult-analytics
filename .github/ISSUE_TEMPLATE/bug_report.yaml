@@ -61,7 +61,8 @@ body:
       description: >
         [Optional] If you think this bug is an installation issue, please describe your system:
         
-        Import notes for tmlt.analytics: 
+        
+        Important notes for tmlt.analytics: 
          - What versions of Java, Python, and Spark do you have installed?
          - What processor architecture (ex: x86_64 or arm) are you installing on?
          - What operating system and version are you installing on?
