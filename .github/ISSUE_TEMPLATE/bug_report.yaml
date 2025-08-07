@@ -54,7 +54,7 @@ body:
         Please describe what the exepected program outputs of your example code are.
     validations:
       required: true
-  - type: input
+  - type: textarea
     id: platform
     attributes:
       label: Platform
