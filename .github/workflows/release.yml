@@ -3,6 +3,8 @@ name: Release Pipeline
 on:
   push:
     tags:
+    branches:
+      - '0.0.0'
 
 
 env:
