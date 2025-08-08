@@ -1,0 +1,50 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+
+
+env:
+  # Force nox to produce colorful logs:
+  FORCE_COLOR: "true"
+
+jobs:
+  Check-Tag-Pattern:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(dev|alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then 
+            echo "Tag $GITHUB_REF_NAME is not a valid version number. Aborting release pipeline."
+            exit 1
+          fi
+
+  Package:
+    runs-on: ubuntu-latest
+    needs: Check-Tag-Pattern
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+      - run: uv run nox -s build
+      - name: Archive packaged library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  Test-Slow:
+    runs-on: ubuntu-latest
+    needs: Package
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: uv run nox -s test-slow
