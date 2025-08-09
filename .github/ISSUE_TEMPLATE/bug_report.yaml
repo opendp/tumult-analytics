@@ -54,10 +54,10 @@ body:
         Please describe what the exepected program outputs of your example code are.
     validations:
       required: true
-  - type: textarea
+  - type: input
     id: version-info
     attributes:
-      label: version-info
+      label: Version Info
       description: >
         Please add what version of tmlt.analytics you have:
     validations:
