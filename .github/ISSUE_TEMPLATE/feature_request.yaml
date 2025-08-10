@@ -1,0 +1,64 @@
+name: Feature Request
+description: Suggest an improvement for tmlt.analytics
+labels: [Enhancement, Needs Triage]
+
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Feature Category
+      description: Please mark what category of feature you're proposing.
+      options:
+        - label: >
+            Adding new functionality to tmlt.analytics
+        - label: >
+            Changing existing functionality in tmlt.analytics
+        - label: >
+            Removing existing functionality in tmlt.analytics
+  - type: textarea
+    id: description
+    attributes:
+      label: Use Case Description
+      description: >
+        Please describe what the use case for your proposed feature is. What type of problem does this feature solve?
+      placeholder: >
+        I have to generate tabular statistics with a sparse keyset. A sparse keyset results in lots of spurious cell outputs.
+    validations:
+      required: true
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature Request
+      description: >
+        Please describe the feature that you are proposing. Include any relevant code examples that describe the feature.
+      placeholder: >
+        # Enable KeySet Creation using ApproxDP.
+
+        from pyspark.sql import SparkSession
+        from tmlt.analytics import Session, ApproxDPBudget, AddOneRow, QueryBuilder
+
+        spark = SparkSession.builder.appName("example").getOrCreate()
+        df = spark.createDataFrame(
+            [(1, "Alice"), (2, "Bob")],
+            ["id", "name"]
+        )
+
+        budget = ApproxDPBudget(1, 10e-8)
+
+        session = Session.Builder() \
+          .with_private_dataframe("example", df, AddOneRow()) \
+          .with_privacy_budget(budget) \
+          .build()
+
+        keyset_query = QueryBuilder("example").get_groups()
+        keyset = session.evaluate(keyset_query, budget)
+        
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: information
+    attributes:
+      label: Additional Information
+      description: >
+        Please add any relevant details, code, Github links, other issues, or academic papers.

@@ -1,0 +1,77 @@
+name: Bug Report
+description: Report incorrect behavior in the tmlt.analytics library
+labels: [Bug, Needs Triage]
+
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Basic checks
+      options:
+        - label: >
+            I can confirm that there isn't a seperate issue filed related to this bug.
+          required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Reproducible Example
+      description: >
+        Please add an example that reproduces the bug.
+        
+        [This guide](https://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports) has guidance
+        on how to create an example.
+      placeholder: >
+        from pyspark.sql import SparkSession
+        from tmlt.analytics import Session, PureDPBudget, AddOneRow
+
+        spark = SparkSession.builder.appName("example").getOrCreate()
+        df = spark.createDataFrame(
+            [(1, "Alice"), (2, "Bob")],
+            ["id", "name"]
+        )
+
+        session = Session.Builder() \
+          .with_private_dataframe("example", df, AddOneRow()) \
+          .with_privacy_budget(PureDPBudget(1)) \
+          .build()
+        ...
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Bug Description
+      description: >
+        Please describe the bug, specifically the undesirable behavior, shown by your example.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: >
+        Please describe what the exepected program outputs of your example code are.
+    validations:
+      required: true
+  - type: input
+    id: version-info
+    attributes:
+      label: Version Info
+      description: >
+        Please add what version of tmlt.analytics you have:
+    validations:
+      required: true
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform
+      description: >
+        [Optional] If you think this bug is an installation issue, please describe your system:
+        
+
+        Important notes for tmlt.analytics:
+         - What versions of Java, Python, and Spark do you have installed?
+         - What processor architecture (ex: x86_64 or arm) are you installing on?
+         - What operating system and version are you installing on?
+         - What version of tmlt.core are you using?
