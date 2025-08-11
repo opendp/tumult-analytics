@@ -3,6 +3,7 @@ name: Release Pipeline
 on:
   push:
     tags:
+      - '**'
 
 
 env:
