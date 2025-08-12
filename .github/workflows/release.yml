@@ -12,6 +12,7 @@ env:
 
 jobs:
   Check-Tag-Pattern:
+    if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -21,6 +22,7 @@ jobs:
           fi
 
   Package:
+    if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
     needs: Check-Tag-Pattern
     steps:
@@ -36,6 +38,7 @@ jobs:
           path: dist
 
   Test-Slow:
+    if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
     needs: Package
     steps:
