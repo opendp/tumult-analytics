@@ -2538,8 +2538,8 @@ wheels = [
 
 [[package]]
 name = "tmlt-nox-utils"
-version = "0.0.0.post15+60b02cab"
-source = { git = "https://github.com/opendp/tumult-tools.git?subdirectory=nox-utils#60b02cabf3b5bd0d20fa51c4598c92622f2c65e9" }
+version = "0.0.0.post23+df6aa1c0"
+source = { git = "https://github.com/opendp/tumult-tools.git?subdirectory=nox-utils#df6aa1c070f189fc6aad44fdde812781951300a9" }
 dependencies = [
     { name = "gitpython" },
     { name = "nox" },

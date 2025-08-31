@@ -5,11 +5,10 @@ nox command line, and https://nox.thea.codes/en/stable/config.html for the nox
 API reference.
 """
 
-import os
 from pathlib import Path
 
 import nox
-from tmlt.nox_utils import SessionManager
+from tmlt.nox_utils import DependencyConfiguration, SessionManager
 
 nox.options.default_venv_backend = "uv|virtualenv"
 
@@ -29,31 +28,19 @@ MIN_COVERAGE = 75
 """For test suites where we track coverage (i.e. the fast tests and the full
 test suite), fail if test coverage falls below this percentage."""
 
-DEPENDENCY_MATRIX = {
-    name: {
-        # The Python minor version to run with
-        "python": python,
-        # All other entries take PEP440 version specifiers for the package named in
-        # the key -- see https://peps.python.org/pep-0440/#version-specifiers
-        "pyspark[sql]": pyspark,
-        "sympy": sympy,
-        "pandas": pandas,
-        "tmlt.core": core,
-    }
-    for (name, python, pyspark, sympy, pandas, core) in [
-        # fmt: off
-        ("3.9-oldest",     "3.9",  "==3.3.1", "==1.8", "==1.4.0", "==0.18.0"),
-        ("3.9-pyspark3.4", "3.9",  "==3.4.0", "==1.9", "==1.5.3", ">=0.18.0"),
-        ("3.9-newest",     "3.9",  "==3.5.1", "==1.9", "==1.5.3", ">=0.18.0"),
-        ("3.10-oldest",    "3.10", "==3.3.1", "==1.8", "==1.4.0", "==0.18.0"),
-        ("3.10-newest",    "3.10", "==3.5.1", "==1.9", "==1.5.3", ">=0.18.0"),
-        ("3.11-oldest",    "3.11", "==3.4.0", "==1.8", "==1.5.0", "==0.18.0"),
-        ("3.11-newest",    "3.11", "==3.5.1", "==1.9", "==1.5.3", ">=0.18.0"),
-        ("3.12-oldest",    "3.12", "==3.5.0", "==1.8", "==2.2.0", "==0.18.0"),
-        ("3.12-newest",    "3.12", "==3.5.1", "==1.9", "==2.2.3", ">=0.18.0"),
-        # fmt: on
-    ]
-}
+DEPENDENCY_MATRIX = [
+    #fmt: off
+    DependencyConfiguration(id="3.9-oldest",     python="3.9",  packages={"pyspark[sql]": "==3.3.1", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.9-pyspark3.4", python="3.9",  packages={"pyspark[sql]": "==3.4.0", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.9-newest",     python="3.9",  packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.10-oldest",    python="3.10", packages={"pyspark[sql]": "==3.3.1", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.10-newest",    python="3.10", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.11-oldest",    python="3.11", packages={"pyspark[sql]": "==3.4.0", "sympy": "==1.8", "pandas": "==1.5.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.11-newest",    python="3.11", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.12-oldest",    python="3.12", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==2.2.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.12-newest",    python="3.12", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==2.2.3", "tmlt.core": ">=0.18.0"}),
+    #fmt: on
+]
 
 AUDIT_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 AUDIT_SUPPRESSIONS = [
@@ -120,3 +107,5 @@ for benchmark_name, timeout in BENCHMARK_TO_TIMEOUT.items():
 sm.audit()
 
 sm.make_release()
+
+sm.test_dependency_matrix(DEPENDENCY_MATRIX)
