@@ -74,11 +74,11 @@ AUDIT_SUPPRESSIONS = [
     # [1] https://github.com/pypa/advisory-database/issues/207#issuecomment-2491830484
 ]
 
-# Dictionary mapping benchmark names to the corresponding timeouts, in minutes
+# Dictionary mapping benchmark paths to the corresponding timeouts, in minutes
 BENCHMARK_TO_TIMEOUT = {
-    "keyset_projection.py": 3,
-    "keyset_cross_product_per_size.py": 35,
-    "keyset_cross_product_per_factors.py": 24,
+    "benchmark/benchmark_keyset_projection.py": 3,
+    "benchmark/benchmark_keyset_cross_product_per_size.py": 35,
+    "benchmark/benchmark_keyset_cross_product_per_factors.py": 24,
 }
 
 sm = SessionManager(
@@ -112,7 +112,7 @@ sm.docs_doctest()
 sm.docs()
 
 for benchmark_name, timeout in BENCHMARK_TO_TIMEOUT.items():
-    sm.benchmark(CWD / "benchmark" / f"benchmark_{benchmark_name}", timeout*60)
+    sm.benchmark(CWD / benchmark_name, timeout*60)
 
 sm.audit()
 
