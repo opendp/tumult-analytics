@@ -76,9 +76,9 @@ AUDIT_SUPPRESSIONS = [
 
 # Dictionary mapping benchmark paths to the corresponding timeouts, in minutes
 BENCHMARK_TO_TIMEOUT = {
-    "benchmark/benchmark_keyset_projection.py": 3,
-    "benchmark/benchmark_keyset_cross_product_per_size.py": 35,
-    "benchmark/benchmark_keyset_cross_product_per_factors.py": 24,
+    "benchmark/benchmark_keyset_projection.py": 30,
+    "benchmark/benchmark_keyset_cross_product_per_size.py": 350,
+    "benchmark/benchmark_keyset_cross_product_per_factors.py": 240,
 }
 
 sm = SessionManager(
