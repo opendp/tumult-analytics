@@ -51,20 +51,3 @@ jobs:
           docs-path: docs/analytics
           version: dev
 
-  # TODO remove on merge
-  Benchmark:
-    if: github.repository == 'opendp/tumult-analytics'
-    runs-on: ubuntu-latest
-    needs: Package
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@v4
-      - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
-      - name: Download dist
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - run: uv run nox -t benchmark
-
