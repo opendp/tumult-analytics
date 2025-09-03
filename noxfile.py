@@ -74,11 +74,14 @@ AUDIT_SUPPRESSIONS = [
     # [1] https://github.com/pypa/advisory-database/issues/207#issuecomment-2491830484
 ]
 
-# Dictionary mapping benchmark paths to the corresponding timeouts, in minutes
+# Dictionary mapping benchmark paths to the corresponding timeouts, in minutes.
+# The goal is to make sure we don't have major performance regression, so the
+# timeouts have been set in https://github.com/opendp/tumult-analytics/pull/49
+# to 25% longer than one run on the GitHub runners (rounded up).
 BENCHMARK_TO_TIMEOUT = {
-    "benchmark/benchmark_keyset_projection.py": 30,
-    "benchmark/benchmark_keyset_cross_product_per_size.py": 350,
-    "benchmark/benchmark_keyset_cross_product_per_factors.py": 240,
+    "benchmark/benchmark_keyset_projection.py": 5,
+    "benchmark/benchmark_keyset_cross_product_per_size.py": 45,
+    "benchmark/benchmark_keyset_cross_product_per_factors.py": 37,
 }
 
 sm = SessionManager(

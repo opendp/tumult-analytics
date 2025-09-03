@@ -2,11 +2,8 @@ name: Release Pipeline
 
 on:
   push:
-    # TODO remove
-    branch: "benchmark"
-    # TODO uncomment
-    #tags:
-    #  - '**'
+    tags:
+      - '**'
 
 
 env:
@@ -18,14 +15,11 @@ jobs:
     if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
     steps:
-      # TODO remove
-      - run: /usr/bin/true
-      # TODO uncomment
-      #- run: |
-      #    if [[ ! "$GITHUB_REF_NAME" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(dev|alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then 
-      #      echo "Tag $GITHUB_REF_NAME is not a valid version number. Aborting release pipeline."
-      #      exit 1
-      #    fi
+      - run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(dev|alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then 
+            echo "Tag $GITHUB_REF_NAME is not a valid version number. Aborting release pipeline."
+            exit 1
+          fi
 
   Package:
     if: github.repository == 'opendp/tumult-analytics'
