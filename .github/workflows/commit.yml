@@ -50,3 +50,4 @@ jobs:
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
           docs-path: docs/analytics
           version: dev
+
