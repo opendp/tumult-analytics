@@ -110,6 +110,7 @@ style = "semver"
 # The default configuration expect vX.Y.Z, but we haven't been using the 'v' prefix.
 pattern = "^(?P<base>\\d+\\.\\d+\\.\\d+)(-(?P<stage>[a-zA-Z]+)\\.(?P<revision>\\d+))?"
 commit-length = 8
+latest-tag = true
 
 [tool.hatch.build.hooks.version]
 path = "src/tmlt/analytics/_version.py"
