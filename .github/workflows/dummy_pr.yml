@@ -1,3 +1,10 @@
+# We want to limit the cost of our CI to the OpenDP organization, so we only
+# want to run linters/tests/docs when a PR is about to be merged, not every time
+# we push. However, due to limitations of how the GitHub Merge Queue works, we
+# have to create a workflow that triggers on each PR, with the same jobs as the
+# ones we want to run at merge time. See
+# https://github.com/opendp/tumult-analytics/issues/1#issuecomment-2936533302
+# for more details.
 name: PR Dummy Pipeline
 
 on:
