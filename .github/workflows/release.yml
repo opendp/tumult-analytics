@@ -1,6 +1,7 @@
 # This pipeline is executed every time someone pushes a tag with a valid version
-# number. It builds the library, runs the slow tests and the benchmarks,
-# publishes the docs, then pushes the package distributions to PyPI.
+# number. It builds the library, runs the slow tests and the benchmarks, pushes
+# the package distribution to PyPI, and if this is a production release, also
+# publishes the docs.
 name: Release Pipeline
 
 on:
@@ -19,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(dev|alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then 
+          if [[ ! "$GITHUB_REF_NAME" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then 
             echo "Tag $GITHUB_REF_NAME is not a valid version number. Aborting release pipeline."
             exit 1
           fi
@@ -72,13 +73,34 @@ jobs:
           path: dist
       - run: uv run nox -t benchmark
 
-  Push-Docs:
+  Publish-To-PyPI:
     if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
-    environment: docs-push
     needs:
       - Test-Slow
       - Benchmark
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tmlt-analytics
+    permissions:
+      id-token: write
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  Push-Docs:
+    if: ${{ github.repository == 'opendp/tumult-analytics'
+              && ! contains('alpha', github.ref_name)
+              && ! contains('beta', github.ref_name)
+              && ! contains('rc', github.ref_name) }}
+    runs-on: ubuntu-latest
+    environment: docs-push
+    needs: Publish-To-PyPI
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
@@ -96,22 +118,3 @@ jobs:
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
           docs-path: docs/analytics
           version: $GITHUB_REF_NAME
-
-  Publish-To-PyPI:
-    if: github.repository == 'opendp/tumult-analytics'
-    runs-on: ubuntu-latest
-    needs: Push-Docs
-    environment:
-      name: pypi
-      url: https://pypi.org/p/tmlt-analytics
-    permissions:
-      id-token: write
-    steps:
-      - name: Download package distributions
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
