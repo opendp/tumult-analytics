@@ -41,11 +41,36 @@ jobs:
           path: dist
 
   # TODO move to below
+  Push-Docs:
+    if: github.repository == 'opendp/tumult-analytics'
+    runs-on: ubuntu-latest
+    environment: docs-push
+    # TODO add tests & benchmarks
+    needs: Package
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+      - name: Set up runner
+        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Push docs
+        uses: opendp/tumult-tools/actions/push_docs@1c7b4b3cfa98ab75f3c5b0b91858c897a81629ad
+        with:
+          docs-repository: opendp/tumult-docs
+          docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
+          docs-path: docs/analytics
+          version: ${{ $GITHUB_REF_NAME }} 
+
+  # TODO move to below
   Publish-To-PyPI:
     if: github.repository == 'opendp/tumult-analytics'
     runs-on: ubuntu-latest
-    needs: Package
     # TODO add tests & benchmarks
+    needs: Package
     environment:
       name: pypi
       url: https://pypi.org/p/tmlt-analytics
