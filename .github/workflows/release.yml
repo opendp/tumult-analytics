@@ -63,7 +63,7 @@ jobs:
           docs-repository: opendp/tumult-docs
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
           docs-path: docs/analytics
-          version: ${{ $GITHUB_REF_NAME }} 
+          version: ${{ GITHUB_REF_NAME }} 
 
   # TODO move to below
   Publish-To-PyPI:
