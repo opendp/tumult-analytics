@@ -13,7 +13,13 @@ Unreleased
 Changed
 ~~~~~~~
 
-- Updated documentation to reflect the move to OpenDP.
+.. _v0.20.2:
+
+0.20.2 - 2025-09-11
+-------------------
+
+This is the first version of Tumult Analytics released by OpenDP, from the new `GitHub <https://github.com/opendp/tumult-analytics>`__.
+The documentation has been updated to reflect this move.
 
 .. _v0.20.1:
 
