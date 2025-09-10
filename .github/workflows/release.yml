@@ -96,9 +96,9 @@ jobs:
 
   Push-Docs:
     if: ${{ github.repository == 'opendp/tumult-analytics'
-              && ! contains('alpha', github.ref_name)
-              && ! contains('beta', github.ref_name)
-              && ! contains('rc', github.ref_name) }}
+              && ! contains(github.ref_name, 'alpha')
+              && ! contains(github.ref_name, 'beta')
+              && ! contains(github.ref_name, 'rc') }}
     runs-on: ubuntu-latest
     environment: docs-push
     needs: Publish-To-PyPI
