@@ -72,27 +72,27 @@ jobs:
 #          name: dist
 #          path: dist
 #      - run: uv run nox -t benchmark
-
-  Publish-To-PyPI:
-    if: github.repository == 'opendp/tumult-analytics'
-    runs-on: ubuntu-latest
-    needs: Package
-    #needs:
-    #  - Test-Slow
-    #  - Benchmark
-    environment:
-      name: pypi
-      url: https://pypi.org/p/tmlt-analytics
-    permissions:
-      id-token: write
-    steps:
-      - name: Download package distributions
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+#
+#  Publish-To-PyPI:
+#    if: github.repository == 'opendp/tumult-analytics'
+#    runs-on: ubuntu-latest
+#    needs: Package
+#    #needs:
+#    #  - Test-Slow
+#    #  - Benchmark
+#    environment:
+#      name: pypi
+#      url: https://pypi.org/p/tmlt-analytics
+#    permissions:
+#      id-token: write
+#    steps:
+#      - name: Download package distributions
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: dist
+#          path: dist
+#      - name: Publish package distributions to PyPI
+#        uses: pypa/gh-action-pypi-publish@release/v1
 
   Push-Docs:
     if: ${{ github.repository == 'opendp/tumult-analytics'
@@ -101,7 +101,9 @@ jobs:
               && ! contains(github.ref_name, 'rc') }}
     runs-on: ubuntu-latest
     environment: docs-push
-    needs: Publish-To-PyPI
+    # TODO revert
+    #needs: Publish-To-PyPI
+    needs: Package
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
