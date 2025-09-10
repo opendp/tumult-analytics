@@ -1,3 +1,4 @@
+# Runs linters, run tests, and checks that the docs build when a PR is about to be merged.
 name: Merge Queue Pipeline
 
 on:

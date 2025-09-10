@@ -61,6 +61,18 @@ the generated HTML pages are available in the `public` directory.
 
 Note that our API reference is manually organized, and does not follow the internal package structure. If you add a new public class or method to Tumult Analytics, add it to an `autosummary` directive in the relevant `.rst` file under `doc/reference`.
 
+### Continuous integration
+
+We use GitHub Actions to automatically run some jobs under specific conditions.
+The definition of these jobs can be found in [`.github/workflows`](./.github/workflows).
+
+To try it out a newly modified action before merging the PR, you can change the trigger to the definition file to execute whenever you push on your branch:
+```yaml
+on:
+  push:
+    branch: your_username/your_branch
+```
+
 ### Cleanup
 
 Running linters, tests, or building docs tends to generate a lot of files in the repository that you generally don't want to keep around. Simply run `make clean` to get rid of all those. This is particularly useful when working on the documentation; Sphinx tends to get confused by files generated in previous documentation builds.

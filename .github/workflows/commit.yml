@@ -1,3 +1,4 @@
+# Updates the dev docs every time a new commit is pushed to main.
 name: Commit Pipeline
 
 concurrency: docs-push
