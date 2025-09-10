@@ -119,7 +119,7 @@ jobs:
         id: major-minor-version-extractor
         with:
           text: $GITHUB_REF_NAME
-          regex: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*).*'
+          regex: '^(\d+)\.(\d+)\..*'
       - name: Push docs
         uses: opendp/tumult-tools/actions/push_docs@1c7b4b3cfa98ab75f3c5b0b91858c897a81629ad
         with:
