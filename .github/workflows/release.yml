@@ -95,6 +95,8 @@ jobs:
           name: dist
           path: dist
       - run: uv run nox -s "test_dependency_matrix(${{matrix.python}}-${{matrix.dependencies}})"
+        env: 
+          SPARK_LOCAL_HOSTNAME: localhost
 
   Publish-To-PyPI:
     if: github.repository == 'opendp/tumult-analytics'
