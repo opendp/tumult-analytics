@@ -114,6 +114,12 @@ jobs:
         with:
           name: dist
           path: dist
+      - name: Get minor version
+        uses: actions-ecosystem/action-regex-match@v2
+        id: major-minor-version-extractor
+        with:
+          text: $GITHUB_REF_NAME
+          regex: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
       - name: Push docs
         uses: opendp/tumult-tools/actions/push_docs@1c7b4b3cfa98ab75f3c5b0b91858c897a81629ad
         with:
@@ -121,4 +127,4 @@ jobs:
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
           docs-path: docs/analytics
           dry-run: true
-          version: $GITHUB_REF_NAME
+          version: format('v{0}', steps.major-minor-version-extractor.outputs.match)
