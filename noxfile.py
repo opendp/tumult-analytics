@@ -30,15 +30,14 @@ test suite), fail if test coverage falls below this percentage."""
 
 DEPENDENCY_MATRIX = [
     #fmt: off
-    DependencyConfiguration(id="3.9-oldest",     python="3.9",  packages={"pyspark[sql]": "==3.3.1", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.9-pyspark3.4", python="3.9",  packages={"pyspark[sql]": "==3.4.0", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.9-newest",     python="3.9",  packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.10-oldest",    python="3.10", packages={"pyspark[sql]": "==3.3.1", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.10-newest",    python="3.10", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.11-oldest",    python="3.11", packages={"pyspark[sql]": "==3.4.0", "sympy": "==1.8", "pandas": "==1.5.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.11-newest",    python="3.11", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.9-oldest",     python="3.9",  packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.9-newest",     python="3.9",  packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.10-oldest",    python="3.10", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.10-newest",    python="3.10", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.11-oldest",    python="3.11", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.5.0", "tmlt.core": "==0.18.0"}),
+    DependencyConfiguration(id="3.11-newest",    python="3.11", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
     DependencyConfiguration(id="3.12-oldest",    python="3.12", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==2.2.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.12-newest",    python="3.12", packages={"pyspark[sql]": "==3.5.1", "sympy": "==1.9", "pandas": "==2.2.3", "tmlt.core": ">=0.18.0"}),
+    DependencyConfiguration(id="3.12-newest",    python="3.12", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==2.2.3", "tmlt.core": ">=0.18.0"}),
     #fmt: on
 ]
 
