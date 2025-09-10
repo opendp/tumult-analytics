@@ -115,7 +115,7 @@ jobs:
           name: dist
           path: dist
       - name: Get version
-        uses: battila7/get-version-action@v2
+        uses: dhkatz/get-version-action@v3.0.0
         id: get-version
       - name: Push docs
         uses: opendp/tumult-tools/actions/push_docs@1c7b4b3cfa98ab75f3c5b0b91858c897a81629ad
