@@ -127,4 +127,4 @@ jobs:
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}
           docs-path: docs/analytics
           dry-run: true
-          version: format('v{0}', steps.major-minor-version-extractor.outputs.match)
+          version: ${{ format('v{0}', steps.major-minor-version-extractor.outputs.match) }}
