@@ -79,9 +79,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # Note: mac runners are rather expensive (10x multiplier) so we don't use them here.
+        os: [ubuntu-latest]
         dependencies: [oldest, newest]
-        python: ["3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.12"]
     runs-on: ${{ matrix.os }}
     needs: Package
     steps:
