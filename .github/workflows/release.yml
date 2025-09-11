@@ -34,7 +34,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@eabe1054863f0916a0087ad180fd83719049c094
       - run: uv run nox -s build
       - name: Archive packaged library
         uses: actions/upload-artifact@v4
@@ -50,7 +50,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@eabe1054863f0916a0087ad180fd83719049c094
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -66,7 +66,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@eabe1054863f0916a0087ad180fd83719049c094
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -88,7 +88,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@eabe1054863f0916a0087ad180fd83719049c094
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
@@ -131,7 +131,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@eabe1054863f0916a0087ad180fd83719049c094
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
