@@ -2453,9 +2453,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version < '3.11'", specifier = ">=1.4.0,<2" },
     { name = "pandas", marker = "python_full_version == '3.11.*'", specifier = ">=1.5.0,<2" },
     { name = "pandas", marker = "python_full_version >= '3.12'", specifier = ">=2.2.0,<3" },
-    { name = "pyspark", extras = ["sql"], marker = "python_full_version < '3.11'", specifier = ">=3.3.1,<3.6" },
-    { name = "pyspark", extras = ["sql"], marker = "python_full_version == '3.11.*'", specifier = ">=3.4.0,<3.6" },
-    { name = "pyspark", extras = ["sql"], marker = "python_full_version >= '3.12'", specifier = ">=3.5.0,<3.6" },
+    { name = "pyspark", extras = ["sql"], specifier = ">=3.5.0,<3.6" },
     { name = "sympy", specifier = ">=1.8,<1.13" },
     { name = "tabulate", specifier = ">=0.8.9,<0.9" },
     { name = "tmlt-core", specifier = ">=0.18.0,<0.19" },
@@ -2538,8 +2536,8 @@ wheels = [
 
 [[package]]
 name = "tmlt-nox-utils"
-version = "0.0.0.post15+60b02cab"
-source = { git = "https://github.com/opendp/tumult-tools.git?subdirectory=nox-utils#60b02cabf3b5bd0d20fa51c4598c92622f2c65e9" }
+version = "0.0.0.post23+df6aa1c0"
+source = { git = "https://github.com/opendp/tumult-tools.git?subdirectory=nox-utils#df6aa1c070f189fc6aad44fdde812781951300a9" }
 dependencies = [
     { name = "gitpython" },
     { name = "nox" },
