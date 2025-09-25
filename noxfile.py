@@ -5,6 +5,7 @@ nox command line, and https://nox.thea.codes/en/stable/config.html for the nox
 API reference.
 """
 
+import sys
 from pathlib import Path
 
 import nox
@@ -28,17 +29,93 @@ MIN_COVERAGE = 75
 """For test suites where we track coverage (i.e. the fast tests and the full
 test suite), fail if test coverage falls below this percentage."""
 
+
+def is_mac():
+    """Returns true if the current system is a mac."""
+    return sys.platform == "darwin"
+
+
 DEPENDENCY_MATRIX = [
-    #fmt: off
-    DependencyConfiguration(id="3.9-oldest",     python="3.9",  packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.9-newest",     python="3.9",  packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.10-oldest",    python="3.10", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.4.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.10-newest",    python="3.10", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.11-oldest",    python="3.11", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==1.5.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.11-newest",    python="3.11", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==1.5.3", "tmlt.core": ">=0.18.0"}),
-    DependencyConfiguration(id="3.12-oldest",    python="3.12", packages={"pyspark[sql]": "==3.5.0", "sympy": "==1.8", "pandas": "==2.2.0", "tmlt.core": "==0.18.0"}),
-    DependencyConfiguration(id="3.12-newest",    python="3.12", packages={"pyspark[sql]": "==3.5.6", "sympy": "==1.9", "pandas": "==2.2.3", "tmlt.core": ">=0.18.0"}),
-    #fmt: on
+    DependencyConfiguration(
+        id="3.9-oldest",
+        python="3.9",
+        packages={
+            "pyspark[sql]": "==3.3.1" if not is_mac() else "==3.5.0",
+            "sympy": "==1.8",
+            "pandas": "==1.4.0",
+            "tmlt.core": "==0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.9-newest",
+        python="3.9",
+        packages={
+            "pyspark[sql]": "==3.5.6",
+            "sympy": "==1.9",
+            "pandas": "==1.5.3",
+            "tmlt.core": ">=0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.10-oldest",
+        python="3.10",
+        packages={
+            "pyspark[sql]": "==3.3.1" if not is_mac() else "==3.5.0",
+            "sympy": "==1.8",
+            "pandas": "==1.4.0",
+            "tmlt.core": "==0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.10-newest",
+        python="3.10",
+        packages={
+            "pyspark[sql]": "==3.5.6",
+            "sympy": "==1.9",
+            "pandas": "==1.5.3",
+            "tmlt.core": ">=0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.11-oldest",
+        python="3.11",
+        packages={
+            "pyspark[sql]": "==3.4.0" if not is_mac() else "==3.5.0",
+            "sympy": "==1.8",
+            "pandas": "==1.5.0",
+            "tmlt.core": "==0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.11-newest",
+        python="3.11",
+        packages={
+            "pyspark[sql]": "==3.5.6",
+            "sympy": "==1.9",
+            "pandas": "==1.5.3",
+            "tmlt.core": ">=0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.12-oldest",
+        python="3.12",
+        packages={
+            "pyspark[sql]": "==3.5.0",
+            "sympy": "==1.8",
+            "pandas": "==2.2.0",
+            "tmlt.core": "==0.18.0",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.12-newest",
+        python="3.12",
+        packages={
+            "pyspark[sql]": "==3.5.6",
+            "sympy": "==1.9",
+            "pandas": "==2.2.3",
+            "tmlt.core": ">=0.18.0",
+        },
+    ),
 ]
 
 AUDIT_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
@@ -101,7 +178,7 @@ sm.docs_doctest()
 sm.docs()
 
 for benchmark_name, timeout in BENCHMARK_TO_TIMEOUT.items():
-    sm.benchmark(CWD / benchmark_name, timeout*60)
+    sm.benchmark(CWD / benchmark_name, timeout * 60)
 
 sm.audit()
 
