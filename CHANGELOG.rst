@@ -12,8 +12,7 @@ Unreleased
 
 Changed
 ~~~~~~~
-- Dropped support for pyspark <3.5.0 after discovering that it does not work on Macs (this may not work for older versions as well).
-
+- Dropped support for pyspark <3.5.0 on Macs after discovering that these configurations frequently crash. Older versions of the library may also be affected.
 
 .. _v0.20.2:
 
