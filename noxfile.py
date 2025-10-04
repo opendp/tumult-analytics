@@ -37,26 +37,6 @@ def is_mac():
 
 DEPENDENCY_MATRIX = [
     DependencyConfiguration(
-        id="3.9-oldest",
-        python="3.9",
-        packages={
-            "pyspark[sql]": "==3.3.1" if not is_mac() else "==3.5.0",
-            "sympy": "==1.8",
-            "pandas": "==1.4.0",
-            "tmlt.core": "==0.18.0",
-        },
-    ),
-    DependencyConfiguration(
-        id="3.9-newest",
-        python="3.9",
-        packages={
-            "pyspark[sql]": "==3.5.6",
-            "sympy": "==1.9",
-            "pandas": "==1.5.3",
-            "tmlt.core": ">=0.18.0",
-        },
-    ),
-    DependencyConfiguration(
         id="3.10-oldest",
         python="3.10",
         packages={
@@ -118,7 +98,7 @@ DEPENDENCY_MATRIX = [
     ),
 ]
 
-AUDIT_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+AUDIT_VERSIONS = ["3.10", "3.11", "3.12"]
 AUDIT_SUPPRESSIONS = [
     "PYSEC-2023-228",
     # Affects: pip<23.3
@@ -151,6 +131,7 @@ sm = SessionManager(
     package=PACKAGE_NAME,
     package_github=PACKAGE_GITHUB,
     directory=CWD,
+    default_python_version="3.10",
     smoketest_script=SMOKETEST_SCRIPT,
     parallel_tests=False,
     min_coverage=MIN_COVERAGE,
