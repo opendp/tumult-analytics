@@ -97,6 +97,9 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 
+# Autodoc typehints settings
+always_use_bars_union = True
+
 # General settings
 master_doc = "index"
 exclude_patterns = ["templates"]
