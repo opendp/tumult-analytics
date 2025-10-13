@@ -35,9 +35,6 @@ from tmlt.analytics._query_expr import (
     ReplaceNullAndNan,
     Select,
 )
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -80,7 +77,7 @@ class TestAddKeys(TestTransformationVisitor):
         first_transform = chain_to_list(transformation)[0]
         assert isinstance(first_transform, IdentityTransformation)
 
-        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.schema(self.catalog)
         assert expected_schema.grouping_column == grouping_column
 
         expected_output_domain = SparkDataFrameDomain(
@@ -485,11 +482,11 @@ class TestAddKeys(TestTransformationVisitor):
         self._validate_result(transformation, reference, expected_df)
         assert constraints == []
 
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
@@ -528,7 +525,7 @@ class TestAddKeys(TestTransformationVisitor):
         self._validate_result(transformation, reference, expected_df)
         assert constraints == []
 
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
@@ -556,7 +553,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         first_transform = chain_to_list(transformation)[0]
         assert isinstance(first_transform, IdentityTransformation)
 
-        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.schema(self.catalog)
         assert expected_schema.grouping_column == "id"
 
         expected_output_domain = SparkDataFrameDomain(

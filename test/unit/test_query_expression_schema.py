@@ -1,4 +1,4 @@
-"""Tests for OutputSchemaVisitor."""
+"""Tests for QueryExpression schema determination."""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -36,9 +36,6 @@ from tmlt.analytics._query_expr import (
     ReplaceNullAndNan,
     Select,
     SuppressAggregates,
-)
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
 )
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -325,7 +322,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
 ###TESTS FOR QUERY VALIDATION###
 
 
-@pytest.fixture(name="validation_visitor", scope="class")
+@pytest.fixture(name="validation_catalog", scope="class")
 def setup_validation(request):
     """Set up test data."""
     catalog = Catalog()
@@ -361,15 +358,14 @@ def setup_validation(request):
     catalog.add_private_table(
         "groupby_one_column_private", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
     )
-    visitor = OutputSchemaVisitor(catalog)
-    request.cls.visitor = visitor
+    request.cls.catalog = catalog
 
 
-@pytest.mark.usefixtures("validation_visitor")
+@pytest.mark.usefixtures("validation_catalog")
 class TestValidation:
-    """Test Validation with Visitor."""
+    """Test Validation with Catalog."""
 
-    visitor: OutputSchemaVisitor
+    catalog: Catalog
 
     @pytest.mark.parametrize(
         "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS
@@ -379,7 +375,7 @@ class TestValidation:
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
         with pytest.raises(ValueError, match=expected_error_msg):
-            query_expr.accept(self.visitor)
+            query_expr.schema(self.catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -428,7 +424,7 @@ class TestValidation:
     ) -> None:
         """Test invalid measurement QueryExpr."""
         with pytest.raises(exception_type, match=expected_error_msg):
-            GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
+            GroupByCount(PrivateSource("private"), groupby_keys).schema(self.catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -485,13 +481,13 @@ class TestValidation:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
-                    self.visitor
+                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).schema(
+                    self.catalog
                 )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
-            ).accept(self.visitor)
+            ).schema(self.catalog)
         with pytest.raises(exception_type, match=expected_error_msg):
             GetBounds(
                 PrivateSource("private"),
@@ -499,12 +495,12 @@ class TestValidation:
                 "B",
                 "lower_bound",
                 "upper_bound",
-            ).accept(self.visitor)
+            ).schema(self.catalog)
 
 
 ###QUERY VALIDATION WITH NULLS###
 @pytest.fixture(name="test_data_nulls", scope="class")
-def setup_visitor_with_nulls(request) -> None:
+def setup_catalog_with_nulls(request) -> None:
     """Set up test data."""
     catalog = Catalog()
     catalog.add_private_table(
@@ -543,15 +539,14 @@ def setup_visitor_with_nulls(request) -> None:
         "groupby_one_column_private",
         {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
     )
-    visitor = OutputSchemaVisitor(catalog)
-    request.cls.visitor = visitor
+    request.cls.catalog = catalog
 
 
 @pytest.mark.usefixtures("test_data_nulls")
 class TestValidationWithNulls:
     """Test Validation with Nulls."""
 
-    visitor: OutputSchemaVisitor
+    catalog: Catalog
 
     @pytest.mark.parametrize(
         "query_expr,expected_error_msg", OUTPUT_SCHEMA_INVALID_QUERY_TESTS
@@ -561,7 +556,7 @@ class TestValidationWithNulls:
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
         with pytest.raises(ValueError, match=expected_error_msg):
-            query_expr.accept(self.visitor)
+            query_expr.schema(self.catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -602,7 +597,7 @@ class TestValidationWithNulls:
     ) -> None:
         """Test invalid measurement QueryExpr."""
         with pytest.raises(exception_type, match=expected_error_msg):
-            GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
+            GroupByCount(PrivateSource("private"), groupby_keys).schema(self.catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -659,13 +654,11 @@ class TestValidationWithNulls:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
-                    self.visitor
-                )
+                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).schema( self.catalog)
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
-            ).accept(self.visitor)
+            ).schema(self.catalog)
         with pytest.raises(exception_type, match=expected_error_msg):
             GetBounds(
                 PrivateSource("private"),
@@ -673,15 +666,15 @@ class TestValidationWithNulls:
                 "B",
                 "lower_bound",
                 "upper_bound",
-            ).accept(self.visitor)
+            ).schema(self.catalog)
 
-    def test_visit_private_source(self) -> None:
+    def test_schema_private_source(self) -> None:
         """Test visit_private_source."""
         query = PrivateSource("private")
-        schema = self.visitor.visit_private_source(query)
+        schema = query.schema(self.catalog)
         assert (
             schema
-            == self.visitor._catalog.tables[  # pylint: disable=protected-access
+            == self.catalog.tables[  # pylint: disable=protected-access
                 "private"
             ].schema
         )
@@ -753,7 +746,7 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_rename(
+    def test_schema_rename(
         self, column_mapper: Dict[str, str], expected_schema: Schema
     ) -> None:
         """Test visit_rename."""
@@ -761,17 +754,17 @@ class TestValidationWithNulls:
             child=PrivateSource("private"),
             column_mapper=FrozenDict.from_dict(column_mapper),
         )
-        schema = self.visitor.visit_rename(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize("condition", ["B > X", "X < 500", "NOTNULL < 30"])
-    def test_visit_filter(self, condition: str) -> None:
+    def test_schema_filter(self, condition: str) -> None:
         """Test visit_filter."""
         query = Filter(child=PrivateSource("private"), condition=condition)
-        schema = self.visitor.visit_filter(query)
+        schema = query.schema(self.catalog)
         assert (
             schema
-            == self.visitor._catalog.tables[  # pylint: disable=protected-access
+            == self.catalog.tables[  # pylint: disable=protected-access
                 "private"
             ].schema
         )
@@ -796,10 +789,10 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_select(self, columns: List[str], expected_schema: Schema) -> None:
+    def test_schema_select(self, columns: List[str], expected_schema: Schema) -> None:
         """Test visit_select."""
         query = Select(child=PrivateSource("private"), columns=tuple(columns))
-        schema = self.visitor.visit_select(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -936,9 +929,9 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_map(self, query: Map, expected_schema: Schema) -> None:
+    def test_schema_map(self, query: Map, expected_schema: Schema) -> None:
         """Test visit_map."""
-        schema = self.visitor.visit_map(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -987,9 +980,9 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_flat_map(self, query: FlatMap, expected_schema: Schema) -> None:
+    def test_schema_flat_map(self, query: FlatMap, expected_schema: Schema) -> None:
         """Test visit_flat_map."""
-        schema = self.visitor.visit_flat_map(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1022,11 +1015,11 @@ class TestValidationWithNulls:
             )
         ],
     )
-    def test_visit_join_private(
+    def test_schema_join_private(
         self, query: JoinPrivate, expected_schema: Schema
     ) -> None:
         """Test visit_join_private."""
-        schema = self.visitor.visit_join_private(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1081,11 +1074,11 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_join_public(
+    def test_schema_join_public(
         self, query: JoinPublic, expected_schema: Schema
     ) -> None:
         """Test visit_join_public."""
-        schema = self.visitor.visit_join_public(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @parametrize(
@@ -1134,19 +1127,18 @@ class TestValidationWithNulls:
             ),
         ),
     )
-    def test_visit_join_private_nulls(self, left_schema, right_schema, expected_schema):
-        """Test that OutputSchemaVisitor correctly propagates nulls through a join."""
+    def test_schema_join_private_nulls(self, left_schema, right_schema, expected_schema):
+        """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
         catalog.add_private_table("left", left_schema)
         catalog.add_private_table("right", right_schema)
-        visitor = OutputSchemaVisitor(catalog)
         query = JoinPrivate(
             child=PrivateSource("left"),
             right_operand_expr=PrivateSource("right"),
             truncation_strategy_left=TruncationStrategy.DropExcess(1),
             truncation_strategy_right=TruncationStrategy.DropExcess(1),
         )
-        result_schema = visitor.visit_join_private(query)
+        result_schema = query.schema(catalog)
         assert result_schema == expected_schema
 
     @parametrize(
@@ -1195,16 +1187,15 @@ class TestValidationWithNulls:
             ),
         ),
     )
-    def test_visit_join_public_nulls(
+    def test_schema_join_public_nulls(
         self, private_schema, public_schema, expected_schema
     ):
-        """Test that OutputSchemaVisitor correctly propagates nulls through a join."""
+        """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
         catalog.add_private_table("private", private_schema)
         catalog.add_public_table("public", public_schema)
-        visitor = OutputSchemaVisitor(catalog)
         query = JoinPublic(child=PrivateSource("private"), public_table="public")
-        result_schema = visitor.visit_join_public(query)
+        result_schema = query.schema(catalog)
         assert result_schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1289,11 +1280,11 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_replace_null_and_nan(
+    def test_schema_replace_null_and_nan(
         self, query: ReplaceNullAndNan, expected_schema: Schema
     ) -> None:
         """Test visit_replace_null_and_nan."""
-        schema = self.visitor.visit_replace_null_and_nan(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1376,11 +1367,11 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_drop_null_and_nan(
+    def test_schema_drop_null_and_nan(
         self, query: DropNullAndNan, expected_schema: Schema
     ) -> None:
         """Test visit_drop_null_and_nan."""
-        schema = self.visitor.visit_drop_null_and_nan(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1461,11 +1452,11 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_drop_infinity(
+    def test_schema_drop_infinity(
         self, query: DropInfinity, expected_schema: Schema
     ) -> None:
         """Test visit_drop_infinity."""
-        schema = self.visitor.visit_drop_infinity(query)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1623,14 +1614,14 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_groupby_queries(
+    def test_schema_groupby_queries(
         self, query: QueryExpr, expected_schema: Schema
     ) -> None:
         """Test visit_groupby_*."""
-        schema = query.accept(self.visitor)
+        schema = query.schema(self.catalog)
         assert schema == expected_schema
 
-    def test_visit_groupby_get_bounds_partition_selection(self) -> None:
+    def test_schema_groupby_get_bounds_partition_selection(self) -> None:
         """Test visit_get_bounds with auto partition selection enabled."""
         expected_schema = Schema(
             {
@@ -1647,7 +1638,7 @@ class TestValidationWithNulls:
                 lower_bound_column="lower_bound",
                 upper_bound_column="upper_bound",
             )
-            schema = query.accept(self.visitor)
+            schema = query.schema(self.catalog)
             assert schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1678,8 +1669,8 @@ class TestValidationWithNulls:
             ),
         ],
     )
-    def test_visit_suppress_aggregates(self, query: SuppressAggregates) -> None:
+    def test_schema_suppress_aggregates(self, query: SuppressAggregates) -> None:
         """Test visit_suppress_aggregates."""
-        expected_schema = query.child.accept(self.visitor)
-        got_schema = query.accept(self.visitor)
+        expected_schema = query.child.schema(self.catalog)
+        got_schema = query.schema(self.catalog)
         assert expected_schema == got_schema

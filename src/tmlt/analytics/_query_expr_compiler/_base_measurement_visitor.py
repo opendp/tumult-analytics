@@ -101,9 +101,6 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._schema import ColumnType, FrozenDict, Schema
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
@@ -708,7 +705,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         GroupByQuantile and GetBounds only supports one noise mechanism, so it is not
         included here.
         """
-        measure_column_type = query.child.accept(OutputSchemaVisitor(self.catalog))[
+        measure_column_type = query.child.schema(self.catalog)[
             query.measure_column
         ].column_type
         requested_mechanism: NoiseMechanism
@@ -802,7 +799,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         These changes are added immediately before the groupby aggregation in the query.
         """
-        expected_schema = query.child.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.child.schema(self.catalog)
 
         # You can't perform these queries on nulls, NaNs, or infinite values
         # so check for those
@@ -1046,7 +1043,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1130,7 +1127,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1150,7 +1147,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         ) = self._visit_child_transformation(expr.child, mechanism)
         constrained_query = _generate_constrained_count_distinct(
             expr,
-            expr.child.accept(OutputSchemaVisitor(self.catalog)),
+            expr.child.schema(self.catalog),
             child_constraints,
         )
         if constrained_query is not None:
@@ -1251,7 +1248,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
@@ -1264,7 +1261,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, self.default_mechanism),
@@ -1346,7 +1343,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
@@ -1442,7 +1439,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
@@ -1538,7 +1535,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
@@ -1634,7 +1631,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
         expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
@@ -1726,7 +1723,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self._validate_approxDP_and_adjust_budget(expr)
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         expr = self._add_special_value_handling_to_query(expr)
         if isinstance(expr.groupby_keys, KeySet):
@@ -1740,7 +1737,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
@@ -1823,7 +1820,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self, expr: SuppressAggregates
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a SuppressAggregates query expression."""
-        expr.accept(OutputSchemaVisitor(self.catalog))
+        expr.schema(self.catalog)
 
         child_measurement, noise_info = expr.child.accept(self)
         if not isinstance(child_measurement, Measurement):

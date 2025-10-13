@@ -22,9 +22,6 @@ from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -108,13 +105,13 @@ class QueryExprCompiler:
     @staticmethod
     def query_schema(query: QueryExpr, catalog: Catalog) -> Schema:
         """Return the schema created by a given query."""
-        result = query.accept(OutputSchemaVisitor(catalog=catalog))
-        if not isinstance(result, Schema):
+        schema = query.schema(catalog)
+        if not isinstance(schema, Schema):
             raise AnalyticsInternalError(
                 "Schema for this query is not a Schema but is instead a(n) "
                 f"{type(result)}."
             )
-        return result
+        return schema
 
     def __call__(
         self,
@@ -207,7 +204,7 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
-        query.accept(OutputSchemaVisitor(catalog))
+        query.schema(catalog)
 
         transformation_visitor = TransformationVisitor(
             input_domain=input_domain,
