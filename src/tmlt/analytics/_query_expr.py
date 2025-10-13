@@ -183,6 +183,11 @@ class QueryExpr(ABC):
     """
 
     @abstractmethod
+    def schema(self, catalog: Catalog) -> Any:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        raise NotImplementedError()
+
+    @abstractmethod
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Dispatch methods on a visitor based on the QueryExpr type."""
         raise NotImplementedError()
@@ -207,7 +212,7 @@ class PrivateSource(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         if self.source_id not in catalog.tables:
             raise ValueError(f"Query references nonexistent table '{self.source_id}'")
         table = catalog.tables[self.source_id]
@@ -243,7 +248,7 @@ class GetGroups(QueryExpr):
         check_type(self.columns, Optional[Tuple[str, ...]])
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         if self.columns:
             nonexistent_columns = set(self.columns) - set(input_schema)
@@ -296,7 +301,7 @@ class GetBounds(QueryExpr):
         check_type(self.upper_bound_column, str)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -332,7 +337,7 @@ class Rename(QueryExpr):
                 )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         grouping_column = input_schema.grouping_column
         id_column = input_schema.id_column
@@ -386,7 +391,7 @@ class Filter(QueryExpr):
         check_type(self.condition, str)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         spark = SparkSession.builder.getOrCreate()
         test_df = spark.createDataFrame(
@@ -420,7 +425,7 @@ class Select(QueryExpr):
             raise ValueError(f"Column name appears more than once in {self.columns}")
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         grouping_column = input_schema.grouping_column
         id_column = input_schema.id_column
@@ -479,7 +484,7 @@ class Map(QueryExpr):
             raise ValueError("Map cannot be be used to create grouping columns")
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         new_columns = self.schema_new_columns.column_descs
         # Any column created by Map could contain a null value
@@ -516,7 +521,6 @@ class Map(QueryExpr):
             id_column=self.schema_new_columns.id_column,
             id_space=self.schema_new_columns.id_space,
         )
-
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -585,7 +589,7 @@ class FlatMap(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         if self.schema_new_columns.grouping_column is not None:
             if input_schema.grouping_column:
@@ -638,7 +642,6 @@ class FlatMap(QueryExpr):
             id_space=self.schema_new_columns.id_space,
         )
 
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_flat_map(self)
@@ -690,7 +693,7 @@ class FlatMapByID(QueryExpr):
         return visitor.visit_flat_map_by_id(self)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this Queryself."""
         input_schema = self.child.schema(catalog)
         id_column = input_schema.id_column
         new_columns = self.schema_new_columns.column_descs
@@ -740,7 +743,7 @@ def _schema_for_join(
     join_id_space: Optional[str] = None,
     how: str = "inner",
 ) -> Schema:
-    """Return the resulting schema from joining two tables.
+    """Return the schema resulting from joining two tables.
 
     It is assumed that if either schema has an ID column, the one from
     left_schema should be used. This is because the appropriate behavior here
@@ -833,6 +836,7 @@ def _schema_for_join(
         id_space=join_id_space,
     )
 
+
 @dataclass(frozen=True)
 class JoinPrivate(QueryExpr):
     """Returns the join of two private tables.
@@ -875,7 +879,7 @@ class JoinPrivate(QueryExpr):
                 raise ValueError("Join columns must be distinct")
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr.
+        """Returns the schema resulting from evaluating this QueryExpr.
 
         The ordering of output columns are:
 
@@ -883,7 +887,8 @@ class JoinPrivate(QueryExpr):
         2. Columns that are only in the left table
         3. Columns that are only in the right table
         4. Columns that are in both tables, but not included in the join columns. These
-           columns are included with _left and _right suffixes."""
+           columns are included with _left and _right suffixes.
+        """
         left_schema = self.child.schema(catalog)
         right_schema = self.right_operand_expr.schema(catalog)
         if left_schema.id_column != right_schema.id_column:
@@ -958,10 +963,11 @@ class JoinPublic(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr.
+        """Returns the schema resulting from evaluating this QueryExpr.
 
         Has analogous behavior to :meth:`JoinPrivate.schema`, where the private
-        table is the left table."""
+        table is the left table.
+        """
         input_schema = self.child.schema(catalog)
         if isinstance(self.public_table, str):
             public_table = catalog.tables[self.public_table]
@@ -1087,7 +1093,7 @@ class ReplaceNullAndNan(QueryExpr):
         )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         if (
             input_schema.grouping_column
@@ -1189,7 +1195,7 @@ class ReplaceInfinity(QueryExpr):
         object.__setattr__(self, "child", child)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this Queryself."""
         input_schema = self.child.schema(catalog)
 
         if (
@@ -1274,7 +1280,7 @@ class DropNullAndNan(QueryExpr):
         check_type(self.columns, Tuple[str, ...])
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         if (
             input_schema.grouping_column
@@ -1348,7 +1354,7 @@ class DropInfinity(QueryExpr):
         check_type(self.columns, Tuple[str, ...])
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this Queryself."""
         input_schema = self.child.schema(catalog)
 
         if (
@@ -1424,11 +1430,7 @@ class EnforceConstraint(QueryExpr):
     to support advanced use cases, and generally should not be used."""
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
-
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
 
         if not input_schema.id_column:
@@ -1455,8 +1457,10 @@ class EnforceConstraint(QueryExpr):
         """Visit this QueryExpr with visitor."""
         return visitor.visit_enforce_constraint(self)
 
+
 def _schema_for_groupby(
     query: Union[
+        "GetBounds",
         "GroupByBoundedAverage",
         "GroupByBoundedSTDEV",
         "GroupByBoundedSum",
@@ -1526,9 +1530,17 @@ def _schema_for_groupby(
         )
 
     # Validating the measure column
-    if isinstance(query, (GetBounds, GroupByQuantile, GroupByBoundedSum,
-                          GroupByBoundedSTDEV, GroupByBoundedAverage,
-                          GroupByBoundedVariance)):
+    if isinstance(
+        query,
+        (
+            GetBounds,
+            GroupByQuantile,
+            GroupByBoundedSum,
+            GroupByBoundedSTDEV,
+            GroupByBoundedAverage,
+            GroupByBoundedVariance,
+        ),
+    ):
         if query.measure_column not in input_schema:
             raise ValueError(
                 f"{type(query).__name__} query's measure column "
@@ -1556,16 +1568,27 @@ def _schema_for_groupby(
         output_column_type = ColumnType.INTEGER
     elif isinstance(query, (GetBounds, GroupByBoundedSum)):
         output_column_type = input_schema[query.measure_column].column_type
-    elif isinstance(query, (GroupByQuantile, GroupByBoundedSum,
-                            GroupByBoundedSTDEV, GroupByBoundedAverage,
-                            GroupByBoundedVariance)):
+    elif isinstance(
+        query,
+        (
+            GroupByQuantile,
+            GroupByBoundedSum,
+            GroupByBoundedSTDEV,
+            GroupByBoundedAverage,
+            GroupByBoundedVariance,
+        ),
+    ):
         output_column_type = ColumnType.DECIMAL
     else:
         raise AnalyticsInternalError("Unexpected QueryExpr type: {type(query)}.")
     if isinstance(query, GetBounds):
         output_columns = {
-            query.lower_bound_column: ColumnDescriptor(output_column_type, allow_null=False),
-            query.upper_bound_column: ColumnDescriptor(output_column_type, allow_null=False),
+            query.lower_bound_column: ColumnDescriptor(
+                output_column_type, allow_null=False
+            ),
+            query.upper_bound_column: ColumnDescriptor(
+                output_column_type, allow_null=False
+            ),
         }
     else:
         output_columns = {
@@ -1575,11 +1598,12 @@ def _schema_for_groupby(
     return Schema(
         {
             **{column: input_schema[column] for column in groupby_columns},
-            **output_columns
+            **output_columns,
         },
         grouping_column=None,
         id_column=None,
     )
+
 
 @dataclass(frozen=True)
 class GroupByCount(QueryExpr):
@@ -1608,7 +1632,7 @@ class GroupByCount(QueryExpr):
         check_type(self.mechanism, CountMechanism)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1648,7 +1672,7 @@ class GroupByCountDistinct(QueryExpr):
         check_type(self.mechanism, CountDistinctMechanism)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1713,7 +1737,7 @@ class GroupByQuantile(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1778,7 +1802,7 @@ class GroupByBoundedSum(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1843,7 +1867,7 @@ class GroupByBoundedAverage(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1908,7 +1932,7 @@ class GroupByBoundedVariance(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1974,7 +1998,7 @@ class GroupByBoundedSTDEV(QueryExpr):
             )
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return _schema_for_groupby(self, catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -2010,13 +2034,12 @@ class SuppressAggregates(QueryExpr):
         check_type(self.threshold, float)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the resulting schema from evaluating this QueryExpr."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         return self.child.schema(catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_suppress_aggregates(self)
-
 
 
 class QueryExprVisitor(ABC):
@@ -2141,4 +2164,3 @@ class QueryExprVisitor(ABC):
     def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Any:
         """Visit a :class:`SuppressAggregates`."""
         raise NotImplementedError
-

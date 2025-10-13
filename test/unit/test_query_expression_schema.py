@@ -654,7 +654,9 @@ class TestValidationWithNulls:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).schema( self.catalog)
+                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).schema(
+                    self.catalog
+                )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
                 PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
@@ -672,12 +674,7 @@ class TestValidationWithNulls:
         """Test visit_private_source."""
         query = PrivateSource("private")
         schema = query.schema(self.catalog)
-        assert (
-            schema
-            == self.catalog.tables[  # pylint: disable=protected-access
-                "private"
-            ].schema
-        )
+        assert schema == self.catalog.tables["private"].schema
 
     @pytest.mark.parametrize(
         "column_mapper,expected_schema",
@@ -762,12 +759,7 @@ class TestValidationWithNulls:
         """Test visit_filter."""
         query = Filter(child=PrivateSource("private"), condition=condition)
         schema = query.schema(self.catalog)
-        assert (
-            schema
-            == self.catalog.tables[  # pylint: disable=protected-access
-                "private"
-            ].schema
-        )
+        assert schema == self.catalog.tables["private"].schema
 
     @pytest.mark.parametrize(
         "columns,expected_schema",
@@ -1127,7 +1119,9 @@ class TestValidationWithNulls:
             ),
         ),
     )
-    def test_schema_join_private_nulls(self, left_schema, right_schema, expected_schema):
+    def test_schema_join_private_nulls(
+        self, left_schema, right_schema, expected_schema
+    ):
         """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
         catalog.add_private_table("left", left_schema)

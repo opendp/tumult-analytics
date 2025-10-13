@@ -109,7 +109,7 @@ class QueryExprCompiler:
         if not isinstance(schema, Schema):
             raise AnalyticsInternalError(
                 "Schema for this query is not a Schema but is instead a(n) "
-                f"{type(result)}."
+                f"{type(schema)}."
             )
         return schema
 
