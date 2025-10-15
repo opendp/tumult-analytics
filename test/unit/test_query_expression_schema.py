@@ -671,7 +671,7 @@ class TestValidationWithNulls:
             ).schema(self.catalog)
 
     def test_schema_private_source(self) -> None:
-        """Test visit_private_source."""
+        """Test schema for private_source."""
         query = PrivateSource("private")
         schema = query.schema(self.catalog)
         assert schema == self.catalog.tables["private"].schema
@@ -746,7 +746,7 @@ class TestValidationWithNulls:
     def test_schema_rename(
         self, column_mapper: Dict[str, str], expected_schema: Schema
     ) -> None:
-        """Test visit_rename."""
+        """Test schema for rename."""
         query = Rename(
             child=PrivateSource("private"),
             column_mapper=FrozenDict.from_dict(column_mapper),
@@ -756,7 +756,7 @@ class TestValidationWithNulls:
 
     @pytest.mark.parametrize("condition", ["B > X", "X < 500", "NOTNULL < 30"])
     def test_schema_filter(self, condition: str) -> None:
-        """Test visit_filter."""
+        """Test schema for filter."""
         query = Filter(child=PrivateSource("private"), condition=condition)
         schema = query.schema(self.catalog)
         assert schema == self.catalog.tables["private"].schema
@@ -782,7 +782,7 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_select(self, columns: List[str], expected_schema: Schema) -> None:
-        """Test visit_select."""
+        """Test schema for select."""
         query = Select(child=PrivateSource("private"), columns=tuple(columns))
         schema = query.schema(self.catalog)
         assert schema == expected_schema
@@ -922,7 +922,7 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_map(self, query: Map, expected_schema: Schema) -> None:
-        """Test visit_map."""
+        """Test schema for map."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -973,7 +973,7 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_flat_map(self, query: FlatMap, expected_schema: Schema) -> None:
-        """Test visit_flat_map."""
+        """Test schema for flat_map."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1010,7 +1010,7 @@ class TestValidationWithNulls:
     def test_schema_join_private(
         self, query: JoinPrivate, expected_schema: Schema
     ) -> None:
-        """Test visit_join_private."""
+        """Test schema for join_private."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1069,7 +1069,7 @@ class TestValidationWithNulls:
     def test_schema_join_public(
         self, query: JoinPublic, expected_schema: Schema
     ) -> None:
-        """Test visit_join_public."""
+        """Test schema for join_public."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1277,7 +1277,7 @@ class TestValidationWithNulls:
     def test_schema_replace_null_and_nan(
         self, query: ReplaceNullAndNan, expected_schema: Schema
     ) -> None:
-        """Test visit_replace_null_and_nan."""
+        """Test schema for replace_null_and_nan."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1364,7 +1364,7 @@ class TestValidationWithNulls:
     def test_schema_drop_null_and_nan(
         self, query: DropNullAndNan, expected_schema: Schema
     ) -> None:
-        """Test visit_drop_null_and_nan."""
+        """Test schema for drop_null_and_nan."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1449,7 +1449,7 @@ class TestValidationWithNulls:
     def test_schema_drop_infinity(
         self, query: DropInfinity, expected_schema: Schema
     ) -> None:
-        """Test visit_drop_infinity."""
+        """Test schema for drop_infinity."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
@@ -1611,12 +1611,12 @@ class TestValidationWithNulls:
     def test_schema_groupby_queries(
         self, query: QueryExpr, expected_schema: Schema
     ) -> None:
-        """Test visit_groupby_*."""
+        """Test schema for groupby_*."""
         schema = query.schema(self.catalog)
         assert schema == expected_schema
 
     def test_schema_groupby_get_bounds_partition_selection(self) -> None:
-        """Test visit_get_bounds with auto partition selection enabled."""
+        """Test schema for get_bounds with auto partition selection enabled."""
         expected_schema = Schema(
             {
                 "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
@@ -1664,7 +1664,7 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_suppress_aggregates(self, query: SuppressAggregates) -> None:
-        """Test visit_suppress_aggregates."""
+        """Test schema for suppress_aggregates."""
         expected_schema = query.child.schema(self.catalog)
         got_schema = query.schema(self.catalog)
         assert expected_schema == got_schema

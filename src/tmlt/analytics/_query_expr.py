@@ -12,6 +12,7 @@ user-friendly features.
 # Copyright Tumult Labs 2025
 
 import datetime
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Collection
 from dataclasses import dataclass, replace
@@ -693,7 +694,7 @@ class FlatMapByID(QueryExpr):
         return visitor.visit_flat_map_by_id(self)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         id_column = input_schema.id_column
         new_columns = self.schema_new_columns.column_descs
@@ -745,10 +746,10 @@ def _schema_for_join(
 ) -> Schema:
     """Return the schema resulting from joining two tables.
 
-    It is assumed that if either schema has an ID column, the one from
-    left_schema should be used. This is because the appropriate behavior here
-    depends on the type of join being performed, so checks for compatibility of
-    ID columns must happen outside this function.
+    It is assumed that if either schema has an ID column, the one from left_schema
+    should be used, because this is true for both public and private joins. With private
+    joins, the ID columns must be compatible; this check must happen outside this
+    function.
 
     Args:
         left_schema: Schema for the left table.
@@ -1109,9 +1110,10 @@ class ReplaceNullAndNan(QueryExpr):
                 "as it is an ID column."
             )
         if input_schema.id_column and (len(self.replace_with) == 0):
-            raise RuntimeWarning(
+            warnings.warn(
                 f"Replacing null values in the ID column '{input_schema.id_column}' "
-                "is not allowed, so the ID column may still contain null values."
+                "is not allowed, so the ID column may still contain null values.",
+                RuntimeWarning,
             )
 
         if len(self.replace_with) != 0:
@@ -1195,7 +1197,7 @@ class ReplaceInfinity(QueryExpr):
         object.__setattr__(self, "child", child)
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
 
         if (
@@ -1296,9 +1298,10 @@ class DropNullAndNan(QueryExpr):
                 "as it is an ID column."
             )
         if input_schema.id_column and len(self.columns) == 0:
-            raise RuntimeWarning(
+            warning.warn(
                 f"Replacing null values in the ID column '{input_schema.id_column}' "
-                "is not allowed, so the ID column may still contain null values."
+                "is not allowed, so the ID column may still contain null values.",
+                RuntimeWarning,
             )
         columns = self.columns
         if len(columns) == 0:
@@ -1354,7 +1357,7 @@ class DropInfinity(QueryExpr):
         check_type(self.columns, Tuple[str, ...])
 
     def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this Queryself."""
+        """Returns the schema resulting from evaluating this QueryExp."""
         input_schema = self.child.schema(catalog)
 
         if (
@@ -1580,7 +1583,7 @@ def _schema_for_groupby(
     ):
         output_column_type = ColumnType.DECIMAL
     else:
-        raise AnalyticsInternalError("Unexpected QueryExpr type: {type(query)}.")
+        raise AnalyticsInternalError(f"Unexpected QueryExpr type: {type(query)}.")
     if isinstance(query, GetBounds):
         output_columns = {
             query.lower_bound_column: ColumnDescriptor(
