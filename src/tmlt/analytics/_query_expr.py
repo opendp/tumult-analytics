@@ -212,17 +212,20 @@ class PrivateSource(QueryExpr):
                 " (_), and it cannot start with a number, or contain any spaces."
             )
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
+    def _validate(self, catalog: Catalog):
+        """Validation checks for this QueryExpr."""
         if self.source_id not in catalog.tables:
             raise ValueError(f"Query references nonexistent table '{self.source_id}'")
-        table = catalog.tables[self.source_id]
-        if not isinstance(table, PrivateTable):
+        if not isinstance(catalog.tables[self.source_id], PrivateTable):
             raise ValueError(
                 f"Attempted query on table '{self.source_id}', which is "
                 "not a private table."
             )
-        return table.schema
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        self._validate(catalog)
+        return catalog.tables[self.source_id].schema
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visits this QueryExpr with visitor."""
@@ -248,28 +251,29 @@ class GetGroups(QueryExpr):
         check_type(self.child, QueryExpr)
         check_type(self.columns, Optional[Tuple[str, ...]])
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if self.columns:
             nonexistent_columns = set(self.columns) - set(input_schema)
             if nonexistent_columns:
                 raise ValueError(
                     f"Nonexistent columns in get_groups query: {nonexistent_columns}"
                 )
-            input_schema = Schema(
-                {column: input_schema[column] for column in self.columns}
-            )
 
-        else:
-            input_schema = Schema(
-                {
-                    column: input_schema[column]
-                    for column in input_schema
-                    if column != input_schema.id_column
-                }
-            )
-        return input_schema
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+
+        if self.columns:
+            return Schema({column: input_schema[column] for column in self.columns})
+        return Schema(
+            {
+                column: input_schema[column]
+                for column in input_schema
+                if column != input_schema.id_column
+            }
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -303,7 +307,9 @@ class GetBounds(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -337,12 +343,8 @@ class Rename(QueryExpr):
                     ' "" are not allowed'
                 )
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
-        grouping_column = input_schema.grouping_column
-        id_column = input_schema.id_column
-        id_space = input_schema.id_space
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         nonexistent_columns = set(self.column_mapper) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
@@ -353,10 +355,19 @@ class Rename(QueryExpr):
                 raise ValueError(
                     f"Cannot rename '{old}' to '{new}': column '{new}' already exists"
                 )
-            if old == grouping_column:
-                grouping_column = new
-            if old == id_column:
-                id_column = new
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+
+        grouping_column = input_schema.grouping_column
+        if grouping_column in self.column_mapper:
+            grouping_column = self.column_mapper[grouping_column]
+
+        id_column = input_schema.id_column
+        if id_column in self.column_mapper:
+            id_column = self.column_mapper[id_column]
 
         return Schema(
             {
@@ -365,7 +376,7 @@ class Rename(QueryExpr):
             },
             grouping_column=grouping_column,
             id_column=id_column,
-            id_space=id_space,
+            id_space=input_schema.id_space,
         )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -391,9 +402,8 @@ class Filter(QueryExpr):
         check_type(self.child, QueryExpr)
         check_type(self.condition, str)
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         spark = SparkSession.builder.getOrCreate()
         test_df = spark.createDataFrame(
             [], schema=analytics_to_spark_schema(input_schema)
@@ -402,6 +412,11 @@ class Filter(QueryExpr):
             test_df.filter(self.condition)
         except Exception as e:
             raise ValueError(f"Invalid filter condition '{self.condition}': {e}") from e
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
         return input_schema
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -425,9 +440,8 @@ class Select(QueryExpr):
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         grouping_column = input_schema.grouping_column
         id_column = input_schema.id_column
         if grouping_column is not None and grouping_column not in self.columns:
@@ -439,17 +453,20 @@ class Select(QueryExpr):
             raise ValueError(
                 f"ID column '{id_column}' may not be dropped by select query"
             )
-
         nonexistent_columns = set(self.columns) - set(input_schema)
         if nonexistent_columns:
             raise ValueError(
                 f"Nonexistent columns in select query: {nonexistent_columns}"
             )
 
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
         return Schema(
             {column: input_schema[column] for column in self.columns},
-            grouping_column=grouping_column,
-            id_column=id_column,
+            grouping_column=input_schema.grouping_column,
+            id_column=input_schema.id_column,
             id_space=input_schema.id_space,
         )
 
@@ -484,14 +501,9 @@ class Map(QueryExpr):
         if self.schema_new_columns.grouping_column is not None:
             raise ValueError("Map cannot be be used to create grouping columns")
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         new_columns = self.schema_new_columns.column_descs
-        # Any column created by Map could contain a null value
-        for name in list(new_columns.keys()):
-            new_columns[name] = replace(new_columns[name], allow_null=True)
-
         if self.augment:
             overlapping_columns = set(input_schema.keys()) & set(new_columns.keys())
             if overlapping_columns:
@@ -500,28 +512,36 @@ class Map(QueryExpr):
                     "existing columns, but found new columns that "
                     f"already exist: {', '.join(overlapping_columns)}"
                 )
+            return
+        if input_schema.grouping_column:
+            raise ValueError(
+                "Map must set augment=True to ensure that "
+                f"grouping column '{input_schema.grouping_column}' is not lost."
+            )
+        if input_schema.id_column:
+            raise ValueError(
+                "Map must set augment=True to ensure that "
+                f"ID column '{input_schema.id_column}' is not lost."
+            )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+        new_columns = self.schema_new_columns.column_descs
+        # Any column created by Map could contain a null value
+        for name in list(new_columns.keys()):
+            new_columns[name] = replace(new_columns[name], allow_null=True)
+
+        if self.augment:
             return Schema(
                 {**input_schema, **new_columns},
                 grouping_column=input_schema.grouping_column,
                 id_column=input_schema.id_column,
                 id_space=input_schema.id_space,
             )
-        elif input_schema.grouping_column:
-            raise ValueError(
-                "Map must set augment=True to ensure that "
-                f"grouping column '{input_schema.grouping_column}' is not lost."
-            )
-        elif input_schema.id_column:
-            raise ValueError(
-                "Map must set augment=True to ensure that "
-                f"ID column '{input_schema.id_column}' is not lost."
-            )
-        return Schema(
-            new_columns,
-            grouping_column=self.schema_new_columns.grouping_column,
-            id_column=self.schema_new_columns.id_column,
-            id_space=self.schema_new_columns.id_space,
-        )
+        # If augment=False, there is no grouping column nor ID column
+        return Schema(new_columns)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -589,9 +609,8 @@ class FlatMap(QueryExpr):
                 "columns, grouping flat map can only result in 1 new column"
             )
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema):
+        """Validation checks for this QueryExpr."""
         if self.schema_new_columns.grouping_column is not None:
             if input_schema.grouping_column:
                 raise ValueError(
@@ -603,14 +622,8 @@ class FlatMap(QueryExpr):
                     "Grouping flat map cannot be used on tables with "
                     "the AddRowsWithID protected change."
                 )
-            grouping_column = self.schema_new_columns.grouping_column
-        else:
-            grouping_column = input_schema.grouping_column
 
         new_columns = self.schema_new_columns.column_descs
-        # Any column created by the FlatMap could contain a null value
-        for name in list(new_columns.keys()):
-            new_columns[name] = replace(new_columns[name], allow_null=True)
         if self.augment:
             overlapping_columns = set(input_schema.keys()) & set(new_columns.keys())
             if overlapping_columns:
@@ -619,29 +632,42 @@ class FlatMap(QueryExpr):
                     "existing columns, but found new columns that "
                     f"already exist: {', '.join(overlapping_columns)}"
                 )
+            return
+        if input_schema.grouping_column:
+            raise ValueError(
+                "Flat map must set augment=True to ensure that "
+                f"grouping column '{input_schema.grouping_column}' is not lost."
+            )
+        if input_schema.id_column:
+            raise ValueError(
+                "Flat map must set augment=True to ensure that "
+                f"ID column '{input_schema.id_column}' is not lost."
+            )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+
+        grouping_column = (
+            self.schema_new_columns.grouping_column
+            if self.schema_new_columns.grouping_column is not None
+            else input_schema.grouping_column
+        )
+        new_columns = self.schema_new_columns.column_descs
+        # Any column created by the FlatMap could contain a null value
+        for name in list(new_columns.keys()):
+            new_columns[name] = replace(new_columns[name], allow_null=True)
+
+        if self.augment:
             return Schema(
                 {**input_schema, **new_columns},
                 grouping_column=grouping_column,
                 id_column=input_schema.id_column,
                 id_space=input_schema.id_space,
             )
-        elif input_schema.grouping_column:
-            raise ValueError(
-                "Flat map must set augment=True to ensure that "
-                f"grouping column '{input_schema.grouping_column}' is not lost."
-            )
-        elif input_schema.id_column:
-            raise ValueError(
-                "Flat map must set augment=True to ensure that "
-                f"ID column '{input_schema.id_column}' is not lost."
-            )
-
-        return Schema(
-            new_columns,
-            grouping_column=grouping_column,
-            id_column=self.schema_new_columns.id_column,
-            id_space=self.schema_new_columns.id_space,
-        )
+        # If augment=False, there is no grouping column nor ID column
+        return Schema(new_columns)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -693,13 +719,9 @@ class FlatMapByID(QueryExpr):
         """Visit this QueryExpr with visitor."""
         return visitor.visit_flat_map_by_id(self)
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
-        id_column = input_schema.id_column
-        new_columns = self.schema_new_columns.column_descs
-
-        if not id_column:
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
+        if not input_schema.id_column:
             raise ValueError(
                 "Flat-map-by-ID may only be used on tables with ID columns."
             )
@@ -707,16 +729,23 @@ class FlatMapByID(QueryExpr):
             raise AnalyticsInternalError(
                 "Encountered table with both an ID column and a grouping column."
             )
-        if id_column in new_columns:
+        if input_schema.id_column in self.schema_new_columns.column_descs:
             raise ValueError(
                 "Flat-map-by-ID mapping function output cannot include ID column."
             )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+
+        id_column = input_schema.id_column
+        new_columns = self.schema_new_columns.column_descs
 
         for name in list(new_columns.keys()):
             new_columns[name] = replace(new_columns[name], allow_null=True)
         return Schema(
             {id_column: input_schema[id_column], **new_columns},
-            grouping_column=None,
             id_column=id_column,
             id_space=input_schema.id_space,
         )
@@ -879,6 +908,25 @@ class JoinPrivate(QueryExpr):
             if len(self.join_columns) != len(set(self.join_columns)):
                 raise ValueError("Join columns must be distinct")
 
+    def _validate(self, left_schema: Schema, right_schema: Schema):
+        """Validation checks for this QueryExpr."""
+        if left_schema.id_column != right_schema.id_column:
+            if left_schema.id_column is None or right_schema.id_column is None:
+                raise ValueError(
+                    "Private joins can only be performed between two tables "
+                    "with the same type of protected change"
+                )
+            raise ValueError(
+                "Private joins between tables with the AddRowsWithID "
+                "protected change are only possible when the ID columns of "
+                "the two tables have the same name"
+            )
+        if left_schema.id_space != right_schema.id_space:
+            raise ValueError(
+                "Private joins between tables with the AddRowsWithID protected change"
+                " are only possible when both tables are in the same ID space"
+            )
+
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
 
@@ -892,34 +940,12 @@ class JoinPrivate(QueryExpr):
         """
         left_schema = self.child.schema(catalog)
         right_schema = self.right_operand_expr.schema(catalog)
-        if left_schema.id_column != right_schema.id_column:
-            if left_schema.id_column is None or right_schema.id_column is None:
-                raise ValueError(
-                    "Private joins can only be performed between two tables "
-                    "with the same type of protected change"
-                )
-            raise ValueError(
-                "Private joins between tables with the AddRowsWithID "
-                "protected change are only possible when the ID columns of "
-                "the two tables have the same name"
-            )
-        if (
-            left_schema.id_space
-            and right_schema.id_space
-            and left_schema.id_space != right_schema.id_space
-        ):
-            raise ValueError(
-                "Private joins between tables with the AddRowsWithID protected change"
-                " are only possible when both tables are in the same ID space"
-            )
-        join_id_space: Optional[str] = None
-        if left_schema.id_space and right_schema.id_space:
-            join_id_space = left_schema.id_space
+        self._validate(left_schema, right_schema)
         return _schema_for_join(
             left_schema=left_schema,
             right_schema=right_schema,
             join_columns=self.join_columns,
-            join_id_space=join_id_space,
+            join_id_space=left_schema.id_space,
         )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -963,6 +989,15 @@ class JoinPublic(QueryExpr):
                 f"Invalid join type '{self.how}': must be 'inner' or 'left'"
             )
 
+    def _validate(self, catalog: Catalog):
+        """Validation checks for this QueryExpr."""
+        if isinstance(self.public_table, str):
+            if not isinstance(catalog.tables[self.public_table], PublicTable):
+                raise ValueError(
+                    f"Attempted public join on table '{self.public_table}', "
+                    "which is not a public table"
+                )
+
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
 
@@ -970,14 +1005,9 @@ class JoinPublic(QueryExpr):
         table is the left table.
         """
         input_schema = self.child.schema(catalog)
+        self._validate(catalog)
         if isinstance(self.public_table, str):
-            public_table = catalog.tables[self.public_table]
-            if not isinstance(public_table, PublicTable):
-                raise ValueError(
-                    f"Attempted public join on table '{self.public_table}', "
-                    "which is not a public table"
-                )
-            right_schema = public_table.schema
+            right_schema = catalog.tables[self.public_table].schema
         else:
             right_schema = Schema(
                 spark_schema_to_analytics_columns(self.public_table.schema)
@@ -1093,9 +1123,8 @@ class ReplaceNullAndNan(QueryExpr):
             FrozenDict,
         )
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in self.replace_with
@@ -1116,23 +1145,26 @@ class ReplaceNullAndNan(QueryExpr):
                 RuntimeWarning,
             )
 
-        if len(self.replace_with) != 0:
-            pytypes = analytics_to_py_types(input_schema)
-            for col, val in self.replace_with.items():
-                if col not in input_schema.keys():
+        pytypes = analytics_to_py_types(input_schema)
+        for col, val in self.replace_with.items():
+            if col not in input_schema.keys():
+                raise ValueError(
+                    f"Column '{col}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}"
+                )
+            if not isinstance(val, pytypes[col]):
+                # Using an int as a float is OK
+                if not (isinstance(val, int) and pytypes[col] == float):
                     raise ValueError(
-                        f"Column '{col}' does not exist in this table, "
-                        f"available columns are {list(input_schema.keys())}"
+                        f"Column '{col}' cannot have nulls replaced with "
+                        f"{repr(val)}, as that value's type does not match the "
+                        f"column type {input_schema[col].column_type.name}"
                     )
-                if not isinstance(val, pytypes[col]):
-                    # it's okay to use an int as a float
-                    # so don't raise an error in that case
-                    if not (isinstance(val, int) and pytypes[col] == float):
-                        raise ValueError(
-                            f"Column '{col}' cannot have nulls replaced with "
-                            f"{repr(val)}, as that value's type does not match the "
-                            f"column type {input_schema[col].column_type.name}"
-                        )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
 
         columns_to_change = list(dict(self.replace_with).keys())
         if len(columns_to_change) == 0:
@@ -1196,10 +1228,8 @@ class ReplaceInfinity(QueryExpr):
         object.__setattr__(self, "replace_with", FrozenDict.from_dict(updated_dict))
         object.__setattr__(self, "child", child)
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
-
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in self.replace_with
@@ -1208,12 +1238,30 @@ class ReplaceInfinity(QueryExpr):
                 "Cannot replace infinite values in column "
                 f"'{input_schema.grouping_column}', as it is a grouping column"
             )
-        # Float-valued columns cannot be ID columns, but include this to be safe.
         if input_schema.id_column and input_schema.id_column in self.replace_with:
             raise ValueError(
                 f"Cannot replace infinite values in column '{input_schema.id_column}', "
                 "as it is an ID column"
             )
+
+        for name in self.replace_with:
+            if name not in input_schema.keys():
+                raise ValueError(
+                    f"Column '{name}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}"
+                )
+            if input_schema[name].column_type != ColumnType.DECIMAL:
+                raise ValueError(
+                    f"Column '{name}' has a replacement value provided, but it is "
+                    f"of type {input_schema[name].column_type.name} (not "
+                    f"{ColumnType.DECIMAL.name}) and so cannot "
+                    "contain infinite values"
+                )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
 
         columns_to_change = list(self.replace_with.keys())
         if len(columns_to_change) == 0:
@@ -1222,20 +1270,6 @@ class ReplaceInfinity(QueryExpr):
                 for col in input_schema.column_descs.keys()
                 if input_schema[col].column_type == ColumnType.DECIMAL
             ]
-        else:
-            for name in self.replace_with:
-                if name not in input_schema.keys():
-                    raise ValueError(
-                        f"Column '{name}' does not exist in this table, "
-                        f"available columns are {list(input_schema.keys())}"
-                    )
-                if input_schema[name].column_type != ColumnType.DECIMAL:
-                    raise ValueError(
-                        f"Column '{name}' has a replacement value provided, but it is "
-                        f"of type {input_schema[name].column_type.name} (not "
-                        f"{ColumnType.DECIMAL.name}) and so cannot "
-                        "contain infinite values"
-                    )
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -1281,9 +1315,8 @@ class DropNullAndNan(QueryExpr):
         check_type(self.child, QueryExpr)
         check_type(self.columns, Tuple[str, ...])
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in self.columns
@@ -1298,11 +1331,23 @@ class DropNullAndNan(QueryExpr):
                 "as it is an ID column."
             )
         if input_schema.id_column and len(self.columns) == 0:
-            warning.warn(
+            warnings.warn(
                 f"Replacing null values in the ID column '{input_schema.id_column}' "
                 "is not allowed, so the ID column may still contain null values.",
                 RuntimeWarning,
             )
+        for name in self.columns:
+            if name not in input_schema.keys():
+                raise ValueError(
+                    f"Column '{name}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}"
+                )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
+
         columns = self.columns
         if len(columns) == 0:
             columns = tuple(
@@ -1311,13 +1356,7 @@ class DropNullAndNan(QueryExpr):
                 if (cd.allow_null or cd.allow_nan)
                 and not name in [input_schema.grouping_column, input_schema.id_column]
             )
-        else:
-            for name in columns:
-                if name not in input_schema.keys():
-                    raise ValueError(
-                        f"Column '{name}' does not exist in this table, "
-                        f"available columns are {list(input_schema.keys())}"
-                    )
+
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -1356,10 +1395,8 @@ class DropInfinity(QueryExpr):
         check_type(self.child, QueryExpr)
         check_type(self.columns, Tuple[str, ...])
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExp."""
-        input_schema = self.child.schema(catalog)
-
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if (
             input_schema.grouping_column
             and input_schema.grouping_column in self.columns
@@ -1374,6 +1411,25 @@ class DropInfinity(QueryExpr):
                 f"Cannot drop infinite values in column '{input_schema.id_column}', "
                 "as it is an ID column"
             )
+        for name in self.columns:
+            if name not in input_schema.keys():
+                raise ValueError(
+                    f"Column '{name}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}"
+                )
+            if input_schema[name].column_type != ColumnType.DECIMAL:
+                raise ValueError(
+                    f"Column '{name}' was given as a column to drop "
+                    "infinite values from, but it is of type"
+                    f"{input_schema[name].column_type.name} (not "
+                    f"{ColumnType.DECIMAL.name}) and so cannot "
+                    "contain infinite values"
+                )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExp."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
 
         columns = self.columns
         if len(columns) == 0:
@@ -1382,21 +1438,6 @@ class DropInfinity(QueryExpr):
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_inf) and not name == input_schema.grouping_column
             )
-        else:
-            for name in columns:
-                if name not in input_schema.keys():
-                    raise ValueError(
-                        f"Column '{name}' does not exist in this table, "
-                        f"available columns are {list(input_schema.keys())}"
-                    )
-                if input_schema[name].column_type != ColumnType.DECIMAL:
-                    raise ValueError(
-                        f"Column '{name}' was given as a column to drop "
-                        "infinite values from, but it is of type"
-                        f"{input_schema[name].column_type.name} (not "
-                        f"{ColumnType.DECIMAL.name}) and so cannot "
-                        "contain infinite values"
-                    )
 
         return Schema(
             {
@@ -1432,10 +1473,8 @@ class EnforceConstraint(QueryExpr):
     Appropriate values here vary depending on the constraint. These options are
     to support advanced use cases, and generally should not be used."""
 
-    def schema(self, catalog: Catalog) -> Schema:
-        """Returns the schema resulting from evaluating this QueryExpr."""
-        input_schema = self.child.schema(catalog)
-
+    def _validate(self, input_schema: Schema):
+        """Validation checks for this QueryExpr."""
         if not input_schema.id_column:
             raise ValueError(
                 f"Constraint {self.constraint} can only be applied to tables"
@@ -1454,6 +1493,11 @@ class EnforceConstraint(QueryExpr):
                     f"The grouping column of constraint {self.constraint} cannot be"
                     " the ID column of the table it is applied to"
                 )
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Returns the schema resulting from evaluating this QueryExpr."""
+        input_schema = self.child.schema(catalog)
+        self._validate(input_schema)
         return input_schema
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -1461,7 +1505,7 @@ class EnforceConstraint(QueryExpr):
         return visitor.visit_enforce_constraint(self)
 
 
-def _schema_for_groupby(
+def _validate_groupby(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
@@ -1472,19 +1516,9 @@ def _schema_for_groupby(
         "GroupByCountDistinct",
         "GroupByQuantile",
     ],
-    catalog: Catalog,
-) -> Schema:
-    """Validates and returns the schema of a group-by QueryExpr.
-
-    Args:
-        query: Query expression to be validated.
-        catalog: The catalog.
-
-    Returns:
-        Output schema of current QueryExpr
-    """
-    input_schema = query.child.schema(catalog)
-
+    input_schema: Schema,
+):
+    """Validates the arguments of a group-by QueryExpr."""
     # Validating group-by columns
     if isinstance(query.groupby_keys, KeySet):
         # Checks that the KeySet is valid
@@ -1566,6 +1600,27 @@ def _schema_for_groupby(
                 "AddRowsWithID protected change."
             )
 
+
+def _schema_for_groupby(
+    query: Union[
+        "GetBounds",
+        "GroupByBoundedAverage",
+        "GroupByBoundedSTDEV",
+        "GroupByBoundedSum",
+        "GroupByBoundedVariance",
+        "GroupByCount",
+        "GroupByCountDistinct",
+        "GroupByQuantile",
+    ],
+    input_schema: Schema,
+) -> Schema:
+    """Returns the schema of a group-by QueryExpr."""
+    groupby_columns = (
+        query.groupby_keys.schema().keys()
+        if isinstance(query.groupby_keys, KeySet)
+        else query.groupby_keys
+    )
+
     # Determining the output column types & names
     if isinstance(query, (GroupByCount, GroupByCountDistinct)):
         output_column_type = ColumnType.INTEGER
@@ -1636,7 +1691,9 @@ class GroupByCount(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1676,7 +1733,9 @@ class GroupByCountDistinct(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1741,7 +1800,9 @@ class GroupByQuantile(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1806,7 +1867,9 @@ class GroupByBoundedSum(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1871,7 +1934,9 @@ class GroupByBoundedAverage(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1936,7 +2001,9 @@ class GroupByBoundedVariance(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2002,7 +2069,9 @@ class GroupByBoundedSTDEV(QueryExpr):
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
-        return _schema_for_groupby(self, catalog)
+        input_schema = self.child.schema(catalog)
+        _validate_groupby(self, input_schema)
+        return _schema_for_groupby(self, input_schema)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""

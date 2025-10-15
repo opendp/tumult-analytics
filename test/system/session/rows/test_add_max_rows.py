@@ -529,8 +529,8 @@ class TestSession:
             column="str_column",
             protected_change=AddOneRow(),
             error_type=ValueError,
-            message="Cannot get bounds for column 'str_column',"
-            " which is of type VARCHAR",
+            message="GetBounds query's measure column 'str_column' has invalid type"
+            " 'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'",
         ),
         Case("missing_column")(
             data=pd.DataFrame(
@@ -540,8 +540,8 @@ class TestSession:
             column="column_does_not_exist",
             protected_change=AddOneRow(),
             error_type=ValueError,
-            message="Cannot get bounds for column 'column_does_not_exist',"
-            " which does not exist",
+            message="GetBounds query's measure column 'column_does_not_exist'"
+            " does not exist",
         ),
         Case("id_column")(
             data=pd.DataFrame(
@@ -551,7 +551,8 @@ class TestSession:
             column="id_column",
             protected_change=AddRowsWithID("id_column"),
             error_type=ValueError,
-            message="get_bounds cannot be used on the privacy ID column",
+            message="GetBounds query's measure column is the same as the privacy ID "
+            "column\(id_column\)",
         ),
     )
     def test_get_bounds_invalid_columns(
