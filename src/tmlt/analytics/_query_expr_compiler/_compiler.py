@@ -136,6 +136,7 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
+        # Computing the schema validates that the query is well-formed.
         query.schema(catalog)
 
         visitor = MeasurementVisitor(
@@ -206,8 +207,6 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
-        query.schema(catalog)
-
         transformation_visitor = TransformationVisitor(
             input_domain=input_domain,
             input_metric=input_metric,
