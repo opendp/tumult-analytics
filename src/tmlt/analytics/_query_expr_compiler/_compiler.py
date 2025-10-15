@@ -136,6 +136,8 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
+        query.schema(catalog)
+
         visitor = MeasurementVisitor(
             privacy_budget=privacy_budget,
             stability=stability,
