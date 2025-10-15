@@ -288,7 +288,7 @@ class QueryBuilder:
             source_id: The source id used in the query_expr.
         """
         self._source_id: str = source_id
-        self._query_expr: QueryExpr = PrivateSource(source_id)
+        self._query_expr: QueryExpr = PrivateSource(source_id=source_id)
 
     def clone(self) -> QueryBuilder:  # noqa: D102
         # Returns a new QueryBuilder with the same partial query as the current one.
@@ -586,11 +586,11 @@ class QueryBuilder:
         if isinstance(right_operand, str):
             right_operand = QueryBuilder(right_operand)
         self._query_expr = JoinPrivate(
-            self._query_expr,
-            right_operand._query_expr,
-            truncation_strategy_left,
-            truncation_strategy_right,
-            tuple(join_columns) if join_columns is not None else None,
+            child=self._query_expr,
+            right_operand_expr=right_operand._query_expr,
+            truncation_strategy_left=truncation_strategy_left,
+            truncation_strategy_right=truncation_strategy_right,
+            join_columns=tuple(join_columns) if join_columns is not None else None,
         )
         return self
 
@@ -1735,7 +1735,9 @@ class QueryBuilder:
             constraint: The constraint to enforce.
         """
         self._query_expr = EnforceConstraint(
-            self._query_expr, constraint, options=FrozenDict.from_dict({})
+            child=self._query_expr,
+            constraint=constraint,
+            options=FrozenDict.from_dict({})
         )
         return self
 

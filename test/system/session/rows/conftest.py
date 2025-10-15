@@ -65,7 +65,7 @@ EVALUATE_TESTS = [
         # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP)
         QueryBuilder("private").count(name="total"),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
         ),
@@ -75,7 +75,7 @@ EVALUATE_TESTS = [
         # (Geometric noise gets applied if PureDP; Gaussian noise gets applied if ZCDP)
         QueryBuilder("private").count_distinct(name="total"),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
         ),
@@ -84,7 +84,7 @@ EVALUATE_TESTS = [
     (  # Total with LAPLACE (Geometric noise gets applied)
         QueryBuilder("private").count(name="total", mechanism=CountMechanism.LAPLACE),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
             mechanism=CountMechanism.LAPLACE,
@@ -96,7 +96,7 @@ EVALUATE_TESTS = [
             name="total", mechanism=CountDistinctMechanism.LAPLACE
         ),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
             mechanism=CountDistinctMechanism.LAPLACE,
@@ -108,7 +108,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
         .count(),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
         ),
         pd.DataFrame(
@@ -120,7 +120,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}))
         .count_distinct(),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
         ),
         pd.DataFrame(
@@ -136,7 +136,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dataframe(GET_GROUPBY_TWO_COLUMNS()))
         .count(),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO_COLUMNS()),
         ),
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
@@ -146,7 +146,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dataframe(GET_GROUPBY_TWO_COLUMNS()))
         .count_distinct(),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO_COLUMNS()),
         ),
         pd.DataFrame(
@@ -158,7 +158,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT))
         .count(),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
@@ -168,7 +168,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT))
         .count_distinct(),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict(GROUPBY_ONE_COLUMN_DICT),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
@@ -178,7 +178,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dataframe(GET_GROUPBY_WITH_DUPLICATES()))
         .count(),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_WITH_DUPLICATES()),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
@@ -188,7 +188,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dataframe(GET_GROUPBY_WITH_DUPLICATES()))
         .count_distinct(),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_WITH_DUPLICATES()),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
@@ -196,7 +196,7 @@ EVALUATE_TESTS = [
     (  # empty public source
         QueryBuilder("private").groupby(KeySet.from_dict({})).count(),
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [4]}),
@@ -204,7 +204,7 @@ EVALUATE_TESTS = [
     (  # empty public source
         QueryBuilder("private").groupby(KeySet.from_dict({})).count_distinct(),
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [4]}),
@@ -214,7 +214,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A": ["0", "1"]}))
         .sum(column="X", low=0, high=1, name="sum"),
         GroupByBoundedSum(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0,
@@ -232,7 +232,7 @@ EVALUATE_TESTS = [
             child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda _: [{}, {}],
                     max_rows=2,
                     schema_new_columns=Schema({}),
@@ -269,7 +269,7 @@ EVALUATE_TESTS = [
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                         max_rows=1,
                         schema_new_columns=Schema({"Repeat": "INTEGER"}),
@@ -314,7 +314,7 @@ EVALUATE_TESTS = [
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                         max_rows=1,
                         schema_new_columns=Schema(
@@ -359,7 +359,7 @@ EVALUATE_TESTS = [
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                         max_rows=1,
                         schema_new_columns=Schema(
@@ -431,7 +431,7 @@ EVALUATE_TESTS = [
     (  # GroupByCount Filter
         QueryBuilder("private").filter("A == '0'").count(),
         GroupByCount(
-            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
+            child=Filter(child=PrivateSource(source_id="private"), condition="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [3]}),
@@ -439,7 +439,7 @@ EVALUATE_TESTS = [
     (  # GroupByCountDistinct Filter
         QueryBuilder("private").filter("A == '0'").count_distinct(),
         GroupByCountDistinct(
-            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
+            child=Filter(child=PrivateSource(source_id="private"), condition="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [3]}),
@@ -447,7 +447,7 @@ EVALUATE_TESTS = [
     (  # GroupByCount Select
         QueryBuilder("private").select(["A"]).count(),
         GroupByCount(
-            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
+            child=Select(child=PrivateSource(source_id="private"), columns=tuple(["A"])),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [4]}),
@@ -455,7 +455,7 @@ EVALUATE_TESTS = [
     (  # GroupByCountDistinct Select
         QueryBuilder("private").select(["A"]).count_distinct(),
         GroupByCountDistinct(
-            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
+            child=Select(child=PrivateSource(source_id="private"), columns=tuple(["A"])),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count_distinct": [2]}),
@@ -474,7 +474,7 @@ EVALUATE_TESTS = [
             child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
                     schema_new_columns=Schema({"C": "VARCHAR"}),
                     augment=True,
@@ -501,7 +501,7 @@ EVALUATE_TESTS = [
             child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
                     schema_new_columns=Schema({"C": "VARCHAR"}),
                     augment=True,
@@ -520,7 +520,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A+B": [0, 1, 2]}))
         .count(),
         GroupByCount(
-            child=JoinPublic(child=PrivateSource("private"), public_table="public"),
+            child=JoinPublic(child=PrivateSource(source_id="private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count": [3, 4, 1]}),
@@ -532,7 +532,7 @@ EVALUATE_TESTS = [
         .count(),
         GroupByCount(
             child=JoinPublic(
-                child=PrivateSource("private"), public_table="public", how="left"
+                child=PrivateSource(source_id="private"), public_table="public", how="left"
             ),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
@@ -544,7 +544,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A+B": [0, 1, 2]}))
         .count_distinct(),
         GroupByCountDistinct(
-            child=JoinPublic(child=PrivateSource("private"), public_table="public"),
+            child=JoinPublic(child=PrivateSource(source_id="private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count_distinct": [3, 4, 1]}),
@@ -556,7 +556,7 @@ EVALUATE_TESTS = [
         .count(),
         GroupByCount(
             child=JoinPublic(
-                child=PrivateSource("private"), public_table="join_dtypes"
+                child=PrivateSource(source_id="private"), public_table="join_dtypes"
             ),
             groupby_keys=KeySet.from_dict({"DATE": [_DATE1, _DATE2]}),
         ),
@@ -568,7 +568,7 @@ EVALUATE_TESTS = [
         .count_distinct(columns=["DATE"]),
         GroupByCountDistinct(
             child=JoinPublic(
-                child=PrivateSource("private"), public_table="join_dtypes"
+                child=PrivateSource(source_id="private"), public_table="join_dtypes"
             ),
             columns_to_count=tuple(["DATE"]),
             output_column="count_distinct(DATE)",
@@ -631,7 +631,7 @@ EVALUATE_TESTS = [
         .suppress(1),
         SuppressAggregates(
             child=GroupByCount(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
             ),
             column="count",

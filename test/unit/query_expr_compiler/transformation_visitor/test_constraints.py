@@ -47,7 +47,8 @@ class TestConstraints(TestTransformationVisitor):
     def test_max_rows_per_id(self, constraint_max: int):
         """Test truncation with MaxRowsPerID."""
         constraint = MaxRowsPerID(constraint_max)
-        query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
+        query = EnforceConstraint(child=PrivateSource(source_id="ids_duplicates"),
+                          constraint=constraint)
         transformation, ref, constraints = query.accept(self.visitor)
         assert len(constraints) == 1
         assert constraints[0] == constraint
@@ -69,7 +70,7 @@ class TestConstraints(TestTransformationVisitor):
     def test_max_groups_per_id(self, grouping_col: str, constraint_max: int):
         """Test truncation with MaxGroupsPerID."""
         constraint = MaxGroupsPerID(grouping_col, constraint_max)
-        query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
+        query = EnforceConstraint(child=PrivateSource(source_id="ids_duplicates"), constraint=constraint)
         transformation, ref, constraints = query.accept(self.visitor)
         assert len(constraints) == 1
         assert constraints[0] == constraint
@@ -92,7 +93,8 @@ class TestConstraints(TestTransformationVisitor):
     def test_max_rows_per_group_per_id(self, constraint_max: int, grouping_col: str):
         """Test truncation with MaxRowsPerGroupPerID."""
         constraint = MaxRowsPerGroupPerID(grouping_col, constraint_max)
-        query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
+        query = EnforceConstraint(child=PrivateSource(source_id="ids_duplicates"),
+                          constraint=constraint)
         transformation, ref, constraints = query.accept(self.visitor)
         assert len(constraints) == 1
         assert constraints[0] == constraint
@@ -116,8 +118,8 @@ class TestConstraints(TestTransformationVisitor):
         """Test L1 truncation with updating metric."""
         constraint = MaxRowsPerID(constraint_max)
         query = EnforceConstraint(
-            PrivateSource("ids_duplicates"),
-            constraint,
+            child=PrivateSource(source_id="ids_duplicates"),
+            constraint=constraint,
             options=FrozenDict.from_dict({"update_metric": True}),
         )
         transformation, ref, constraints = query.accept(self.visitor)
@@ -147,12 +149,12 @@ class TestConstraints(TestTransformationVisitor):
     ):
         """Test L0 + L-inf truncation with updating metric."""
         query = EnforceConstraint(
-            EnforceConstraint(
-                PrivateSource("ids_duplicates"),
-                MaxGroupsPerID(grouping_col, group_max),
+            child=EnforceConstraint(
+                child=PrivateSource(source_id="ids_duplicates"),
+                constraint=MaxGroupsPerID(grouping_col, group_max),
                 options=FrozenDict.from_dict({"update_metric": True}),
             ),
-            MaxRowsPerGroupPerID(grouping_col, row_max),
+            constraint=MaxRowsPerGroupPerID(grouping_col, row_max),
             options=FrozenDict.from_dict({"update_metric": True}),
         )
         transformation, ref, constraints = query.accept(self.visitor)

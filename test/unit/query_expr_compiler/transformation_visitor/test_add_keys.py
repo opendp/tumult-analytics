@@ -95,7 +95,7 @@ class TestAddKeys(TestTransformationVisitor):
     @pytest.mark.parametrize("source_id", ["ids1", "ids2"])
     def test_visit_private_source(self, source_id: str) -> None:
         """Test generating transformations from a PrivateSource."""
-        query = PrivateSource(source_id)
+        query = PrivateSource(source_id=source_id)
         transformation, reference, constraints = query.accept(self.visitor)
         assert reference.path == [TableCollection("ids"), NamedTable(source_id)]
         assert isinstance(transformation, IdentityTransformation)
@@ -103,7 +103,7 @@ class TestAddKeys(TestTransformationVisitor):
 
     def test_invalid_private_source(self) -> None:
         """Test that invalid PrivateSource expressions are handled."""
-        query = PrivateSource("nonexistent")
+        query = PrivateSource(source_id="nonexistent")
         with pytest.raises(ValueError, match="Table 'nonexistent' does not exist"):
             query.accept(self.visitor)
 
@@ -140,7 +140,7 @@ class TestAddKeys(TestTransformationVisitor):
         self, mapper: Dict[str, str], expected_df: DataFrame, grouping_column: str
     ) -> None:
         """Test generating transformations from a Rename."""
-        query = Rename(PrivateSource("ids1"), FrozenDict.from_dict(mapper))
+        query = Rename(child=PrivateSource(source_id="ids1"), column_mapper=FrozenDict.from_dict(mapper))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(
             transformation, reference, query, grouping_column
@@ -163,7 +163,7 @@ class TestAddKeys(TestTransformationVisitor):
     )
     def test_visit_filter(self, filter_expr: str, expected_df: DataFrame) -> None:
         """Test visit_filter."""
-        query = Filter(PrivateSource(source_id="ids1"), filter_expr)
+        query = Filter(child=PrivateSource(source_id="ids1"), condition=filter_expr)
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -181,7 +181,7 @@ class TestAddKeys(TestTransformationVisitor):
     )
     def test_visit_select(self, columns: List[str], expected_df: DataFrame) -> None:
         """Test generating transformations from a Select."""
-        query = Select(PrivateSource(source_id="ids1"), tuple(columns))
+        query = Select(child=PrivateSource(source_id="ids1"), columns=tuple(columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -192,9 +192,9 @@ class TestAddKeys(TestTransformationVisitor):
         [
             (
                 Map(
-                    PrivateSource("ids1"),
-                    lambda row: {"X": 2 * str(row["S"])},
-                    Schema({"X": "VARCHAR"}),
+                    child=PrivateSource(source_id="ids1"),
+                    f=lambda row: {"X": 2 * str(row["S"])},
+                    schema_new_columns=Schema({"X": "VARCHAR"}),
                     augment=True,
                 ),
                 pd.DataFrame(
@@ -204,9 +204,9 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 Map(
-                    PrivateSource("ids1"),
-                    lambda row: {"X": 2 * str(row["S"]), "Y": row["I"] + 2 * row["F"]},
-                    Schema({"X": "VARCHAR", "Y": "DECIMAL"}),
+                    child=PrivateSource(source_id="ids1"),
+                    f=lambda row: {"X": 2 * str(row["S"]), "Y": row["I"] + 2 * row["F"]},
+                    schema_new_columns=Schema({"X": "VARCHAR", "Y": "DECIMAL"}),
                     augment=True,
                 ),
                 pd.DataFrame(
@@ -225,7 +225,8 @@ class TestAddKeys(TestTransformationVisitor):
 
     def test_visit_map_invalid(self) -> None:
         """Test that invalid Map expressions are handled."""
-        query = Map(PrivateSource("ids1"), lambda row: {}, Schema({}), augment=False)
+        query = Map(child=PrivateSource(source_id="ids1"), f=lambda row: {},
+                    schema_new_columns=Schema({}), augment=False)
         with pytest.raises(ValueError, match="Maps on tables.*must be augmenting"):
             query.accept(self.visitor)
 
@@ -234,7 +235,7 @@ class TestAddKeys(TestTransformationVisitor):
         [
             (
                 FlatMap(
-                    child=PrivateSource("ids1"),
+                    child=PrivateSource(source_id="ids1"),
                     f=lambda row: [{"S_is_zero": 1 if row["S"] == "0" else 2}],
                     schema_new_columns=Schema({"S_is_zero": "INTEGER"}),
                     augment=True,
@@ -247,7 +248,7 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 FlatMap(
-                    child=PrivateSource("ids1"),
+                    child=PrivateSource(source_id="ids1"),
                     f=lambda row: [{"X": n} for n in range(row["I"] + 4)],
                     schema_new_columns=Schema({"X": "INTEGER"}),
                     augment=True,
@@ -275,9 +276,9 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_flatmap_invalid(self) -> None:
         """Test that invalid FlatMap expressions are handled."""
         query = FlatMap(
-            PrivateSource("ids1"),
-            lambda row: [{}],
-            Schema({}),
+            child=PrivateSource(source_id="ids1"),
+            f=lambda row: [{}],
+            schema_new_columns=Schema({}),
             augment=False,
             max_rows=1,
         )
@@ -285,9 +286,9 @@ class TestAddKeys(TestTransformationVisitor):
             query.accept(self.visitor)
 
         query = FlatMap(
-            PrivateSource("ids1"),
-            lambda row: [{"X": row["I"]}],
-            Schema({"X": "INTEGER"}, "X"),
+            child=PrivateSource(source_id="ids1"),
+            f=lambda row: [{"X": row["I"]}],
+            schema_new_columns=Schema({"X": "INTEGER"}, "X"),
             augment=True,
             max_rows=1,
         )
@@ -295,9 +296,9 @@ class TestAddKeys(TestTransformationVisitor):
             query.accept(self.visitor)
 
         query = FlatMap(
-            PrivateSource("ids1"),
-            lambda row: [{"X": row["I"]}],
-            Schema({}),
+            child=PrivateSource(source_id="ids1"),
+            f=lambda row: [{"X": row["I"]}],
+            schema_new_columns=Schema({}),
             augment=True,
             max_rows=1,
         )
@@ -309,7 +310,10 @@ class TestAddKeys(TestTransformationVisitor):
         [
             (
                 JoinPrivate(
-                    PrivateSource("ids1"), PrivateSource("ids2"), None, None, None
+                    child=PrivateSource(source_id="ids1"),
+                    right_operand_expr=PrivateSource(source_id="ids2"),
+                    truncation_strategy_left=None,
+                    truncation_strategy_right=None, join_columns=None
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -318,11 +322,11 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    PrivateSource("ids1"),
-                    PrivateSource("ids2"),
-                    None,
-                    None,
-                    tuple(["id"]),
+                    child=PrivateSource(source_id="ids1"),
+                    right_operand_expr=PrivateSource(source_id="ids2"),
+                    truncation_strategy_left=None,
+                    truncation_strategy_right=None,
+                    join_columns=tuple(["id"]),
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -331,8 +335,8 @@ class TestAddKeys(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    PrivateSource("ids1"),
-                    PrivateSource("ids2"),
+                    child=PrivateSource(source_id="ids1"),
+                    right_operand_expr=PrivateSource(source_id="ids2"),
                     join_columns=tuple(["id"]),
                 ),
                 pd.DataFrame(
@@ -355,25 +359,25 @@ class TestAddKeys(TestTransformationVisitor):
         "query",
         [
             JoinPrivate(
-                PrivateSource("ids1"),
-                PrivateSource("ids2"),
-                TruncationStrategy.DropExcess(1),
-                TruncationStrategy.DropExcess(1),
-                tuple(["id"]),
+                child=PrivateSource(source_id="ids1"),
+                right_operand_expr=PrivateSource(source_id="ids2"),
+                truncation_strategy_right=TruncationStrategy.DropExcess(1),
+                truncation_strategy_left=TruncationStrategy.DropExcess(1),
+                join_columns=tuple(["id"]),
             ),
             JoinPrivate(
-                PrivateSource("ids1"),
-                PrivateSource("ids2"),
-                TruncationStrategy.DropExcess(1),
-                None,
-                tuple(["id"]),
+                child=PrivateSource(source_id="ids1"),
+                right_operand_expr=PrivateSource(source_id="ids2"),
+                truncation_strategy_right=TruncationStrategy.DropExcess(1),
+                truncation_strategy_left=None,
+                join_columns=tuple(["id"]),
             ),
             JoinPrivate(
-                PrivateSource("ids1"),
-                PrivateSource("ids2"),
-                None,
-                TruncationStrategy.DropExcess(1),
-                tuple(["id"]),
+                child=PrivateSource(source_id="ids1"),
+                right_operand_expr=PrivateSource(source_id="ids2"),
+                truncation_strategy_right=None,
+                truncation_strategy_left=TruncationStrategy.DropExcess(1),
+                join_columns=tuple(["id"]),
             ),
         ],
     )
@@ -392,14 +396,16 @@ class TestAddKeys(TestTransformationVisitor):
         "query,expected_df",
         [
             (
-                JoinPublic(PrivateSource("ids1"), "public", None),
+                JoinPublic(child=PrivateSource(source_id="ids1"),
+                           public_table="public", join_columns=None),
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],
                     columns=["id", "S", "I", "F", "D", "T", "public"],
                 ),
             ),
             (
-                JoinPublic(PrivateSource("ids1"), "public", tuple(["S"])),
+                JoinPublic(child=PrivateSource(source_id="ids1"), public_table="public",
+                           join_columns=tuple(["S"])),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "x"]],
                     columns=["id", "S", "I_left", "I_right", "F", "D", "T", "public"],
@@ -419,7 +425,8 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_join_public_df(self) -> None:
         """Test generating transformations from a JoinPublic using a dataframe."""
         query = JoinPublic(
-            PrivateSource("ids1"), self.visitor.public_sources["public"], None
+            child=PrivateSource(source_id="ids1"),
+            public_table=self.visitor.public_sources["public"], join_columns=None
         )
         expected_df = pd.DataFrame(
             [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],
@@ -478,7 +485,7 @@ class TestAddKeys(TestTransformationVisitor):
     ):
         """Test generating transformations from a ReplaceNullAndNan."""
         query = ReplaceNullAndNan(
-            PrivateSource("ids_infs_nans"), FrozenDict.from_dict(replace_with)
+            child=PrivateSource(source_id="ids_infs_nans"), replace_with=FrozenDict.from_dict(replace_with)
         )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -521,7 +528,7 @@ class TestAddKeys(TestTransformationVisitor):
     ):
         """Test generating transformations from a ReplaceInfinity."""
         query = ReplaceInfinity(
-            PrivateSource("ids_infs_nans"), FrozenDict.from_dict(replace_with)
+            child=PrivateSource(source_id="ids_infs_nans"), replace_with=FrozenDict.from_dict(replace_with)
         )
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -601,7 +608,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("ids"), tuple(query_columns))
+        query = DropNullAndNan(child=PrivateSource(source_id="ids"), columns=tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []
@@ -629,7 +636,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         self, query_columns: List[str], expected_inf_cols: List[str]
     ) -> None:
         """Test generating transformations from a DropInfinity."""
-        query = DropInfinity(PrivateSource("ids"), tuple(query_columns))
+        query = DropInfinity(child=PrivateSource(source_id="ids"), columns=tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []

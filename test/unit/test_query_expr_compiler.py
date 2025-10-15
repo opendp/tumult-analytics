@@ -85,7 +85,7 @@ GROUPBY_ONE_DICT = {"A": ["0", "1", "2"]}
 QUERY_EXPR_COMPILER_TESTS = [
     (  # Total
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
         ),
@@ -93,7 +93,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (
         GroupByCountDistinct(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
         ),
@@ -101,7 +101,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Full marginal from domain description
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
         ),
         pd.DataFrame(
@@ -110,21 +110,21 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Incomplete two-column marginal with a dataframe
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_TWO()),
         ),
         pd.DataFrame({"A": ["0", "0", "1"], "B": [0, 1, 1], "count": [2, 1, 0]}),
     ),
     (  # One-column marginal with additional value
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
         ),
         pd.DataFrame({"A": ["0", "1", "2"], "count": [3, 1, 0]}),
     ),
     (  # BoundedAverage
         GroupByBoundedAverage(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0.0,
@@ -134,7 +134,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # BoundedSTDEV
         GroupByBoundedSTDEV(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0.0,
@@ -144,7 +144,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # BoundedVariance
         GroupByBoundedVariance(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0.0,
@@ -155,7 +155,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # BoundedSum
         GroupByBoundedSum(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0.0,
@@ -166,14 +166,14 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Marginal over A
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
     ),
     (  # Marginal over B
         GroupByCount(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"B": [0, 1]}),
         ),
         pd.DataFrame({"B": [0, 1], "count": [3, 1]}),
@@ -183,7 +183,7 @@ QUERY_EXPR_COMPILER_TESTS = [
             child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: [{}, {}],
                     schema_new_columns=Schema({}),
                     augment=True,
@@ -203,7 +203,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                         schema_new_columns=Schema({"Repeat": "INTEGER"}),
                         augment=True,
@@ -228,7 +228,7 @@ QUERY_EXPR_COMPILER_TESTS = [
                 replace_with=FrozenDict.from_dict({}),
                 child=FlatMap(
                     child=FlatMap(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                         schema_new_columns=Schema(
                             {"Repeat": "INTEGER"}, grouping_column="Repeat"
@@ -251,7 +251,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Filter
         GroupByCount(
-            child=Filter(child=PrivateSource("private"), condition="A == '0'"),
+            child=Filter(child=PrivateSource(source_id="private"), condition="A == '0'"),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [3]}),
@@ -259,7 +259,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # Rename
         GroupByCount(
             child=Rename(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 column_mapper=FrozenDict.from_dict({"A": "Z"}),
             ),
             groupby_keys=KeySet.from_dict({"Z": ["0", "1"]}),
@@ -268,7 +268,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Select
         GroupByCount(
-            child=Select(child=PrivateSource("private"), columns=tuple(["A"])),
+            child=Select(child=PrivateSource(source_id="private"), columns=tuple(["A"])),
             groupby_keys=KeySet.from_dict({}),
         ),
         pd.DataFrame({"count": [4]}),
@@ -278,7 +278,7 @@ QUERY_EXPR_COMPILER_TESTS = [
             child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
                     schema_new_columns=Schema({"C": "VARCHAR"}),
                     augment=True,
@@ -293,7 +293,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # JoinPublic
         GroupByCount(
-            child=JoinPublic(child=PrivateSource("private"), public_table="public"),
+            child=JoinPublic(child=PrivateSource(source_id="private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count": [2, 2, 0]}),
@@ -301,7 +301,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (  # JoinPublic with One Join Column
         GroupByCount(
             child=JoinPublic(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 public_table="public",
                 join_columns=tuple(["A"]),
             ),
@@ -312,84 +312,89 @@ QUERY_EXPR_COMPILER_TESTS = [
     # Tests on less-common data types
     (
         GroupByCount(
-            JoinPublic(PrivateSource("private"), "dtypes"),
-            KeySet.from_dict({"A": ["0", "1"]}),
+            child=JoinPublic(child=PrivateSource(source_id="private"), public_table="dtypes"),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
     ),
     (
         GroupByCount(
-            Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
-                "date < '2022-01-02'",
+            child=Filter(
+                child=JoinPublic(child=PrivateSource(source_id="private"),
+                                 public_table="dtypes"),
+                condition="date < '2022-01-02'",
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [3, 0]}),
     ),
     (
         GroupByCount(
-            Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
-                "date = '2022-01-02'",
+            child=Filter(
+                child=JoinPublic(child=PrivateSource(source_id="private"),
+                                 public_table="dtypes"),
+                condition="date = '2022-01-02'",
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [0, 1]}),
     ),
     (
         GroupByCount(
-            Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
-                "timestamp < '2022-01-01T12:40:00'",
+            child=Filter(
+                child=JoinPublic(child=PrivateSource(source_id="private"),
+                                 public_table="dtypes"),
+                condition="timestamp < '2022-01-01T12:40:00'",
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [3, 0]}),
     ),
     (
         GroupByCount(
-            Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
-                "timestamp >= '2022-01-01T12:45:00'",
+            child=Filter(
+                child=JoinPublic(child=PrivateSource(source_id="private"), public_table="dtypes"),
+                condition="timestamp >= '2022-01-01T12:45:00'",
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [0, 1]}),
     ),
     (
         GroupByBoundedSum(
-            ReplaceNullAndNan(
+            child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    lambda row: {"day": row["date"].day},
-                    Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
+                    child=JoinPublic(child=PrivateSource(source_id="private"),
+                                     public_table="dtypes"),
+                    f=lambda row: {"day": row["date"].day},
+                    schema_new_columns=Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
                 ),
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
-            "day",
-            0,
-            2,
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="day",
+            low=0,
+            high=2,
         ),
         pd.DataFrame({"A": ["0", "1"], "sum": [3, 2]}),
     ),
     (
         GroupByBoundedSum(
-            ReplaceNullAndNan(
+            child=ReplaceNullAndNan(
                 replace_with=FrozenDict.from_dict({}),
                 child=Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
-                    lambda row: {"minute": row["timestamp"].minute},
-                    Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
+                    child=JoinPublic(child=PrivateSource(source_id="private"),
+                                     public_table="dtypes"),
+                    f=lambda row: {"minute": row["timestamp"].minute},
+                    schema_new_columns=Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
                 ),
             ),
-            KeySet.from_dict({"A": ["0", "1"]}),
-            "minute",
-            0,
-            59,
+            groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
+            measure_column="minute",
+            low=0,
+            high=59,
         ),
         pd.DataFrame({"A": ["0", "1"], "sum": [90, 45]}),
     ),
@@ -575,7 +580,7 @@ class TestQueryExprCompiler:
         [
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="total",
                 ),
@@ -583,7 +588,7 @@ class TestQueryExprCompiler:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="distinct",
                     columns_to_count=tuple(["B"]),
@@ -592,14 +597,14 @@ class TestQueryExprCompiler:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                 ),
                 pd.DataFrame([["0", 3], ["1", 1]], columns=["A", "count_distinct"]),
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     columns_to_count=tuple(["B"]),
                 ),
@@ -607,14 +612,14 @@ class TestQueryExprCompiler:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
                 ),
                 pd.DataFrame({"A": ["0", "1", "2"], "count_distinct": [3, 1, 0]}),
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
                     columns_to_count=tuple(["B"]),
                 ),
@@ -684,7 +689,7 @@ class TestQueryExprCompiler:
         [
             (  # Total with LAPLACE (Geometric noise gets applied)
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="total",
                     mechanism=CountMechanism.LAPLACE,
@@ -694,7 +699,7 @@ class TestQueryExprCompiler:
             ),
             (  # Total with GAUSSIAN
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="total",
                     mechanism=CountMechanism.GAUSSIAN,
@@ -704,7 +709,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedAverage on floating-point valued measure column with LAPLACE
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
                     low=0.0,
@@ -716,7 +721,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedAverage with integer valued measure column with LAPLACE
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -728,7 +733,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedAverage with integer valued measure column with GAUSSIAN
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -740,7 +745,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSTDEV on floating-point valued measure column with LAPLACE
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
                     low=0.0,
@@ -752,7 +757,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSTDEV on integer valued measure column with LAPLACE
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -764,7 +769,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSTDEV on integer valued measure column with GAUSSIAN
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -776,7 +781,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedVariance on floating-point valued measure column with LAPLACE
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
                     low=0.0,
@@ -789,7 +794,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedVariance on integer valued measure column with LAPLACE
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -802,7 +807,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedVariance on integer valued measure column with GAUSSIAN
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -815,7 +820,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSum on floating-point valued measure column with LAPLACE
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
                     low=0.0,
@@ -828,7 +833,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSum on integer valued measure column with LAPLACE
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -841,7 +846,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSum on integer valued measure column with GAUSSIAN
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
@@ -858,7 +863,7 @@ class TestQueryExprCompiler:
                         replace_with=FrozenDict.from_dict({}),
                         child=FlatMap(
                             child=FlatMap(
-                                child=PrivateSource("private"),
+                                child=PrivateSource(source_id="private"),
                                 f=lambda row: [{"Repeat": 1 if row["A"] == "0" else 2}],
                                 schema_new_columns=Schema(
                                     {"Repeat": "INTEGER"}, grouping_column="Repeat"
@@ -886,7 +891,7 @@ class TestQueryExprCompiler:
             (  # BoundedAverage with floating-point valued measure column with GAUSSIAN
                 [
                     GroupByBoundedAverage(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                         measure_column="X",
                         low=0.0,
@@ -900,7 +905,7 @@ class TestQueryExprCompiler:
             (  # BoundedSTDEV on floating-point valued measure column with GAUSSIAN
                 [
                     GroupByBoundedSTDEV(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                         measure_column="X",
                         low=0.0,
@@ -914,7 +919,7 @@ class TestQueryExprCompiler:
             (  # BoundedVariance on floating-point valued measure column with GAUSSIAN
                 [
                     GroupByBoundedVariance(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                         measure_column="X",
                         low=0.0,
@@ -929,7 +934,7 @@ class TestQueryExprCompiler:
             (  # BoundedSum on floating-point valued measure column with GAUSSIAN
                 [
                     GroupByBoundedSum(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                         measure_column="X",
                         low=0.0,
@@ -948,7 +953,7 @@ class TestQueryExprCompiler:
                             replace_with=FrozenDict.from_dict({}),
                             child=FlatMap(
                                 child=FlatMap(
-                                    child=PrivateSource("private"),
+                                    child=PrivateSource(source_id="private"),
                                     f=lambda row: [
                                         {"Repeat": 1 if row["A"] == "0" else 2}
                                     ],
@@ -1015,7 +1020,7 @@ class TestQueryExprCompiler:
         ).fillna(0)
 
         transformation, reference, _constraints = self.compiler.build_transformation(
-            JoinPublic(PrivateSource("private"), public_sdf),
+            JoinPublic(child=PrivateSource(source_id="private"), public_table=public_sdf),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             public_sources={},
@@ -1048,8 +1053,8 @@ class TestQueryExprCompiler:
         )
         transformation, reference, _constraints = self.compiler.build_transformation(
             JoinPrivate(
-                child=PrivateSource("private"),
-                right_operand_expr=PrivateSource("private_2"),
+                child=PrivateSource(source_id="private"),
+                right_operand_expr=PrivateSource(source_id="private_2"),
                 truncation_strategy_left=TruncationStrategy.DropExcess(3),
                 truncation_strategy_right=TruncationStrategy.DropExcess(3),
             ),
@@ -1087,8 +1092,8 @@ class TestQueryExprCompiler:
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 ),
@@ -1096,8 +1101,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(1),
                 ),
@@ -1105,8 +1110,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(1),
                     truncation_strategy_right=TruncationStrategy.DropExcess(1),
                 ),
@@ -1114,8 +1119,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                 ),
@@ -1123,8 +1128,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropNonUnique(),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                 ),
@@ -1156,8 +1161,8 @@ class TestQueryExprCompiler:
             """An invalid truncation strategy."""
 
         query = JoinPrivate(
-            child=PrivateSource("private"),
-            right_operand_expr=PrivateSource("private_2"),
+            child=PrivateSource(source_id="private"),
+            right_operand_expr=PrivateSource(source_id="private_2"),
             truncation_strategy_left=Strategy(),
             truncation_strategy_right=Strategy(),
         )
@@ -1179,7 +1184,7 @@ class TestQueryExprCompiler:
         [
             (
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda _: [{"G": "a"}, {"G": "b"}],
                     schema_new_columns=Schema({"G": "VARCHAR"}, grouping_column="G"),
                     augment=True,
@@ -1190,7 +1195,7 @@ class TestQueryExprCompiler:
             ),
             (
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda _: [{"G": "a"}, {"G": "b"}],
                     schema_new_columns=Schema({"G": "VARCHAR"}),
                     augment=True,
@@ -1229,7 +1234,7 @@ class TestQueryExprCompiler:
             )
         )
         query_expr = GroupByBoundedSum(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
             low=0.0,
@@ -1257,7 +1262,7 @@ class TestQueryExprCompiler:
             (
                 # Top-level query needs to be instance of measurement QueryExpr
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: [{}, {}],
                     schema_new_columns=Schema({}),
                     augment=True,
@@ -1267,7 +1272,7 @@ class TestQueryExprCompiler:
             (  # Query's child has to be transformation QueryExpr
                 GroupByBoundedSum(
                     child=GroupByCount(
-                        child=PrivateSource("private"),
+                        child=PrivateSource(source_id="private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
                     ),
                     groupby_keys=KeySet.from_dict({}),
@@ -1297,13 +1302,13 @@ class TestQueryExprCompiler:
         [
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                 )
             ),
             (
                 GroupByCount(
-                    child=PrivateSource("doubled"),
+                    child=PrivateSource(source_id="doubled"),
                     groupby_keys=KeySet.from_dict({}),
                 )
             ),
@@ -1406,7 +1411,7 @@ class TestCompileGroupByQuantile:
         )
 
         query_expr = GroupByQuantile(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"Gender": ["M", "F"]}),
             measure_column="Age",
             quantile=0.5,

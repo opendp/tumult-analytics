@@ -115,7 +115,7 @@ def chain_to_list(t: ChainTT) -> List[Transformation]:
 def test_average(lower: float, upper: float) -> None:
     """Test _get_query_bounds on Average query expr, with lower!=upper."""
     average = GroupByBoundedAverage(
-        child=PrivateSource("private"),
+        child=PrivateSource(source_id="private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
         low=lower,
@@ -130,7 +130,7 @@ def test_average(lower: float, upper: float) -> None:
 def test_stdev(lower: float, upper: float) -> None:
     """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
     stdev = GroupByBoundedSTDEV(
-        child=PrivateSource("private"),
+        child=PrivateSource(source_id="private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
         low=lower,
@@ -145,7 +145,7 @@ def test_stdev(lower: float, upper: float) -> None:
 def test_sum(lower: float, upper: float) -> None:
     """Test _get_query_bounds on Sum query expr, with lower!=upper."""
     sum_query = GroupByBoundedSum(
-        child=PrivateSource("private"),
+        child=PrivateSource(source_id="private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
         low=lower,
@@ -160,7 +160,7 @@ def test_sum(lower: float, upper: float) -> None:
 def test_variance(lower: float, upper: float) -> None:
     """Test _get_query_bounds on Variance query expr, with lower!=upper."""
     variance = GroupByBoundedVariance(
-        child=PrivateSource("private"),
+        child=PrivateSource(source_id="private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
         low=lower,
@@ -175,7 +175,7 @@ def test_variance(lower: float, upper: float) -> None:
 def test_quantile(lower: float, upper: float) -> None:
     """Test _get_query_bounds on Quantile query expr, with lower!=upper."""
     quantile = GroupByQuantile(
-        child=PrivateSource("private"),
+        child=PrivateSource(source_id="private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
         low=lower,
@@ -974,7 +974,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.DEFAULT,
                 ),
@@ -990,7 +990,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountMechanism.LAPLACE,
                     output_column="count",
@@ -1007,7 +1007,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=CountMechanism.GAUSSIAN,
                     output_column="custom_count_column",
@@ -1024,7 +1024,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.DEFAULT,
                 ),
@@ -1040,7 +1040,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.LAPLACE,
                 ),
@@ -1071,7 +1071,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
                 ),
@@ -1087,7 +1087,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountDistinctMechanism.LAPLACE,
                     output_column="count",
@@ -1104,7 +1104,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     columns_to_count=tuple(["A"]),
                 ),
@@ -1120,7 +1120,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=CountDistinctMechanism.GAUSSIAN,
                     output_column="custom_count_column",
@@ -1137,7 +1137,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
                 ),
@@ -1153,7 +1153,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.LAPLACE,
                 ),
@@ -1319,7 +1319,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
                     high=100,
@@ -1343,7 +1343,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=AverageMechanism.DEFAULT,
@@ -1367,7 +1367,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=AverageMechanism.LAPLACE,
@@ -1391,7 +1391,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=AverageMechanism.DEFAULT,
                     measure_column="B",
@@ -1429,7 +1429,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
                     high=100,
@@ -1449,7 +1449,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=SumMechanism.DEFAULT,
@@ -1469,7 +1469,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=SumMechanism.LAPLACE,
@@ -1489,7 +1489,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=SumMechanism.DEFAULT,
                     measure_column="B",
@@ -1523,7 +1523,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
                     high=100,
@@ -1551,7 +1551,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=VarianceMechanism.DEFAULT,
@@ -1579,7 +1579,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=VarianceMechanism.LAPLACE,
@@ -1607,7 +1607,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=VarianceMechanism.DEFAULT,
                     measure_column="B",
@@ -1649,7 +1649,7 @@ class TestMeasurementVisitor:
         [
             (
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
                     high=100,
@@ -1677,7 +1677,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=StdevMechanism.DEFAULT,
@@ -1705,7 +1705,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
                     mechanism=StdevMechanism.LAPLACE,
@@ -1733,7 +1733,7 @@ class TestMeasurementVisitor:
             ),
             (
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=StdevMechanism.DEFAULT,
                     measure_column="B",
@@ -1773,18 +1773,18 @@ class TestMeasurementVisitor:
     @pytest.mark.parametrize(
         "query",
         [
-            (PrivateSource("private")),
+            (PrivateSource(source_id="private")),
             (
                 Rename(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     column_mapper=FrozenDict.from_dict({"A": "A2"}),
                 )
             ),
-            (Filter(child=PrivateSource("private"), condition="B > 2")),
-            (SelectExpr(child=PrivateSource("private"), columns=tuple(["A"]))),
+            (Filter(child=PrivateSource(source_id="private"), condition="B > 2")),
+            (SelectExpr(child=PrivateSource(source_id="private"), columns=tuple(["A"]))),
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"C": "c" + str(row["B"])},
                     schema_new_columns=Schema({"C": "VARCHAR"}),
                     augment=True,
@@ -1792,7 +1792,7 @@ class TestMeasurementVisitor:
             ),
             (
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: [{"i": n for n in range(row["B"] + 1)}],
                     schema_new_columns=Schema({"i": "DECIMAL"}),
                     augment=False,
@@ -1801,17 +1801,17 @@ class TestMeasurementVisitor:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 )
             ),
-            (JoinPublic(child=PrivateSource("private"), public_table="public")),
-            (ReplaceNullAndNan(child=PrivateSource("private"))),
-            (ReplaceInfExpr(child=PrivateSource("private"))),
-            (DropNullAndNan(child=PrivateSource("private"))),
-            (DropInfExpr(child=PrivateSource("private"))),
+            (JoinPublic(child=PrivateSource(source_id="private"), public_table="public")),
+            (ReplaceNullAndNan(child=PrivateSource(source_id="private"))),
+            (ReplaceInfExpr(child=PrivateSource(source_id="private"))),
+            (DropNullAndNan(child=PrivateSource(source_id="private"))),
+            (DropInfExpr(child=PrivateSource(source_id="private"))),
         ],
     )
     def test_visit_transformations(self, query: QueryExpr):
@@ -1825,7 +1825,7 @@ class TestMeasurementVisitor:
             SuppressAggregates(
                 child=GroupByCount(
                     groupby_keys=KeySet.from_dict({}),
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     output_column="count",
                 ),
                 column="count",
@@ -1834,7 +1834,7 @@ class TestMeasurementVisitor:
             SuppressAggregates(
                 child=GroupByCount(
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     output_column="count",
                 ),
                 column="count",
@@ -1856,7 +1856,7 @@ class TestMeasurementVisitor:
                 (
                     SuppressAggregates(
                         child=GroupByCount(
-                            child=PrivateSource("private_2"),
+                            child=PrivateSource(source_id="private_2"),
                             groupby_keys=KeySet.from_dict(
                                 {"A": ["a0", "a1", "a2", "a3"]}
                             ),
@@ -1878,7 +1878,7 @@ class TestMeasurementVisitor:
                 (
                     SuppressAggregates(
                         child=GroupByCount(
-                            child=PrivateSource("private_2"),
+                            child=PrivateSource(source_id="private_2"),
                             groupby_keys=KeySet.from_dict(
                                 {"A": ["a0", "a1", "a2", "a3"]},
                             ),

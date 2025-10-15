@@ -121,7 +121,7 @@ class TestSession:
                     name="total", mechanism=CountMechanism.GAUSSIAN
                 ),
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="total",
                     mechanism=CountMechanism.GAUSSIAN,
@@ -133,7 +133,7 @@ class TestSession:
                 .groupby(KeySet.from_dict({"A": ["0", "1"]}))
                 .stdev(column="B", low=0, high=1, mechanism=StdevMechanism.GAUSSIAN),
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
                     low=0,
