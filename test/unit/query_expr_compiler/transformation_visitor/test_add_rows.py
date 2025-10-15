@@ -227,7 +227,7 @@ class TestAddRows(TestTransformationVisitor):
         [
             (
                 Map(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: {"X": 2 * str(row["S"])},
                     schema_new_columns=Schema({"X": "VARCHAR"}),
                     augment=True,
@@ -239,7 +239,7 @@ class TestAddRows(TestTransformationVisitor):
             ),
             (
                 Map(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: {"X": 2 * str(row["S"])},
                     schema_new_columns=Schema({"X": "VARCHAR"}),
                     augment=False,
@@ -262,7 +262,7 @@ class TestAddRows(TestTransformationVisitor):
         [
             (
                 FlatMap(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: [{"S_is_zero": 1 if row["S"] == "0" else 2}],
                     schema_new_columns=Schema({"S_is_zero": "INTEGER"}),
                     augment=True,
@@ -275,7 +275,7 @@ class TestAddRows(TestTransformationVisitor):
             ),
             (
                 FlatMap(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: [{"i": n for n in range(row["I"] + 1)}],
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
@@ -285,7 +285,7 @@ class TestAddRows(TestTransformationVisitor):
             ),
             (
                 FlatMap(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: [{"i": n} for n in range(row["I"] + 10)],
                     schema_new_columns=Schema({"i": "INTEGER"}),
                     augment=False,
@@ -311,7 +311,7 @@ class TestAddRows(TestTransformationVisitor):
         [
             (
                 FlatMap(
-                    child=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows1"),
                     f=lambda row: [{"group": 0 if row["F"] == 0 else 17}],
                     schema_new_columns=Schema(
                         {"group": ColumnDescriptor(ColumnType.INTEGER)},
@@ -341,7 +341,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_flat_map_invalid(self) -> None:
         """Test visit_flat_map with invalid query."""
         query = FlatMap(
-            child=PrivateSource("rows1"),
+            child=PrivateSource(source_id="rows1"),
             f=lambda row: [{"group": 0 if row["F"] == 0 else 17}],
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER)}, grouping_column="group"
@@ -363,8 +363,8 @@ class TestAddRows(TestTransformationVisitor):
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("rows1"),
-                    right_operand_expr=PrivateSource("rows2"),
+                    child=PrivateSource(source_id="rows1"),
+                    right_operand_expr=PrivateSource(source_id="rows2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(10),
                 ),
@@ -375,8 +375,8 @@ class TestAddRows(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("rows2"),
-                    right_operand_expr=PrivateSource("rows1"),
+                    child=PrivateSource(source_id="rows2"),
+                    right_operand_expr=PrivateSource(source_id="rows1"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                     join_columns=tuple(["I"]),
@@ -428,8 +428,8 @@ class TestAddRows(TestTransformationVisitor):
             """An invalid truncation strategy."""
 
         query1 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            child=PrivateSource(source_id="rows1"),
+            right_operand_expr=PrivateSource(source_id="rows2"),
             truncation_strategy_left=InvalidStrategy(),
             truncation_strategy_right=TruncationStrategy.DropExcess(3),
         )
@@ -440,8 +440,8 @@ class TestAddRows(TestTransformationVisitor):
             query1.accept(self.visitor)
 
         query2 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            child=PrivateSource(source_id="rows1"),
+            right_operand_expr=PrivateSource(source_id="rows2"),
             truncation_strategy_left=TruncationStrategy.DropExcess(2),
             truncation_strategy_right=InvalidStrategy(),
         )
@@ -449,8 +449,8 @@ class TestAddRows(TestTransformationVisitor):
             query2.accept(self.visitor)
 
         query3 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            child=PrivateSource(source_id="rows1"),
+            right_operand_expr=PrivateSource(source_id="rows2"),
             truncation_strategy_left=None,
             truncation_strategy_right=None,
         )
@@ -602,7 +602,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_replace_null_and_nan_with_grouping_column(self) -> None:
         """Test behavior of visit_replace_null_and_nan with IfGroupedBy metric."""
         flatmap_query = FlatMap(
-            child=PrivateSource("rows_infs_nans"),
+            child=PrivateSource(source_id="rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
@@ -689,7 +689,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_drop_null_and_nan_with_grouping_column(self) -> None:
         """Test behavior of visit_drop_null_and_nan with IfGroupedBy metric."""
         flatmap_query = FlatMap(
-            child=PrivateSource("rows_infs_nans"),
+            child=PrivateSource(source_id="rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
@@ -726,7 +726,7 @@ class TestAddRows(TestTransformationVisitor):
     def test_visit_drop_infinity_with_grouping_column(self) -> None:
         """Test behavior of visit_drop_infinity with IfGroupedBy metric."""
         flatmap_query = FlatMap(
-            child=PrivateSource("rows_infs_nans"),
+            child=PrivateSource(source_id="rows_infs_nans"),
             f=lambda row: [{"group": 0 if row["inf"] < 0 else 17}],
             schema_new_columns=Schema(
                 {"group": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)},
@@ -894,7 +894,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("rows"), tuple(query_columns))
+        query = DropNullAndNan(child=PrivateSource(source_id="rows"), columns=tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []
@@ -921,7 +921,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         self, query_columns: List[str], expected_inf_cols: List[str]
     ) -> None:
         """Test generating transformations from a DropInfinity."""
-        query = DropInfExpr(child=PrivateSource("rows"), columns=tuple(query_columns))
+        query = DropInfExpr(child=PrivateSource(source_id="rows"), columns=tuple(query_columns))
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         assert constraints == []

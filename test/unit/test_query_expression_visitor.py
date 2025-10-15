@@ -112,90 +112,106 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
     def visit_suppress_aggregates(self, expr):
         return "SuppressAggregates"
 
-
 @pytest.mark.parametrize(
     "expr,expected",
     [
-        (PrivateSource("P"), "PrivateSource"),
-        (Rename(PrivateSource("P"), FrozenDict.from_dict({"A": "B"})), "Rename"),
-        (Filter(PrivateSource("P"), "A<B"), "Filter"),
-        (Select(PrivateSource("P"), tuple("A")), "Select"),
-        (Map(PrivateSource("P"), lambda r: r, Schema({"A": "VARCHAR"}), True), "Map"),
+        (PrivateSource(source_id="P"), "PrivateSource"),
+        (Rename(child=PrivateSource(source_id="P"), column_mapper=FrozenDict.from_dict({"A": "B"})), "Rename"),
+        (Filter(child=PrivateSource(source_id="P"), condition="A<B"), "Filter"),
+        (Select(child=PrivateSource(source_id="P"), columns=tuple("A")), "Select"),
+        (Map(child=PrivateSource(source_id="P"), f=lambda r: r, schema_new_columns=Schema({"A": "VARCHAR"}), augment=True), "Map"),
         (
             FlatMap(
-                PrivateSource("P"), lambda r: [r], Schema({"A": "VARCHAR"}), True, 1
+                child=PrivateSource(source_id="P"), f=lambda r: [r],
+                schema_new_columns=Schema({"A": "VARCHAR"}), augment=True,
+                max_rows=1
             ),
             "FlatMap",
         ),
         (
-            FlatMapByID(PrivateSource("P"), lambda rs: rs, Schema({"A": "VARCHAR"})),
+            FlatMapByID(child=PrivateSource(source_id="P"), f=lambda rs: rs,
+                        schema_new_columns=Schema({"A": "VARCHAR"})),
             "FlatMapByID",
         ),
         (
             JoinPrivate(
-                PrivateSource("P"),
-                PrivateSource("Q"),
-                TruncationStrategy.DropNonUnique(),
-                TruncationStrategy.DropNonUnique(),
+                child=PrivateSource(source_id="P"),
+                right_operand_expr=PrivateSource(source_id="Q"),
+                truncation_strategy_left=TruncationStrategy.DropNonUnique(),
+                truncation_strategy_right=TruncationStrategy.DropNonUnique(),
             ),
             "JoinPrivate",
         ),
-        (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
+        (JoinPublic(child=PrivateSource(source_id="P"), public_table="Q"), "JoinPublic"),
         (
             ReplaceNullAndNan(
-                PrivateSource("P"), FrozenDict.from_dict({"column": "default"})
+                child=PrivateSource(source_id="P"), replace_with=FrozenDict.from_dict({"column": "default"})
             ),
             "ReplaceNullAndNan",
         ),
         (
             ReplaceInfinity(
-                PrivateSource("P"), FrozenDict.from_dict({"column": (-100.0, 100.0)})
+                child=PrivateSource(source_id="P"), replace_with=FrozenDict.from_dict({"column": (-100.0, 100.0)})
             ),
             "ReplaceInfinity",
         ),
-        (DropInfinity(PrivateSource("P"), tuple("column")), "DropInfinity"),
-        (DropNullAndNan(PrivateSource("P"), tuple("column")), "DropNullAndNan"),
+        (DropInfinity(child=PrivateSource(source_id="P"), columns=tuple("column")), "DropInfinity"),
+        (DropNullAndNan(child=PrivateSource(source_id="P"), columns=tuple("column")), "DropNullAndNan"),
         (
             EnforceConstraint(
-                PrivateSource("P"), MaxRowsPerID(5), FrozenDict.from_dict({})
+                child=PrivateSource(source_id="P"), constraint=MaxRowsPerID(5),
+                options=FrozenDict.from_dict({})
             ),
             "EnforceConstraint",
         ),
-        (GetGroups(PrivateSource("P"), tuple("column")), "GetGroups"),
+        (GetGroups(child=PrivateSource(source_id="P"), columns=tuple("column")), "GetGroups"),
         (
-            GetBounds(PrivateSource("P"), KeySet.from_dict({}), "A", "lower", "upper"),
+            GetBounds(child=PrivateSource(source_id="P"),
+                      groupby_keys=KeySet.from_dict({}), measure_column="A",
+                      lower_bound_column="lower", upper_bound_column="upper"),
             "GetBounds",
         ),
-        (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
+        (GroupByCount(child=PrivateSource(source_id="P"), groupby_keys=KeySet.from_dict({})), "GroupByCount"),
         (
-            GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),
+            GroupByCountDistinct(child=PrivateSource(source_id="P"),
+                                 groupby_keys=KeySet.from_dict({})),
             "GroupByCountDistinct",
         ),
         (
-            GroupByQuantile(PrivateSource("P"), KeySet.from_dict({}), "A", 0.5, 0, 1),
+            GroupByQuantile(child=PrivateSource(source_id="P"),
+                            groupby_keys=KeySet.from_dict({}),
+                            measure_column="A", quantile=0.5, low=0, high=1),
             "GroupByQuantile",
         ),
         (
-            GroupByBoundedSum(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            GroupByBoundedSum(child=PrivateSource(source_id="P"),
+                              groupby_keys=KeySet.from_dict({}),
+                              measure_column="A", low=0, high=1),
             "GroupByBoundedSum",
         ),
         (
-            GroupByBoundedAverage(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            GroupByBoundedAverage(child=PrivateSource(source_id="P"),
+                                  groupby_keys=KeySet.from_dict({}),
+                                  measure_column="A", low=0, high=1),
             "GroupByBoundedAverage",
         ),
         (
-            GroupByBoundedVariance(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            GroupByBoundedVariance(child=PrivateSource(source_id="P"),
+                                   groupby_keys=KeySet.from_dict({}),
+                                   measure_column="A", low=0, high=1),
             "GroupByBoundedVariance",
         ),
         (
-            GroupByBoundedSTDEV(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            GroupByBoundedSTDEV(child=PrivateSource(source_id="P"),
+                                groupby_keys=KeySet.from_dict({}),
+                                measure_column="A", low=0, high=1),
             "GroupByBoundedSTDEV",
         ),
         (
             SuppressAggregates(
-                GroupByCount(
-                    PrivateSource("P"),
-                    KeySet.from_dict({}),
+                child=GroupByCount(
+                    child=PrivateSource(source_id="P"),
+                    groupby_keys=KeySet.from_dict({}),
                     output_column="count",
                 ),
                 column="count",

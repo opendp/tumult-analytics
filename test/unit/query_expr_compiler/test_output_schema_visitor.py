@@ -75,22 +75,22 @@ GET_GROUPBY_COLUMN_WRONG_TYPE = (
 
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
-        PrivateSource("public"),
+        PrivateSource(source_id="public"),
         "Attempted query on table 'public', which is not a private table",
     ),
     (  # JoinPublic has invalid public_id
-        JoinPublic(child=PrivateSource("private"), public_table="private"),
+        JoinPublic(child=PrivateSource(source_id="private"), public_table="private"),
         "Attempted public join on table 'private', which is not a public table",
     ),
     (  # JoinPublic references invalid private source
         JoinPublic(
-            child=PrivateSource("private_source_not_in_catalog"), public_table="public"
+            child=PrivateSource(source_id="private_source_not_in_catalog"), public_table="public"
         ),
         "Query references nonexistent table 'private_source_not_in_catalog'",
     ),
     (  # JoinPublic on columns not common to both tables
         JoinPublic(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             public_table="public",
             join_columns=tuple(["B"]),
         ),
@@ -98,36 +98,37 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # JoinPrivate on columns not common to both tables
         JoinPrivate(
-            PrivateSource("private"),
-            Rename(PrivateSource("private"), FrozenDict.from_dict({"B": "Q"})),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
+            child=PrivateSource(source_id="private"),
+            right_operand_expr=Rename(child=PrivateSource(source_id="private"), column_mapper=FrozenDict.from_dict({"B": "Q"})),
+            truncation_strategy_left=TruncationStrategy.DropExcess(1),
+            truncation_strategy_right=TruncationStrategy.DropExcess(1),
             join_columns=tuple(["B"]),
         ),
         "Join columns must be common to both tables",
     ),
     (  # JoinPublic on tables with no common columns
         JoinPublic(
-            child=Rename(PrivateSource("private"), FrozenDict.from_dict({"A": "Q"})),
+            child=Rename(child=PrivateSource(source_id="private"),
+                         column_mapper=FrozenDict.from_dict({"A": "Q"})),
             public_table="public",
         ),
         "Tables have no common columns to join on",
     ),
     (  # JoinPrivate on tables with no common columns
         JoinPrivate(
-            PrivateSource("private"),
-            Rename(
-                Select(PrivateSource("private"), tuple(["A"])),
-                FrozenDict.from_dict({"A": "Z"}),
+            child=PrivateSource(source_id="private"),
+            right_operand_expr=Rename(
+                child=Select(child=PrivateSource(source_id="private"), columns=tuple(["A"])),
+                column_mapper=FrozenDict.from_dict({"A": "Z"}),
             ),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
+            truncation_strategy_left=TruncationStrategy.DropExcess(1),
+            truncation_strategy_right=TruncationStrategy.DropExcess(1),
         ),
         "Tables have no common columns to join on",
     ),
     (  # JoinPublic on column with mismatched types
         JoinPublic(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             public_table="public",
             join_columns=tuple(["A"]),
         ),
@@ -138,13 +139,14 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # JoinPrivate on column with mismatched types
         JoinPrivate(
-            PrivateSource("private"),
-            Rename(
-                Rename(PrivateSource("private"), FrozenDict.from_dict({"A": "Q"})),
-                FrozenDict.from_dict({"B": "A"}),
+            child=PrivateSource(source_id="private"),
+            right_operand_expr=Rename(
+                child=Rename(child=PrivateSource(source_id="private"),
+                             column_mapper=FrozenDict.from_dict({"A": "Q"})),
+                column_mapper=FrozenDict.from_dict({"B": "A"}),
             ),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
+            truncation_strategy_left=TruncationStrategy.DropExcess(1),
+            truncation_strategy_right=TruncationStrategy.DropExcess(1),
             join_columns=tuple(["A"]),
         ),
         (
@@ -153,31 +155,31 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         ),
     ),
     (  # Filter on invalid column
-        Filter(child=PrivateSource("private"), condition="NONEXISTENT>1"),
+        Filter(child=PrivateSource(source_id="private"), condition="NONEXISTENT>1"),
         "Invalid filter condition 'NONEXISTENT>1'.*",
     ),
     (  # Rename on non-existent column
         Rename(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             column_mapper=FrozenDict.from_dict({"NONEXISTENT": "Z"}),
         ),
         "Nonexistent columns in rename query: {'NONEXISTENT'}",
     ),
     (  # Rename when column exists
         Rename(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             column_mapper=FrozenDict.from_dict({"A": "B"}),
         ),
         "Cannot rename 'A' to 'B': column 'B' already exists",
     ),
     (  # Select non-existent column
-        Select(child=PrivateSource("private"), columns=tuple(["NONEXISTENT"])),
+        Select(child=PrivateSource(source_id="private"), columns=tuple(["NONEXISTENT"])),
         "Nonexistent columns in select query: {'NONEXISTENT'}",
     ),
     (  # Nested grouping FlatMap
         FlatMap(
             child=FlatMap(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
@@ -196,7 +198,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # FlatMap with inner grouping FlatMap but outer augment=False
         FlatMap(
             child=FlatMap(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
@@ -212,7 +214,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Map with inner grouping FlatMap but outer augment=False
         Map(
             child=FlatMap(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 f=lambda row: [{"i": row["X"]} for i in range(row["Repeat"])],
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
@@ -226,7 +228,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             replace_with=FrozenDict.from_dict({"bad": "new_string"}),
         ),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
@@ -234,7 +236,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (
         # ReplaceNullAndNan with bad replacement type
         ReplaceNullAndNan(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             replace_with=FrozenDict.from_dict({"B": "not_an_int"}),
         ),
         "Column 'B' cannot have nulls replaced with 'not_an_int', as .* type INTEGER",
@@ -242,7 +244,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (
         # ReplaceInfinity with nonexistent column
         ReplaceInfinity(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             replace_with=FrozenDict.from_dict({"wrong": (-1, 1)}),
         ),
         r"Column 'wrong' does not exist in this table, available columns are \[.*\]",
@@ -250,7 +252,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (
         #  ReplaceInfinity with non-decimal column
         ReplaceInfinity(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             replace_with=FrozenDict.from_dict({"A": (-1, 1)}),
         ),
         r"Column 'A' has a replacement value provided.*of type VARCHAR \(not DECIMAL\) "
@@ -258,17 +260,17 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (
         # DropNullAndNan with column that doesn't exist
-        DropNullAndNan(child=PrivateSource("private"), columns=tuple(["bad"])),
+        DropNullAndNan(child=PrivateSource(source_id="private"), columns=tuple(["bad"])),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (
         # DropInfinity with column that doesn't exist
-        DropInfinity(child=PrivateSource("private"), columns=tuple(["bad"])),
+        DropInfinity(child=PrivateSource(source_id="private"), columns=tuple(["bad"])),
         r"Column 'bad' does not exist in this table, available columns are \[.*\]",
     ),
     (  # Type mismatch for the measure column of GroupByQuantile
         GroupByQuantile(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({"B": [0, 1, 2]}),
             measure_column="A",
             quantile=0.5,
@@ -283,7 +285,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # Type mismatch for the measure column of GroupByBoundedAverage
         GroupByBoundedAverage(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             groupby_keys=KeySet.from_dict({}),
             measure_column="A",
             low=0.0,
@@ -297,7 +299,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Grouping column is set in a FlatMap but not used in a later GroupBy
         GroupByCount(
             child=FlatMap(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 f=lambda row: [{"i": row["B"]} for i in range(row["Repeat"])],
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
@@ -310,7 +312,7 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Grouping column is set but not used in a later groupby_public_source
         GroupByCount(
             child=FlatMap(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 f=lambda row: [{"i": row["B"]} for i in range(row["Repeat"])],
                 schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
                 augment=True,
@@ -428,7 +430,7 @@ class TestValidation:
     ) -> None:
         """Test invalid measurement QueryExpr."""
         with pytest.raises(exception_type, match=expected_error_msg):
-            GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
+            GroupByCount(child=PrivateSource(source_id="private"), groupby_keys=groupby_keys).accept(self.visitor)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -485,20 +487,24 @@ class TestValidation:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
+                DataClass(child=PrivateSource(source_id="private"),
+                          groupby_keys=groupby_keys, measure_column="B",
+                          low=1.0, high=5.0).accept(
                     self.visitor
                 )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
-                PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
+                child=PrivateSource(source_id="private"),
+                groupby_keys=groupby_keys, measure_column="B", quantile=0.5,
+                low=1.0, high=5.0
             ).accept(self.visitor)
         with pytest.raises(exception_type, match=expected_error_msg):
             GetBounds(
-                PrivateSource("private"),
-                groupby_keys,
-                "B",
-                "lower_bound",
-                "upper_bound",
+                child=PrivateSource(source_id="private"),
+                groupby_keys=groupby_keys,
+                measure_column="B",
+                lower_bound_column="lower_bound",
+                upper_bound_column="upper_bound",
             ).accept(self.visitor)
 
 
@@ -602,7 +608,7 @@ class TestValidationWithNulls:
     ) -> None:
         """Test invalid measurement QueryExpr."""
         with pytest.raises(exception_type, match=expected_error_msg):
-            GroupByCount(PrivateSource("private"), groupby_keys).accept(self.visitor)
+            GroupByCount(child=PrivateSource(source_id="private"), groupby_keys=groupby_keys).accept(self.visitor)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -659,25 +665,28 @@ class TestValidationWithNulls:
             GroupByBoundedVariance,
         ]:
             with pytest.raises(exception_type, match=expected_error_msg):
-                DataClass(PrivateSource("private"), groupby_keys, "B", 1.0, 5.0).accept(
+                DataClass(child=PrivateSource(source_id="private"),
+                          groupby_keys=groupby_keys, measure_column="B",
+                          low=1.0, high=5.0).accept(
                     self.visitor
                 )
         with pytest.raises(exception_type, match=expected_error_msg):
             GroupByQuantile(
-                PrivateSource("private"), groupby_keys, "B", 0.5, 1.0, 5.0
+                child=PrivateSource(source_id="private"), groupby_keys=groupby_keys,
+                measure_column="B", quantile=0.5, low=1.0, high=5.0
             ).accept(self.visitor)
         with pytest.raises(exception_type, match=expected_error_msg):
             GetBounds(
-                PrivateSource("private"),
-                groupby_keys,
-                "B",
-                "lower_bound",
-                "upper_bound",
+                child=PrivateSource(source_id="private"),
+                groupby_keys=groupby_keys,
+                measure_column="B",
+                lower_bound_column="lower_bound",
+                upper_bound_column="upper_bound",
             ).accept(self.visitor)
 
     def test_visit_private_source(self) -> None:
         """Test visit_private_source."""
-        query = PrivateSource("private")
+        query = PrivateSource(source_id="private")
         schema = self.visitor.visit_private_source(query)
         assert (
             schema
@@ -758,7 +767,7 @@ class TestValidationWithNulls:
     ) -> None:
         """Test visit_rename."""
         query = Rename(
-            child=PrivateSource("private"),
+            child=PrivateSource(source_id="private"),
             column_mapper=FrozenDict.from_dict(column_mapper),
         )
         schema = self.visitor.visit_rename(query)
@@ -767,7 +776,7 @@ class TestValidationWithNulls:
     @pytest.mark.parametrize("condition", ["B > X", "X < 500", "NOTNULL < 30"])
     def test_visit_filter(self, condition: str) -> None:
         """Test visit_filter."""
-        query = Filter(child=PrivateSource("private"), condition=condition)
+        query = Filter(child=PrivateSource(source_id="private"), condition=condition)
         schema = self.visitor.visit_filter(query)
         assert (
             schema
@@ -798,7 +807,7 @@ class TestValidationWithNulls:
     )
     def test_visit_select(self, columns: List[str], expected_schema: Schema) -> None:
         """Test visit_select."""
-        query = Select(child=PrivateSource("private"), columns=tuple(columns))
+        query = Select(child=PrivateSource(source_id="private"), columns=tuple(columns))
         schema = self.visitor.visit_select(query)
         assert schema == expected_schema
 
@@ -807,7 +816,7 @@ class TestValidationWithNulls:
         [
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"NEW": 1234},
                     schema_new_columns=Schema(
                         {"NEW": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
@@ -835,7 +844,7 @@ class TestValidationWithNulls:
             ),
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: dict.fromkeys(
                         list(row.keys()) + ["NEW"], list(row.values()) + [1234]
                     ),
@@ -865,7 +874,7 @@ class TestValidationWithNulls:
             ),
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {f"_{key}_": val for key, val in row.items()},
                     schema_new_columns=Schema(
                         {
@@ -912,7 +921,7 @@ class TestValidationWithNulls:
             ),
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"ABC": "abc"},
                     schema_new_columns=Schema(
                         {"ABC": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
@@ -923,7 +932,7 @@ class TestValidationWithNulls:
             ),
             (
                 Map(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: {"ABC": "abc"},
                     schema_new_columns=Schema(
                         # This has allow_null=False, but  the output schema
@@ -946,7 +955,7 @@ class TestValidationWithNulls:
         [
             (
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: [{"i": i} for i in range(len(row["A"] + 1))],
                     schema_new_columns=Schema(
                         {"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
@@ -975,7 +984,7 @@ class TestValidationWithNulls:
             ),
             (
                 FlatMap(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     f=lambda row: [{"i": i} for i in range(len(row["A"] + 1))],
                     schema_new_columns=Schema(
                         {"i": ColumnDescriptor(ColumnType.INTEGER, allow_null=False)}
@@ -997,8 +1006,8 @@ class TestValidationWithNulls:
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("groupby_one_column_private"),
+                    child=PrivateSource(source_id="private"),
+                    right_operand_expr=PrivateSource(source_id="groupby_one_column_private"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(10),
                     truncation_strategy_right=TruncationStrategy.DropExcess(10),
                 ),
@@ -1034,7 +1043,7 @@ class TestValidationWithNulls:
         [
             (
                 JoinPublic(
-                    child=PrivateSource("private"), public_table="groupby_column_a"
+                    child=PrivateSource(source_id="private"), public_table="groupby_column_a"
                 ),
                 Schema(
                     {
@@ -1056,7 +1065,7 @@ class TestValidationWithNulls:
             ),
             (
                 JoinPublic(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     public_table="groupby_column_a",
                     how="left",
                 ),
@@ -1141,8 +1150,8 @@ class TestValidationWithNulls:
         catalog.add_private_table("right", right_schema)
         visitor = OutputSchemaVisitor(catalog)
         query = JoinPrivate(
-            child=PrivateSource("left"),
-            right_operand_expr=PrivateSource("right"),
+            child=PrivateSource(source_id="left"),
+            right_operand_expr=PrivateSource(source_id="right"),
             truncation_strategy_left=TruncationStrategy.DropExcess(1),
             truncation_strategy_right=TruncationStrategy.DropExcess(1),
         )
@@ -1203,7 +1212,7 @@ class TestValidationWithNulls:
         catalog.add_private_table("private", private_schema)
         catalog.add_public_table("public", public_schema)
         visitor = OutputSchemaVisitor(catalog)
-        query = JoinPublic(child=PrivateSource("private"), public_table="public")
+        query = JoinPublic(child=PrivateSource(source_id="private"), public_table="public")
         result_schema = visitor.visit_join_public(query)
         assert result_schema == expected_schema
 
@@ -1212,7 +1221,7 @@ class TestValidationWithNulls:
         [
             (
                 ReplaceNullAndNan(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     replace_with=FrozenDict.from_dict({}),
                 ),
                 Schema(
@@ -1235,7 +1244,7 @@ class TestValidationWithNulls:
             ),
             (
                 ReplaceNullAndNan(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     replace_with=FrozenDict.from_dict({"A": "", "B": 0}),
                 ),
                 Schema(
@@ -1258,7 +1267,7 @@ class TestValidationWithNulls:
             ),
             (
                 ReplaceNullAndNan(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     replace_with=FrozenDict.from_dict(
                         {
                             "A": "this_was_null",
@@ -1300,7 +1309,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                DropNullAndNan(child=PrivateSource("private"), columns=tuple()),
+                DropNullAndNan(child=PrivateSource(source_id="private"), columns=tuple()),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1344,7 +1353,7 @@ class TestValidationWithNulls:
             ),
             (
                 DropNullAndNan(
-                    child=PrivateSource("private"), columns=tuple(["A", "X", "T"])
+                    child=PrivateSource(source_id="private"), columns=tuple(["A", "X", "T"])
                 ),
                 Schema(
                     {
@@ -1387,7 +1396,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                DropInfinity(child=PrivateSource("private"), columns=tuple()),
+                DropInfinity(child=PrivateSource(source_id="private"), columns=tuple()),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1430,7 +1439,7 @@ class TestValidationWithNulls:
                 ),
             ),
             (
-                DropInfinity(child=PrivateSource("private"), columns=tuple(["X"])),
+                DropInfinity(child=PrivateSource(source_id="private"), columns=tuple(["X"])),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1473,7 +1482,7 @@ class TestValidationWithNulls:
         [
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["a1", "a2"]}),
                     output_column="count",
                 ),
@@ -1486,7 +1495,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByCountDistinct(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {"A": ["a1", "a2"], "NOTNULL": [1, 2]}
                     ),
@@ -1507,7 +1516,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByQuantile(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {"D": [datetime.date(1980, 1, 1), datetime.date(2000, 1, 1)]}
                     ),
@@ -1528,7 +1537,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByBoundedSum(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {"D": [datetime.date(1980, 1, 1), datetime.date(2000, 1, 1)]}
                     ),
@@ -1546,7 +1555,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
                     measure_column="NOTNULL",
                     low=-100,
@@ -1562,7 +1571,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByBoundedVariance(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"A": ["a1", "a2"], "B": [1, 2, 3]}),
                     measure_column="NOTNULL",
                     low=-100,
@@ -1581,7 +1590,7 @@ class TestValidationWithNulls:
             ),
             (
                 GroupByBoundedSTDEV(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {"A": ["a1", "a2"], "D": [datetime.date(1999, 12, 31)]}
                     ),
@@ -1600,7 +1609,7 @@ class TestValidationWithNulls:
             ),
             (
                 GetBounds(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {"A": ["a1", "a2"], "D": [datetime.date(1999, 12, 31)]}
                     ),
@@ -1641,7 +1650,7 @@ class TestValidationWithNulls:
         )
         with config.features.auto_partition_selection.enabled():
             query = GetBounds(
-                child=PrivateSource("private"),
+                child=PrivateSource(source_id="private"),
                 groupby_keys=tuple("A"),
                 measure_column="NOTNULL",
                 lower_bound_column="lower_bound",
@@ -1655,7 +1664,7 @@ class TestValidationWithNulls:
         [
             SuppressAggregates(
                 child=GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="count",
                 ),
@@ -1664,7 +1673,7 @@ class TestValidationWithNulls:
             ),
             SuppressAggregates(
                 child=GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict(
                         {
                             "A": ["a1", "a2"],

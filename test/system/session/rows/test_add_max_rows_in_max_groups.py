@@ -94,7 +94,7 @@ class TestSession:
         [
             (
                 GroupByCount(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountMechanism.LAPLACE,
                 ),
@@ -109,7 +109,7 @@ class TestSession:
             ),
             (
                 GroupByBoundedAverage(
-                    child=PrivateSource("private"),
+                    child=PrivateSource(source_id="private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     low=-111,
                     high=234,
