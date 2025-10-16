@@ -44,9 +44,6 @@ from tmlt.analytics._query_expr import (
     ReplaceNullAndNan,
     Select,
 )
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -86,7 +83,7 @@ class TestAddRows(TestTransformationVisitor):
         first_transform = chain_to_list(t)[0]
         assert isinstance(first_transform, IdentityTransformation)
 
-        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
@@ -396,7 +393,7 @@ class TestAddRows(TestTransformationVisitor):
         assert transformation.input_domain == self.visitor.input_domain
         assert transformation.input_metric == self.visitor.input_metric
 
-        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
@@ -585,11 +582,11 @@ class TestAddRows(TestTransformationVisitor):
         self._validate_transform_basics(transformation, reference, query)
         assert isinstance(transformation, ChainTT)
         assert isinstance(transformation.transformation2, AugmentDictTransformation)
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
@@ -672,7 +669,7 @@ class TestAddRows(TestTransformationVisitor):
         transformation, reference, constraints = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
 
-        expected_output_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_output_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             schema=analytics_to_spark_columns_descriptor(expected_output_schema)
         )
@@ -847,7 +844,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         assert t.input_domain == self.visitor.input_domain
         assert t.input_metric == self.visitor.input_metric
 
-        expected_schema = query.accept(OutputSchemaVisitor(self.catalog))
+        expected_schema = query.schema(self.catalog)
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )

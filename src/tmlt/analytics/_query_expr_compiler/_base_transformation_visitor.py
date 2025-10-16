@@ -157,9 +157,6 @@ from tmlt.analytics._query_expr_compiler._constraint_propagation import (
     propagate_select,
     propagate_unmodified,
 )
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -245,7 +242,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
         catalog: Catalog,
     ):
         """Ensure that a query's transformation is valid on a given catalog."""
-        expected_schema = query.accept(OutputSchemaVisitor(catalog))
+        expected_schema = query.schema(catalog)
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )

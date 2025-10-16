@@ -77,9 +77,6 @@ from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
     _get_query_bounds,
 )
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -329,9 +326,7 @@ class TestMeasurementVisitor:
         self, query: QueryExpr, output_measure: Union[PureDP, RhoZCDP]
     ):
         """Run a query and check the schema of the result."""
-        expected_column_types = query.accept(
-            OutputSchemaVisitor(self.catalog)
-        ).column_types
+        expected_column_types = query.schema(self.catalog).column_types
         self.visitor.output_measure = output_measure
         measurement, _ = query.accept(self.visitor)
         empty_data = create_empty_input(measurement.input_domain)

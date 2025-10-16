@@ -26,9 +26,6 @@ from tmlt.analytics._query_expr import GetGroups, QueryExpr
 from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
     BaseMeasurementVisitor,
 )
-from tmlt.analytics._query_expr_compiler._output_schema_visitor import (
-    OutputSchemaVisitor,
-)
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -75,10 +72,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         if not isinstance(self.budget, ApproxDPBudget):
             raise ValueError("GetGroups is only supported with ApproxDPBudgets.")
 
-        # Peek at the schema, to see if there are errors there
-        expr.accept(OutputSchemaVisitor(self.catalog))
-
-        schema = expr.child.accept(OutputSchemaVisitor(self.catalog))
+        schema = expr.child.schema(self.catalog)
 
         # Set the columns if no columns were provided.
         if expr.columns:
