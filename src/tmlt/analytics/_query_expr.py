@@ -1266,9 +1266,10 @@ class ReplaceInfinity(QueryExpr):
         columns_to_change = list(self.replace_with.keys())
         if len(columns_to_change) == 0:
             columns_to_change = [
-                col
+                name
                 for name, cd in input_schema.column_descs.items()
-                if cd.column_type == ColumnType.DECIMAL and cd.allow_inf
+                if cd.column_type == ColumnType.DECIMAL
+                and cd.allow_inf
                 and not (name in [input_schema.grouping_column, input_schema.id_column])
             ]
         return Schema(
@@ -1437,7 +1438,8 @@ class DropInfinity(QueryExpr):
             columns = tuple(
                 name
                 for name, cd in input_schema.column_descs.items()
-                if cd.column_type == ColumnType.DECIMAL and cd.allow_inf
+                if cd.column_type == ColumnType.DECIMAL
+                and cd.allow_inf
                 and not name in (input_schema.grouping_column, input_schema.id_column)
             )
 

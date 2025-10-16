@@ -552,7 +552,7 @@ class TestSession:
             protected_change=AddRowsWithID("id_column"),
             error_type=ValueError,
             message="GetBounds query's measure column is the same as the privacy ID "
-            "column\(id_column\)",
+            "column\\(id_column\\)",
         ),
     )
     def test_get_bounds_invalid_columns(
