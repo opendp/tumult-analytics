@@ -1169,10 +1169,10 @@ class ReplaceNullAndNan(QueryExpr):
         columns_to_change = list(dict(self.replace_with).keys())
         if len(columns_to_change) == 0:
             columns_to_change = [
-                col
-                for col in input_schema.column_descs.keys()
-                if (input_schema[col].allow_null or input_schema[col].allow_nan)
-                and not (col in [input_schema.grouping_column, input_schema.id_column])
+                name
+                for name, cd in input_schema.column_descs.items()
+                if (cd.allow_null or cd.allow_nan)
+                and not (name in [input_schema.grouping_column, input_schema.id_column])
             ]
         return Schema(
             {
@@ -1267,8 +1267,9 @@ class ReplaceInfinity(QueryExpr):
         if len(columns_to_change) == 0:
             columns_to_change = [
                 col
-                for col in input_schema.column_descs.keys()
-                if input_schema[col].column_type == ColumnType.DECIMAL
+                for name, cd in input_schema.column_descs.items()
+                if cd.column_type == ColumnType.DECIMAL and cd.allow_inf
+                and not (name in [input_schema.grouping_column, input_schema.id_column])
             ]
         return Schema(
             {
@@ -1436,7 +1437,8 @@ class DropInfinity(QueryExpr):
             columns = tuple(
                 name
                 for name, cd in input_schema.column_descs.items()
-                if (cd.allow_inf) and not name == input_schema.grouping_column
+                if cd.column_type == ColumnType.DECIMAL and cd.allow_inf
+                and not name in (input_schema.grouping_column, input_schema.id_column)
             )
 
         return Schema(
