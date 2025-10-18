@@ -1224,7 +1224,6 @@ class ReplaceInfinity(QueryExpr):
 
         # Subverting the frozen dataclass to update the replace_with attribute
         object.__setattr__(self, "replace_with", FrozenDict.from_dict(updated_dict))
-        object.__setattr__(self, "child", child)
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
