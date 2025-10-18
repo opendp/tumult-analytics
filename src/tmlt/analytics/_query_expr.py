@@ -19,8 +19,11 @@ from dataclasses import dataclass, replace
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+
 from pyspark.sql import DataFrame, SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.aggregations import NoiseMechanism
+from tmlt.core.measures import ApproxDP, PureDP, RhoZCDProm typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from tmlt.core.utils.join import domain_after_join
 from typeguard import check_type
 
@@ -1194,7 +1197,7 @@ class ReplaceNullAndNan(QueryExpr):
         return visitor.visit_replace_null_and_nan(self)
 
 
-@dataclass(frozen=True, init=False, eq=True)
+@dataclass(frozen=True)
 class ReplaceInfinity(QueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
 
@@ -1211,17 +1214,15 @@ class ReplaceInfinity(QueryExpr):
     :class:`~.AnalyticsDefault` class variables).
     """
 
-    def __init__(
-        self, child: QueryExpr, replace_with: FrozenDict = FrozenDict.from_dict({})
-    ) -> None:
+    def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(child, QueryExpr)
-        check_type(replace_with, FrozenDict)
-        check_type(dict(replace_with), Dict[str, Tuple[float, float]])
+        check_type(self.child, QueryExpr)
+        check_type(self.replace_with, FrozenDict)
+        check_type(dict(self.replace_with), Dict[str, Tuple[float, float]])
 
         # Ensure that the values in replace_with are tuples of floats
         updated_dict = {}
-        for col, val in replace_with.items():
+        for col, val in self.replace_with.items():
             updated_dict[col] = (float(val[0]), float(val[1]))
 
         # Subverting the frozen dataclass to update the replace_with attribute
