@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql import DataFrame, SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.utils.join import domain_after_join
 from typeguard import check_type
 
@@ -1683,6 +1684,8 @@ class GroupByCount(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1724,6 +1727,8 @@ class GroupByCountDistinct(QueryExpr):
 
     By DEFAULT, the framework automatically selects an appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1845,6 +1850,8 @@ class GroupByBoundedSum(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1912,6 +1919,8 @@ class GroupByBoundedAverage(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1979,6 +1988,8 @@ class GroupByBoundedVariance(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -2046,6 +2057,8 @@ class GroupByBoundedSTDEV(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
