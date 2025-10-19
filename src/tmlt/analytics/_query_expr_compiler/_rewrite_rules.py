@@ -59,6 +59,11 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
             CountMechanism.GAUSSIAN,
             CountDistinctMechanism.GAUSSIAN,
         ):
+            if not isinstance(info.output_measure, RhoZCDP):
+                raise ValueError(
+                    "Gaussian noise is only supported when using a RhoZCDP budget. "
+                    "Use Laplace noise instead, or switch to RhoZCDP."
+                )
             core_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
         else:
             raise ValueError(
@@ -103,10 +108,12 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
             VarianceMechanism.GAUSSIAN,
             StdevMechanism.GAUSSIAN,
         ):
-            core_mechanism = NoiseMechanism.GAUSSIAN
             if not isinstance(info.output_measure, RhoZCDP):
                 raise ValueError(
-                    "Gaussian noise is only supported when using. ")
+                    "Gaussian noise is only supported when using a RhoZCDP budget. "
+                    "Use Laplace noise instead, or switch to RhoZCDP."
+                )
+            core_mechanism = NoiseMechanism.GAUSSIAN
         else:
             raise ValueError(
                 f"Did not recognize requested mechanism {mechanism}."
