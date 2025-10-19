@@ -137,18 +137,17 @@ class QueryExprCompiler:
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
-        # First, apply rewrite rules.
+        # Computing the schema validates that the query is well-formed.
+        query.schema(catalog)
+
+        # Compilation happens in two stages: first, we apply rewrite rules...
         compilation_info = CompilationInfo(
             output_measure=self._output_measure,
             catalog=catalog,
         )
         query = rewrite(compilation_info, query)
 
-        # Then, visit the query.
-
-        # Computing the schema validates that the query is well-formed.
-        query.schema(catalog)
-
+        # ... then we visit the query.
         visitor = MeasurementVisitor(
             privacy_budget=privacy_budget,
             stability=stability,
