@@ -402,7 +402,7 @@ class TestSession:
                 duplicate_rows,
                 new_column_types={"C": "VARCHAR"},
                 augment=True,
-                max_num_rows=2,
+                max_rows=2,
             )
             .get_groups(["A", "B", "C"])
         )
