@@ -1468,11 +1468,6 @@ class EnforceConstraint(QueryExpr):
     """The QueryExpr to which the constraint will be applied."""
     constraint: Constraint
     """A constraint to be enforced."""
-    options: FrozenDict = FrozenDict.from_dict({})
-    """Options to be used when enforcing the constraint.
-
-    Appropriate values here vary depending on the constraint. These options are
-    to support advanced use cases, and generally should not be used."""
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
