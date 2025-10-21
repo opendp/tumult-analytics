@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from dataclasses import dataclass, replace
+from functools import wraps
 from typing import Callable, Union
 
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -14,13 +15,30 @@ from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
+    DropInfinity,
+    DropNullAndNan,
+    EnforceConstraint,
+    Filter,
+    FlatMap,
+    FlatMapByID,
+    GetBounds,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
     GroupByCountDistinct,
+    GroupByQuantile,
+    JoinPrivate,
+    JoinPublic,
+    Map,
+    PrivateSource,
     QueryExpr,
+    Rename,
+    ReplaceInfinity,
+    ReplaceNullAndNan,
+    Select,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
@@ -28,16 +46,73 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._schema import ColumnType
 
+EXPRS_WITH_ONE_CHILD = (
+    DropInfinity,
+    DropNullAndNan,
+    EnforceConstraint,
+    Filter,
+    FlatMap,
+    FlatMapByID,
+    GetBounds,
+    GetGroups,
+    GroupByBoundedAverage,
+    GroupByBoundedSTDEV,
+    GroupByBoundedSum,
+    GroupByBoundedVariance,
+    GroupByCount,
+    GroupByCountDistinct,
+    GroupByQuantile,
+    JoinPublic,
+    Map,
+    Rename,
+    ReplaceInfinity,
+    ReplaceNullAndNan,
+    Select,
+)
+
 
 @dataclass(frozen=True)
 class CompilationInfo:
-    """Contextual information added to the QueryExpr during compilation."""
+    """Contextual information used by rewrite rules during compilation."""
 
     output_measure: Union[PureDP, ApproxDP, RhoZCDP]
     """The output measure used by this query."""
 
     catalog: Catalog
     """The Catalog of the Session this query is executed on."""
+
+
+def depth_first(
+    func: Callable[[QueryExpr], QueryExpr]
+) -> Callable[[QueryExpr], QueryExpr]:
+    """Recursively applies the given method to a QueryExpr, depth-first."""
+
+    @wraps(func)
+    def wrapped(expr: QueryExpr) -> QueryExpr:
+        if isinstance(expr, PrivateSource):
+            return func(expr)
+        if isinstance(expr, SuppressAggregates):
+            child = wrapped(expr.child)
+            if not isinstance(child, GroupByCount):
+                raise AnalyticsInternalError(
+                    "Rewriting rule should have produced a QueryExpr of type "
+                    "GroupByCount as a child for SuppressAggregates, got type "
+                    f"{type(child).__qualname__} instead."
+                )
+            return func(replace(expr, child=child))
+        if isinstance(expr, EXPRS_WITH_ONE_CHILD):
+            child = wrapped(expr.child)
+            return func(replace(expr, child=child))
+        elif isinstance(expr, JoinPrivate):
+            left = wrapped(expr.child)
+            right = wrapped(expr.right_operand_expr)
+            return func(replace(expr, child=left, right_operand_expr=right))
+        else:
+            raise AnalyticsInternalError(
+                f"Unrecognized QueryExpr subtype {type(expr).__qualname__}."
+            )
+
+    return wrapped
 
 
 def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], QueryExpr]:
@@ -132,15 +207,8 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
 
         return replace(expr, core_mechanism=core_mechanism)
 
+    @depth_first
     def select_noise(expr: QueryExpr) -> QueryExpr:
-        if isinstance(expr, SuppressAggregates):
-            child = select_noise(expr.child)
-            if not isinstance(child, GroupByCount):
-                raise AnalyticsInternalError(
-                    "SuppressAggregates expected a child of type GroupByCount, got "
-                    f" {type(child).__qualname__} instead."
-                )
-            return replace(expr, child=child)
         if isinstance(expr, (GroupByCount, GroupByCountDistinct)):
             return select_noise_for_count(info, expr)
         if isinstance(
@@ -153,7 +221,6 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
             ),
         ):
             return select_noise_for_non_count(info, expr)
-        # Other aggregations don't use Core's NoiseMechanism, so they stay unchanged.
         return expr
 
     return select_noise
