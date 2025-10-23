@@ -15,60 +15,22 @@ from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-    DropInfinity,
-    DropNullAndNan,
-    EnforceConstraint,
-    Filter,
-    FlatMap,
-    FlatMapByID,
-    GetBounds,
-    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
     GroupByCountDistinct,
-    GroupByQuantile,
     JoinPrivate,
-    JoinPublic,
-    Map,
     PrivateSource,
     QueryExpr,
-    Rename,
-    ReplaceInfinity,
-    ReplaceNullAndNan,
-    Select,
+    SingleChildQueryExpr,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
     VarianceMechanism,
 )
 from tmlt.analytics._schema import ColumnType
-
-EXPRS_WITH_ONE_CHILD = (
-    DropInfinity,
-    DropNullAndNan,
-    EnforceConstraint,
-    Filter,
-    FlatMap,
-    FlatMapByID,
-    GetBounds,
-    GetGroups,
-    GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
-    GroupByBoundedSum,
-    GroupByBoundedVariance,
-    GroupByCount,
-    GroupByCountDistinct,
-    GroupByQuantile,
-    JoinPublic,
-    Map,
-    Rename,
-    ReplaceInfinity,
-    ReplaceNullAndNan,
-    Select,
-)
 
 
 @dataclass(frozen=True)
@@ -100,10 +62,10 @@ def depth_first(
                     f"{type(child).__qualname__} instead."
                 )
             return func(replace(expr, child=child))
-        if isinstance(expr, EXPRS_WITH_ONE_CHILD):
+        if isinstance(expr, SingleChildQueryExpr):
             child = wrapped(expr.child)
             return func(replace(expr, child=child))
-        elif isinstance(expr, JoinPrivate):
+        if isinstance(expr, JoinPrivate):
             left = wrapped(expr.child)
             right = wrapped(expr.right_operand_expr)
             return func(replace(expr, child=left, right_operand_expr=right))

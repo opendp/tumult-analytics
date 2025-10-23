@@ -1,15 +1,11 @@
 """Tests for rewrite rules."""
-from dataclasses import replace
-from typing import Optional, Union
+from dataclasses import dataclass, replace
+from typing import Any, Union
 
 import pytest
-from tmlt.core.domains.spark_domains import (
-    SparkColumnDescriptor,
-    SparkFloatColumnDescriptor,
-    SparkIntegerColumnDescriptor,
-)
 from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
+from tmlt.core.utils.testing import Case, parametrize
 
 from tmlt.analytics import KeySet
 from tmlt.analytics._catalog import Catalog
@@ -25,6 +21,8 @@ from tmlt.analytics._query_expr import (
     GroupByCountDistinct,
     PrivateSource,
     QueryExpr,
+    QueryExprVisitor,
+    SingleChildQueryExpr,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
@@ -34,7 +32,7 @@ from tmlt.analytics._query_expr_compiler._rewrite_rules import (
     CompilationInfo,
     select_noise_mechanism,
 )
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -57,384 +55,195 @@ def fixture_catalog():
 
 BASE_EXPR = PrivateSource("private")
 
+AGG_CLASSES = {
+    "count": (GroupByCount, CountMechanism),
+    "count_distinct": (GroupByCountDistinct, CountDistinctMechanism),
+    "average": (GroupByBoundedAverage, AverageMechanism),
+    "sum": (GroupByBoundedSum, SumMechanism),
+    "stdev": (GroupByBoundedSTDEV, StdevMechanism),
+    "variance": (GroupByBoundedVariance, VarianceMechanism),
+}
 
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,expected_mechanism",
+
+@parametrize(
     [
-        (mech, meas, NoiseMechanism.GEOMETRIC)
-        for mech in [CountMechanism.DEFAULT, CountMechanism.LAPLACE]
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=meas,
+            expected_mechanism="GEOMETRIC",
+        )
+        for agg in ["count", "count_distinct"]
+        for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
-        (mech, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN)
-        for mech in [CountMechanism.DEFAULT, CountMechanism.GAUSSIAN]
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=RhoZCDP(),
+            expected_mechanism="DISCRETE_GAUSSIAN",
+        )
+        for agg in ["count", "count_distinct"]
+        for mech in ["DEFAULT", "GAUSSIAN"]
     ]
-    + [(CountMechanism.LAPLACE, RhoZCDP(), NoiseMechanism.GEOMETRIC)],
+    + [
+        Case()(
+            agg=agg,
+            query_mechanism="LAPLACE",
+            output_measure=RhoZCDP(),
+            expected_mechanism="GEOMETRIC",
+        )
+        for agg in ["count", "count_distinct"]
+    ],
 )
-def test_noise_selection_for_count(
+def test_noise_selection_counts(
     catalog: Catalog,
-    query_mechanism: CountMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    expected_mechanism: NoiseMechanism,
+    agg: str,
+    query_mechanism: str,
+    output_measure: Union[PureDP, ApproxDP, RhoZCDP],
+    expected_mechanism: str,
 ) -> None:
     """Test noise selection for GroupByCount{Distinct,} query expressions."""
-    expr = GroupByCount(
+    (AggExpr, AggMech) = AGG_CLASSES[agg]
+    expr = AggExpr(
         child=BASE_EXPR,
         groupby_keys=KeySet.from_dict({}),
-        mechanism=query_mechanism,
+        mechanism=AggMech[query_mechanism],
     )
     info = CompilationInfo(output_measure=output_measure, catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
+    assert got_expr == replace(expr, core_mechanism=NoiseMechanism[expected_mechanism])
 
 
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,expected_mechanism",
+@parametrize(
     [
-        (mech, meas, NoiseMechanism.GEOMETRIC)
-        for mech in [CountDistinctMechanism.DEFAULT, CountDistinctMechanism.LAPLACE]
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=meas,
+            measure_column="int_col",
+            expected_mechanism="GEOMETRIC",
+        )
+        for agg in ["average", "sum", "stdev", "variance"]
+        for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
-        (mech, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN)
-        for mech in [
-            CountDistinctMechanism.DEFAULT,
-            CountDistinctMechanism.GAUSSIAN,
-        ]
-    ]
-    + [(CountDistinctMechanism.LAPLACE, RhoZCDP(), NoiseMechanism.GEOMETRIC)],
-)
-def test_noise_selection_for_count_distinct(
-    catalog: Catalog,
-    query_mechanism: CountDistinctMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    expected_mechanism: NoiseMechanism,
-) -> None:
-    """Test noise selection for GroupByCountDistinct query expressions."""
-    expr = GroupByCountDistinct(
-        child=BASE_EXPR,
-        groupby_keys=KeySet.from_dict({}),
-        mechanism=query_mechanism,
-    )
-    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
-    got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
-
-
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-    [
-        (mech, meas, SparkIntegerColumnDescriptor(), NoiseMechanism.GEOMETRIC)
-        for mech in [AverageMechanism.DEFAULT, AverageMechanism.LAPLACE]
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=meas,
+            measure_column="float_col",
+            expected_mechanism="LAPLACE",
+        )
+        for agg in ["average", "sum", "stdev", "variance"]
+        for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
-        (mech, meas, SparkFloatColumnDescriptor(), NoiseMechanism.LAPLACE)
-        for mech in [AverageMechanism.DEFAULT, AverageMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (
-            mech,
-            RhoZCDP(),
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.DISCRETE_GAUSSIAN,
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=RhoZCDP(),
+            measure_column="int_col",
+            expected_mechanism="DISCRETE_GAUSSIAN",
         )
-        for mech in [AverageMechanism.DEFAULT, AverageMechanism.GAUSSIAN]
+        for agg in ["average", "sum", "stdev", "variance"]
+        for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
-        (mech, RhoZCDP(), SparkFloatColumnDescriptor(), NoiseMechanism.GAUSSIAN)
-        for mech in [AverageMechanism.DEFAULT, AverageMechanism.GAUSSIAN]
-    ]
-    + [
-        (
-            AverageMechanism.LAPLACE,
-            RhoZCDP(),
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.GEOMETRIC,
+        Case()(
+            agg=agg,
+            query_mechanism=mech,
+            output_measure=RhoZCDP(),
+            measure_column="float_col",
+            expected_mechanism="GAUSSIAN",
         )
+        for agg in ["average", "sum", "stdev", "variance"]
+        for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
-        (
-            AverageMechanism.LAPLACE,
-            RhoZCDP(),
-            SparkFloatColumnDescriptor(),
-            NoiseMechanism.LAPLACE,
+        Case()(
+            agg=agg,
+            query_mechanism="LAPLACE",
+            output_measure=RhoZCDP(),
+            measure_column="int_col",
+            expected_mechanism="GEOMETRIC",
         )
+        for agg in ["average", "sum", "stdev", "variance"]
+    ]
+    + [
+        Case()(
+            agg=agg,
+            query_mechanism="LAPLACE",
+            output_measure=RhoZCDP(),
+            measure_column="float_col",
+            expected_mechanism="LAPLACE",
+        )
+        for agg in ["average", "sum", "stdev", "variance"]
     ],
 )
-def test_noise_selection_for_average(
+def test_noise_selection_numeric_aggregations(
     catalog: Catalog,
-    query_mechanism: AverageMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    measure_column_type: SparkColumnDescriptor,
-    # if expected_mechanism is None, this combination is not supported
-    expected_mechanism: Optional[NoiseMechanism],
+    agg: str,
+    query_mechanism: str,
+    measure_column: str,
+    output_measure: Union[PureDP, ApproxDP, RhoZCDP],
+    expected_mechanism: str,
 ) -> None:
     """Test noise selection for GroupByBoundedAverage query exprs."""
-    if isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-        measure_column = "int_col"
-    elif isinstance(measure_column_type, SparkFloatColumnDescriptor):
-        measure_column = "float_col"
-    else:
-        raise AssertionError("Unknown measure column type")
-    expr = GroupByBoundedAverage(
+    (AggExpr, AggMech) = AGG_CLASSES[agg]
+    expr = AggExpr(
         child=BASE_EXPR,
         measure_column=measure_column,
         low=0,
         high=1,
-        mechanism=query_mechanism,
+        mechanism=AggMech[query_mechanism],
         groupby_keys=KeySet.from_dict({}),
     )
     info = CompilationInfo(output_measure=output_measure, catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
+    assert got_expr == replace(expr, core_mechanism=NoiseMechanism[expected_mechanism])
 
 
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,measure_column_type,expected_mechanism",
+@parametrize(
     [
-        (mech, meas, SparkIntegerColumnDescriptor(), NoiseMechanism.GEOMETRIC)
-        for mech in [SumMechanism.DEFAULT, SumMechanism.LAPLACE]
+        Case()(
+            query_mechanism=mech, output_measure=meas, expected_mechanism="GEOMETRIC"
+        )
+        for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
-        (mech, meas, SparkFloatColumnDescriptor(), NoiseMechanism.LAPLACE)
-        for mech in [SumMechanism.DEFAULT, SumMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (
-            mech,
-            RhoZCDP(),
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.DISCRETE_GAUSSIAN,
+        Case()(
+            query_mechanism=mech,
+            output_measure=RhoZCDP(),
+            expected_mechanism="DISCRETE_GAUSSIAN",
         )
-        for mech in [SumMechanism.DEFAULT, SumMechanism.GAUSSIAN]
+        for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
-        (mech, RhoZCDP(), SparkFloatColumnDescriptor(), NoiseMechanism.GAUSSIAN)
-        for mech in [SumMechanism.DEFAULT, SumMechanism.GAUSSIAN]
-    ]
-    + [
-        (
-            SumMechanism.LAPLACE,
-            meas,
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.GEOMETRIC,
+        Case()(
+            query_mechanism="LAPLACE",
+            output_measure=meas,
+            expected_mechanism="GEOMETRIC",
         )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ]
-    + [
-        (
-            SumMechanism.LAPLACE,
-            meas,
-            SparkFloatColumnDescriptor(),
-            NoiseMechanism.LAPLACE,
-        )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ],
-)
-def test_noise_selection_for_sum(
-    catalog: Catalog,
-    query_mechanism: SumMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    measure_column_type: SparkColumnDescriptor,
-    # if expected_mechanism is None, this combination is not supported
-    expected_mechanism: Optional[NoiseMechanism],
-) -> None:
-    """Test noise selection for GroupByBoundedSum query exprs."""
-    if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-        measure_column = "float_col"
-    elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-        measure_column = "int_col"
-    else:
-        raise AssertionError("Unknown measure column type")
-    expr = GroupByBoundedSum(
-        child=BASE_EXPR,
-        measure_column=measure_column,
-        low=0,
-        high=1,
-        mechanism=query_mechanism,
-        groupby_keys=KeySet.from_dict({}),
-    )
-    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
-    got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
-
-
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-    [
-        (mech, meas, SparkIntegerColumnDescriptor(), NoiseMechanism.GEOMETRIC)
-        for mech in [VarianceMechanism.DEFAULT, VarianceMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (mech, meas, SparkFloatColumnDescriptor(), NoiseMechanism.LAPLACE)
-        for mech in [VarianceMechanism.DEFAULT, VarianceMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (
-            mech,
-            RhoZCDP(),
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.DISCRETE_GAUSSIAN,
-        )
-        for mech in [VarianceMechanism.DEFAULT, VarianceMechanism.GAUSSIAN]
-    ]
-    + [
-        (mech, RhoZCDP(), SparkFloatColumnDescriptor(), NoiseMechanism.GAUSSIAN)
-        for mech in [VarianceMechanism.DEFAULT, VarianceMechanism.GAUSSIAN]
-    ]
-    + [
-        (
-            VarianceMechanism.LAPLACE,
-            meas,
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.GEOMETRIC,
-        )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ]
-    + [
-        (
-            VarianceMechanism.LAPLACE,
-            meas,
-            SparkFloatColumnDescriptor(),
-            NoiseMechanism.LAPLACE,
-        )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ],
-)
-def test_noise_selection_for_variance(
-    catalog: Catalog,
-    query_mechanism: VarianceMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    measure_column_type: SparkColumnDescriptor,
-    # if expected_mechanism is None, this combination is not supported
-    expected_mechanism: Optional[NoiseMechanism],
-) -> None:
-    """Test noise selection for GroupByBoundedVariance query exprs."""
-    if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-        measure_column = "float_col"
-    elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-        measure_column = "int_col"
-    else:
-        raise AssertionError("Unknown measure column type")
-    expr = GroupByBoundedVariance(
-        child=BASE_EXPR,
-        measure_column=measure_column,
-        low=0,
-        high=1,
-        mechanism=query_mechanism,
-        groupby_keys=KeySet.from_dict({}),
-    )
-    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
-    got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
-
-
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-    [
-        (mech, meas, SparkIntegerColumnDescriptor(), NoiseMechanism.GEOMETRIC)
-        for mech in [StdevMechanism.DEFAULT, StdevMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (mech, meas, SparkFloatColumnDescriptor(), NoiseMechanism.LAPLACE)
-        for mech in [StdevMechanism.DEFAULT, StdevMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (
-            mech,
-            RhoZCDP(),
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.DISCRETE_GAUSSIAN,
-        )
-        for mech in [StdevMechanism.DEFAULT, StdevMechanism.GAUSSIAN]
-    ]
-    + [
-        (mech, RhoZCDP(), SparkFloatColumnDescriptor(), NoiseMechanism.GAUSSIAN)
-        for mech in [StdevMechanism.DEFAULT, StdevMechanism.GAUSSIAN]
-    ]
-    + [
-        (
-            StdevMechanism.LAPLACE,
-            meas,
-            SparkIntegerColumnDescriptor(),
-            NoiseMechanism.GEOMETRIC,
-        )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ]
-    + [
-        (
-            StdevMechanism.LAPLACE,
-            meas,
-            SparkFloatColumnDescriptor(),
-            NoiseMechanism.LAPLACE,
-        )
-        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
-    ],
-)
-def test_noise_selection_for_stdev(
-    catalog: Catalog,
-    query_mechanism: StdevMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    measure_column_type: SparkColumnDescriptor,
-    # if expected_mechanism is None, this combination is not supported
-    expected_mechanism: Optional[NoiseMechanism],
-) -> None:
-    """Test noise selection for GroupByBoundedSTDEV query exprs."""
-    if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-        measure_column = "float_col"
-    elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-        measure_column = "int_col"
-    else:
-        raise AssertionError("Unknown measure column type")
-    expr = GroupByBoundedSTDEV(
-        child=BASE_EXPR,
-        measure_column=measure_column,
-        low=0,
-        high=1,
-        mechanism=query_mechanism,
-        groupby_keys=KeySet.from_dict({}),
-    )
-    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
-    got_expr = select_noise_mechanism(info)(expr)
-    assert got_expr == replace(expr, core_mechanism=expected_mechanism)
-
-
-@pytest.mark.parametrize(
-    "query_mechanism,output_measure,expected_mechanism",
-    [
-        (mech, meas, NoiseMechanism.GEOMETRIC)
-        for mech in [CountMechanism.DEFAULT, CountMechanism.LAPLACE]
-        for meas in [PureDP(), ApproxDP()]
-    ]
-    + [
-        (mech, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN)
-        for mech in [CountMechanism.DEFAULT, CountMechanism.GAUSSIAN]
-    ]
-    + [
-        (CountMechanism.LAPLACE, meas, NoiseMechanism.GEOMETRIC)
         for meas in [PureDP(), ApproxDP(), RhoZCDP()]
     ],
 )
 def test_noise_selection_suppress_aggregates(
     catalog: Catalog,
-    query_mechanism: CountMechanism,
-    output_measure: Union[PureDP, RhoZCDP],
-    expected_mechanism: NoiseMechanism,
+    query_mechanism: str,
+    output_measure: Union[PureDP, ApproxDP, RhoZCDP],
+    expected_mechanism: str,
 ) -> None:
     """Test noise selection for GroupByCount query expressions."""
     expr = SuppressAggregates(
         child=GroupByCount(
             child=BASE_EXPR,
             groupby_keys=KeySet.from_dict({}),
-            mechanism=query_mechanism,
+            mechanism=CountMechanism[query_mechanism],
         ),
         column="count",
         threshold=42,
@@ -442,63 +251,77 @@ def test_noise_selection_suppress_aggregates(
     info = CompilationInfo(output_measure=output_measure, catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
     assert got_expr == replace(
-        expr, child=replace(expr.child, core_mechanism=expected_mechanism)
+        expr,
+        child=replace(expr.child, core_mechanism=NoiseMechanism[expected_mechanism]),
     )
 
 
-@pytest.mark.parametrize(
-    "expr",
+@parametrize(
     [
-        GroupByCount(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            mechanism=CountMechanism.GAUSSIAN,
-        ),
-        GroupByCountDistinct(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            mechanism=CountDistinctMechanism.GAUSSIAN,
-        ),
-        GroupByBoundedAverage(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="int_col",
-            low=0,
-            high=1,
-            mechanism=AverageMechanism.GAUSSIAN,
-        ),
-        GroupByBoundedSum(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="int_col",
-            low=0,
-            high=1,
-            mechanism=SumMechanism.GAUSSIAN,
-        ),
-        GroupByBoundedSTDEV(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="int_col",
-            low=0,
-            high=1,
-            mechanism=StdevMechanism.GAUSSIAN,
-        ),
-        GroupByBoundedVariance(
-            child=BASE_EXPR,
-            groupby_keys=KeySet.from_dict({}),
-            measure_column="int_col",
-            low=0,
-            high=1,
-            mechanism=VarianceMechanism.GAUSSIAN,
-        ),
-        SuppressAggregates(
-            child=GroupByCount(
-                child=PrivateSource("blah"),
+        Case()(
+            expr=GroupByCount(
+                child=BASE_EXPR,
                 groupby_keys=KeySet.from_dict({}),
                 mechanism=CountMechanism.GAUSSIAN,
-            ),
-            column="count",
-            threshold=42,
+            )
+        ),
+        Case()(
+            expr=GroupByCountDistinct(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                mechanism=CountDistinctMechanism.GAUSSIAN,
+            )
+        ),
+        Case()(
+            expr=GroupByBoundedAverage(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=AverageMechanism.GAUSSIAN,
+            )
+        ),
+        Case()(
+            expr=GroupByBoundedSum(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=SumMechanism.GAUSSIAN,
+            )
+        ),
+        Case()(
+            expr=GroupByBoundedSTDEV(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=StdevMechanism.GAUSSIAN,
+            )
+        ),
+        Case()(
+            expr=GroupByBoundedVariance(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=VarianceMechanism.GAUSSIAN,
+            )
+        ),
+        Case()(
+            expr=SuppressAggregates(
+                child=GroupByCount(
+                    child=PrivateSource("blah"),
+                    groupby_keys=KeySet.from_dict({}),
+                    mechanism=CountMechanism.GAUSSIAN,
+                ),
+                column="count",
+                threshold=42,
+            )
         ),
     ],
 )
@@ -513,3 +336,55 @@ def test_noise_selection_invalid_noise(catalog: Catalog, expr: QueryExpr) -> Non
             ),
         ):
             select_noise_mechanism(info)(expr)
+
+
+@dataclass(frozen=True)
+class SomeKindOfPostProcessing(SingleChildQueryExpr):
+    """A fake post-processing QueryExpr."""
+
+    field: int
+    """A field, because why not."""
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Just propagate the schema from the child."""
+        return self.child.schema(catalog)
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """This should not be called."""
+        raise NotImplementedError()
+
+
+def test_recursive_noise_selection(catalog: Catalog) -> None:
+    """Checks that noise selection works for new post-processing QueryExprs."""
+    expr = SomeKindOfPostProcessing(
+        child=SomeKindOfPostProcessing(
+            child=GroupByBoundedAverage(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=AverageMechanism.DEFAULT,
+            ),
+            field=42,
+        ),
+        field=17,
+    )
+    expected_expr = SomeKindOfPostProcessing(
+        child=SomeKindOfPostProcessing(
+            child=GroupByBoundedAverage(
+                child=BASE_EXPR,
+                groupby_keys=KeySet.from_dict({}),
+                measure_column="int_col",
+                low=0,
+                high=1,
+                mechanism=AverageMechanism.DEFAULT,
+                core_mechanism=NoiseMechanism.LAPLACE,
+            ),
+            field=42,
+        ),
+        field=17,
+    )
+    info = CompilationInfo(output_measure=ApproxDP(), catalog=catalog)
+    got_expr = select_noise_mechanism(info)(expr)
+    assert got_expr == expected_expr
