@@ -1722,9 +1722,7 @@ class QueryBuilder:
         Args:
             constraint: The constraint to enforce.
         """
-        self._query_expr = EnforceConstraint(
-            self._query_expr, constraint, options=FrozenDict.from_dict({})
-        )
+        self._query_expr = EnforceConstraint(self._query_expr, constraint)
         return self
 
     def get_groups(self, columns: Optional[List[str]] = None) -> Query:

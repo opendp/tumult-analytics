@@ -1556,9 +1556,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             expr.child
         )
         # pylint: disable=protected-access
-        transformation, ref = expr.constraint._enforce(
-            child_transformation, child_ref, *expr.options
-        )
+        transformation, ref = expr.constraint._enforce(child_transformation, child_ref)
         # pylint: enable=protected-access
         return self.Output(
             transformation,

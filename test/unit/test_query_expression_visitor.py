@@ -155,12 +155,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         ),
         (DropInfinity(PrivateSource("P"), tuple("column")), "DropInfinity"),
         (DropNullAndNan(PrivateSource("P"), tuple("column")), "DropNullAndNan"),
-        (
-            EnforceConstraint(
-                PrivateSource("P"), MaxRowsPerID(5), FrozenDict.from_dict({})
-            ),
-            "EnforceConstraint",
-        ),
+        (EnforceConstraint(PrivateSource("P"), MaxRowsPerID(5)), "EnforceConstraint"),
         (GetGroups(PrivateSource("P"), tuple("column")), "GetGroups"),
         (
             GetBounds(PrivateSource("P"), KeySet.from_dict({}), "A", "lower", "upper"),
