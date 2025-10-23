@@ -379,7 +379,7 @@ def test_recursive_noise_selection(catalog: Catalog) -> None:
                 low=0,
                 high=1,
                 mechanism=AverageMechanism.DEFAULT,
-                core_mechanism=NoiseMechanism.LAPLACE,
+                core_mechanism=NoiseMechanism.GEOMETRIC,
             ),
             field=42,
         ),
