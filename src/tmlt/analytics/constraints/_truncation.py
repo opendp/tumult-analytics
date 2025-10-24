@@ -146,7 +146,7 @@ class MaxRowsPerID(Constraint):
 
         else:
 
-            def gen_tranformation_ark(parent_domain, parent_metric, target):
+            def gen_transformation_ark(parent_domain, parent_metric, target):
                 return LimitRowsPerGroupValue(
                     parent_domain, parent_metric, child_ref.identifier, target, self.max
                 )
@@ -154,7 +154,7 @@ class MaxRowsPerID(Constraint):
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_tranformation_ark},
+                {AddRemoveKeys: gen_transformation_ark},
             )
 
 
@@ -254,7 +254,7 @@ class MaxGroupsPerID(Constraint):
 
         else:
 
-            def gen_tranformation_ark(parent_domain, parent_metric, target):
+            def gen_transformation_ark(parent_domain, parent_metric, target):
                 return LimitKeysPerGroupValue(
                     parent_domain,
                     parent_metric,
@@ -267,7 +267,7 @@ class MaxGroupsPerID(Constraint):
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_tranformation_ark},
+                {AddRemoveKeys: gen_transformation_ark},
             )
 
 
@@ -358,7 +358,7 @@ class MaxRowsPerGroupPerID(Constraint):
                     " with the AddRowsWithID protected change."
                 )
 
-            def gen_tranformation_ark(parent_domain, parent_metric, target):
+            def gen_transformation_ark(parent_domain, parent_metric, target):
                 return LimitRowsPerKeyPerGroupValue(
                     parent_domain,
                     parent_metric,
@@ -371,5 +371,5 @@ class MaxRowsPerGroupPerID(Constraint):
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_tranformation_ark},
+                {AddRemoveKeys: gen_transformation_ark},
             )

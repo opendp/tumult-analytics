@@ -1247,7 +1247,6 @@ class QueryBuilder:
         augment: bool = False,
         grouping: bool = False,
         max_rows: Optional[int] = None,
-        max_num_rows: Optional[int] = None,
     ) -> "QueryBuilder":
         """Applies a mapping function to each row, returning zero or more rows.
 
@@ -1352,7 +1351,6 @@ class QueryBuilder:
             max_rows: The enforced limit on the number of rows from each ``f(row)``.
                 If ``f`` produces more rows than this, only the first ``max_rows``
                 rows will be in the output.
-            max_num_rows: Deprecated synonym for ``max_rows``.
         """
         grouping_column: Optional[str]
         if grouping:
@@ -1365,16 +1363,6 @@ class QueryBuilder:
             (grouping_column,) = new_column_types
         else:
             grouping_column = None
-        if max_num_rows is not None:
-            if max_rows is not None:
-                raise ValueError(
-                    "You must use either max_rows or max_num_rows, not both"
-                )
-            warnings.warn(
-                "max_num_rows is deprecated and will be removed in a future release",
-                DeprecationWarning,
-            )
-            max_rows = max_num_rows
         self._query_expr = FlatMap(
             child=self._query_expr,
             f=f,
@@ -1734,9 +1722,7 @@ class QueryBuilder:
         Args:
             constraint: The constraint to enforce.
         """
-        self._query_expr = EnforceConstraint(
-            self._query_expr, constraint, options=FrozenDict.from_dict({})
-        )
+        self._query_expr = EnforceConstraint(self._query_expr, constraint)
         return self
 
     def get_groups(self, columns: Optional[List[str]] = None) -> Query:
