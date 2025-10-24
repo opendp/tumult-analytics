@@ -899,36 +899,6 @@ class TestAggregations:
             expected_name,
         )
 
-    @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
-    def test_count_distinct_raises_warnings(self, columns: List[str]):
-        """Test that count_distinct raises warning when ``cols`` is provided."""
-        with pytest.warns(
-            DeprecationWarning, match=re.escape("`cols` argument is deprecated")
-        ):
-            root_builder().count_distinct(cols=columns)
-
-        keys = KeySet.from_dict({e: ["a"] for e in columns})
-        with pytest.warns(
-            DeprecationWarning, match=re.escape("`cols` argument is deprecated")
-        ):
-            root_builder().groupby(keys).count_distinct(cols=columns)
-
-    @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
-    def test_count_distinct_raises_error(self, columns: List[str]):
-        """Test that count_distinct raises error with both ``cols`` and ``columns``."""
-        with pytest.raises(
-            ValueError,
-            match=re.escape("cannot provide both `cols` and `columns` arguments"),
-        ):
-            root_builder().count_distinct(columns=columns, cols=columns)
-
-        keys = KeySet.from_dict({e: ["a"] for e in columns})
-        with pytest.raises(
-            ValueError,
-            match=re.escape("cannot provide both `cols` and `columns` arguments"),
-        ):
-            root_builder().groupby(keys).count_distinct(columns=columns, cols=columns)
-
     @pytest.mark.parametrize(
         "keys_df,name,expected_name,columns",
         (
