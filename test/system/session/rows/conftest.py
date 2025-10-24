@@ -93,7 +93,8 @@ EVALUATE_TESTS = [
     ),
     (  # Total with LAPLACE (Geometric noise gets applied)
         QueryBuilder("private").count_distinct(
-            name="total", mechanism="laplace",
+            name="total",
+            mechanism="laplace",
         ),
         GroupByCountDistinct(
             child=PrivateSource("private"),

@@ -2877,7 +2877,13 @@ class GroupedQueryBuilder:
         if name is None:
             name = "count"
         if isinstance(mechanism, str):
-            mechanism = CountMechanism[mechanism.upper()]
+            try:
+                mechanism = CountMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByCount(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -2961,7 +2967,13 @@ class GroupedQueryBuilder:
             else:
                 name = "count_distinct"
         if isinstance(mechanism, str):
-            mechanism = CountDistinctMechanism[mechanism.upper()]
+            try:
+                mechanism = CountDistinctMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByCountDistinct(
             child=self._query_expr,
             columns_to_count=tuple(columns_to_count) if columns_to_count else None,
@@ -3367,7 +3379,13 @@ class GroupedQueryBuilder:
         if name is None:
             name = f"{column}_sum"
         if isinstance(mechanism, str):
-            mechanism = SumMechanism[mechanism.upper()]
+            try:
+                mechanism = SumMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedSum(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3468,7 +3486,13 @@ class GroupedQueryBuilder:
         if name is None:
             name = f"{column}_average"
         if isinstance(mechanism, str):
-            mechanism = AverageMechanism[mechanism.upper()]
+            try:
+                mechanism = AverageMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedAverage(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3570,7 +3594,13 @@ class GroupedQueryBuilder:
         if name is None:
             name = f"{column}_variance"
         if isinstance(mechanism, str):
-            mechanism = VarianceMechanism[mechanism.upper()]
+            try:
+                mechanism = VarianceMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedVariance(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3671,7 +3701,13 @@ class GroupedQueryBuilder:
         if name is None:
             name = f"{column}_stdev"
         if isinstance(mechanism, str):
-            mechanism = StdevMechanism[mechanism.upper()]
+            try:
+                mechanism = StdevMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedStdev(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
