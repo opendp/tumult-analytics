@@ -120,6 +120,24 @@ from tmlt.analytics.privacy_budget import (
 )
 
 
+def _get_core_mechanism(
+    query: Union[
+        GroupByBoundedAverage,
+        GroupByBoundedSTDEV,
+        GroupByBoundedSum,
+        GroupByBoundedVariance,
+        GroupByCount,
+        GroupByCountDistinct,
+    ]
+) -> NoiseMechanism:
+    if query.core_mechanism is None:
+        raise AnalyticsInternalError(
+            f"QueryExpr {query} should have had core_mechanism set during rewriting, "
+            "but it was None instead."
+        )
+    return query.core_mechanism
+
+
 def _get_query_bounds(
     query: Union[
         GroupByBoundedAverage,
@@ -254,6 +272,7 @@ def _generate_constrained_count_distinct(
             groupby_keys=query.groupby_keys,
             output_column=query.output_column,
             mechanism=mechanism,
+            core_mechanism=query.core_mechanism,
         )
     elif len(groupby_columns) == 1:
         # A groupby on exactly one column is performed; if that column has a
@@ -277,6 +296,7 @@ def _generate_constrained_count_distinct(
                 groupby_keys=query.groupby_keys,
                 output_column=query.output_column,
                 mechanism=mechanism,
+                core_mechanism=query.core_mechanism,
             )
 
     # If none of the above cases are true, no optimization is possible.
@@ -655,129 +675,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             else:
                 raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
 
-    def _pick_noise_for_count(
-        self, query: Union[GroupByCount, GroupByCountDistinct]
-    ) -> NoiseMechanism:
-        """Pick the noise mechanism to use for a count or count-distinct query."""
-        requested_mechanism: NoiseMechanism
-        if query.mechanism in (CountMechanism.DEFAULT, CountDistinctMechanism.DEFAULT):
-            if isinstance(self.output_measure, (PureDP, ApproxDP)):
-                requested_mechanism = NoiseMechanism.LAPLACE
-            else:  # output measure is RhoZCDP
-                requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
-        elif query.mechanism in (
-            CountMechanism.LAPLACE,
-            CountDistinctMechanism.LAPLACE,
-        ):
-            requested_mechanism = NoiseMechanism.LAPLACE
-        elif query.mechanism in (
-            CountMechanism.GAUSSIAN,
-            CountDistinctMechanism.GAUSSIAN,
-        ):
-            requested_mechanism = NoiseMechanism.DISCRETE_GAUSSIAN
-        else:
-            raise ValueError(
-                f"Did not recognize the mechanism name {query.mechanism}."
-                " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
-            )
-
-        if requested_mechanism == NoiseMechanism.LAPLACE:
-            return NoiseMechanism.GEOMETRIC
-        elif requested_mechanism == NoiseMechanism.DISCRETE_GAUSSIAN:
-            return NoiseMechanism.DISCRETE_GAUSSIAN
-        else:
-            # This should never happen
-            raise AnalyticsInternalError(
-                f"Did not recognize the requested mechanism {requested_mechanism}."
-            )
-
-    def _pick_noise_for_non_count(
-        self,
-        query: Union[
-            GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
-            GroupByBoundedSum,
-            GroupByBoundedVariance,
-        ],
-    ) -> NoiseMechanism:
-        """Pick the noise mechanism for non-count queries.
-
-        GroupByQuantile and GetBounds only supports one noise mechanism, so it is not
-        included here.
-        """
-        measure_column_type = query.child.schema(self.catalog)[
-            query.measure_column
-        ].column_type
-        requested_mechanism: NoiseMechanism
-        if query.mechanism in (
-            SumMechanism.DEFAULT,
-            AverageMechanism.DEFAULT,
-            VarianceMechanism.DEFAULT,
-            StdevMechanism.DEFAULT,
-        ):
-            requested_mechanism = (
-                NoiseMechanism.LAPLACE
-                if isinstance(self.output_measure, (PureDP, ApproxDP))
-                else NoiseMechanism.GAUSSIAN
-            )
-        elif query.mechanism in (
-            SumMechanism.LAPLACE,
-            AverageMechanism.LAPLACE,
-            VarianceMechanism.LAPLACE,
-            StdevMechanism.LAPLACE,
-        ):
-            requested_mechanism = NoiseMechanism.LAPLACE
-        elif query.mechanism in (
-            SumMechanism.GAUSSIAN,
-            AverageMechanism.GAUSSIAN,
-            VarianceMechanism.GAUSSIAN,
-            StdevMechanism.GAUSSIAN,
-        ):
-            requested_mechanism = NoiseMechanism.GAUSSIAN
-        else:
-            raise ValueError(
-                f"Did not recognize requested mechanism {query.mechanism}."
-                " Supported mechanisms are DEFAULT, LAPLACE,  and GAUSSIAN."
-            )
-
-        # If the query requested a Laplace measure ...
-        if requested_mechanism == NoiseMechanism.LAPLACE:
-            if measure_column_type == ColumnType.INTEGER:
-                return NoiseMechanism.GEOMETRIC
-            elif measure_column_type == ColumnType.DECIMAL:
-                return NoiseMechanism.LAPLACE
-            else:
-                raise AssertionError(
-                    "Query's measure column should be numeric. This should"
-                    " not happen and is probably a bug;  please let us know"
-                    " so we can fix it!"
-                )
-
-        # If the query requested a Gaussian measure...
-        elif requested_mechanism == NoiseMechanism.GAUSSIAN:
-            if isinstance(self.output_measure, PureDP):
-                raise ValueError(
-                    "Gaussian noise is not supported under PureDP. "
-                    "Please use RhoZCDP or another measure."
-                )
-            if measure_column_type == ColumnType.DECIMAL:
-                return NoiseMechanism.GAUSSIAN
-            elif measure_column_type == ColumnType.INTEGER:
-                return NoiseMechanism.DISCRETE_GAUSSIAN
-            else:
-                raise AssertionError(
-                    "Query's measure column should be numeric. This should"
-                    " not happen and is probably a bug;  please let us know"
-                    " so we can fix it!"
-                )
-
-        # The requested_mechanism should be either LAPLACE or
-        # GAUSSIAN, so something has gone awry
-        else:
-            raise AnalyticsInternalError(
-                f"Did not recognize requested mechanism {requested_mechanism}."
-            )
-
     def _add_special_value_handling_to_query(
         self,
         query: Union[
@@ -1055,7 +952,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
 
-        mechanism = self._pick_noise_for_count(expr)
+        mechanism = _get_core_mechanism(expr)
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
             grouping_columns=groupby_cols,
@@ -1139,7 +1036,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
 
-        mechanism = self._pick_noise_for_count(expr)
+        mechanism = _get_core_mechanism(expr)
         (
             child_transformation,
             child_ref,
@@ -1356,8 +1253,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
 
-        mechanism = self._pick_noise_for_non_count(expr)
         lower, upper = _get_query_bounds(expr)
+        mechanism = _get_core_mechanism(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
@@ -1453,10 +1350,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         lower, upper = _get_query_bounds(expr)
-        mechanism = self._pick_noise_for_non_count(expr)
+        mechanism = _get_core_mechanism(expr)
 
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, self.default_mechanism),
+            *self._visit_child_transformation(expr.child, mechanism),
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1549,7 +1446,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         lower, upper = _get_query_bounds(expr)
-        mechanism = self._pick_noise_for_non_count(expr)
+        mechanism = _get_core_mechanism(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
@@ -1645,7 +1542,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         lower, upper = _get_query_bounds(expr)
-        mechanism = self._pick_noise_for_non_count(expr)
+        mechanism = _get_core_mechanism(expr)
 
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, mechanism),
