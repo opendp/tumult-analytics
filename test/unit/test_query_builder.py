@@ -34,7 +34,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedStdev,
+    GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -940,7 +940,7 @@ class TestAggregations:
             GroupByQuantile,
             GroupByBoundedAverage,
             GroupByBoundedVariance,
-            GroupByBoundedStdev,
+            GroupByBoundedSTDEV,
         ],
         expected_groupby_keys: KeySet,
         expected_measure_column: str,
@@ -1257,7 +1257,7 @@ class TestAggregations:
         query = root_builder().stdev(column="B", low=0.0, high=1.0, name=name)
         assert isinstance(query, Query)
         query_expr = query._query_expr
-        assert isinstance(query_expr, GroupByBoundedStdev)
+        assert isinstance(query_expr, GroupByBoundedSTDEV)
         self.assert_common_query_fields_correct(
             query_expr, keys, "B", 0.0, 1.0, expected_name
         )
@@ -1280,7 +1280,7 @@ class TestAggregations:
         )
         assert isinstance(query, Query)
         query_expr = query._query_expr
-        assert isinstance(query_expr, GroupByBoundedStdev)
+        assert isinstance(query_expr, GroupByBoundedSTDEV)
         self.assert_common_query_fields_correct(
             query_expr, keys, "B", 0.0, 1.0, expected_name
         )

@@ -28,7 +28,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedStdev,
+    GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -821,7 +821,7 @@ class TestAddRows(TestTransformationVisitor):
 
         with pytest.raises(NotImplementedError):
             self.visitor.visit_groupby_bounded_stdev(
-                GroupByBoundedStdev(
+                GroupByBoundedSTDEV(
                     child=PrivateSource(source_id="rows1"),
                     groupby_keys=KeySet.from_dict({}),
                     measure_column="A",

@@ -28,7 +28,7 @@ from tmlt.analytics._query_expr import (
     FlatMap,
     FlatMapByID,
     GroupByBoundedAverage,
-    GroupByBoundedStdev,
+    GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -350,7 +350,7 @@ def test_invalid_groupbyagg(
         GroupByBoundedSum,
         GroupByBoundedAverage,
         GroupByBoundedVariance,
-        GroupByBoundedStdev,
+        GroupByBoundedSTDEV,
     ]:
         with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
             DataClass(PrivateSource("private"), keys, measure_column, low, high)
@@ -440,7 +440,7 @@ def test_clamping_bounds_casting(low: float, high: float):
         GroupByBoundedSum,
         GroupByBoundedAverage,
         GroupByBoundedVariance,
-        GroupByBoundedStdev,
+        GroupByBoundedSTDEV,
     ]:
         query = DataClass(
             PrivateSource("private"),
@@ -455,7 +455,7 @@ def test_clamping_bounds_casting(low: float, high: float):
                 GroupByBoundedSum,
                 GroupByBoundedAverage,
                 GroupByBoundedVariance,
-                GroupByBoundedStdev,
+                GroupByBoundedSTDEV,
             ),
         )
         assert type(query.low) == type(query.high)

@@ -39,7 +39,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedStdev,
+    GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,

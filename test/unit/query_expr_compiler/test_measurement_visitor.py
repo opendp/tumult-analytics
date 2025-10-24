@@ -51,7 +51,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedStdev,
+    GroupByBoundedSTDEV,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -126,7 +126,7 @@ def test_average(lower: float, upper: float) -> None:
 @pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
 def test_stdev(lower: float, upper: float) -> None:
     """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
-    stdev = GroupByBoundedStdev(
+    stdev = GroupByBoundedSTDEV(
         child=PrivateSource("private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
@@ -815,14 +815,14 @@ class TestMeasurementVisitor:
         # if expected_mechanism is None, this combination is not supported
         expected_mechanism: Optional[NoiseMechanism],
     ) -> None:
-        """Test _pick_noise_for_non_count for GroupByBoundedStdev query exprs."""
+        """Test _pick_noise_for_non_count for GroupByBoundedSTDEV query exprs."""
         if isinstance(measure_column_type, SparkFloatColumnDescriptor):
             measure_column = "X"
         elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
             measure_column = "B"
         else:
             raise AssertionError("Unknown measure column type")
-        query = GroupByBoundedStdev(
+        query = GroupByBoundedSTDEV(
             child=self.base_query,
             measure_column=measure_column,
             low=0,
@@ -867,7 +867,7 @@ class TestMeasurementVisitor:
         """
         query: Union[
             GroupByBoundedAverage,
-            GroupByBoundedStdev,
+            GroupByBoundedSTDEV,
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ]
@@ -881,7 +881,7 @@ class TestMeasurementVisitor:
                 groupby_keys=KeySet.from_dict({}),
             )
         elif isinstance(mechanism, StdevMechanism):
-            query = GroupByBoundedStdev(
+            query = GroupByBoundedSTDEV(
                 child=self.base_query,
                 measure_column="A",
                 low=0,
@@ -1643,7 +1643,7 @@ class TestMeasurementVisitor:
         "query,output_measure,noise_info",
         [
             (
-                GroupByBoundedStdev(
+                GroupByBoundedSTDEV(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
@@ -1671,7 +1671,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedStdev(
+                GroupByBoundedSTDEV(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1699,7 +1699,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedStdev(
+                GroupByBoundedSTDEV(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1727,7 +1727,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedStdev(
+                GroupByBoundedSTDEV(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=StdevMechanism.DEFAULT,
@@ -1757,7 +1757,7 @@ class TestMeasurementVisitor:
     )
     def test_visit_groupby_bounded_stdev(
         self,
-        query: GroupByBoundedStdev,
+        query: GroupByBoundedSTDEV,
         output_measure: Union[PureDP, RhoZCDP],
         noise_info: NoiseInfo,
     ) -> None:

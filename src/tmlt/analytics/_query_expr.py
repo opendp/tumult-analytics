@@ -1505,7 +1505,7 @@ def _validate_groupby(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
-        "GroupByBoundedStdev",
+        "GroupByBoundedSTDEV",
         "GroupByBoundedSum",
         "GroupByBoundedVariance",
         "GroupByCount",
@@ -1569,7 +1569,7 @@ def _validate_groupby(
             GetBounds,
             GroupByQuantile,
             GroupByBoundedSum,
-            GroupByBoundedStdev,
+            GroupByBoundedSTDEV,
             GroupByBoundedAverage,
             GroupByBoundedVariance,
         ),
@@ -1601,7 +1601,7 @@ def _schema_for_groupby(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
-        "GroupByBoundedStdev",
+        "GroupByBoundedSTDEV",
         "GroupByBoundedSum",
         "GroupByBoundedVariance",
         "GroupByCount",
@@ -1627,7 +1627,7 @@ def _schema_for_groupby(
         (
             GroupByQuantile,
             GroupByBoundedSum,
-            GroupByBoundedStdev,
+            GroupByBoundedSTDEV,
             GroupByBoundedAverage,
             GroupByBoundedVariance,
         ),
@@ -2007,7 +2007,7 @@ class GroupByBoundedVariance(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedStdev(QueryExpr):
+class GroupByBoundedSTDEV(QueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -2224,8 +2224,8 @@ class QueryExprVisitor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedStdev) -> Any:
-        """Visit a :class:`GroupByBoundedStdev`."""
+    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Any:
+        """Visit a :class:`GroupByBoundedSTDEV`."""
         raise NotImplementedError
 
     @abstractmethod
