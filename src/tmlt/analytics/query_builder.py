@@ -39,7 +39,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -3672,7 +3672,7 @@ class GroupedQueryBuilder:
             name = f"{column}_stdev"
         if isinstance(mechanism, str):
             mechanism = StdevMechanism[mechanism.upper()]
-        query_expr = GroupByBoundedSTDEV(
+        query_expr = GroupByBoundedStdev(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
             measure_column=column,
