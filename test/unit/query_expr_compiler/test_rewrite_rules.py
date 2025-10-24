@@ -68,34 +68,34 @@ AGG_CLASSES = {
 @parametrize(
     [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=meas,
             expected_mechanism="GEOMETRIC",
         )
-        for agg in ["count", "count_distinct"]
         for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=RhoZCDP(),
             expected_mechanism="DISCRETE_GAUSSIAN",
         )
-        for agg in ["count", "count_distinct"]
         for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism="LAPLACE",
             output_measure=RhoZCDP(),
             expected_mechanism="GEOMETRIC",
         )
-        for agg in ["count", "count_distinct"]
     ],
+)
+@parametrize(
+    [
+        Case()(agg="count"),
+        Case()(agg="count_distinct"),
+    ]
 )
 def test_noise_selection_counts(
     catalog: Catalog,
@@ -119,70 +119,66 @@ def test_noise_selection_counts(
 @parametrize(
     [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=meas,
             measure_column="int_col",
             expected_mechanism="GEOMETRIC",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
         for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=meas,
             measure_column="float_col",
             expected_mechanism="LAPLACE",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
         for mech in ["DEFAULT", "LAPLACE"]
         for meas in [PureDP(), ApproxDP()]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=RhoZCDP(),
             measure_column="int_col",
             expected_mechanism="DISCRETE_GAUSSIAN",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
         for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism=mech,
             output_measure=RhoZCDP(),
             measure_column="float_col",
             expected_mechanism="GAUSSIAN",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
         for mech in ["DEFAULT", "GAUSSIAN"]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism="LAPLACE",
             output_measure=RhoZCDP(),
             measure_column="int_col",
             expected_mechanism="GEOMETRIC",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
     ]
     + [
         Case()(
-            agg=agg,
             query_mechanism="LAPLACE",
             output_measure=RhoZCDP(),
             measure_column="float_col",
             expected_mechanism="LAPLACE",
         )
-        for agg in ["average", "sum", "stdev", "variance"]
     ],
+)
+@parametrize(
+    [
+        Case()(agg="sum"),
+        Case()(agg="average"),
+        Case()(agg="stdev"),
+        Case()(agg="variance"),
+    ]
 )
 def test_noise_selection_numeric_aggregations(
     catalog: Catalog,
@@ -325,17 +321,24 @@ def test_noise_selection_suppress_aggregates(
         ),
     ],
 )
-def test_noise_selection_invalid_noise(catalog: Catalog, expr: QueryExpr) -> None:
-    for output_measure in (PureDP(), ApproxDP()):
-        info = CompilationInfo(output_measure=output_measure, catalog=catalog)
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Gaussian noise is only supported when using a RhoZCDP budget. "
-                "Use Laplace noise instead, or switch to RhoZCDP."
-            ),
-        ):
-            select_noise_mechanism(info)(expr)
+@parametrize(
+    [
+        Case()(output_measure=PureDP()),
+        Case()(output_measure=ApproxDP()),
+    ]
+)
+def test_noise_selection_invalid_noise(
+    catalog: Catalog, expr: QueryExpr, output_measure: Union[PureDP, ApproxDP]
+) -> None:
+    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Gaussian noise is only supported when using a RhoZCDP budget. "
+            "Use Laplace noise instead, or switch to RhoZCDP."
+        ),
+    ):
+        select_noise_mechanism(info)(expr)
 
 
 @dataclass(frozen=True)

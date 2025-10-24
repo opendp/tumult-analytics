@@ -1,4 +1,9 @@
-"""Rules for rewriting QueryExprs."""
+"""Rules for rewriting QueryExprs.
+
+These are executed at the beginning of the query compilation process, and each rewrite
+rule corresponds to one compilation step. The rewritten QueryExpr is then visited by the
+MeasurementVisitor to be converted to a Core measurement.
+"""
 
 # SPDX-License-Identifier: Apache-2.0
 
@@ -154,7 +159,7 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
         else:
             raise ValueError(
                 f"Did not recognize requested mechanism {mechanism}."
-                " Supported mechanisms are DEFAULT, LAPLACE,  and GAUSSIAN."
+                " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
             )
 
         # If the measure column type is integer, use integer noise distributions
