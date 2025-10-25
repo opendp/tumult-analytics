@@ -3708,7 +3708,7 @@ class GroupedQueryBuilder:
                     f'Unknown mechanism "{mechanism}". Available options are '
                     '"laplace", "gaussian", or "default".'
                 ) from e
-        query_expr = GroupByBoundedStdev(
+        query_expr = GroupByBoundedSTDEV(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
             measure_column=column,
