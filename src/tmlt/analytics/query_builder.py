@@ -2071,8 +2071,8 @@ class QueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).count(name=name, mechanism=mechanism)
 
@@ -2154,8 +2154,8 @@ class QueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).count_distinct(
             columns=columns, name=name, mechanism=mechanism
@@ -2522,8 +2522,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).sum(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2610,8 +2610,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).average(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2698,8 +2698,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).variance(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2786,8 +2786,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).stdev(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2871,8 +2871,8 @@ class GroupedQueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = "count"
@@ -2955,8 +2955,8 @@ class GroupedQueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         columns_to_count: Optional[List[str]] = None
         if columns is not None and len(columns) > 0:
@@ -3373,8 +3373,8 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_sum"
@@ -3480,8 +3480,8 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_average"
@@ -3588,8 +3588,8 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_variance"
@@ -3695,8 +3695,8 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_stdev"
