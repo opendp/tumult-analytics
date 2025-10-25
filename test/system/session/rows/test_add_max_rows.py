@@ -37,7 +37,7 @@ from tmlt.analytics import (
 )
 from tmlt.analytics._noise_info import _NoiseMechanism
 from tmlt.analytics._query_expr import (
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByCount,
     PrivateSource,
     QueryExpr,
@@ -132,7 +132,7 @@ class TestSession:
                 QueryBuilder("private")
                 .groupby(KeySet.from_dict({"A": ["0", "1"]}))
                 .stdev(column="B", low=0, high=1, mechanism=StdevMechanism.GAUSSIAN),
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",

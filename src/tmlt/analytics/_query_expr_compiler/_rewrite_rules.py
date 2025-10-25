@@ -21,7 +21,7 @@ from tmlt.analytics._query_expr import (
     CountDistinctMechanism,
     CountMechanism,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -118,7 +118,7 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
         info: CompilationInfo,
         expr: Union[
             GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ],
@@ -182,7 +182,7 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
             expr,
             (
                 GroupByBoundedAverage,
-                GroupByBoundedSTDEV,
+                GroupByBoundedStdev,
                 GroupByBoundedSum,
                 GroupByBoundedVariance,
             ),

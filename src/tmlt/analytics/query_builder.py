@@ -39,7 +39,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -3708,7 +3708,7 @@ class GroupedQueryBuilder:
                     f'Unknown mechanism "{mechanism}". Available options are '
                     '"laplace", "gaussian", or "default".'
                 ) from e
-        query_expr = GroupByBoundedSTDEV(
+        query_expr = GroupByBoundedStdev(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
             measure_column=column,

@@ -132,7 +132,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -1597,8 +1597,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
         """Visit a GroupByBoundedVariance query expression (raises an error)."""
         raise NotImplementedError
 
-    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Any:
-        """Visit a GroupByBoundedSTDEV query expression (raises an error)."""
+    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedStdev) -> Any:
+        """Visit a GroupByBoundedStdev query expression (raises an error)."""
         raise NotImplementedError
 
     def visit_suppress_aggregates(self, expr: SuppressAggregates) -> Any:

@@ -20,7 +20,7 @@ from tmlt.analytics._query_expr import (
     FlatMap,
     GetBounds,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -476,7 +476,7 @@ class TestValidation:
         """Test invalid measurement QueryExpr."""
         for DataClass in [
             GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ]:
@@ -649,7 +649,7 @@ class TestValidationWithNulls:
         """Test invalid measurement QueryExpr."""
         for DataClass in [
             GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedSum,
             GroupByBoundedVariance,
         ]:
@@ -1565,7 +1565,7 @@ class TestValidationWithNulls:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict(
                         {"A": ["a1", "a2"], "D": [datetime.date(1999, 12, 31)]}

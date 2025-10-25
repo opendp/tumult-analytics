@@ -69,7 +69,7 @@ class QueryExprCompiler:
     * :class:`~tmlt.analytics._query_expr.GroupByCountDistinct`
     * :class:`~tmlt.analytics._query_expr.GroupByBoundedSum`
     * :class:`~tmlt.analytics._query_expr.GroupByBoundedAverage`
-    * :class:`~tmlt.analytics._query_expr.GroupByBoundedSTDEV`
+    * :class:`~tmlt.analytics._query_expr.GroupByBoundedStdev`
     * :class:`~tmlt.analytics._query_expr.GroupByBoundedVariance`
     * :class:`~tmlt.analytics._query_expr.GroupByQuantile`
     """
