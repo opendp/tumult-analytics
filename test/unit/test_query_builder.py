@@ -26,6 +26,9 @@ from tmlt.analytics import (
     TruncationStrategy,
 )
 from tmlt.analytics._query_expr import (
+    AverageMechanism,
+    CountDistinctMechanism,
+    CountMechanism,
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -46,7 +49,10 @@ from tmlt.analytics._query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+    StdevMechanism,
+    SumMechanism,
     SuppressAggregates,
+    VarianceMechanism,
 )
 from tmlt.analytics._schema import FrozenDict, Schema
 
@@ -60,8 +66,7 @@ Row = Dict[str, Any]
 ###DEFINE ROOT BUILDER###
 def root_builder():
     """Set up QueryBuilder."""
-    root_built = QueryBuilder(PRIVATE_ID)
-    return root_built
+    return QueryBuilder(PRIVATE_ID)
 
 
 @pytest.mark.parametrize("join_columns", [(None), (["B"])])
@@ -899,36 +904,6 @@ class TestAggregations:
             expected_name,
         )
 
-    @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
-    def test_count_distinct_raises_warnings(self, columns: List[str]):
-        """Test that count_distinct raises warning when ``cols`` is provided."""
-        with pytest.warns(
-            DeprecationWarning, match=re.escape("`cols` argument is deprecated")
-        ):
-            root_builder().count_distinct(cols=columns)
-
-        keys = KeySet.from_dict({e: ["a"] for e in columns})
-        with pytest.warns(
-            DeprecationWarning, match=re.escape("`cols` argument is deprecated")
-        ):
-            root_builder().groupby(keys).count_distinct(cols=columns)
-
-    @pytest.mark.parametrize("columns", [(["A"]), (["col1", "col2"])])
-    def test_count_distinct_raises_error(self, columns: List[str]):
-        """Test that count_distinct raises error with both ``cols`` and ``columns``."""
-        with pytest.raises(
-            ValueError,
-            match=re.escape("cannot provide both `cols` and `columns` arguments"),
-        ):
-            root_builder().count_distinct(columns=columns, cols=columns)
-
-        keys = KeySet.from_dict({e: ["a"] for e in columns})
-        with pytest.raises(
-            ValueError,
-            match=re.escape("cannot provide both `cols` and `columns` arguments"),
-        ):
-            root_builder().groupby(keys).count_distinct(columns=columns, cols=columns)
-
     @pytest.mark.parametrize(
         "keys_df,name,expected_name,columns",
         (
@@ -1405,3 +1380,177 @@ def test_query_fast_equality_check(query1: Query, query2: Query, equal: bool):
     # pylint: disable=protected-access
     assert query1._is_equivalent(query2) == equal
     # pylint: enable=protected-access
+
+
+def root_grouped_builder():
+    """Set up GroupedQueryBuilder."""
+    return QueryBuilder(PRIVATE_ID).groupby(KeySet.from_dict({"A": ["0", "1"]}))
+
+
+@pytest.mark.parametrize(
+    "query1,query2",
+    [
+        (
+            root_grouped_builder().count(),
+            root_grouped_builder().count(mechanism="default"),
+        ),
+        (
+            root_grouped_builder().count(),
+            root_grouped_builder().count(mechanism=CountMechanism.DEFAULT),
+        ),
+        (
+            root_grouped_builder().count(mechanism="laplace"),
+            root_grouped_builder().count(mechanism=CountMechanism.LAPLACE),
+        ),
+        (
+            root_grouped_builder().count(mechanism="gaussian"),
+            root_grouped_builder().count(mechanism=CountMechanism.GAUSSIAN),
+        ),
+        (
+            root_grouped_builder().count_distinct(),
+            root_grouped_builder().count_distinct(mechanism="default"),
+        ),
+        (
+            root_grouped_builder().count_distinct(),
+            root_grouped_builder().count_distinct(
+                mechanism=CountDistinctMechanism.DEFAULT
+            ),
+        ),
+        (
+            root_grouped_builder().count_distinct(mechanism="laplace"),
+            root_grouped_builder().count_distinct(
+                mechanism=CountDistinctMechanism.LAPLACE
+            ),
+        ),
+        (
+            root_grouped_builder().count_distinct(mechanism="gaussian"),
+            root_grouped_builder().count_distinct(
+                mechanism=CountDistinctMechanism.GAUSSIAN
+            ),
+        ),
+        (
+            root_grouped_builder().sum(column="B", low=0, high=1),
+            root_grouped_builder().sum(column="B", low=0, high=1, mechanism="default"),
+        ),
+        (
+            root_grouped_builder().sum(column="B", low=0, high=1),
+            root_grouped_builder().sum(
+                column="B", low=0, high=1, mechanism=SumMechanism.DEFAULT
+            ),
+        ),
+        (
+            root_grouped_builder().sum(column="B", low=0, high=1, mechanism="laplace"),
+            root_grouped_builder().sum(
+                column="B", low=0, high=1, mechanism=SumMechanism.LAPLACE
+            ),
+        ),
+        (
+            root_grouped_builder().sum(column="B", low=0, high=1, mechanism="gaussian"),
+            root_grouped_builder().sum(
+                column="B", low=0, high=1, mechanism=SumMechanism.GAUSSIAN
+            ),
+        ),
+        (
+            root_grouped_builder().average(column="B", low=0, high=1),
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism="default"
+            ),
+        ),
+        (
+            root_grouped_builder().average(column="B", low=0, high=1),
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism=AverageMechanism.DEFAULT
+            ),
+        ),
+        (
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism="laplace"
+            ),
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism=AverageMechanism.LAPLACE
+            ),
+        ),
+        (
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism="gaussian"
+            ),
+            root_grouped_builder().average(
+                column="B", low=0, high=1, mechanism=AverageMechanism.GAUSSIAN
+            ),
+        ),
+        (
+            root_grouped_builder().stdev(column="B", low=0, high=1),
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism="default"
+            ),
+        ),
+        (
+            root_grouped_builder().stdev(column="B", low=0, high=1),
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism=StdevMechanism.DEFAULT
+            ),
+        ),
+        (
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism="laplace"
+            ),
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism=StdevMechanism.LAPLACE
+            ),
+        ),
+        (
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism="gaussian"
+            ),
+            root_grouped_builder().stdev(
+                column="B", low=0, high=1, mechanism=StdevMechanism.GAUSSIAN
+            ),
+        ),
+        (
+            root_grouped_builder().variance(column="B", low=0, high=1),
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism="default"
+            ),
+        ),
+        (
+            root_grouped_builder().variance(column="B", low=0, high=1),
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism=VarianceMechanism.DEFAULT
+            ),
+        ),
+        (
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism="laplace"
+            ),
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism=VarianceMechanism.LAPLACE
+            ),
+        ),
+        (
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism="gaussian"
+            ),
+            root_grouped_builder().variance(
+                column="B", low=0, high=1, mechanism=VarianceMechanism.GAUSSIAN
+            ),
+        ),
+    ],
+)
+def test_string_or_enum_mechanisms_are_equal(query1: Query, query2: Query):
+    assert query1 == query2
+
+
+def test_unknown_mechanisms():
+    match = re.escape('Unknown mechanism "blah". Available options are')
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().count(mechanism="blah")
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().count_distinct(mechanism="blah")
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().sum(column="B", low=0, high=1, mechanism="blah")
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().average(column="B", low=0, high=1, mechanism="blah")
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().stdev(column="B", low=0, high=1, mechanism="blah")
+    with pytest.raises(ValueError, match=match):
+        root_grouped_builder().variance(column="B", low=0, high=1, mechanism="blah")

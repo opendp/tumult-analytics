@@ -6,13 +6,13 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
     Dict,
     List,
+    Literal,
     Mapping,
     Optional,
     Protocol,
@@ -2005,7 +2005,9 @@ class QueryBuilder:
     def count(
         self,
         name: Optional[str] = None,
-        mechanism: CountMechanism = CountMechanism.DEFAULT,
+        mechanism: Union[
+            CountMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a count query ready to be evaluated.
 
@@ -2069,8 +2071,8 @@ class QueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).count(name=name, mechanism=mechanism)
 
@@ -2078,8 +2080,9 @@ class QueryBuilder:
         self,
         columns: Optional[List[str]] = None,
         name: Optional[str] = None,
-        mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
-        cols: Optional[List[str]] = None,
+        mechanism: Union[
+            CountDistinctMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a count_distinct query ready to be evaluated.
 
@@ -2151,12 +2154,11 @@ class QueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
-            cols: Deprecated; use ``columns`` instead.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).count_distinct(
-            columns=columns, name=name, mechanism=mechanism, cols=cols
+            columns=columns, name=name, mechanism=mechanism
         )
 
     def quantile(
@@ -2445,7 +2447,9 @@ class QueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: SumMechanism = SumMechanism.DEFAULT,
+        mechanism: Union[
+            SumMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a sum query ready to be evaluated.
 
@@ -2518,8 +2522,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).sum(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2531,7 +2535,9 @@ class QueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: AverageMechanism = AverageMechanism.DEFAULT,
+        mechanism: Union[
+            AverageMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns an average query ready to be evaluated.
 
@@ -2604,8 +2610,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).average(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2617,7 +2623,9 @@ class QueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: VarianceMechanism = VarianceMechanism.DEFAULT,
+        mechanism: Union[
+            VarianceMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a variance query ready to be evaluated.
 
@@ -2690,8 +2698,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).variance(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2703,7 +2711,9 @@ class QueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: StdevMechanism = StdevMechanism.DEFAULT,
+        mechanism: Union[
+            StdevMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a standard deviation query ready to be evaluated.
 
@@ -2776,8 +2786,8 @@ class QueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         return self.groupby(KeySet.from_dict({})).stdev(
             column=column, low=low, high=high, name=name, mechanism=mechanism
@@ -2808,7 +2818,9 @@ class GroupedQueryBuilder:
     def count(
         self,
         name: Optional[str] = None,
-        mechanism: CountMechanism = CountMechanism.DEFAULT,
+        mechanism: Union[
+            CountMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> GroupbyCountQuery:
         """Returns a GroupedCountQuery with a count query.
 
@@ -2859,11 +2871,19 @@ class GroupedQueryBuilder:
 
         Args:
             name: Name for the resulting aggregation column. Defaults to "count".
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = "count"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = CountMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByCount(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -2876,8 +2896,9 @@ class GroupedQueryBuilder:
         self,
         columns: Optional[List[str]] = None,
         name: Optional[str] = None,
-        mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT,
-        cols: Optional[List[str]] = None,
+        mechanism: Union[
+            CountDistinctMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a Query with a count_distinct query.
 
@@ -2934,21 +2955,9 @@ class GroupedQueryBuilder:
             name: Name for the resulting aggregation column. Defaults to
                 "count_distinct" if no columns are provided, or
                 "count_distinct(A, B, C)" if the provided columns are A, B, and C.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
-            cols: Deprecated; use ``columns`` instead.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
-        if cols is not None:
-            warnings.warn(
-                "The `cols` argument is deprecated; use `columns` instead",
-                DeprecationWarning,
-            )
-            if columns is not None:
-                raise ValueError(
-                    "cannot provide both `cols` and `columns` arguments to"
-                    " count_distinct"
-                )
-            columns = cols
         columns_to_count: Optional[List[str]] = None
         if columns is not None and len(columns) > 0:
             columns_to_count = list(columns)
@@ -2957,6 +2966,14 @@ class GroupedQueryBuilder:
                 name = f"count_distinct({', '.join(columns_to_count)})"
             else:
                 name = "count_distinct"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = CountDistinctMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByCountDistinct(
             child=self._query_expr,
             columns_to_count=tuple(columns_to_count) if columns_to_count else None,
@@ -3279,7 +3296,9 @@ class GroupedQueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: SumMechanism = SumMechanism.DEFAULT,
+        mechanism: Union[
+            SumMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a Query with a sum query.
 
@@ -3354,11 +3373,19 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_sum"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = SumMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedSum(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3376,7 +3403,9 @@ class GroupedQueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: AverageMechanism = AverageMechanism.DEFAULT,
+        mechanism: Union[
+            AverageMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a Query with an average query.
 
@@ -3451,11 +3480,19 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_average"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = AverageMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedAverage(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3473,7 +3510,9 @@ class GroupedQueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: VarianceMechanism = VarianceMechanism.DEFAULT,
+        mechanism: Union[
+            VarianceMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a Query with a variance query.
 
@@ -3549,11 +3588,19 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_variance"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = VarianceMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedVariance(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3571,7 +3618,9 @@ class GroupedQueryBuilder:
         low: float,
         high: float,
         name: Optional[str] = None,
-        mechanism: StdevMechanism = StdevMechanism.DEFAULT,
+        mechanism: Union[
+            StdevMechanism, Literal["default", "laplace", "gaussian"]
+        ] = "default",
     ) -> Query:
         """Returns a Query with a standard deviation query.
 
@@ -3646,11 +3695,19 @@ class GroupedQueryBuilder:
                 is less than ``high``.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
-            mechanism: Choice of noise mechanism. By default, the framework
-                automatically selects an appropriate mechanism.
+            mechanism: Choice of noise mechanism (case-insensitive). By default, the
+                framework automatically selects an appropriate mechanism.
         """
         if name is None:
             name = f"{column}_stdev"
+        if isinstance(mechanism, str):
+            try:
+                mechanism = StdevMechanism[mechanism.upper()]
+            except KeyError as e:
+                raise ValueError(
+                    f'Unknown mechanism "{mechanism}". Available options are '
+                    '"laplace", "gaussian", or "default".'
+                ) from e
         query_expr = GroupByBoundedSTDEV(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
