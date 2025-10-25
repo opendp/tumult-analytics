@@ -2454,12 +2454,6 @@ class QueryBuilder:
         """Returns a sum query ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values, a
-            :meth:`~drop_null_and_nan` query will be performed first. If the
-            column being measured contains infinite values, a
-            :meth:`~drop_infinity` query will be performed first.
-
-        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -2471,6 +2465,12 @@ class QueryBuilder:
 
             Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
             for more information.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the column
+            being measured contains infinite values, these values will be clamped
+            between ``low`` and ``high``.
 
         ..
             >>> from tmlt.analytics import (
@@ -2542,12 +2542,6 @@ class QueryBuilder:
         """Returns an average query ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values, a
-            :meth:`~drop_null_and_nan` query will be performed first. If the
-            column being measured contains infinite values, a
-            :meth:`~drop_infinity` query will be performed first.
-
-        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -2559,6 +2553,12 @@ class QueryBuilder:
 
             Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
             for more information.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the column
+            being measured contains infinite values, these values will be clamped
+            between ``low`` and ``high``.
 
         ..
             >>> from tmlt.analytics import (
@@ -2630,12 +2630,6 @@ class QueryBuilder:
         """Returns a variance query ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values, a
-            :meth:`~drop_null_and_nan` query will be performed first. If the
-            column being measured contains infinite values, a
-            :meth:`~drop_infinity` query will be performed first.
-
-        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -2647,6 +2641,12 @@ class QueryBuilder:
 
             Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
             for more information.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the column
+            being measured contains infinite values, these values will be clamped
+            between ``low`` and ``high``.
 
         ..
             >>> from tmlt.analytics import (
@@ -2718,12 +2718,6 @@ class QueryBuilder:
         """Returns a standard deviation query ready to be evaluated.
 
         .. note::
-            If the column being measured contains NaN or null values, a
-            :meth:`~drop_null_and_nan` query will be performed first. If the
-            column being measured contains infinite values, a
-            :meth:`~drop_infinity` query will be performed first.
-
-        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -2735,6 +2729,12 @@ class QueryBuilder:
 
             Consult the :ref:`Numerical aggregations <clamping-bounds>` tutorial
             for more information.
+
+        .. note::
+            If the column being measured contains NaN or null values, a
+            :meth:`~drop_null_and_nan` query will be performed first. If the column
+            being measured contains infinite values, these values will be clamped
+            between ``low`` and ``high``.
 
         ..
             >>> from tmlt.analytics import (
@@ -2995,10 +2995,9 @@ class GroupedQueryBuilder:
 
         .. note::
             If the column being measured contains NaN or null values, a
-            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed
-            first. If the column being measured contains infinite values, a
-            :meth:`~QueryBuilder.drop_infinity` query will be performed first.
-
+            :meth:`~drop_null_and_nan` query will be performed first. If the column
+            being measured contains infinite values, these values will be clamped
+            between ``low`` and ``high``.
         ..
             >>> from tmlt.analytics import (
             ...     AddOneRow,
