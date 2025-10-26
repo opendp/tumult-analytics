@@ -16,7 +16,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -107,7 +107,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         return "GroupByBoundedVariance"
 
     def visit_groupby_bounded_stdev(self, expr):
-        return "GroupByBoundedSTDEV"
+        return "GroupByBoundedStdev"
 
     def visit_suppress_aggregates(self, expr):
         return "SuppressAggregates"
@@ -183,8 +183,8 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
             "GroupByBoundedVariance",
         ),
         (
-            GroupByBoundedSTDEV(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
-            "GroupByBoundedSTDEV",
+            GroupByBoundedStdev(PrivateSource("P"), KeySet.from_dict({}), "A", 0, 1),
+            "GroupByBoundedStdev",
         ),
         (
             SuppressAggregates(

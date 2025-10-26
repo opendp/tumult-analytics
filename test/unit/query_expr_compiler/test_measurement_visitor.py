@@ -49,7 +49,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -124,7 +124,7 @@ def test_average(lower: float, upper: float) -> None:
 @pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
 def test_stdev(lower: float, upper: float) -> None:
     """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
-    stdev = GroupByBoundedSTDEV(
+    stdev = GroupByBoundedStdev(
         child=PrivateSource("private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
@@ -1095,7 +1095,7 @@ class TestMeasurementVisitor:
         "query,output_measure,noise_info",
         [
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
@@ -1124,7 +1124,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1153,7 +1153,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1182,7 +1182,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=StdevMechanism.DEFAULT,
@@ -1213,7 +1213,7 @@ class TestMeasurementVisitor:
     )
     def test_visit_groupby_bounded_stdev(
         self,
-        query: GroupByBoundedSTDEV,
+        query: GroupByBoundedStdev,
         output_measure: Union[PureDP, RhoZCDP],
         noise_info: NoiseInfo,
     ) -> None:
