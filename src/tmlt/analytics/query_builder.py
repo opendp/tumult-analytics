@@ -764,7 +764,7 @@ class QueryBuilder:
         )
         return self
 
-    def drop_null_and_nan(self, columns: Optional[List[str]]) -> "QueryBuilder":
+    def drop_null_and_nan(self, columns: Optional[List[str]] = None) -> "QueryBuilder":
         """Removes rows containing null or NaN values.
 
         .. note::
@@ -869,7 +869,7 @@ class QueryBuilder:
         )
         return self
 
-    def drop_infinity(self, columns: Optional[List[str]]) -> "QueryBuilder":
+    def drop_infinity(self, columns: Optional[List[str]] = None) -> "QueryBuilder":
         """Remove rows containing infinite values.
 
         ..

@@ -20,6 +20,7 @@ from tmlt.analytics import (
     MaxRowsPerID,
     ProtectedChange,
     PureDPBudget,
+    Query,
     QueryBuilder,
     Session,
 )
@@ -458,29 +459,77 @@ def test_replace_infinity_other_aggregations(
         ),
     ]
 )
-@parametrize(
-    [
-        Case("one_row")(protected_change=AddOneRow()),
-        # Case("ids")(protected_change=AddRowsWithID("string")),
-    ]
-)
 def test_drop_infinity(
     sdf_special_values: DataFrame,
     columns: Optional[List[str]],
     expected: float,
-    protected_change: ProtectedChange,
 ):
     inf_budget = PureDPBudget(float("inf"))
     sess = Session.from_dataframe(
         inf_budget,
         "private",
         sdf_special_values,
-        protected_change,
+        AddOneRow(),
     )
     base_query = QueryBuilder("private")
-    if isinstance(protected_change, AddRowsWithID):
-        base_query = base_query.enforce(MaxRowsPerID(1))
     query = base_query.drop_infinity(columns).sum("float_infs", 0, 1)
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected]], columns=["float_infs_sum"])
+    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+
+
+@parametrize(
+    [
+        Case("works_with_nulls")(
+            # Check that
+            query=QueryBuilder("private").get_bounds("int_nulls"),
+            expected_df=pd.DataFrame(
+                [[-1, 1]],
+                columns=["int_nulls_lower_bound", "int_nulls_upper_bound"],
+            ),
+        ),
+        Case("works_with_nan")(
+            # Check that
+            query=QueryBuilder("private").get_bounds("float_nans"),
+            expected_df=pd.DataFrame(
+                [[-1, 1]],
+                columns=["float_nans_lower_bound", "float_nans_upper_bound"],
+            ),
+        ),
+        Case("works_with_infinity")(
+            # Check that
+            query=QueryBuilder("private").get_bounds("float_infs"),
+            expected_df=pd.DataFrame(
+                [[-1, 1]],
+                columns=["float_infs_lower_bound", "float_infs_upper_bound"],
+            ),
+        ),
+        Case("drop_and_replace")(
+            # Dropping nulls & nans removes 6/30 values, replacing 4 infinity values by
+            # (-3,3) guarantees ensures get_bounds should get the interval corresponding
+            # to next power of 2, namely 4
+            query=(
+                QueryBuilder("private")
+                .drop_null_and_nan()
+                .replace_infinity({"float_infs": (-3, 3)})
+                .get_bounds("float_infs")
+            ),
+            expected_df=pd.DataFrame(
+                [[-4, 4]],
+                columns=["float_infs_lower_bound", "float_infs_upper_bound"],
+            ),
+        ),
+    ]
+)
+def test_get_bounds(
+    sdf_special_values: DataFrame, query: Query, expected_df: pd.DataFrame
+):
+    inf_budget = PureDPBudget(float("inf"))
+    sess = Session.from_dataframe(
+        inf_budget,
+        "private",
+        sdf_special_values,
+        AddOneRow(),
+    )
+    result = sess.evaluate(query, inf_budget)
     assert_frame_equal_with_sort(result.toPandas(), expected_df)
