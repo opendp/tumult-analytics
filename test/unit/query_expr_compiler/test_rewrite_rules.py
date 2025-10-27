@@ -13,6 +13,9 @@ from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
+    DropInfinity,
+    GetBounds,
+    DropNullAndNan,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -22,6 +25,7 @@ from tmlt.analytics._query_expr import (
     PrivateSource,
     QueryExpr,
     QueryExprVisitor,
+    ReplaceInfinity,
     SingleChildQueryExpr,
     StdevMechanism,
     SumMechanism,
@@ -30,9 +34,10 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._query_expr_compiler._rewrite_rules import (
     CompilationInfo,
+    add_special_value_handling,
     select_noise_mechanism,
 )
-from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -391,3 +396,239 @@ def test_recursive_noise_selection(catalog: Catalog) -> None:
     info = CompilationInfo(output_measure=ApproxDP(), catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
     assert got_expr == expected_expr
+
+
+@parametrize(
+    [
+        Case()(agg="count"),
+        Case()(agg="count_distinct"),
+    ]
+)
+@parametrize(
+    [
+        Case()(col_desc=ColumnDescriptor(ColumnType.INTEGER, allow_null=False)),
+        Case()(col_desc=ColumnDescriptor(ColumnType.INTEGER, allow_null=True)),
+        Case()(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=False
+            )
+        ),
+        Case()(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            )
+        ),
+    ]
+)
+def test_special_value_handling_count_unaffected(
+    agg: str,
+    col_desc: ColumnDescriptor,
+) -> None:
+    (AggExpr, AggMech) = AGG_CLASSES[agg]
+    expr = AggExpr(
+        child=BASE_EXPR,
+        groupby_keys=KeySet.from_dict({}),
+        mechanism=AggMech["DEFAULT"],
+    )
+    catalog = Catalog()
+    catalog.add_private_table("private", {"col": col_desc})
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    got_expr = add_special_value_handling(info)(expr)
+    assert got_expr == expr
+
+
+@parametrize(
+    [
+        # Columns with no special values should be unaffected
+        Case(f"no_op_null_{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=False, allow_nan=False, allow_inf=False
+            ),
+            new_child=BASE_EXPR,
+        )
+        for col_type in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+            ColumnType.DATE,
+            ColumnType.TIMESTAMP,
+        ]
+    ]
+    + [
+        # NaNs and infinities do not matter for non-floats
+        Case(f"no_op_nan_inf_{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=False, allow_nan=True, allow_inf=True
+            ),
+            new_child=BASE_EXPR,
+        )
+        for col_type in [ColumnType.INTEGER, ColumnType.DATE, ColumnType.TIMESTAMP]
+    ]
+    + [
+        # Nulls must be dropped if needed
+        Case(f"drop_null_{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=True, allow_nan=False, allow_inf=False
+            ),
+            new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+        )
+        for col_type in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+            ColumnType.DATE,
+            ColumnType.TIMESTAMP,
+        ]
+    ]
+    + [
+        # NaNs must also be dropped added if needed
+        Case("drop_nan")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=False, allow_nan=True, allow_inf=False
+            ),
+            new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+        ),
+        # Only one pass is enough to drop both nulls and NaNs
+        Case("drop_both")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=False
+            ),
+            new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+        ),
+        # If not handled, infinities must be clamped to the clamping bounds
+        Case("clamp_inf")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=True
+            ),
+            new_child=ReplaceInfinity(
+                child=BASE_EXPR, replace_with=FrozenDict.from_dict({"col": (0, 1)})
+            ),
+        ),
+        # Handling both kinds of special values at once. This would fail if the two
+        # value handling exprs are in the wrong order; this is not ideal, but ah well.
+        Case("drop_nan_clamp_inf")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            ),
+            new_child=ReplaceInfinity(
+                child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+                replace_with=FrozenDict.from_dict({"col": (0, 1)}),
+            ),
+        )
+    ]
+)
+@parametrize(
+    [
+        Case()(agg="sum"),
+        Case()(agg="average"),
+        Case()(agg="stdev"),
+        Case()(agg="variance"),
+    ]
+)
+def test_special_value_handling_numeric_aggregations(
+    agg: str,
+    col_desc: ColumnDescriptor,
+    new_child: QueryExpr,
+) -> None:
+    (AggExpr, AggMech) = AGG_CLASSES[agg]
+    expr = AggExpr(
+        child=BASE_EXPR,
+        measure_column="col",
+        low=0,
+        high=1,
+        groupby_keys=KeySet.from_dict({}),
+        mechanism=AggMech["DEFAULT"],
+    )
+    catalog = Catalog()
+    catalog.add_private_table("private", {"col": col_desc})
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    got_expr = add_special_value_handling(info)(expr)
+    assert got_expr == replace(
+        expr,
+        child=new_child,
+    )
+
+@parametrize(
+    [
+        # Columns with no special values should be unaffected
+        Case(f"no-op-{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=False, allow_nan=False, allow_inf=False
+            ),
+            new_child=BASE_EXPR,
+        )
+        for col_type in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+            ColumnType.DATE,
+            ColumnType.TIMESTAMP,
+        ]
+    ]
+    + [
+        # NaNs and infinities do not matter for non-floats
+        Case(f"no-op-nan-inf-{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=False, allow_nan=True, allow_inf=True
+            ),
+            new_child=BASE_EXPR,
+        )
+        for col_type in [ColumnType.INTEGER, ColumnType.DATE, ColumnType.TIMESTAMP]
+    ]
+    + [
+        # Nulls must be dropped if needed
+        Case(f"drop-nulls-{col_type}")(
+            col_desc=ColumnDescriptor(
+                col_type, allow_null=True, allow_nan=False, allow_inf=False
+            ),
+            new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+        )
+        for col_type in [
+            ColumnType.INTEGER,
+            ColumnType.DECIMAL,
+            ColumnType.DATE,
+            ColumnType.TIMESTAMP,
+        ]
+    ]
+    + [
+        # NaNs must also be dropped added if needed
+        Case("drop-nan")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=False, allow_nan=True, allow_inf=False
+            ),
+            new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+        ),
+        # If not handled, infinities must be clamped to the clamping bounds
+        Case("drop-inf")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=True
+            ),
+            new_child=DropInfinity( child=BASE_EXPR, columns=("col",)),
+        ),
+        # And both kinds of special values must be handled
+        Case("drop-nan-and-inf")(
+            col_desc=ColumnDescriptor(
+                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
+            ),
+            new_child=DropInfinity(
+                child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
+                columns=("col",)),
+        )
+    ]
+)
+def test_special_value_handling_get_bounds(
+    col_desc: ColumnDescriptor,
+    new_child: QueryExpr,
+) -> None:
+    expr = GetBounds(
+        child=BASE_EXPR,
+        measure_column="col",
+        groupby_keys=KeySet.from_dict({}),
+        lower_bound_column="lower",
+        upper_bound_column="upper",
+    )
+    catalog = Catalog()
+    catalog.add_private_table("private", {"col": col_desc})
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    got_expr = add_special_value_handling(info)(expr)
+    assert got_expr == replace(
+        expr,
+        child=new_child,
+    )
