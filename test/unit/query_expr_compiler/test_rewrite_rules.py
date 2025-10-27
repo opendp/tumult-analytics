@@ -14,8 +14,8 @@ from tmlt.analytics._query_expr import (
     CountDistinctMechanism,
     CountMechanism,
     DropInfinity,
-    GetBounds,
     DropNullAndNan,
+    GetBounds,
     GroupByBoundedAverage,
     GroupByBoundedSTDEV,
     GroupByBoundedSum,
@@ -512,7 +512,7 @@ def test_special_value_handling_count_unaffected(
                 child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
                 replace_with=FrozenDict.from_dict({"col": (0, 1)}),
             ),
-        )
+        ),
     ]
 )
 @parametrize(
@@ -545,6 +545,7 @@ def test_special_value_handling_numeric_aggregations(
         expr,
         child=new_child,
     )
+
 
 @parametrize(
     [
@@ -600,7 +601,7 @@ def test_special_value_handling_numeric_aggregations(
             col_desc=ColumnDescriptor(
                 ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=True
             ),
-            new_child=DropInfinity( child=BASE_EXPR, columns=("col",)),
+            new_child=DropInfinity(child=BASE_EXPR, columns=("col",)),
         ),
         # And both kinds of special values must be handled
         Case("drop-nan-and-inf")(
@@ -609,8 +610,9 @@ def test_special_value_handling_numeric_aggregations(
             ),
             new_child=DropInfinity(
                 child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
-                columns=("col",)),
-        )
+                columns=("col",),
+            ),
+        ),
     ]
 )
 def test_special_value_handling_get_bounds(
