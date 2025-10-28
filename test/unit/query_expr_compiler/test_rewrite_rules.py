@@ -589,14 +589,14 @@ def test_special_value_handling_numeric_aggregations(
         ]
     ]
     + [
-        # NaNs must also be dropped added if needed
+        # NaNs must also be dropped if needed
         Case("drop-nan")(
             col_desc=ColumnDescriptor(
                 ColumnType.DECIMAL, allow_null=False, allow_nan=True, allow_inf=False
             ),
             new_child=DropNullAndNan(child=BASE_EXPR, columns=("col",)),
         ),
-        # If not handled, infinities must be clamped to the clamping bounds
+        # Same for infinities (contrary to other aggregations which use clamping)
         Case("drop-inf")(
             col_desc=ColumnDescriptor(
                 ColumnType.DECIMAL, allow_null=False, allow_nan=False, allow_inf=True

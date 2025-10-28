@@ -232,9 +232,7 @@ def add_special_value_handling(
         ):
             expr = replace(
                 expr,
-                child=DropNullAndNan(
-                    child=expr.child, columns=tuple([expr.measure_column])
-                ),
+                child=DropNullAndNan(child=expr.child, columns=(expr.measure_column,)),
             )
         # Remove infinities if necessary
         if measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_inf:
@@ -242,7 +240,7 @@ def add_special_value_handling(
                 return replace(
                     expr,
                     child=DropInfinity(
-                        child=expr.child, columns=tuple([expr.measure_column])
+                        child=expr.child, columns=(expr.measure_column,)
                     ),
                 )
             return replace(
