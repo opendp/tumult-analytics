@@ -1048,8 +1048,8 @@ class TestQueryExprCompiler:
         )
         transformation, reference, _constraints = self.compiler.build_transformation(
             JoinPrivate(
-                child=PrivateSource("private"),
-                right_operand_expr=PrivateSource("private_2"),
+                left_child=PrivateSource("private"),
+                right_child=PrivateSource("private_2"),
                 truncation_strategy_left=TruncationStrategy.DropExcess(3),
                 truncation_strategy_right=TruncationStrategy.DropExcess(3),
             ),
@@ -1087,8 +1087,8 @@ class TestQueryExprCompiler:
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 ),
@@ -1096,8 +1096,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(1),
                 ),
@@ -1105,8 +1105,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(1),
                     truncation_strategy_right=TruncationStrategy.DropExcess(1),
                 ),
@@ -1114,8 +1114,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                 ),
@@ -1123,8 +1123,8 @@ class TestQueryExprCompiler:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropNonUnique(),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                 ),
@@ -1156,8 +1156,8 @@ class TestQueryExprCompiler:
             """An invalid truncation strategy."""
 
         query = JoinPrivate(
-            child=PrivateSource("private"),
-            right_operand_expr=PrivateSource("private_2"),
+            left_child=PrivateSource("private"),
+            right_child=PrivateSource("private_2"),
             truncation_strategy_left=Strategy(),
             truncation_strategy_right=Strategy(),
         )

@@ -872,9 +872,9 @@ class JoinPrivate(QueryExpr):
     :meth:`~tmlt.analytics.QueryBuilder.join_private`.
     """
 
-    child: QueryExpr
+    left_child: QueryExpr
     """The QueryExpr to join with right operand."""
-    right_operand_expr: QueryExpr
+    right_child: QueryExpr
     """The QueryExpr for private source to join with."""
     truncation_strategy_left: Optional[TruncationStrategy.Type] = None
     """Truncation strategy to be used for the left table."""
@@ -885,8 +885,8 @@ class JoinPrivate(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
-        check_type(self.right_operand_expr, QueryExpr)
+        check_type(self.left_child, QueryExpr)
+        check_type(self.right_child, QueryExpr)
         check_type(
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
@@ -933,8 +933,8 @@ class JoinPrivate(QueryExpr):
         4. Columns that are in both tables, but not included in the join columns. These
            columns are included with _left and _right suffixes.
         """
-        left_schema = self.child.schema(catalog)
-        right_schema = self.right_operand_expr.schema(catalog)
+        left_schema = self.left_child.schema(catalog)
+        right_schema = self.right_child.schema(catalog)
         self._validate(left_schema, right_schema)
         return _schema_for_join(
             left_schema=left_schema,

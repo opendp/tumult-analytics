@@ -360,8 +360,8 @@ class TestAddRows(TestTransformationVisitor):
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("rows1"),
-                    right_operand_expr=PrivateSource("rows2"),
+                    left_child=PrivateSource("rows1"),
+                    right_child=PrivateSource("rows2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(10),
                 ),
@@ -372,8 +372,8 @@ class TestAddRows(TestTransformationVisitor):
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("rows2"),
-                    right_operand_expr=PrivateSource("rows1"),
+                    left_child=PrivateSource("rows2"),
+                    right_child=PrivateSource("rows1"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                     join_columns=tuple(["I"]),
@@ -425,8 +425,8 @@ class TestAddRows(TestTransformationVisitor):
             """An invalid truncation strategy."""
 
         query1 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            left_child=PrivateSource("rows1"),
+            right_child=PrivateSource("rows2"),
             truncation_strategy_left=InvalidStrategy(),
             truncation_strategy_right=TruncationStrategy.DropExcess(3),
         )
@@ -437,8 +437,8 @@ class TestAddRows(TestTransformationVisitor):
             query1.accept(self.visitor)
 
         query2 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            left_child=PrivateSource("rows1"),
+            right_child=PrivateSource("rows2"),
             truncation_strategy_left=TruncationStrategy.DropExcess(2),
             truncation_strategy_right=InvalidStrategy(),
         )
@@ -446,8 +446,8 @@ class TestAddRows(TestTransformationVisitor):
             query2.accept(self.visitor)
 
         query3 = JoinPrivate(
-            child=PrivateSource("rows1"),
-            right_operand_expr=PrivateSource("rows2"),
+            left_child=PrivateSource("rows1"),
+            right_child=PrivateSource("rows2"),
             truncation_strategy_left=None,
             truncation_strategy_right=None,
         )
