@@ -216,7 +216,7 @@ def add_special_value_handling(
             expr,
             (
                 GroupByBoundedAverage,
-                GroupByBoundedSTDEV,
+                GroupByBoundedStdev,
                 GroupByBoundedSum,
                 GroupByBoundedVariance,
                 GroupByQuantile,

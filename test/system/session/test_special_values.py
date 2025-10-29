@@ -23,6 +23,7 @@ from tmlt.analytics import (
     Query,
     QueryBuilder,
     Session,
+    TruncationStrategy,
 )
 from tmlt.analytics._schema import Schema, analytics_to_spark_schema
 
@@ -30,7 +31,7 @@ from ...conftest import assert_frame_equal_with_sort
 
 
 @pytest.fixture(name="sdf_special_values", scope="module")
-def null_setup(spark):
+def special_values_dataframe(spark):
     """Set up test data for sessions with special values."""
     sdf_col_types = {
         "string_nulls": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
@@ -562,7 +563,8 @@ def test_get_bounds(
                 .enforce(MaxRowsPerID(1))
                 .sum("int_no_null", 0, 1)
             ),
-            expected_df=pd.DataFrame( [[25]], columns=["int_no_null_sum"]),
+            expected_df=pd.DataFrame([[25]], columns=["int_no_null_sum"]),
+        ),
     ]
 )
 def test_privacy_ids(
@@ -579,6 +581,144 @@ def test_privacy_ids(
     assert_frame_equal_with_sort(result.toPandas(), expected_df)
 
 
-# TODO: add tests for public and private joins
+@pytest.fixture(name="sdf_for_joins", scope="module")
+def dataframe_for_join(spark):
+    """Set up test data for sessions with special values."""
+    sdf_col_types = {
+        "string_nulls": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+        "int_nulls": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+        "float_all_special": ColumnDescriptor(
+            ColumnType.DECIMAL,
+            allow_null=True,
+            allow_nan=True,
+            allow_inf=True,
+        ),
+        "date_nulls": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+        "time_nulls": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+        "new_int": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+    }
+    date = datetime.date(2000, 1, 1)
+    time = datetime.datetime(2020, 1, 1)
+    sdf = spark.createDataFrame(
+        [
+            # Normal row
+            ("normal_0", 1, 1.0, date, time, 1),
+            # Rows with nulls: some whose values appear in the data…
+            (None, 1, 1.0, date, time, 1),
+            ("u2", None, 1.0, date, time, 1),
+            ("u3", 1, None, date, time, 1),
+            # … and two identical rows, where the combination of nulls does not appear
+            # in the data
+            ("u4", 1, 1.0, None, None, 1),
+            ("u5", 1, 1.0, None, None, 1),
+            # Row with nans
+            ("a6", 1, float("nan"), date, time, 1),
+            # Rows with infinities
+            ("i7", 1, float("inf"), date, time, 1),
+            ("i8", 1, -float("inf"), date, time, 1),
+        ],
+        schema=analytics_to_spark_schema(Schema(sdf_col_types)),
+    )
+    return sdf
 
-# TODO: add changelog
+
+@parametrize(
+    [
+        Case("public_join_inner_all_match")(
+            # Joining with the first three columns, all columns of the right table
+            # should match exactly one row, without duplicates. This checks that tables
+            # are joined on all three kinds of special values.
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .join_public(
+                    "public",
+                    ["string_nulls", "int_nulls", "float_all_special"],
+                    "inner",
+                )
+                .sum("new_int", 0, 1)
+            ),
+            expected_df=pd.DataFrame(
+                [[9]],
+                columns=["new_int_sum"],
+            ),
+        ),
+        Case("public_join_inner_duplicates")(
+            # Joining with the date and time columns only creates matches for the rows
+            # where both are specified: 28 in the left table and 7 in the right table.
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .join_public("public", ["date_nulls", "time_nulls"], "inner")
+                .sum("new_int", 0, 1)
+            ),
+            expected_df=pd.DataFrame(
+                [[28 * 7]],
+                columns=["new_int_sum"],
+            ),
+        ),
+        Case("public_join_left_duplicates")(
+            # Same as before, except we do a left join, so 2 rows in the original table
+            # are preserved in the join.
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .join_public("public", ["date_nulls", "time_nulls"], "left")
+                .count()
+            ),
+            expected_df=pd.DataFrame(
+                [[28 * 7 + 2]],
+                columns=["count"],
+            ),
+        ),
+        Case("private_join_add_rows")(
+            # Private joins without duplicates should work the same way as the inner
+            # public join above, leaving the 9 rows in common between the two tables.
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .join_private(
+                    "private_2",
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
+                    truncation_strategy_left=TruncationStrategy.DropNonUnique(),
+                    truncation_strategy_right=TruncationStrategy.DropNonUnique(),
+                )
+                .count()
+            ),
+            expected_df=pd.DataFrame([[9]], columns=["count"]),
+        ),
+        Case("private_join_ids")(
+            # Same with the implicit join on the privacy ID column.
+            protected_change=AddRowsWithID("string_nulls"),
+            query=(
+                QueryBuilder("private")
+                .join_private(
+                    "private_2",
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
+                )
+                .enforce(MaxRowsPerID(1))
+                .count()
+            ),
+            expected_df=pd.DataFrame([[9]], columns=["count"]),
+        ),
+    ]
+)
+def test_joins(
+    sdf_special_values: DataFrame,
+    sdf_for_joins: DataFrame,
+    protected_change: ProtectedChange,
+    query: Query,
+    expected_df: pd.DataFrame,
+):
+    inf_budget = PureDPBudget(float("inf"))
+    sess = (
+        Session.Builder()
+        .with_id_space("default_id_space")
+        .with_private_dataframe("private", sdf_special_values, protected_change)
+        .with_private_dataframe("private_2", sdf_for_joins, protected_change)
+        .with_public_dataframe("public", sdf_for_joins)
+        .with_privacy_budget(inf_budget)
+        .build()
+    )
+    result = sess.evaluate(query, inf_budget)
+    assert_frame_equal_with_sort(result.toPandas(), expected_df)
