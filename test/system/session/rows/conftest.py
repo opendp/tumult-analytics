@@ -81,7 +81,7 @@ EVALUATE_TESTS = [
         pd.DataFrame({"total": [4]}),
     ),
     (  # Total with LAPLACE (Geometric noise gets applied)
-        QueryBuilder("private").count(name="total", mechanism=CountMechanism.LAPLACE),
+        QueryBuilder("private").count(name="total", mechanism="laplace"),
         GroupByCount(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
@@ -92,7 +92,8 @@ EVALUATE_TESTS = [
     ),
     (  # Total with LAPLACE (Geometric noise gets applied)
         QueryBuilder("private").count_distinct(
-            name="total", mechanism=CountDistinctMechanism.LAPLACE
+            name="total",
+            mechanism="laplace",
         ),
         GroupByCountDistinct(
             child=PrivateSource("private"),

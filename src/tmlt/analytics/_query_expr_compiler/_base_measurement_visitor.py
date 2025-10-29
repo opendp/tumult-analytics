@@ -79,7 +79,7 @@ from tmlt.analytics._query_expr import (
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -122,7 +122,7 @@ from tmlt.analytics.privacy_budget import (
 def _get_core_mechanism(
     query: Union[
         GroupByBoundedAverage,
-        GroupByBoundedSTDEV,
+        GroupByBoundedStdev,
         GroupByBoundedSum,
         GroupByBoundedVariance,
         GroupByCount,
@@ -140,7 +140,7 @@ def _get_core_mechanism(
 def _get_query_bounds(
     query: Union[
         GroupByBoundedAverage,
-        GroupByBoundedSTDEV,
+        GroupByBoundedStdev,
         GroupByBoundedSum,
         GroupByBoundedVariance,
         GroupByQuantile,
@@ -598,7 +598,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self,
         expr: Union[
             GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedSum,
             GroupByBoundedVariance,
             GroupByCount,
@@ -1458,7 +1458,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         )
 
     def visit_groupby_bounded_stdev(
-        self, expr: GroupByBoundedSTDEV
+        self, expr: GroupByBoundedStdev
     ) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GroupByBoundedStdev query expression."""
         self._validate_approxDP_and_adjust_budget(expr)

@@ -14,6 +14,10 @@ Changed
 ~~~~~~~
 - Dropped support for Python 3.9, as it has reached end-of-life.
 - Dropped support for pyspark <3.5.0 on Macs after discovering that these configurations frequently crash. Older versions of the library may also be affected.
+- Aggregation mechanisms can now be specified as strings instead of enums, e.g. ``"laplace"`` instead of ``CountMechanism.LAPLACE`` or ``SumMechanism.LAPLACE``.
+- Removed previously deprecated argument ``max_num_rows`` to ``flat_map``. Use ``max_rows`` instead.
+- Removed previously deprecated argument ``cols`` to ``count_distinct``. Use ``columns`` instead.
+
 
 .. _v0.20.2:
 

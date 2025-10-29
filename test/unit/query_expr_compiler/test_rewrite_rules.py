@@ -17,7 +17,7 @@ from tmlt.analytics._query_expr import (
     DropNullAndNan,
     GetBounds,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -65,7 +65,7 @@ AGG_CLASSES = {
     "count_distinct": (GroupByCountDistinct, CountDistinctMechanism),
     "average": (GroupByBoundedAverage, AverageMechanism),
     "sum": (GroupByBoundedSum, SumMechanism),
-    "stdev": (GroupByBoundedSTDEV, StdevMechanism),
+    "stdev": (GroupByBoundedStdev, StdevMechanism),
     "variance": (GroupByBoundedVariance, VarianceMechanism),
 }
 
@@ -294,7 +294,7 @@ def test_noise_selection_suppress_aggregates(
             )
         ),
         Case()(
-            expr=GroupByBoundedSTDEV(
+            expr=GroupByBoundedStdev(
                 child=BASE_EXPR,
                 groupby_keys=KeySet.from_dict({}),
                 measure_column="int_col",
