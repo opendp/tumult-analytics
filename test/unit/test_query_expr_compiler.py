@@ -41,7 +41,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -133,7 +133,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         pd.DataFrame({"A": ["0", "1"], "average": [0.666667, 1.0]}),
     ),
     (  # BoundedSTDEV
-        GroupByBoundedSTDEV(
+        GroupByBoundedStdev(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
             measure_column="X",
@@ -739,7 +739,7 @@ class TestQueryExprCompiler:
                 pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]}),
             ),
             (  # BoundedSTDEV on floating-point valued measure column with LAPLACE
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="X",
@@ -751,7 +751,7 @@ class TestQueryExprCompiler:
                 pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
             ),
             (  # BoundedSTDEV on integer valued measure column with LAPLACE
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
@@ -763,7 +763,7 @@ class TestQueryExprCompiler:
                 pd.DataFrame({"A": ["0", "1"], "stdev": [0.5, np.NaN]}),
             ),
             (  # BoundedSTDEV on integer valued measure column with GAUSSIAN
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                     measure_column="B",
@@ -899,7 +899,7 @@ class TestQueryExprCompiler:
             ),
             (  # BoundedSTDEV on floating-point valued measure column with GAUSSIAN
                 [
-                    GroupByBoundedSTDEV(
+                    GroupByBoundedStdev(
                         child=PrivateSource("private"),
                         groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                         measure_column="X",

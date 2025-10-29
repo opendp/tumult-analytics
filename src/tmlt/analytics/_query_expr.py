@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql import DataFrame, SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.utils.join import domain_after_join
 from typeguard import check_type
 
@@ -196,6 +197,18 @@ class QueryExpr(ABC):
 
 
 @dataclass(frozen=True)
+class SingleChildQueryExpr(QueryExpr):
+    """A QueryExpr that has a single child.
+
+    This is used in the compilation step, to make it easier for rewrite rules to
+    automatically recurse along the QueryExpr tree.
+    """
+
+    child: QueryExpr
+    """The QueryExpr used to generate the input table to this QueryExpr."""
+
+
+@dataclass(frozen=True)
 class PrivateSource(QueryExpr):
     """Loads the private source."""
 
@@ -234,11 +247,8 @@ class PrivateSource(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GetGroups(QueryExpr):
+class GetGroups(SingleChildQueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
-
-    child: QueryExpr
-    """The QueryExpr to get groups for."""
 
     columns: Optional[Tuple[str, ...]] = None
     """The columns used for geometric partition selection.
@@ -282,11 +292,9 @@ class GetGroups(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GetBounds(QueryExpr):
+class GetBounds(SingleChildQueryExpr):
     """Returns approximate upper and lower bounds of a column."""
 
-    child: QueryExpr
-    """The QueryExpr to get groups for."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -318,13 +326,10 @@ class GetBounds(QueryExpr):
 
 
 @dataclass(frozen=True)
-class Rename(QueryExpr):
+class Rename(SingleChildQueryExpr):
     """Returns the dataframe with columns renamed."""
 
-    child: QueryExpr
-    """The QueryExpr to apply Rename to."""
     column_mapper: FrozenDict
-
     """The mapping of old column names to new column names.
 
     This mapping can contain all column names or just a subset. If it
@@ -386,11 +391,9 @@ class Rename(QueryExpr):
 
 
 @dataclass(frozen=True)
-class Filter(QueryExpr):
+class Filter(SingleChildQueryExpr):
     """Returns the subset of the rows that satisfy the condition."""
 
-    child: QueryExpr
-    """The QueryExpr to filter."""
     condition: str
     """A string of SQL expression specifying the filter to apply to the data.
 
@@ -426,11 +429,9 @@ class Filter(QueryExpr):
 
 
 @dataclass(frozen=True)
-class Select(QueryExpr):
+class Select(SingleChildQueryExpr):
     """Returns a subset of the columns."""
 
-    child: QueryExpr
-    """The QueryExpr to apply the select on."""
     columns: Tuple[str, ...]
     """The columns to select."""
 
@@ -477,11 +478,9 @@ class Select(QueryExpr):
 
 
 @dataclass(frozen=True)
-class Map(QueryExpr):
+class Map(SingleChildQueryExpr):
     """Applies a map function to each row of a relation."""
 
-    child: QueryExpr
-    """The QueryExpr to apply the map on."""
     f: Callable[[Row], Row]
     """The map function."""
     schema_new_columns: Schema
@@ -566,11 +565,9 @@ class Map(QueryExpr):
 
 
 @dataclass(frozen=True)
-class FlatMap(QueryExpr):
+class FlatMap(SingleChildQueryExpr):
     """Applies a flat map function to each row of a relation."""
 
-    child: QueryExpr
-    """The QueryExpr to apply the flat map on."""
     f: Callable[[Row], List[Row]]
     """The flat map function."""
     schema_new_columns: Schema
@@ -693,11 +690,9 @@ class FlatMap(QueryExpr):
 
 
 @dataclass(frozen=True)
-class FlatMapByID(QueryExpr):
+class FlatMapByID(SingleChildQueryExpr):
     """Applies a flat map function to each group of rows with a common ID."""
 
-    child: QueryExpr
-    """The QueryExpr to apply the flat map on."""
     f: Callable[[List[Row]], List[Row]]
     """The flat map function."""
     schema_new_columns: Schema
@@ -940,11 +935,9 @@ class JoinPrivate(QueryExpr):
 
 
 @dataclass(frozen=True)
-class JoinPublic(QueryExpr):
+class JoinPublic(SingleChildQueryExpr):
     """Returns the join of a private and public table."""
 
-    child: QueryExpr
-    """The QueryExpr to join with public_df."""
     public_table: Union[DataFrame, str]
     """A DataFrame or public source to join with."""
     join_columns: Optional[Tuple[str, ...]] = None
@@ -1081,7 +1074,7 @@ class AnalyticsDefault:
 
 
 @dataclass(frozen=True)
-class ReplaceNullAndNan(QueryExpr):
+class ReplaceNullAndNan(SingleChildQueryExpr):
     """Returns data with null and NaN expressions replaced by a default.
 
     .. warning::
@@ -1090,9 +1083,6 @@ class ReplaceNullAndNan(QueryExpr):
         :class:`~.tmlt.analytics.KeySet` for that column
         that contains null values.
     """
-
-    child: QueryExpr
-    """The QueryExpr to replace null/NaN values in."""
 
     replace_with: FrozenDict = FrozenDict.from_dict({})
     """New values to replace with, by column.
@@ -1182,11 +1172,8 @@ class ReplaceNullAndNan(QueryExpr):
 
 
 @dataclass(frozen=True)
-class ReplaceInfinity(QueryExpr):
+class ReplaceInfinity(SingleChildQueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
-
-    child: QueryExpr
-    """The QueryExpr to replace +inf and -inf values in."""
 
     replace_with: FrozenDict = FrozenDict.from_dict({})
     """New values to replace with, by column. The first value for each column
@@ -1277,7 +1264,7 @@ class ReplaceInfinity(QueryExpr):
 
 
 @dataclass(frozen=True)
-class DropNullAndNan(QueryExpr):
+class DropNullAndNan(SingleChildQueryExpr):
     """Returns data with rows that contain null or NaN value dropped.
 
     .. warning::
@@ -1286,9 +1273,6 @@ class DropNullAndNan(QueryExpr):
         :class:`~.tmlt.analytics.KeySet` for that column
         that contains null values.
     """
-
-    child: QueryExpr
-    """The QueryExpr in which to drop nulls/NaNs."""
 
     columns: Tuple[str, ...] = tuple()
     """Columns in which to look for nulls and NaNs.
@@ -1364,11 +1348,8 @@ class DropNullAndNan(QueryExpr):
 
 
 @dataclass(frozen=True)
-class DropInfinity(QueryExpr):
+class DropInfinity(SingleChildQueryExpr):
     """Returns data with rows that contain +inf/-inf dropped."""
-
-    child: QueryExpr
-    """The QueryExpr in which to drop +inf/-inf."""
 
     columns: Tuple[str, ...] = tuple()
     """Columns in which to look for and infinite values.
@@ -1448,11 +1429,9 @@ class DropInfinity(QueryExpr):
 
 
 @dataclass(frozen=True)
-class EnforceConstraint(QueryExpr):
+class EnforceConstraint(SingleChildQueryExpr):
     """Enforces a constraint on the data."""
 
-    child: QueryExpr
-    """The QueryExpr to which the constraint will be applied."""
     constraint: Constraint
     """A constraint to be enforced."""
 
@@ -1492,7 +1471,7 @@ def _validate_groupby(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
-        "GroupByBoundedSTDEV",
+        "GroupByBoundedStdev",
         "GroupByBoundedSum",
         "GroupByBoundedVariance",
         "GroupByCount",
@@ -1556,7 +1535,7 @@ def _validate_groupby(
             GetBounds,
             GroupByQuantile,
             GroupByBoundedSum,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedAverage,
             GroupByBoundedVariance,
         ),
@@ -1588,7 +1567,7 @@ def _schema_for_groupby(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
-        "GroupByBoundedSTDEV",
+        "GroupByBoundedStdev",
         "GroupByBoundedSum",
         "GroupByBoundedVariance",
         "GroupByCount",
@@ -1614,7 +1593,7 @@ def _schema_for_groupby(
         (
             GroupByQuantile,
             GroupByBoundedSum,
-            GroupByBoundedSTDEV,
+            GroupByBoundedStdev,
             GroupByBoundedAverage,
             GroupByBoundedVariance,
         ),
@@ -1647,11 +1626,9 @@ def _schema_for_groupby(
 
 
 @dataclass(frozen=True)
-class GroupByCount(QueryExpr):
+class GroupByCount(SingleChildQueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     output_column: str = "count"
@@ -1662,6 +1639,8 @@ class GroupByCount(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1684,11 +1663,9 @@ class GroupByCount(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByCountDistinct(QueryExpr):
+class GroupByCountDistinct(SingleChildQueryExpr):
     """Returns the count of distinct rows in each groupby domain value."""
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     columns_to_count: Optional[Tuple[str, ...]] = None
@@ -1703,6 +1680,8 @@ class GroupByCountDistinct(QueryExpr):
 
     By DEFAULT, the framework automatically selects an appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1726,7 +1705,7 @@ class GroupByCountDistinct(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByQuantile(QueryExpr):
+class GroupByQuantile(SingleChildQueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -1735,8 +1714,6 @@ class GroupByQuantile(QueryExpr):
     calculated.
     """
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -1793,7 +1770,7 @@ class GroupByQuantile(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedSum(QueryExpr):
+class GroupByBoundedSum(SingleChildQueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -1802,8 +1779,6 @@ class GroupByBoundedSum(QueryExpr):
     calculated.
     """
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -1824,6 +1799,8 @@ class GroupByBoundedSum(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1860,7 +1837,7 @@ class GroupByBoundedSum(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedAverage(QueryExpr):
+class GroupByBoundedAverage(SingleChildQueryExpr):
     """Returns bounded average of a column for each combination of groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -1869,8 +1846,6 @@ class GroupByBoundedAverage(QueryExpr):
     calculated.
     """
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -1891,6 +1866,8 @@ class GroupByBoundedAverage(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1927,7 +1904,7 @@ class GroupByBoundedAverage(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedVariance(QueryExpr):
+class GroupByBoundedVariance(SingleChildQueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -1936,8 +1913,6 @@ class GroupByBoundedVariance(QueryExpr):
     calculated.
     """
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -1958,6 +1933,8 @@ class GroupByBoundedVariance(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -1994,7 +1971,7 @@ class GroupByBoundedVariance(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedSTDEV(QueryExpr):
+class GroupByBoundedStdev(SingleChildQueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -2003,8 +1980,6 @@ class GroupByBoundedSTDEV(QueryExpr):
     standard deviation is calculated.
     """
 
-    child: QueryExpr
-    """The QueryExpr to measure."""
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
     measure_column: str
@@ -2025,6 +2000,8 @@ class GroupByBoundedSTDEV(QueryExpr):
     By DEFAULT, the framework automatically selects an
     appropriate mechanism.
     """
+    core_mechanism: Optional[NoiseMechanism] = None
+    """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -2062,7 +2039,7 @@ class GroupByBoundedSTDEV(QueryExpr):
 
 
 @dataclass(frozen=True)
-class SuppressAggregates(QueryExpr):
+class SuppressAggregates(SingleChildQueryExpr):
     """Remove all counts that are less than the threshold."""
 
     child: GroupByCount
@@ -2211,8 +2188,8 @@ class QueryExprVisitor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedSTDEV) -> Any:
-        """Visit a :class:`GroupByBoundedSTDEV`."""
+    def visit_groupby_bounded_stdev(self, expr: GroupByBoundedStdev) -> Any:
+        """Visit a :class:`GroupByBoundedStdev`."""
         raise NotImplementedError
 
     @abstractmethod

@@ -1,6 +1,6 @@
 """Tests for MeasurementVisitor."""
 from test.conftest import assert_frame_equal_with_sort, create_empty_input
-from typing import List, Optional, Union
+from typing import List, Union
 from unittest.mock import patch
 
 import pandas as pd
@@ -9,7 +9,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import (
-    SparkColumnDescriptor,
     SparkDataFrameDomain,
     SparkFloatColumnDescriptor,
     SparkIntegerColumnDescriptor,
@@ -28,7 +27,6 @@ from tmlt.core.metrics import (
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.type_utils import assert_never
 
 from tmlt.analytics import (
     KeySet,
@@ -51,7 +49,7 @@ from tmlt.analytics._query_expr import (
     Filter,
     FlatMap,
     GroupByBoundedAverage,
-    GroupByBoundedSTDEV,
+    GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
@@ -126,7 +124,7 @@ def test_average(lower: float, upper: float) -> None:
 @pytest.mark.parametrize("lower,upper", [(0, 1), (-123456, 0), (7899000, 9999999)])
 def test_stdev(lower: float, upper: float) -> None:
     """Test _get_query_bounds on STDEV query expr, with lower!=upper."""
-    stdev = GroupByBoundedSTDEV(
+    stdev = GroupByBoundedStdev(
         child=PrivateSource("private"),
         groupby_keys=KeySet.from_dict({}),
         measure_column="",
@@ -347,575 +345,6 @@ class TestMeasurementVisitor:
         _, noise_info = query.accept(self.pick_noise_visitor)
         assert noise_info == expected_noise_info
 
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,expected_mechanism",
-        [
-            (CountMechanism.DEFAULT, PureDP(), NoiseMechanism.GEOMETRIC),
-            (CountMechanism.DEFAULT, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
-            (CountMechanism.LAPLACE, PureDP(), NoiseMechanism.GEOMETRIC),
-            (CountMechanism.LAPLACE, RhoZCDP(), NoiseMechanism.GEOMETRIC),
-            (CountMechanism.GAUSSIAN, PureDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
-            (CountMechanism.GAUSSIAN, RhoZCDP(), NoiseMechanism.DISCRETE_GAUSSIAN),
-        ],
-    )
-    def test_pick_noise_for_count(
-        self,
-        query_mechanism: CountMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Test _pick_noise_for_count for GroupByCount query expressions."""
-        query = GroupByCount(
-            child=self.base_query,
-            groupby_keys=KeySet.from_dict({}),
-            mechanism=query_mechanism,
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        got_mechanism = self.pick_noise_visitor._pick_noise_for_count(query)
-        # pylint: enable=protected-access
-        assert got_mechanism == expected_mechanism
-
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,expected_mechanism",
-        [
-            (CountDistinctMechanism.DEFAULT, PureDP(), NoiseMechanism.GEOMETRIC),
-            (
-                CountDistinctMechanism.DEFAULT,
-                RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (CountDistinctMechanism.LAPLACE, PureDP(), NoiseMechanism.GEOMETRIC),
-            (CountDistinctMechanism.LAPLACE, RhoZCDP(), NoiseMechanism.GEOMETRIC),
-            (
-                CountDistinctMechanism.GAUSSIAN,
-                PureDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                CountDistinctMechanism.GAUSSIAN,
-                RhoZCDP(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-        ],
-    )
-    def test_pick_noise_for_count_distinct(
-        self,
-        query_mechanism: CountDistinctMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        expected_mechanism: NoiseMechanism,
-    ) -> None:
-        """Test _pick_noise_for_count for GroupByCountDistinct query expressions."""
-        query = GroupByCountDistinct(
-            child=self.base_query,
-            groupby_keys=KeySet.from_dict({}),
-            mechanism=query_mechanism,
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        got_mechanism = self.pick_noise_visitor._pick_noise_for_count(query)
-        # pylint: enable=protected-access
-        assert got_mechanism == expected_mechanism
-
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-        [
-            (
-                AverageMechanism.DEFAULT,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                AverageMechanism.DEFAULT,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                AverageMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                AverageMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-            (
-                AverageMechanism.LAPLACE,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                AverageMechanism.LAPLACE,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                AverageMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                AverageMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (AverageMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
-            (AverageMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
-            (
-                AverageMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                AverageMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-        ],
-    )
-    def test_pick_noise_for_average(
-        self,
-        query_mechanism: AverageMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column_type: SparkColumnDescriptor,
-        # if expected_mechanism is None, this combination is not supported
-        expected_mechanism: Optional[NoiseMechanism],
-    ) -> None:
-        """Test _pick_noise_for_non_count for GroupByBoundedAverage query exprs."""
-        if isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-            measure_column = "B"
-        elif isinstance(measure_column_type, SparkFloatColumnDescriptor):
-            measure_column = "X"
-        else:
-            raise AssertionError("Unknown measure column type")
-        query = GroupByBoundedAverage(
-            child=self.base_query,
-            measure_column=measure_column,
-            low=0,
-            high=1,
-            mechanism=query_mechanism,
-            groupby_keys=KeySet.from_dict({}),
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
-            assert got_mechanism == expected_mechanism
-        else:
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Gaussian noise is not supported under PureDP. "
-                    "Please use RhoZCDP or another measure."
-                ),
-            ):
-                self.pick_noise_visitor._pick_noise_for_non_count(query)
-        # pylint: enable=protected-access
-
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-        [
-            (
-                SumMechanism.DEFAULT,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                SumMechanism.DEFAULT,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                SumMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                SumMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-            (
-                SumMechanism.LAPLACE,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                SumMechanism.LAPLACE,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                SumMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                SumMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (SumMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
-            (SumMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
-            (
-                SumMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                SumMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-        ],
-    )
-    def test_pick_noise_for_sum(
-        self,
-        query_mechanism: SumMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column_type: SparkColumnDescriptor,
-        # if expected_mechanism is None, this combination is not supported
-        expected_mechanism: Optional[NoiseMechanism],
-    ) -> None:
-        """Test _pick_noise_for_non_count for GroupByBoundedSum query exprs."""
-        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-            measure_column = "X"
-        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-            measure_column = "B"
-        else:
-            raise AssertionError("Unknown measure column type")
-        query = GroupByBoundedSum(
-            child=self.base_query,
-            measure_column=measure_column,
-            low=0,
-            high=1,
-            mechanism=query_mechanism,
-            groupby_keys=KeySet.from_dict({}),
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
-            assert got_mechanism == expected_mechanism
-        else:
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Gaussian noise is not supported under PureDP. "
-                    "Please use RhoZCDP or another measure."
-                ),
-            ):
-                self.pick_noise_visitor._pick_noise_for_non_count(query)
-        # pylint: enable=protected-access
-
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-        [
-            (
-                VarianceMechanism.DEFAULT,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                VarianceMechanism.DEFAULT,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                VarianceMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                VarianceMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-            (
-                VarianceMechanism.LAPLACE,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                VarianceMechanism.LAPLACE,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                VarianceMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                VarianceMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                VarianceMechanism.GAUSSIAN,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                None,
-            ),
-            (VarianceMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
-            (
-                VarianceMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                VarianceMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-        ],
-    )
-    def test_pick_noise_for_variance(
-        self,
-        query_mechanism: VarianceMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column_type: SparkColumnDescriptor,
-        # if expected_mechanism is None, this combination is not supported
-        expected_mechanism: Optional[NoiseMechanism],
-    ) -> None:
-        """Test _pick_noise_for_non_count for GroupByBoundedVariance query exprs."""
-        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-            measure_column = "X"
-        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-            measure_column = "B"
-        else:
-            raise AssertionError("Unknown measure column type")
-        query = GroupByBoundedVariance(
-            child=self.base_query,
-            measure_column=measure_column,
-            low=0,
-            high=1,
-            mechanism=query_mechanism,
-            groupby_keys=KeySet.from_dict({}),
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
-            assert got_mechanism == expected_mechanism
-        else:
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Gaussian noise is not supported under PureDP. "
-                    "Please use RhoZCDP or another measure."
-                ),
-            ):
-                self.pick_noise_visitor._pick_noise_for_non_count(query)
-        # pylint: enable=protected-access
-
-    @pytest.mark.parametrize(
-        "query_mechanism,output_measure,measure_column_type,expected_mechanism",
-        [
-            (
-                StdevMechanism.DEFAULT,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                StdevMechanism.DEFAULT,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                StdevMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                StdevMechanism.DEFAULT,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-            (
-                StdevMechanism.LAPLACE,
-                PureDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                StdevMechanism.LAPLACE,
-                PureDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (
-                StdevMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.GEOMETRIC,
-            ),
-            (
-                StdevMechanism.LAPLACE,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.LAPLACE,
-            ),
-            (StdevMechanism.GAUSSIAN, PureDP(), SparkIntegerColumnDescriptor(), None),
-            (StdevMechanism.GAUSSIAN, PureDP(), SparkFloatColumnDescriptor(), None),
-            (
-                StdevMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkIntegerColumnDescriptor(),
-                NoiseMechanism.DISCRETE_GAUSSIAN,
-            ),
-            (
-                StdevMechanism.GAUSSIAN,
-                RhoZCDP(),
-                SparkFloatColumnDescriptor(),
-                NoiseMechanism.GAUSSIAN,
-            ),
-        ],
-    )
-    def test_pick_noise_for_stdev(
-        self,
-        query_mechanism: StdevMechanism,
-        output_measure: Union[PureDP, RhoZCDP],
-        measure_column_type: SparkColumnDescriptor,
-        # if expected_mechanism is None, this combination is not supported
-        expected_mechanism: Optional[NoiseMechanism],
-    ) -> None:
-        """Test _pick_noise_for_non_count for GroupByBoundedSTDEV query exprs."""
-        if isinstance(measure_column_type, SparkFloatColumnDescriptor):
-            measure_column = "X"
-        elif isinstance(measure_column_type, SparkIntegerColumnDescriptor):
-            measure_column = "B"
-        else:
-            raise AssertionError("Unknown measure column type")
-        query = GroupByBoundedSTDEV(
-            child=self.base_query,
-            measure_column=measure_column,
-            low=0,
-            high=1,
-            mechanism=query_mechanism,
-            groupby_keys=KeySet.from_dict({}),
-        )
-        self.pick_noise_visitor.output_measure = output_measure
-        # pylint: disable=protected-access
-        if expected_mechanism is not None:
-            got_mechanism = self.pick_noise_visitor._pick_noise_for_non_count(query)
-            assert got_mechanism == expected_mechanism
-        else:
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Gaussian noise is not supported under PureDP. "
-                    "Please use RhoZCDP or another measure."
-                ),
-            ):
-                self.pick_noise_visitor._pick_noise_for_non_count(query)
-        # pylint: enable=protected-access
-
-    @pytest.mark.parametrize(
-        "mechanism",
-        [
-            (AverageMechanism.LAPLACE),
-            (StdevMechanism.LAPLACE),
-            (SumMechanism.LAPLACE),
-            (VarianceMechanism.LAPLACE),
-        ],
-    )
-    def test_pick_noise_invalid_column(
-        self,
-        mechanism: Union[
-            AverageMechanism, StdevMechanism, SumMechanism, VarianceMechanism
-        ],
-    ) -> None:
-        """Test _pick_noise_for_non_count with a non-numeric column.
-
-        This only tests Laplace noise.
-        """
-        query: Union[
-            GroupByBoundedAverage,
-            GroupByBoundedSTDEV,
-            GroupByBoundedSum,
-            GroupByBoundedVariance,
-        ]
-        if isinstance(mechanism, AverageMechanism):
-            query = GroupByBoundedAverage(
-                child=self.base_query,
-                measure_column="A",
-                low=0,
-                high=1,
-                mechanism=mechanism,
-                groupby_keys=KeySet.from_dict({}),
-            )
-        elif isinstance(mechanism, StdevMechanism):
-            query = GroupByBoundedSTDEV(
-                child=self.base_query,
-                measure_column="A",
-                low=0,
-                high=1,
-                mechanism=mechanism,
-                groupby_keys=KeySet.from_dict({}),
-            )
-        elif isinstance(mechanism, SumMechanism):
-            query = GroupByBoundedSum(
-                child=self.base_query,
-                measure_column="A",
-                low=0,
-                high=1,
-                mechanism=mechanism,
-                groupby_keys=KeySet.from_dict({}),
-            )
-        elif isinstance(mechanism, VarianceMechanism):
-            query = GroupByBoundedVariance(
-                child=self.base_query,
-                measure_column="A",
-                low=0,
-                high=1,
-                mechanism=mechanism,
-                groupby_keys=KeySet.from_dict({}),
-            )
-        else:
-            assert_never(mechanism)
-        with pytest.raises(
-            AssertionError, match="Query's measure column should be numeric."
-        ):
-            # pylint: disable=protected-access
-            self.visitor._pick_noise_for_non_count(query)
-            # pylint: enable=protected-access
-
     def test_validate_measurement(self):
         """Test _validate_measurement."""
         with patch(
@@ -972,6 +401,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.DEFAULT,
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -989,6 +419,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountMechanism.LAPLACE,
                     output_column="count",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1006,6 +437,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=CountMechanism.GAUSSIAN,
                     output_column="custom_count_column",
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1022,6 +454,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.DEFAULT,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1038,6 +471,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountMechanism.LAPLACE,
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1069,6 +503,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1086,6 +521,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountDistinctMechanism.LAPLACE,
                     output_column="count",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1102,6 +538,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     columns_to_count=tuple(["A"]),
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1119,6 +556,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=CountDistinctMechanism.GAUSSIAN,
                     output_column="custom_count_column",
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1135,6 +573,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1151,6 +590,7 @@ class TestMeasurementVisitor:
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.LAPLACE,
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1321,6 +761,7 @@ class TestMeasurementVisitor:
                     mechanism=AverageMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1345,6 +786,7 @@ class TestMeasurementVisitor:
                     output_column="sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1369,6 +811,7 @@ class TestMeasurementVisitor:
                     output_column="different_sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1392,6 +835,7 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1431,6 +875,7 @@ class TestMeasurementVisitor:
                     mechanism=SumMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1451,6 +896,7 @@ class TestMeasurementVisitor:
                     output_column="sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1471,6 +917,7 @@ class TestMeasurementVisitor:
                     output_column="different_sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1490,6 +937,7 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1525,6 +973,7 @@ class TestMeasurementVisitor:
                     mechanism=VarianceMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1553,6 +1002,7 @@ class TestMeasurementVisitor:
                     output_column="sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1581,6 +1031,7 @@ class TestMeasurementVisitor:
                     output_column="different_sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1608,6 +1059,7 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1643,7 +1095,7 @@ class TestMeasurementVisitor:
         "query,output_measure,noise_info",
         [
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     low=-100,
@@ -1651,6 +1103,7 @@ class TestMeasurementVisitor:
                     mechanism=StdevMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1671,7 +1124,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1679,6 +1132,7 @@ class TestMeasurementVisitor:
                     output_column="sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1699,7 +1153,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     measure_column="X",
@@ -1707,6 +1161,7 @@ class TestMeasurementVisitor:
                     output_column="different_sum",
                     low=123.345,
                     high=987.65,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
@@ -1727,13 +1182,14 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByBoundedSTDEV(
+                GroupByBoundedStdev(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=StdevMechanism.DEFAULT,
                     measure_column="B",
                     low=0,
                     high=1,
+                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
@@ -1757,7 +1213,7 @@ class TestMeasurementVisitor:
     )
     def test_visit_groupby_bounded_stdev(
         self,
-        query: GroupByBoundedSTDEV,
+        query: GroupByBoundedStdev,
         output_measure: Union[PureDP, RhoZCDP],
         noise_info: NoiseInfo,
     ) -> None:
@@ -1822,6 +1278,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({}),
                     child=PrivateSource("private"),
                     output_column="count",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 column="count",
                 threshold=5.5,
@@ -1831,6 +1288,7 @@ class TestMeasurementVisitor:
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     child=PrivateSource("private"),
                     output_column="count",
+                    core_mechanism=NoiseMechanism.GEOMETRIC,
                 ),
                 column="count",
                 threshold=-10,
@@ -1856,6 +1314,7 @@ class TestMeasurementVisitor:
                                 {"A": ["a0", "a1", "a2", "a3"]}
                             ),
                             output_column="count",
+                            core_mechanism=NoiseMechanism.GEOMETRIC,
                         ),
                         column="count",
                         threshold=0,
@@ -1878,6 +1337,7 @@ class TestMeasurementVisitor:
                                 {"A": ["a0", "a1", "a2", "a3"]},
                             ),
                             output_column="custom_count_name",
+                            core_mechanism=NoiseMechanism.GEOMETRIC,
                         ),
                         column="custom_count_name",
                         threshold=3,
