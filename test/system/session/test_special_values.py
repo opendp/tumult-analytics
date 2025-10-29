@@ -521,8 +521,63 @@ def test_get_bounds(
     result = sess.evaluate(query, inf_budget)
     assert_frame_equal_with_sort(result.toPandas(), expected_df)
 
-# TODO: add tests with AddRowsWithID, checking behavior when removing/replacing nulls in
-# the ID column
+
+@parametrize(
+    [
+        Case("normal_case_explicit")(
+            # Column "float_all_special" has 26 1s, one null (replaced by 100), one nan
+            # (replaced by 100), and two infinities (dropped).
+            query=(
+                QueryBuilder("private")
+                .enforce(MaxRowsPerID(1))
+                .replace_null_and_nan({"float_all_special": 100.0})
+                .drop_infinity(["float_all_special"])
+                .sum("float_all_special", 0, 100)
+            ),
+            expected_df=pd.DataFrame(
+                [[226]],  # 26+100+100
+                columns=["float_all_special_sum"],
+            ),
+        ),
+        Case("normal_case_implicit")(
+            # Column "float_all_special" has 26 1s, one null, one nan, one negative
+            # infinity (clamped to -50), one positive infinity (clamped to 100).
+            query=(
+                QueryBuilder("private")
+                .enforce(MaxRowsPerID(1))
+                .sum("float_all_special", -50, 100)
+            ),
+            expected_df=pd.DataFrame(
+                [[76]],  # 26-50+100
+                columns=["float_all_special_sum"],
+            ),
+        ),
+        Case("nulls_are_not_dropped_in_id_column")(
+            # When called with no argument, replace_null_and_nan should drop all rows
+            # that have null/nan values anywhere, except in the privacy ID column. This
+            # should leave 25 1s even if we're summing a column without nulls.
+            query=(
+                QueryBuilder("private")
+                .drop_null_and_nan()
+                .enforce(MaxRowsPerID(1))
+                .sum("int_no_null", 0, 1)
+            ),
+            expected_df=pd.DataFrame( [[25]], columns=["int_no_null_sum"]),
+    ]
+)
+def test_privacy_ids(
+    sdf_special_values: DataFrame, query: Query, expected_df: pd.DataFrame
+):
+    inf_budget = PureDPBudget(float("inf"))
+    sess = Session.from_dataframe(
+        inf_budget,
+        "private",
+        sdf_special_values,
+        AddRowsWithID("string_nulls"),
+    )
+    result = sess.evaluate(query, inf_budget)
+    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+
 
 # TODO: add tests for public and private joins
 
