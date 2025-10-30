@@ -838,13 +838,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
 
     def visit_join_private(self, expr: JoinPrivateExpr) -> Output:
         """Create a transformation from a JoinPrivate query expression."""
-        left_transformation, left_ref, left_constraints = expr.child.accept(self)
+        left_transformation, left_ref, left_constraints = expr.left_child.accept(self)
         right_visitor = self._new_visitor_after_transformation(left_transformation)
         (
             right_transformation,
             right_ref,
             right_constraints,
-        ) = expr.right_operand_expr.accept(right_visitor)
+        ) = expr.right_child.accept(right_visitor)
 
         if left_ref.parent != right_ref.parent:
             raise ValueError(

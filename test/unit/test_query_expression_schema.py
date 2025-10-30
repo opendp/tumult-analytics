@@ -982,8 +982,8 @@ class TestValidationWithNulls:
         [
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("groupby_one_column_private"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("groupby_one_column_private"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(10),
                     truncation_strategy_right=TruncationStrategy.DropExcess(10),
                 ),
@@ -1127,8 +1127,8 @@ class TestValidationWithNulls:
         catalog.add_private_table("left", left_schema)
         catalog.add_private_table("right", right_schema)
         query = JoinPrivate(
-            child=PrivateSource("left"),
-            right_operand_expr=PrivateSource("right"),
+            left_child=PrivateSource("left"),
+            right_child=PrivateSource("right"),
             truncation_strategy_left=TruncationStrategy.DropExcess(1),
             truncation_strategy_right=TruncationStrategy.DropExcess(1),
         )
