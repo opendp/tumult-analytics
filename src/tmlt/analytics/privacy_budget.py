@@ -230,7 +230,7 @@ class ApproxDPBudget(PrivacyBudget):
 
     This privacy definition is also known as (ε, δ)-differential privacy, and the
     associated privacy parameters are epsilon and delta. The formal definition can
-    be found `here <https://desfontain.es/privacy/almost-differential-privacy.html#formal-definition>`__.
+    be found `here <https://desfontain.es/blog/almost-differential-privacy.html#formal-definition>`__.
     """  # pylint: disable=line-too-long
 
     _epsilon: ExactNumber

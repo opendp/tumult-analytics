@@ -228,7 +228,7 @@ Analytics, it is certainly not exhaustive. If you have additional questions, fee
 to reach out to us on 
 `our Slack server <https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w>`_!
 
-.. _blog post: https://desfontain.es/privacy/gaussian-noise.html
+.. _blog post: https://desfontain.es/blog/gaussian-noise.html
 
 
 

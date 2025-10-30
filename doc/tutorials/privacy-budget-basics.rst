@@ -29,9 +29,9 @@ fundamentals, you can consult the following resources.
 - If you would like to know what privacy parameters are commonly used for data
   publication, you can consult this `list of real-world use cases`_.
 
-.. _explainer: https://desfontain.es/privacy/differential-privacy-in-more-detail.html
+.. _explainer: https://desfontain.es/blog/differential-privacy-in-more-detail.html
 
-.. _list of real-world use cases: https://desfontain.es/privacy/real-world-differential-privacy.html
+.. _list of real-world use cases: https://desfontain.es/blog/real-world-differential-privacy.html
 
 These are only optional reading! The one-sentence summary above (smaller budget
 = better privacy) is enough to follow the rest of this tutorial. Let's get
