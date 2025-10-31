@@ -583,7 +583,11 @@ def test_privacy_ids(
 
 @pytest.fixture(name="sdf_for_joins", scope="module")
 def dataframe_for_join(spark):
-    """Set up test data for sessions with special values."""
+    """Set up test data for sessions with special values.
+
+    This data is then joined with the ``sdf_special_values`` dataframe used previously
+    in this test suite.
+    """
     sdf_col_types = {
         "string_nulls": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         "int_nulls": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
@@ -603,12 +607,12 @@ def dataframe_for_join(spark):
         [
             # Normal row
             ("normal_0", 1, 1.0, date, time, 1),
-            # Rows with nulls: some whose values appear in the data…
+            # Rows with nulls: some whose values appear in `sdf_special_values`…
             (None, 1, 1.0, date, time, 1),
             ("u2", None, 1.0, date, time, 1),
             ("u3", 1, None, date, time, 1),
             # … and two identical rows, where the combination of nulls does not appear
-            # in the data
+            # in `sdf_special_values`.
             ("u4", 1, 1.0, None, None, 1),
             ("u5", 1, 1.0, None, None, 1),
             # Row with nans
@@ -688,7 +692,7 @@ def dataframe_for_join(spark):
             expected_df=pd.DataFrame([[9]], columns=["count"]),
         ),
         Case("private_join_ids")(
-            # Same with the implicit join on the privacy ID column.
+            # Same with a privacy ID column.
             protected_change=AddRowsWithID("string_nulls"),
             query=(
                 QueryBuilder("private")
@@ -701,6 +705,43 @@ def dataframe_for_join(spark):
             ),
             expected_df=pd.DataFrame([[9]], columns=["count"]),
         ),
+        Case("private_join_preserves_special_values")(
+            # After the join, "float_all_special" should have the same data as in the
+            # table used for the join: 5 1s, one null (replaced by 100), one nan
+            # (replaced by 100), and two infinities (dropped).
+            protected_change=AddRowsWithID("string_nulls"),
+            query=(
+                QueryBuilder("private")
+                .join_private(
+                    "private_2",
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
+                )
+                .enforce(MaxRowsPerID(1))
+                .drop_infinity(["float_all_special"])
+                .replace_null_and_nan({"float_all_special": 100.0})
+                .sum("float_all_special", 0, 200)
+            ),
+            expected_df=pd.DataFrame(
+                [[5 + 100 + 100]], columns=["float_all_special_sum"]
+            ),
+        ),
+        Case("public_join_preserves_special_values")(
+            # Same with a public join.
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .join_public(
+                    "public",
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
+                )
+                .drop_infinity(["float_all_special"])
+                .replace_null_and_nan({"float_all_special": 100.0})
+                .sum("float_all_special", 0, 200)
+            ),
+            expected_df=pd.DataFrame(
+                [[5 + 100 + 100]], columns=["float_all_special_sum"]
+            ),
+        ),
     ]
 )
 def test_joins(
@@ -710,7 +751,7 @@ def test_joins(
     query: Query,
     expected_df: pd.DataFrame,
 ):
-    inf_budget = PureDPBudget(float("inf"))
+    inf_budget = PureDPBudget.inf()
     sess = (
         Session.Builder()
         .with_id_space("default_id_space")
@@ -722,3 +763,120 @@ def test_joins(
     )
     result = sess.evaluate(query, inf_budget)
     assert_frame_equal_with_sort(result.toPandas(), expected_df)
+
+
+@parametrize(
+    [
+        Case("private_int_remove_nulls")(
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .rename({"int_no_null": "int_joined"})
+                .join_private(
+                    QueryBuilder("private_2").rename({"int_nulls": "int_joined"}),
+                    join_columns=["int_joined"],
+                    truncation_strategy_left=TruncationStrategy.DropExcess(30),
+                    truncation_strategy_right=TruncationStrategy.DropExcess(30),
+                )
+            ),
+            expected_col=(
+                "int_joined",
+                ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            ),
+        ),
+        Case(
+            "private_float_remove_both",
+            marks=pytest.mark.xfail(
+                True, reason="https://github.com/opendp/tumult-analytics/issues/108"
+            ),
+        )(
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .drop_null_and_nan(["float_all_special"])
+                .join_private(
+                    QueryBuilder("private").drop_infinity(["float_all_special"]),
+                    join_columns=["float_all_special"],
+                    truncation_strategy_left=TruncationStrategy.DropExcess(30),
+                    truncation_strategy_right=TruncationStrategy.DropExcess(30),
+                )
+            ),
+            expected_col=(
+                "float_all_special",
+                ColumnDescriptor(
+                    ColumnType.DECIMAL,
+                    allow_null=False,
+                    allow_nan=False,
+                    allow_inf=False,
+                ),
+            ),
+        ),
+        Case("public_int_remove_nulls_from_right")(
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .select(["int_no_null"])
+                .rename({"int_no_null": "int_nulls"})
+                .join_public(
+                    "public",
+                    join_columns=["int_nulls"],
+                )
+            ),
+            expected_col=(
+                "int_nulls",
+                ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            ),
+        ),
+        Case("public_int_remove_nulls_from_left")(
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .rename({"int_nulls": "new_int"})
+                .join_public(
+                    "public",
+                    join_columns=["new_int"],
+                )
+            ),
+            expected_col=(
+                "new_int",
+                ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            ),
+        ),
+        Case("public_int_keep_null_on_left_join")(
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .rename({"int_nulls": "new_int"})
+                .join_public(
+                    "public",
+                    join_columns=["new_int"],
+                    how="left",
+                )
+            ),
+            expected_col=(
+                "int_nulls",
+                ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            ),
+        ),
+    ]
+)
+def test_join_schema(
+    sdf_special_values: DataFrame,
+    sdf_for_joins: DataFrame,
+    protected_change: ProtectedChange,
+    query: Query,
+    expected_col: Dict["str", ColumnDescriptor],
+):
+    inf_budget = PureDPBudget.inf()
+    sess = (
+        Session.Builder()
+        .with_id_space("default_id_space")
+        .with_private_dataframe("private", sdf_special_values, protected_change)
+        .with_private_dataframe("private_2", sdf_for_joins, protected_change)
+        .with_public_dataframe("public", sdf_for_joins)
+        .with_privacy_budget(inf_budget)
+        .build()
+    )
+    sess.create_view(query, "view", cache=False)
+    schema = sess.get_schema("view")
+    assert expected_col in schema.items()
