@@ -767,7 +767,11 @@ def _validate_join(
     right_schema: Schema,
     join_columns: Optional[Tuple[str, ...]],
 ):
-    """Validates that join arguments are compatible with the table schemas."""
+    """Validates that both tables can be joined by comparing their schemas.
+
+    This is used for both public and private joins; therefore, this does not check
+    any properties related to ID columns & ID spaces.
+    """
     if (
         left_schema.grouping_column is not None
         and right_schema.grouping_column is not None
@@ -818,7 +822,7 @@ def _schema_for_join(
         right_schema: Schema for the right table.
         join_columns: The set of columns to join on.
         join_id_space: The ID space of the resulting join.
-        how: The type of join to perform. Default is "inner".
+        how: The type of join to perform.
     """
     grouping_column = left_schema.grouping_column or right_schema.grouping_column
     common_columns = set(left_schema) & set(right_schema)
