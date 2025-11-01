@@ -784,12 +784,7 @@ def test_joins(
                 ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
             ),
         ),
-        Case(
-            "private_float_remove_both",
-            marks=pytest.mark.xfail(
-                True, reason="https://github.com/opendp/tumult-analytics/issues/108"
-            ),
-        )(
+        Case("private_float_remove_both")(
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
