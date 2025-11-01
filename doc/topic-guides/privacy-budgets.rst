@@ -22,10 +22,10 @@ Tumult Analytics currently supports three distinct privacy definitions:
 
 * *Pure differential privacy ("pure DP", or simply "DP")*, with its associated privacy parameter ``epsilon``.
   For data publication use cases, the value of ``epsilon`` is often chosen to be
-  `lower than 5 <https://desfontain.es/privacy/real-world-differential-privacy.html>`_.
+  `lower than 5 <https://desfontain.es/blog/real-world-differential-privacy.html>`_.
   Values below 1 are typically considered conservative. Pure DP is the
   original definition of differential privacy. To learn more, consult this
-  `blog post <https://desfontain.es/privacy/differential-privacy-in-more-detail.html>`__.
+  `blog post <https://desfontain.es/blog/differential-privacy-in-more-detail.html>`__.
 * *Approximate differential privacy ("Approx DP")*, with its associated
   privacy parameters ``epsilon`` and ``delta``. Approximate DP is a relaxation of PureDP where mechanisms are
   allowed to fail to provide Pure DP guarantees with some (hopefully small) probability,``delta``. Delta can
@@ -33,11 +33,11 @@ Tumult Analytics currently supports three distinct privacy definitions:
   smaller than ``1/n``, where ``n`` is the number of people in your dataset. The relaxation of Pure DP
   enables new types of queries and can therefore be a powerful tool that still offers reasonable privacy
   protections when used correctly. To learn more, consult this
-  `blog post <https://desfontain.es/privacy/almost-differential-privacy.html>`__.
+  `blog post <https://desfontain.es/blog/almost-differential-privacy.html>`__.
 * *Zero-concentrated differential privacy ("zCDP")*, with its associated
   privacy parameter ``rho``. zCDP is a variant of differential privacy, which
   adjusts the way privacy loss is measured. To learn more, consult this:
-  `blog post <https://desfontain.es/privacy/renyi-dp-zero-concentrated-dp.html>`__.
+  `blog post <https://desfontain.es/blog/renyi-dp-zero-concentrated-dp.html>`__.
 
 Queries with higher values of epsilon, delta, and rho will produce results with
 less randomization that are therefore more accurate, whereas
@@ -147,7 +147,7 @@ their suspicion, whereas larger epsilons allow the attacker to determine with in
 certainty whether or not their target is in the database.
 
 For an even more in-depth explanation of this topic, you can check out the following
-`blog post <https://desfontain.es/privacy/differential-privacy-in-more-detail.html>`__.
+`blog post <https://desfontain.es/blog/differential-privacy-in-more-detail.html>`__.
 
 The impact of data size
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -28,7 +28,7 @@ accomplish common tasks. To learn more about the trade-offs involved in
 parameter setting and mechanism design, you can consult our
 :ref:`topic guides <topic-guides>`.
 
-.. _differential privacy: https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html
+.. _differential privacy: https://desfontain.es/blog/friendly-intro-to-differential-privacy.html
 
 Setup
 -----

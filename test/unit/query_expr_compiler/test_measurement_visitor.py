@@ -1252,8 +1252,8 @@ class TestMeasurementVisitor:
             ),
             (
                 JoinPrivate(
-                    child=PrivateSource("private"),
-                    right_operand_expr=PrivateSource("private_2"),
+                    left_child=PrivateSource("private"),
+                    right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 )

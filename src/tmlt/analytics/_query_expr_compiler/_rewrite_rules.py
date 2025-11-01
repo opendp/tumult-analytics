@@ -77,9 +77,9 @@ def depth_first(
             child = wrapped(expr.child)
             return func(replace(expr, child=child))
         if isinstance(expr, JoinPrivate):
-            left = wrapped(expr.child)
-            right = wrapped(expr.right_operand_expr)
-            return func(replace(expr, child=left, right_operand_expr=right))
+            left = wrapped(expr.left_child)
+            right = wrapped(expr.right_child)
+            return func(replace(expr, left_child=left, right_child=right))
         else:
             raise AnalyticsInternalError(
                 f"Unrecognized QueryExpr subtype {type(expr).__qualname__}."

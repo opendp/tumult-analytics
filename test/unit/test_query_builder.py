@@ -166,9 +166,9 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
     assert private_join_expr.truncation_strategy_right == TruncationStrategy.DropExcess(
         2
     )
-    right_operand_expr = private_join_expr.right_operand_expr
-    assert isinstance(right_operand_expr, PrivateSource)
-    assert right_operand_expr.source_id == "private_2"
+    right_child = private_join_expr.right_child
+    assert isinstance(right_child, PrivateSource)
+    assert right_child.source_id == "private_2"
 
     assert isinstance(query_expr, GroupByCount)
 
@@ -200,9 +200,9 @@ def test_join_private_str() -> None:
     assert private_join_expr.truncation_strategy_right == TruncationStrategy.DropExcess(
         2
     )
-    right_operand_expr = private_join_expr.right_operand_expr
-    assert isinstance(right_operand_expr, PrivateSource)
-    assert right_operand_expr.source_id == "private_2"
+    right_child = private_join_expr.right_child
+    assert isinstance(right_child, PrivateSource)
+    assert right_child.source_id == "private_2"
 
     assert isinstance(query_expr, GroupByCount)
 

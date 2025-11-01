@@ -97,7 +97,7 @@ If you have any questions, feedback, or feature requests, please `let us know on
 
 The Tumult Analytics documentation introduces all of the concepts necessary to get started producing differentially private results.
 Users who wish to learn more about the fundamentals of differential privacy can consult
-`this blog post series <https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html>`__
+`this blog post series <https://desfontain.es/blog/friendly-intro-to-differential-privacy.html>`__
 or `this longer introduction <https://scholarship.law.vanderbilt.edu/jetlaw/vol21/iss1/4/>`__.
 
 ..
