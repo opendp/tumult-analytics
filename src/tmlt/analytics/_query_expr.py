@@ -1,11 +1,10 @@
 """Building blocks of the Tumult Analytics query language. Not for direct use.
 
-Defines the :class:`QueryExpr` class, which represents expressions in the
-Tumult Analytics query language. QueryExpr and its subclasses should not be
-directly constructed or deconstructed by most users; interfaces such as
-:class:`tmlt.analytics.QueryBuilder` to create them and
-:class:`tmlt.analytics.Session` to consume them provide more
-user-friendly features.
+Defines the :class:`QueryExpr` class, which represents expressions in the Tumult
+Analytics query language. QueryExpr and its subclasses should not be directly
+constructed; but instead built using a :class:`tmlt.analytics.QueryBuilder`. The
+documentation of the :class:`tmlt.analytics.QueryBuilder` provides more information
+about the intended semantics of :class:`QueryExpr` objects.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -175,14 +174,10 @@ class StdevMechanism(Enum):
 class QueryExpr(ABC):
     """A query expression, base class for relational operators.
 
-    In most cases, QueryExpr should not be manipulated directly, but rather
-    created using :class:`tmlt.analytics.QueryBuilder` and then
-    consumed by :class:`tmlt.analytics.Session`. While they can be
-    created and modified directly, this is an advanced usage and is not
-    recommended for typical users.
-
-    QueryExpr are organized in a tree, where each node is an operator which
-    returns a relation.
+    QueryExpr are organized in a tree, where each node is an operator that returns a
+    table. They are built using the :class:`tmlt.analytics.QueryBuilder`, then rewritten
+    during the compilation process. They should not be created directly, except in
+    tests.
     """
 
     @abstractmethod
@@ -1775,13 +1770,7 @@ class GroupByQuantile(SingleChildQueryExpr):
 
 @dataclass(frozen=True)
 class GroupByBoundedSum(SingleChildQueryExpr):
-    """Returns the bounded sum of a column for each combination of groupby domains.
-
-    If the column to be measured contains null, NaN, or positive or negative infinity,
-    those values will be dropped (as if dropped explicitly via
-    :class:`DropNullAndNan` and :class:`DropInfinity`) before the sum is
-    calculated.
-    """
+    """Returns the bounded sum of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
@@ -1842,13 +1831,7 @@ class GroupByBoundedSum(SingleChildQueryExpr):
 
 @dataclass(frozen=True)
 class GroupByBoundedAverage(SingleChildQueryExpr):
-    """Returns bounded average of a column for each combination of groupby domains.
-
-    If the column to be measured contains null, NaN, or positive or negative infinity,
-    those values will be dropped (as if dropped explicitly via
-    :class:`DropNullAndNan` and :class:`DropInfinity`) before the average is
-    calculated.
-    """
+    """Returns bounded average of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
@@ -1909,13 +1892,7 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
 
 @dataclass(frozen=True)
 class GroupByBoundedVariance(SingleChildQueryExpr):
-    """Returns bounded variance of a column for each combination of groupby domains.
-
-    If the column to be measured contains null, NaN, or positive or negative infinity,
-    those values will be dropped (as if dropped explicitly via
-    :class:`DropNullAndNan` and :class:`DropInfinity`) before the variance is
-    calculated.
-    """
+    """Returns bounded variance of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
@@ -1976,13 +1953,7 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
 
 @dataclass(frozen=True)
 class GroupByBoundedStdev(SingleChildQueryExpr):
-    """Returns bounded stdev of a column for each combination of groupby domains.
-
-    If the column to be measured contains null, NaN, or positive or negative infinity,
-    those values will be dropped (as if dropped explicitly via
-    :class:`DropNullAndNan` and :class:`DropInfinity`) before the
-    standard deviation is calculated.
-    """
+    """Returns bounded stdev of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""

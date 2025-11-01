@@ -17,6 +17,8 @@ Changed
 - Aggregation mechanisms can now be specified as strings instead of enums, e.g. ``"laplace"`` instead of ``CountMechanism.LAPLACE`` or ``SumMechanism.LAPLACE``.
 - Removed previously deprecated argument ``max_num_rows`` to ``flat_map``. Use ``max_rows`` instead.
 - Removed previously deprecated argument ``cols`` to ``count_distinct``. Use ``columns`` instead.
+- Infinity values are now automatically dropped before a floating-point column is passed to `get_bounds`. (The documentation previously claimed that this was done, but this was not the case.)
+- Fixed the documentation of the behavior of some numeric aggregations (`sum`, `average`, `stdev`, `variance`, `quantile`) to match the actual behavior: infinity values are clamped using the specified bounds before being passed to the aggregation function, not dropped.
 
 
 .. _v0.20.2:
