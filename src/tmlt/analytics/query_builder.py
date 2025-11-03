@@ -2995,9 +2995,9 @@ class GroupedQueryBuilder:
 
         .. note::
             If the column being measured contains NaN or null values, a
-            :meth:`~drop_null_and_nan` query will be performed first. If the column
-            being measured contains infinite values, these values will be clamped
-            between ``low`` and ``high``.
+            :meth:`~QueryBuilder.drop_null_and_nan` query will be performed first. If
+            the column being measured contains infinite values, these values will be
+            clamped between ``low`` and ``high``.
         ..
             >>> from tmlt.analytics import (
             ...     AddOneRow,
