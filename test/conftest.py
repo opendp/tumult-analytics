@@ -229,7 +229,6 @@ def assert_frame_equal_with_sort(
     first_df: pd.DataFrame,
     second_df: pd.DataFrame,
     sort_columns: Optional[Sequence[str]] = None,
-    **kwargs: Any,
 ):
     """Asserts that the two Pandas DataFrames are equal.
 
@@ -240,7 +239,6 @@ def assert_frame_equal_with_sort(
         first_df: First dataframe to compare.
         second_df: Second dataframe to compare.
         sort_columns: Names of column to sort on. By default sorts by all columns.
-        **kwargs: Keyword arguments that will be passed to assert_frame_equal().
     """
     if sorted(first_df.columns) != sorted(second_df.columns):
         raise ValueError(
@@ -258,7 +256,7 @@ def assert_frame_equal_with_sort(
     # We explicitly pass check_dtype=False the equality check, so that identical
     # DataFrames which differ only in dtypes (like one with an int64 column and
     # the other with an Int64 column) are considered equal.
-    pd.testing.assert_frame_equal(first_df, second_df, check_dtype=False, **kwargs)
+    pd.testing.assert_frame_equal(first_df, second_df, check_dtype=False)
 
 
 def create_mock_measurement(

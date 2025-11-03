@@ -634,7 +634,7 @@ class TestSession:
             f=lambda row: [{}, {}],
             new_column_types={},
             augment=True,
-            max_rows=1,
+            max_rows=2,
         )
         session.create_view(transformation_query, "flatmap_transformation", cache=False)
 
@@ -644,7 +644,7 @@ class TestSession:
             .sum("X", 0, 3, name="sum")
         )
         actual = session.evaluate(sum_query, privacy_budget)
-        assert_frame_equal_with_sort(actual.toPandas(), expected, rtol=1)
+        assert_frame_equal_with_sort(actual.toPandas(), expected)
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
