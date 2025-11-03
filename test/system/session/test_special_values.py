@@ -17,6 +17,7 @@ from tmlt.analytics import (
     AddRowsWithID,
     ColumnDescriptor,
     ColumnType,
+    KeySet,
     MaxRowsPerID,
     ProtectedChange,
     PureDPBudget,
@@ -92,6 +93,78 @@ def special_values_dataframe(spark):
         schema=analytics_to_spark_schema(Schema(sdf_col_types)),
     )
     return sdf
+
+
+@parametrize(
+    [
+        Case("int_sum")(
+            # There are 29 1s in the "int_nulls" column and one null, which should be
+            # dropped by default.
+            query=QueryBuilder("private").sum("int_nulls", 0, 1),
+            expected_df=pd.DataFrame(
+                [[29]],
+                columns=["int_nulls_sum"],
+            ),
+        ),
+        Case("count_distinct")(
+            # Nulls, nans, and infinities count as distinct values in a count_distinct
+            # query. All other values in the "float_all_special" are 1s.
+            query=QueryBuilder("private").count_distinct(["float_all_special"]),
+            expected_df=pd.DataFrame(
+                [[5]],
+                columns=["count_distinct(float_all_special)"],
+            ),
+        ),
+        Case("count_distinct_deduplicates")(
+            # The "float_infs" column contains 1s, two positive infinities, and two
+            # negative infinities.
+            query=QueryBuilder("private").count_distinct(["float_infs"]),
+            expected_df=pd.DataFrame(
+                [[3]],
+                columns=["count_distinct(float_infs)"],
+            ),
+        ),
+        Case("float_average")(
+            # In the "float_all_special" column, there are 26 1s, one null (dropped),
+            # one NaN (dropped), one negative infinity (clamped to 50), and one positive
+            # infinity (clamed to 100).
+            query=QueryBuilder("private").sum("float_all_special", -100, 300),
+            expected_df=pd.DataFrame(
+                [[226]],  # 26-100+300
+                columns=["float_all_special_sum"],
+            ),
+        ),
+        Case("group_by_null")(
+            # Nulls can be used as group-by
+            query=(
+                QueryBuilder("private")
+                .groupby(
+                    KeySet.from_dict(
+                        {"date_nulls": [datetime.date(2000, 1, 1), None]}
+                    )
+                )
+                .count()
+            ),
+            expected_df=pd.DataFrame(
+                [[datetime.date(2000, 1, 1), 29], [None, 1]],
+                columns=["date_nulls", "count"],
+            ),
+        ),
+    ]
+)
+def test_default_behavior(
+    sdf_special_values: DataFrame, query: Query, expected_df: pd.DataFrame
+):
+    inf_budget = PureDPBudget(float("inf"))
+    sess = Session.from_dataframe(
+        inf_budget,
+        "private",
+        sdf_special_values,
+        AddOneRow(),
+    )
+    result = sess.evaluate(query, inf_budget)
+    print(expected_df)
+    assert_frame_equal_with_sort(result.toPandas(), expected_df)
 
 
 @parametrize(
