@@ -139,9 +139,7 @@ def special_values_dataframe(spark):
             query=(
                 QueryBuilder("private")
                 .groupby(
-                    KeySet.from_dict(
-                        {"date_nulls": [datetime.date(2000, 1, 1), None]}
-                    )
+                    KeySet.from_dict({"date_nulls": [datetime.date(2000, 1, 1), None]})
                 )
                 .count()
             ),
