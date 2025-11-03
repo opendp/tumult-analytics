@@ -38,7 +38,6 @@ from tmlt.analytics._schema import (
     FrozenDict,
     Schema,
     analytics_to_spark_columns_descriptor,
-    analytics_to_spark_schema,
 )
 
 # Shorthands for some values used in tests
@@ -709,56 +708,3 @@ def sess_data(spark, request):
         analytics_to_spark_columns_descriptor(Schema(sdf_col_types))
     )
     request.cls.sdf_input_domain = sdf_input_domain
-
-
-###DATA FOR SESSIONS WITH NULLS###
-@pytest.fixture(name="null_session_data", scope="class")
-def null_setup(spark, request):
-    """Set up test data for sessions with nulls."""
-    # Since Spark gives back timestamps with microsecond accuracy, this
-    # dataframe needs to make that the default precision for column T.
-    pdf = pd.DataFrame(
-        [
-            ["a0", 0, 0.0, datetime.date(2000, 1, 1), datetime.datetime(2020, 1, 1)],
-            [None, 1, 1.0, datetime.date(2001, 1, 1), datetime.datetime(2021, 1, 1)],
-            ["a2", None, 2.0, datetime.date(2002, 1, 1), datetime.datetime(2022, 1, 1)],
-            ["a3", 3, None, datetime.date(2003, 1, 1), datetime.datetime(2023, 1, 1)],
-            ["a4", 4, 4.0, None, datetime.datetime(2024, 1, 1)],
-            ["a5", 5, 5.0, datetime.date(2005, 1, 1), None],
-        ],
-        columns=["A", "I", "X", "D", "T"],
-    ).astype({"T": "datetime64[us]"})
-
-    request.cls.pdf = pdf
-
-    sdf_col_types = {
-        "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-        "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-        "X": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-        "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-        "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
-    }
-
-    sdf = spark.createDataFrame(
-        pdf, schema=analytics_to_spark_schema(Schema(sdf_col_types))
-    )
-    request.cls.sdf = sdf
-
-
-###DATA FOR SESSIONS WITH INF VALUES###
-@pytest.fixture(name="infs_test_data", scope="class")
-def infs_setup(spark, request):
-    """Set up tests."""
-    pdf = pd.DataFrame(
-        {"A": ["a0", "a0", "a1", "a1"], "B": [float("-inf"), 2.0, 5.0, float("inf")]}
-    )
-    request.cls.pdf = pdf
-
-    sdf_col_types = {
-        "A": ColumnDescriptor(ColumnType.VARCHAR),
-        "B": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
-    }
-    sdf = spark.createDataFrame(
-        pdf, schema=analytics_to_spark_schema(Schema(sdf_col_types))
-    )
-    request.cls.sdf = sdf

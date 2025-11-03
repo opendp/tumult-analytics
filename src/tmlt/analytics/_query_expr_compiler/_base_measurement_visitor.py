@@ -1,5 +1,4 @@
 """Defines a base class for building measurement visitors."""
-import dataclasses
 import math
 import warnings
 from abc import abstractmethod
@@ -101,7 +100,7 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
-from tmlt.analytics._schema import ColumnType, FrozenDict, Schema
+from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
@@ -675,65 +674,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             else:
                 raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
 
-    def _add_special_value_handling_to_query(
-        self,
-        query: Union[
-            GroupByBoundedAverage,
-            GroupByBoundedStdev,
-            GroupByBoundedSum,
-            GroupByBoundedVariance,
-            GroupByQuantile,
-            GetBounds,
-        ],
-    ):
-        """Returns a new query that handles nulls, NaNs and infinite values.
-
-        If the measure column allows nulls or NaNs, the new query
-        will drop those values.
-
-        If the measure column allows infinite values, the new query will replace those
-        values with the low and high values specified in the query.
-
-        These changes are added immediately before the groupby aggregation in the query.
-        """
-        expected_schema = query.child.schema(self.catalog)
-
-        # You can't perform these queries on nulls, NaNs, or infinite values
-        # so check for those
-        try:
-            measure_desc = expected_schema[query.measure_column]
-        except KeyError as e:
-            raise KeyError(
-                f"Measure column {query.measure_column} is not in the input schema."
-            ) from e
-
-        new_child: QueryExpr
-        # If null or NaN values are allowed ...
-        if measure_desc.allow_null or (
-            measure_desc.column_type == ColumnType.DECIMAL and measure_desc.allow_nan
-        ):
-            # then drop those values
-            # (but don't mutate the original query)
-            new_child = DropNullAndNan(
-                child=query.child, columns=tuple([query.measure_column])
-            )
-            query = dataclasses.replace(query, child=new_child)
-        if not isinstance(query, GetBounds):
-            # If infinite values are allowed...
-            if (
-                measure_desc.column_type == ColumnType.DECIMAL
-                and measure_desc.allow_inf
-            ):
-                # then clamp them (to low/high values)
-                new_child = ReplaceInfinity(
-                    child=query.child,
-                    replace_with=FrozenDict.from_dict(
-                        {query.measure_column: (query.low, query.high)}
-                    ),
-                )
-                query = dataclasses.replace(query, child=new_child)
-        return query
-
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""
         if isinstance(self.adjusted_budget.value, tuple):
@@ -1146,7 +1086,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
-        expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1241,7 +1180,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
-        expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1337,7 +1275,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
-        expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1433,7 +1370,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
-        expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1529,7 +1465,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
 
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
-        expr = self._add_special_value_handling_to_query(expr)
 
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
@@ -1622,7 +1557,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
 
-        expr = self._add_special_value_handling_to_query(expr)
         if isinstance(expr.groupby_keys, KeySet):
             groupby_cols = tuple(expr.groupby_keys.dataframe().columns)
             keyset_budget = self._get_zero_budget()
