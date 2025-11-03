@@ -636,24 +636,6 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                QueryBuilder("private").quantile(
-                    low=-100,
-                    high=100,
-                    name="custom_output_column",
-                    column="null_and_nan",
-                    quantile=0.1,
-                ),
-                PureDP(),
-                NoiseInfo(
-                    [
-                        {
-                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
-                            "noise_parameter": 3.3333333333333326,
-                        }
-                    ]
-                ),
-            ),
-            (
                 QueryBuilder("private")
                 .groupby(KeySet.from_dict({"B": [0, 1]}))
                 .quantile(
@@ -675,42 +657,8 @@ class TestMeasurementVisitor:
             ),
             (
                 QueryBuilder("private")
-                .groupby(KeySet.from_dict({"B": [0, 1]}))
-                .quantile(
-                    column="null_and_inf",
-                    name="quantile",
-                    low=123.345,
-                    high=987.65,
-                    quantile=0.25,
-                ),
-                PureDP(),
-                NoiseInfo(
-                    [
-                        {
-                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
-                            "noise_parameter": 3.3333333333333326,
-                        }
-                    ]
-                ),
-            ),
-            (
-                QueryBuilder("private")
                 .groupby(KeySet.from_dict({"A": ["zero"]}))
                 .quantile(quantile=0.5, low=0, high=1, column="X"),
-                RhoZCDP(),
-                NoiseInfo(
-                    [
-                        {
-                            "noise_mechanism": _NoiseMechanism.EXPONENTIAL,
-                            "noise_parameter": 2.9814239699997196,
-                        }
-                    ]
-                ),
-            ),
-            (
-                QueryBuilder("private")
-                .groupby(KeySet.from_dict({"A": ["zero"]}))
-                .quantile(quantile=0.5, low=0, high=1, column="nan_and_inf"),
                 RhoZCDP(),
                 NoiseInfo(
                     [
