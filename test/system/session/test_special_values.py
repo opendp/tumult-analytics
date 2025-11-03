@@ -542,7 +542,7 @@ def test_drop_infinity(
 @parametrize(
     [
         Case("works_with_nulls")(
-            # Check that
+            # get_bounds doesn't explode when called on a null column
             query=QueryBuilder("private").get_bounds("int_nulls"),
             expected_df=pd.DataFrame(
                 [[-1, 1]],
@@ -550,7 +550,7 @@ def test_drop_infinity(
             ),
         ),
         Case("works_with_nan")(
-            # Check that
+            # Same with nans
             query=QueryBuilder("private").get_bounds("float_nans"),
             expected_df=pd.DataFrame(
                 [[-1, 1]],
@@ -558,7 +558,7 @@ def test_drop_infinity(
             ),
         ),
         Case("works_with_infinity")(
-            # Check that
+            # Same with infinities
             query=QueryBuilder("private").get_bounds("float_infs"),
             expected_df=pd.DataFrame(
                 [[-1, 1]],
@@ -841,6 +841,7 @@ def test_joins(
 @parametrize(
     [
         Case("private_int_remove_nulls")(
+            # Null joined with no nulls = no nulls
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
@@ -858,6 +859,7 @@ def test_joins(
             ),
         ),
         Case("private_float_remove_both")(
+            # All special joined with only nulls & nan = only nulls & nan
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
@@ -880,6 +882,7 @@ def test_joins(
             ),
         ),
         Case("public_int_remove_nulls_from_right")(
+            # No nulls joined with nulls = no nulls (public version)
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
@@ -896,6 +899,8 @@ def test_joins(
             ),
         ),
         Case("public_int_remove_nulls_from_left")(
+            # Nulls joined with no nulls = no nulls (reverse)
+            protected_change=AddOneRow(),
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
@@ -911,6 +916,7 @@ def test_joins(
             ),
         ),
         Case("public_int_keep_null_on_left_join")(
+            # Nulls *left* joined with no nulls = nulls
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")

@@ -479,7 +479,7 @@ def test_special_value_handling_count_unaffected(
         ]
     ]
     + [
-        # NaNs must also be dropped added if needed
+        # NaNs must also be dropped if needed
         Case("drop_nan")(
             col_desc=ColumnDescriptor(
                 ColumnType.DECIMAL, allow_null=False, allow_nan=True, allow_inf=False
