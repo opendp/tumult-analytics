@@ -899,7 +899,6 @@ def test_joins(
         Case("public_int_remove_nulls_from_left")(
             # Nulls joined with no nulls = no nulls (reverse)
             protected_change=AddOneRow(),
-            protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
                 .rename({"int_nulls": "new_int"})
