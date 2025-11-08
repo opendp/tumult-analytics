@@ -33,6 +33,7 @@ from tmlt.analytics._query_expr import (
     DropNullAndNan,
     Filter,
     FlatMap,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedStdev,
     GroupByBoundedSum,
@@ -748,16 +749,17 @@ def test_drop_null_and_nan(
     """QueryBuilder.drop_null_and_nan works as expected."""
     query = root_builder().drop_null_and_nan(columns).count()
     assert isinstance(query, Query)
+
     query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
+
     drop_expr = query_expr.child
     assert isinstance(drop_expr, DropNullAndNan)
+    assert drop_expr.columns == expected_columns
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
-
-    assert drop_expr.columns == expected_columns
 
 
 @pytest.mark.parametrize(
@@ -777,17 +779,44 @@ def test_drop_infinity(
     query = root_builder().drop_infinity(columns).count()
 
     assert isinstance(query, Query)
-    query_expr = query._query_expr
 
+    query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
+
     drop_expr = query_expr.child
     assert isinstance(drop_expr, DropInfinity)
+    assert drop_expr.columns == expected_columns
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
 
-    assert drop_expr.columns == expected_columns
+
+@pytest.mark.parametrize(
+    "columns,expected_columns",
+    [
+        ([], tuple()),
+        (None, tuple()),
+        ("A", ("A",)),
+        (["A"], ("A",)),
+        (["A", "B"], ("A", "B")),
+    ],
+)
+def test_get_groups(
+    columns: Optional[List[str]], expected_columns: Tuple[str, ...]
+) -> None:
+    """QueryBuilder.drop_infinity works as expected."""
+    query = root_builder().get_groups(columns)
+
+    assert isinstance(query, Query)
+
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GetGroups)
+    assert query_expr.columns == expected_columns
+
+    root_expr = query_expr.child
+    assert isinstance(root_expr, PrivateSource)
+    assert root_expr.source_id == PRIVATE_ID
 
 
 class _TestAggregationsData:

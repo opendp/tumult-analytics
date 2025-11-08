@@ -245,17 +245,16 @@ class PrivateSource(QueryExpr):
 class GetGroups(SingleChildQueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
 
-    columns: Optional[Tuple[str, ...]] = None
+    columns: Tuple[str, ...] = tuple()
     """The columns used for geometric partition selection.
 
-    If empty or none are provided, will use all of the columns in the table
-    for partition selection.
+    If empty, will use all of the columns in the table for partition selection.
     """
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type(self.child, QueryExpr)
-        check_type(self.columns, Optional[Tuple[str, ...]])
+        check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""

@@ -1783,10 +1783,11 @@ class QueryBuilder:
                 :class:`~tmlt.analytics.ProtectedChange` of
                 :class:`~tmlt.analytics.AddRowsWithID`.
         """
+        if columns is None:
+            columns = []
         if isinstance(columns, str):
             columns = [columns]
-        cols = tuple(columns) if columns is not None else None
-        query_expr = GetGroups(child=self._query_expr, columns=cols)
+        query_expr = GetGroups(child=self._query_expr, columns=tuple(columns))
         return Query(query_expr)
 
     def get_bounds(
