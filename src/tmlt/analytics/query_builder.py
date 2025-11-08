@@ -764,7 +764,9 @@ class QueryBuilder:
         )
         return self
 
-    def drop_null_and_nan(self, columns: Optional[List[str]] = None) -> "QueryBuilder":
+    def drop_null_and_nan(
+        self, columns: Optional[List[str] | str] = None
+    ) -> "QueryBuilder":
         """Removes rows containing null or NaN values.
 
         .. note::
@@ -862,14 +864,16 @@ class QueryBuilder:
         """
         if columns is None:
             columns = []
-        if columns is None:
-            raise AnalyticsInternalError("columns parameter is None.")
+        if isinstance(columns, str):
+            columns = [columns]
         self._query_expr = DropNullAndNan(
             child=self._query_expr, columns=tuple(columns)
         )
         return self
 
-    def drop_infinity(self, columns: Optional[List[str]] = None) -> "QueryBuilder":
+    def drop_infinity(
+        self, columns: Optional[List[str] | str] = None
+    ) -> "QueryBuilder":
         """Remove rows containing infinite values.
 
         ..
@@ -952,9 +956,8 @@ class QueryBuilder:
         """
         if columns is None:
             columns = []
-        if columns is None:
-            raise AnalyticsInternalError("columns parameter is None.")
-
+        if isinstance(columns, str):
+            columns = [columns]
         self._query_expr = DropInfinity(child=self._query_expr, columns=tuple(columns))
         return self
 
@@ -1725,7 +1728,7 @@ class QueryBuilder:
         self._query_expr = EnforceConstraint(self._query_expr, constraint)
         return self
 
-    def get_groups(self, columns: Optional[List[str]] = None) -> Query:
+    def get_groups(self, columns: Optional[List[str] | str] = None) -> Query:
         """Returns a query that gets combinations of values in the listed columns.
 
         .. note::
@@ -1780,6 +1783,8 @@ class QueryBuilder:
                 :class:`~tmlt.analytics.ProtectedChange` of
                 :class:`~tmlt.analytics.AddRowsWithID`.
         """
+        if isinstance(columns, str):
+            columns = [columns]
         cols = tuple(columns) if columns is not None else None
         query_expr = GetGroups(child=self._query_expr, columns=cols)
         return Query(query_expr)
@@ -2078,7 +2083,7 @@ class QueryBuilder:
 
     def count_distinct(
         self,
-        columns: Optional[List[str]] = None,
+        columns: Optional[List[str] | str] = None,
         name: Optional[str] = None,
         mechanism: Union[
             CountDistinctMechanism, Literal["default", "laplace", "gaussian"]
@@ -2894,7 +2899,7 @@ class GroupedQueryBuilder:
 
     def count_distinct(
         self,
-        columns: Optional[List[str]] = None,
+        columns: Optional[List[str] | str] = None,
         name: Optional[str] = None,
         mechanism: Union[
             CountDistinctMechanism, Literal["default", "laplace", "gaussian"]
@@ -2959,6 +2964,8 @@ class GroupedQueryBuilder:
                 framework automatically selects an appropriate mechanism.
         """
         columns_to_count: Optional[List[str]] = None
+        if isinstance(columns, str):
+            columns = [columns]
         if columns is not None and len(columns) > 0:
             columns_to_count = list(columns)
         if not name:
