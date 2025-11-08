@@ -2964,14 +2964,13 @@ class GroupedQueryBuilder:
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
                 framework automatically selects an appropriate mechanism.
         """
-        columns_to_count: Optional[List[str]] = None
+        if columns is None:
+            columns = []
         if isinstance(columns, str):
             columns = [columns]
-        if columns is not None and len(columns) > 0:
-            columns_to_count = list(columns)
         if not name:
-            if columns_to_count:
-                name = f"count_distinct({', '.join(columns_to_count)})"
+            if columns:
+                name = f"count_distinct({', '.join(columns)})"
             else:
                 name = "count_distinct"
         if isinstance(mechanism, str):
@@ -2984,7 +2983,7 @@ class GroupedQueryBuilder:
                 ) from e
         query_expr = GroupByCountDistinct(
             child=self._query_expr,
-            columns_to_count=tuple(columns_to_count) if columns_to_count else None,
+            columns_to_count=tuple(columns),
             groupby_keys=self._groupby_keys,
             output_column=name,
             mechanism=mechanism,

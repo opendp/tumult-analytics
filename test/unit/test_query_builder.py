@@ -927,7 +927,8 @@ class TestAggregations:
     @pytest.mark.parametrize(
         "name,expected_name,columns,expected_columns",
         [
-            (None, "count_distinct", None, None),
+            (None, "count_distinct", None, tuple()),
+            ("total", "total", [], tuple()),
             ("total", "total", "Col1", ("Col1",)),
             ("total", "total", ["Col1", "Col2"], ("Col1", "Col2")),
             (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
@@ -958,7 +959,8 @@ class TestAggregations:
             (keys_df, *options)
             for keys_df in _TestAggregationsData.keyset_test_cases
             for options in (
-                (None, "count_distinct", None, None),
+                (None, "count_distinct", None, tuple()),
+                ("total", "total", [], tuple()),
                 ("total", "total", "Col1", ("Col1",)),
                 ("total", "total", ["Col1", "Col2"], ("Col1", "Col2")),
                 (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
