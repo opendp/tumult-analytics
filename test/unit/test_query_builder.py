@@ -10,7 +10,7 @@
 import datetime
 import re
 from dataclasses import FrozenInstanceError
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import pandas as pd
 import pytest
@@ -940,7 +940,7 @@ class TestAggregations:
         name: Optional[str],
         expected_name: str,
         columns: Optional[List[str] | str],
-        expected_columns: Optional[Tuple[str, ...]],
+        expected_columns: Tuple[str, ...],
     ):
         """Query returned by ungrouped count_distinct is correct."""
         query = root_builder().count_distinct(columns=columns, name=name)
@@ -956,14 +956,21 @@ class TestAggregations:
     @pytest.mark.parametrize(
         "keys_df,name,expected_name,columns,expected_columns",
         (
-            (keys_df, *options)
+            (keys_df, *name, *cols)
             for keys_df in _TestAggregationsData.keyset_test_cases
-            for options in (
-                (None, "count_distinct", None, tuple()),
-                ("total", "total", [], tuple()),
-                ("total", "total", "Col1", ("Col1",)),
-                ("total", "total", ["Col1", "Col2"], ("Col1", "Col2")),
-                (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
+            for name in (
+                (None, "count_distinct"),
+                ("total", "total"),
+            )
+            # mypy is being a pain here, requiring an explicit cast for some reason
+            for cols in cast(
+                List[Tuple[Optional[List[str] | str], Tuple[str, ...]]],
+                [
+                    (None, tuple()),
+                    ([], tuple()),
+                    ("Col1", ("Col1",)),
+                    (["A", "B"], ("A", "B")),
+                ],
             )
         ),
     )
@@ -974,7 +981,7 @@ class TestAggregations:
         name: Optional[str],
         expected_name: str,
         columns: Optional[List[str] | str],
-        expected_columns: Optional[Tuple[str, ...]],
+        expected_columns: Tuple[str, ...],
     ):
         """Query returned by groupby with KeySet and count_distinct is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
