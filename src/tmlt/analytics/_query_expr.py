@@ -245,17 +245,16 @@ class PrivateSource(QueryExpr):
 class GetGroups(SingleChildQueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
 
-    columns: Optional[Tuple[str, ...]] = None
+    columns: Tuple[str, ...] = tuple()
     """The columns used for geometric partition selection.
 
-    If empty or none are provided, will use all of the columns in the table
-    for partition selection.
+    If empty, will use all of the columns in the table for partition selection.
     """
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         check_type(self.child, QueryExpr)
-        check_type(self.columns, Optional[Tuple[str, ...]])
+        check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
@@ -1667,7 +1666,7 @@ class GroupByCountDistinct(SingleChildQueryExpr):
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
-    columns_to_count: Optional[Tuple[str, ...]] = None
+    columns_to_count: Tuple[str, ...] = tuple()
     """The columns that are compared when determining if two rows are distinct.
 
     If empty, will count all distinct rows.
@@ -1687,7 +1686,7 @@ class GroupByCountDistinct(SingleChildQueryExpr):
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type(self.child, QueryExpr)
-        check_type(self.columns_to_count, Optional[Tuple[str, ...]])
+        check_type(self.columns_to_count, Tuple[str, ...])
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
         check_type(self.mechanism, CountDistinctMechanism)

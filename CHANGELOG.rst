@@ -15,10 +15,14 @@ Changed
 - Dropped support for Python 3.9, as it has reached end-of-life.
 - Dropped support for pyspark <3.5.0 on Macs after discovering that these configurations frequently crash. Older versions of the library may also be affected.
 - Aggregation mechanisms can now be specified as strings instead of enums, e.g. ``"laplace"`` instead of ``CountMechanism.LAPLACE`` or ``SumMechanism.LAPLACE``.
-- Removed previously deprecated argument ``max_num_rows`` to ``flat_map``. Use ``max_rows`` instead.
-- Removed previously deprecated argument ``cols`` to ``count_distinct``. Use ``columns`` instead.
-- Infinity values are now automatically dropped before a floating-point column is passed to `get_bounds`. (The documentation previously claimed that this was done, but this was not the case.)
-- Fixed the documentation of the behavior of some numeric aggregations (`sum`, `average`, `stdev`, `variance`, `quantile`) to match the actual behavior: infinity values are clamped using the specified bounds before being passed to the aggregation function, not dropped.
+- Removed previously deprecated argument ``max_num_rows`` to :meth:`~tmlt.analytics.QueryBuilder.flat_map`. Use ``max_rows`` instead.
+- Removed previously deprecated argument ``cols`` to :meth:`~tmlt.analytics.QueryBuilder.count_distinct`. Use ``columns`` instead.
+- Infinity values are now automatically dropped before a floating-point column is passed to :meth:`~tmlt.analytics.QueryBuilder.get_bounds`. (The documentation previously claimed that this was done, but this was not the case.)
+- Fixed the documentation of the behavior of some numeric aggregations (:meth:`~tmlt.analytics.QueryBuilder.sum`, :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, :meth:`~tmlt.analytics.QueryBuilder.variance`, :meth:`~tmlt.analytics.QueryBuilder.quantile`) to match the actual behavior: infinity values are clamped using the specified bounds before being passed to the aggregation function, not dropped.
+- Single column names can now be passed as a string to :meth:`~tmlt.analytics.QueryBuilder.groupby`, :meth:`~tmlt.analytics.QueryBuilder.get_bounds`, :meth:`~tmlt.analytics.QueryBuilder.select`, :meth:`~tmlt.analytics.QueryBuilder.drop_infinity`, and :meth:`~tmlt.analytics.QueryBuilder.drop_null_and_nan`.
+
+
+
 
 
 .. _v0.20.2:

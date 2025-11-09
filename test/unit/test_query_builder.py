@@ -10,7 +10,7 @@
 import datetime
 import re
 from dataclasses import FrozenInstanceError
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import pandas as pd
 import pytest
@@ -33,6 +33,7 @@ from tmlt.analytics._query_expr import (
     DropNullAndNan,
     Filter,
     FlatMap,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedStdev,
     GroupByBoundedSum,
@@ -252,9 +253,9 @@ def test_filter():
     assert root_expr.source_id == PRIVATE_ID
 
 
-def test_select():
+@pytest.mark.parametrize("columns", ["A", ["A"]])
+def test_select(columns: List[str] | str):
     """QueryBuilder select works as expected."""
-    columns = ["A"]
     query = (
         root_builder()
         .select(columns)
@@ -270,7 +271,7 @@ def test_select():
 
     select_expr = query_expr.child
     assert isinstance(select_expr, Select)
-    assert select_expr.columns == tuple(columns)
+    assert select_expr.columns == ("A",)
 
     root_expr = select_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -732,46 +733,90 @@ def test_replace_infinity(
     assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
 
 
-@pytest.mark.parametrize("columns", [([]), (None), (["A"]), (["A", "B"])])
-def test_drop_null_and_nan(columns: Optional[List[str]]) -> None:
+@pytest.mark.parametrize(
+    "columns,expected_columns",
+    [
+        ([], tuple()),
+        (None, tuple()),
+        ("A", ("A",)),
+        (["A"], ("A",)),
+        (["A", "B"], ("A", "B")),
+    ],
+)
+def test_drop_null_and_nan(
+    columns: Optional[List[str] | str], expected_columns: Tuple[str, ...]
+) -> None:
     """QueryBuilder.drop_null_and_nan works as expected."""
     query = root_builder().drop_null_and_nan(columns).count()
     assert isinstance(query, Query)
+
     query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
+
     drop_expr = query_expr.child
     assert isinstance(drop_expr, DropNullAndNan)
+    assert drop_expr.columns == expected_columns
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
 
-    expected_columns: List[str] = []
-    if columns is not None:
-        expected_columns = columns
-    assert drop_expr.columns == tuple(expected_columns)
 
-
-@pytest.mark.parametrize("columns", [([]), (None), (["A"]), (["A", "B"])])
-def test_drop_infinity(columns: Optional[List[str]]) -> None:
+@pytest.mark.parametrize(
+    "columns,expected_columns",
+    [
+        ([], tuple()),
+        (None, tuple()),
+        ("A", ("A",)),
+        (["A"], ("A",)),
+        (["A", "B"], ("A", "B")),
+    ],
+)
+def test_drop_infinity(
+    columns: Optional[List[str]], expected_columns: Tuple[str, ...]
+) -> None:
     """QueryBuilder.drop_infinity works as expected."""
     query = root_builder().drop_infinity(columns).count()
 
     assert isinstance(query, Query)
-    query_expr = query._query_expr
 
+    query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
+
     drop_expr = query_expr.child
     assert isinstance(drop_expr, DropInfinity)
+    assert drop_expr.columns == expected_columns
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
 
-    expected_columns: List[str] = []
-    if columns is not None:
-        expected_columns = columns
-    assert drop_expr.columns == tuple(expected_columns)
+
+@pytest.mark.parametrize(
+    "columns,expected_columns",
+    [
+        ([], tuple()),
+        (None, tuple()),
+        ("A", ("A",)),
+        (["A"], ("A",)),
+        (["A", "B"], ("A", "B")),
+    ],
+)
+def test_get_groups(
+    columns: Optional[List[str]], expected_columns: Tuple[str, ...]
+) -> None:
+    """QueryBuilder.drop_infinity works as expected."""
+    query = root_builder().get_groups(columns)
+
+    assert isinstance(query, Query)
+
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GetGroups)
+    assert query_expr.columns == expected_columns
+
+    root_expr = query_expr.child
+    assert isinstance(root_expr, PrivateSource)
+    assert root_expr.source_id == PRIVATE_ID
 
 
 class _TestAggregationsData:
@@ -868,30 +913,34 @@ class TestAggregations:
         self,
         query: QueryExpr,
         expected_groupby_keys: KeySet,
-        expected_columns: List[str],
+        expected_columns: Optional[Tuple[str, ...]],
         expected_output_column: str,
     ):
         """Confirm that a count_distinct query is constructed correctly."""
         assert isinstance(query, GroupByCountDistinct)
-        if expected_columns:
-            assert query.columns_to_count == tuple(expected_columns)
-        else:
-            assert query.columns_to_count is None
+        assert query.columns_to_count == expected_columns
         assert query.groupby_keys == expected_groupby_keys
         assert query.output_column == expected_output_column
 
         self.assert_root_expr(query.child)
 
     @pytest.mark.parametrize(
-        "name,expected_name,columns",
+        "name,expected_name,columns,expected_columns",
         [
-            (None, "count_distinct", None),
-            ("total", "total", ["Col1", "Col2"]),
-            (None, "count_distinct(A, B)", ["A", "B"]),
+            (None, "count_distinct", None, tuple()),
+            ("total", "total", [], tuple()),
+            ("total", "total", "Col1", ("Col1",)),
+            ("total", "total", ["Col1", "Col2"], ("Col1", "Col2")),
+            (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
         ],
     )
     def test_count_distinct_ungrouped(
-        self, spark, name: Optional[str], expected_name: str, columns: List[str]
+        self,
+        spark,
+        name: Optional[str],
+        expected_name: str,
+        columns: Optional[List[str] | str],
+        expected_columns: Tuple[str, ...],
     ):
         """Query returned by ungrouped count_distinct is correct."""
         query = root_builder().count_distinct(columns=columns, name=name)
@@ -900,19 +949,30 @@ class TestAggregations:
         self.assert_count_distinct_query_correct(
             query_expr,
             self._keys_from_pandas(spark, pd.DataFrame()),
-            columns,
+            expected_columns,
             expected_name,
         )
 
     @pytest.mark.parametrize(
-        "keys_df,name,expected_name,columns",
+        "keys_df,name,expected_name,columns,expected_columns",
         (
             (keys_df, *options)
             for keys_df in _TestAggregationsData.keyset_test_cases
-            for options in (
-                (None, "count_distinct", None),
-                ("total", "total", ["Col1", "Col2"]),
-                (None, "count_distinct(X, Y)", ["X", "Y"]),
+            # mypy is being a pain here, requiring an explicit cast for some reason
+            for options in cast(
+                List[
+                    Tuple[
+                        Optional[str], str, Optional[List[str] | str], Tuple[str, ...]
+                    ]
+                ],
+                [
+                    (None, "count_distinct", None, tuple()),
+                    (None, "count_distinct", [], tuple()),
+                    ("total", "total", [], tuple()),
+                    (None, "count_distinct(Col1)", "Col1", ("Col1",)),
+                    ("total", "total", "Col1", ("Col1",)),
+                    (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
+                ],
             )
         ),
     )
@@ -922,7 +982,8 @@ class TestAggregations:
         keys_df: pd.DataFrame,
         name: Optional[str],
         expected_name: str,
-        columns: List[str],
+        columns: Optional[List[str] | str],
+        expected_columns: Tuple[str, ...],
     ):
         """Query returned by groupby with KeySet and count_distinct is correct."""
         keys = self._keys_from_pandas(spark, keys_df)
@@ -930,7 +991,7 @@ class TestAggregations:
         assert isinstance(query, Query)
         query_expr = query._query_expr
         self.assert_count_distinct_query_correct(
-            query_expr, keys, columns, expected_name
+            query_expr, keys, expected_columns, expected_name
         )
 
     def assert_common_query_fields_correct(
