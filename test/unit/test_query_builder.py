@@ -253,9 +253,9 @@ def test_filter():
     assert root_expr.source_id == PRIVATE_ID
 
 
-def test_select():
+@pytest.mark.parametrize("columns", ["A", ["A"]])
+def test_select(columns: List[str] | str):
     """QueryBuilder select works as expected."""
-    columns = ["A"]
     query = (
         root_builder()
         .select(columns)
@@ -271,7 +271,7 @@ def test_select():
 
     select_expr = query_expr.child
     assert isinstance(select_expr, Select)
-    assert select_expr.columns == tuple(columns)
+    assert select_expr.columns == ("A",)
 
     root_expr = select_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -956,20 +956,22 @@ class TestAggregations:
     @pytest.mark.parametrize(
         "keys_df,name,expected_name,columns,expected_columns",
         (
-            (keys_df, *name, *cols)
+            (keys_df, *options)
             for keys_df in _TestAggregationsData.keyset_test_cases
-            for name in (
-                (None, "count_distinct"),
-                ("total", "total"),
-            )
             # mypy is being a pain here, requiring an explicit cast for some reason
-            for cols in cast(
-                List[Tuple[Optional[List[str] | str], Tuple[str, ...]]],
+            for options in cast(
+                List[
+                    Tuple[
+                        Optional[str], str, Optional[List[str] | str], Tuple[str, ...]
+                    ]
+                ],
                 [
-                    (None, tuple()),
-                    ([], tuple()),
-                    ("Col1", ("Col1",)),
-                    (["A", "B"], ("A", "B")),
+                    (None, "count_distinct", None, tuple()),
+                    (None, "count_distinct", [], tuple()),
+                    ("total", "total", [], tuple()),
+                    (None, "count_distinct(Col1)", "Col1", ("Col1",)),
+                    ("total", "total", "Col1", ("Col1",)),
+                    (None, "count_distinct(A, B)", ["A", "B"], ("A", "B")),
                 ],
             )
         ),

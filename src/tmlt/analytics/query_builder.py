@@ -1089,7 +1089,7 @@ class QueryBuilder:
         self._query_expr = Filter(child=self._query_expr, condition=condition)
         return self
 
-    def select(self, columns: Sequence[str]) -> "QueryBuilder":
+    def select(self, columns: Sequence[str] | str) -> "QueryBuilder":
         """Selects the specified columns, dropping the others.
 
         ..
@@ -1136,9 +1136,11 @@ class QueryBuilder:
         Args:
             columns: The columns to select.
         """
+        if isinstance(columns, str):
+            columns = [columns]
         self._query_expr = Select(
             child=self._query_expr,
-            columns=tuple(columns) if columns is not None else None,
+            columns=tuple(columns),
         )
         return self
 
