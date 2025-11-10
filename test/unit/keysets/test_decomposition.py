@@ -213,7 +213,6 @@ def test_valid(
     expected_factors: list[KeySet],
     expected_subtracted_values: list[KeySet],
 ):
-    # pylint: disable-next=protected-access
     factors, subtracted_values = ks._decompose(split_columns)
 
     _assert_keyset_sequence_equivalent(

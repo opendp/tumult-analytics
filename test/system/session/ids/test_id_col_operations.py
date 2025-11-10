@@ -238,7 +238,7 @@ def test_various_session_builds(
             "id_b2", _session_data[df4], protected_change=AddRowsWithID("id", "b")
         )
     ).build()
-    # pylint: disable=protected-access
+
     for table_collection, ark_metric in sess._input_metric.key_to_metric.items():
         dict_domain = sess._input_domain.key_to_domain[table_collection]
         assert isinstance(ark_metric, AddRemoveKeys)
@@ -264,4 +264,3 @@ def test_various_session_builds(
                 .allow_null
                 for table_id, key_column in ark_metric.df_to_key_column.items()
             )
-    # pylint: enable=protected-access

@@ -231,7 +231,7 @@ class ApproxDPBudget(PrivacyBudget):
     This privacy definition is also known as (ε, δ)-differential privacy, and the
     associated privacy parameters are epsilon and delta. The formal definition can
     be found `here <https://desfontain.es/blog/almost-differential-privacy.html#formal-definition>`__.
-    """  # pylint: disable=line-too-long
+    """
 
     _epsilon: ExactNumber
     _delta: ExactNumber
@@ -567,7 +567,6 @@ def _get_adjusted_budget(
         requested_privacy_budget: The requested privacy budget.
         remaining_privacy_budget: How much privacy budget we have left.
     """
-    # pylint: disable=protected-access
     if isinstance(requested_privacy_budget, PureDPBudget) and isinstance(
         remaining_privacy_budget, PureDPBudget
     ):
@@ -594,7 +593,7 @@ def _get_adjusted_budget(
             requested_privacy_budget._rho, remaining_privacy_budget._rho
         )
         return RhoZCDPBudget(adjusted_rho)
-    # pylint: enable=protected-access
+
     else:
         raise ValueError(
             "Unable to compute a privacy budget with the requested budget "

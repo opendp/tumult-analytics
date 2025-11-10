@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=protected-access
 
 import datetime
 from typing import Dict, Union
@@ -404,7 +403,7 @@ _TIMESTAMP2 = datetime.datetime.fromisoformat("2022-01-01T12:45:00")
 
 @pytest.fixture(name="test_data", scope="class")
 def setup(spark, request) -> None:
-    "Set up test data."
+    """Set up test data."""
     sdf = spark.createDataFrame(
         pd.DataFrame(
             [["0", 0, 0.0], ["0", 0, 1.0], ["0", 1, 2.0], ["1", 0, 3.0]],

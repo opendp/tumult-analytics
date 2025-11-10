@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=too-many-arguments, pointless-string-statement
 
 import datetime
 import re
@@ -579,7 +578,7 @@ def test_join_public_dataframe_validation_column_type(spark):
     ],
 )
 def test_invalid_suppress_aggregates(
-    spark: SparkSession,  # pylint: disable=unused-argument
+    spark: SparkSession,
     child: GroupByCount,
     column: str,
     threshold: int,
@@ -604,4 +603,4 @@ def test_queryexpr_hashing(queryexpr):
     """Tests that each query expression has enabled hashing and eq."""
     test_dict = {queryexpr: 1}
     assert test_dict[queryexpr] == 1
-    assert queryexpr == queryexpr  # pylint: disable=comparison-with-itself
+    assert queryexpr == queryexpr

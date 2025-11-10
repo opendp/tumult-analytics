@@ -7,9 +7,7 @@ from operator import xor
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from warnings import warn
 
-import pandas as pd  # pylint: disable=unused-import
 import sympy as sp
-from pyspark.sql import SparkSession  # pylint: disable=unused-import
 from pyspark.sql import DataFrame
 from tabulate import tabulate
 from tmlt.core.domains.collections import DictDomain
@@ -89,10 +87,9 @@ from tmlt.analytics.privacy_budget import (
     RhoZCDPBudget,
     _get_adjusted_budget,
 )
-from tmlt.analytics.protected_change import (  # pylint: disable=unused-import
+from tmlt.analytics.protected_change import (
     AddMaxRows,
     AddMaxRowsInMaxGroups,
-    AddOneRow,
     AddRowsWithID,
     ProtectedChange,
 )
@@ -269,7 +266,7 @@ class Session:
                 source_id: dataframe
                 for source_id, (dataframe, _) in self._private_dataframes.items()
             }
-            sess = self.get_class_type()._from_neighboring_relation(  # pylint: disable=protected-access
+            sess = self.get_class_type()._from_neighboring_relation(
                 self._privacy_budget, tables, neighboring_relation
             )
             # check list of ARK identifiers against session's ID spaces
@@ -305,7 +302,6 @@ class Session:
 
         @nodoc
         """
-        # pylint: disable=pointless-string-statement
         """
         Args documented for internal use.
             accountant: A PrivacyAccountant.
@@ -328,7 +324,6 @@ class Session:
             NamedTable(t): [] for t in self.private_sources
         }
 
-    # pylint: disable=line-too-long
     @classmethod
     @typechecked
     def from_dataframe(
@@ -387,7 +382,6 @@ class Session:
                 specifying what changes to the input data the resulting
                 :class:`Session` should protect.
         """
-        # pylint: enable=line-too-long
         session_builder = (
             cls.Builder()
             .with_privacy_budget(privacy_budget=privacy_budget)
@@ -407,7 +401,6 @@ class Session:
         private_sources: Dict[str, DataFrame],
         relation: NeighboringRelation,
     ) -> Tuple[PrivacyAccountant, Any]:
-        # pylint: disable=protected-access
         output_measure: Union[PureDP, ApproxDP, RhoZCDP]
         sympy_budget: Union[sp.Expr, Tuple[sp.Expr, sp.Expr]]
         if isinstance(privacy_budget, PureDPBudget):
@@ -428,7 +421,6 @@ class Session:
         elif isinstance(privacy_budget, RhoZCDPBudget):
             output_measure = RhoZCDP()
             sympy_budget = privacy_budget._rho.expr
-        # pylint: enable=protected-access
         else:
             raise ValueError(
                 f"Unsupported PrivacyBudget variant: {type(privacy_budget)}"
@@ -620,7 +612,6 @@ class Session:
             obj: The table or query to be described, or None to describe the
                 whole Session.
         """
-        # pylint: disable=protected-access
         if obj is None:
             print(self._describe_self())
         elif isinstance(obj, GroupedQueryBuilder):
@@ -634,7 +625,6 @@ class Session:
             print(self._describe_query_obj(QueryBuilder(obj)._query_expr))
         else:
             assert_never(obj)
-        # pylint: enable=protected-access
 
     def _describe_self(self) -> str:
         """Describes the current state of this session."""
@@ -922,7 +912,6 @@ class Session:
             )
         return catalog
 
-    # pylint: disable=line-too-long
     @typechecked
     def add_public_dataframe(self, source_id: str, dataframe: DataFrame):
         """Adds a public data source to the session.
@@ -972,7 +961,6 @@ class Session:
             source_id: The name of the public data source.
             dataframe: The public data source corresponding to the ``source_id``.
         """
-        # pylint: enable=line-too-long
         assert_is_identifier(source_id)
         if source_id in self.public_sources or source_id in self.private_sources:
             raise ValueError(f"This session already has a table named '{source_id}'.")
@@ -1057,11 +1045,10 @@ class Session:
             [{'noise_mechanism': <_NoiseMechanism.GEOMETRIC: 2>, 'noise_parameter': 2}]
         """
         if isinstance(query_expr, Query):
-            query_expr = query_expr._query_expr  # pylint: disable=protected-access
+            query_expr = query_expr._query_expr
         _, _, noise_info = self._compile_and_get_info(query_expr, privacy_budget)
         return list(iter(noise_info))
 
-    # pylint: disable=line-too-long
     def evaluate(
         self,
         query_expr: Query,
@@ -1118,9 +1105,8 @@ class Session:
             query_expr: One query expression to answer.
             privacy_budget: The privacy budget used for the query.
         """
-        # pylint: enable=line-too-long
         check_type(query_expr, Query)
-        query = query_expr._query_expr  # pylint: disable=protected-access
+        query = query_expr._query_expr
         measurement, adjusted_budget, _ = self._compile_and_get_info(
             query, privacy_budget
         )
@@ -1166,7 +1152,6 @@ class Session:
                 "for more information."
             ) from e
 
-    # pylint: disable=line-too-long
     @typechecked
     def create_view(
         self,
@@ -1234,13 +1219,12 @@ class Session:
             source_id: The name, or unique identifier, of the view.
             cache: Whether or not to cache the view.
         """
-        # pylint: enable=line-too-long
         assert_is_identifier(source_id)
         self._activate_accountant()
         if source_id in self.private_sources or source_id in self.public_sources:
             raise ValueError(f"Table '{source_id}' already exists.")
 
-        query = query_expr._query_expr  # pylint: disable=protected-access
+        query = query_expr._query_expr
 
         transformation, ref, constraints = QueryExprCompiler(
             self._output_measure
@@ -1315,7 +1299,7 @@ class Session:
         behavior of constraints, not for code maintainability.
         """
         if isinstance(constraint, MaxGroupsPerID):
-            return constraint._enforce(  # pylint: disable=protected-access
+            return constraint._enforce(
                 child_transformation=child_transformation,
                 child_ref=child_ref,
                 update_metric=True,
@@ -1326,7 +1310,7 @@ class Session:
                 raise AnalyticsInternalError(
                     f"Expected MaxGroupsPerID or MaxRowsPerID constraints, but got {constraint} instead."
                 )
-            return constraint._enforce(  # pylint: disable=protected-access
+            return constraint._enforce(
                 child_transformation=child_transformation,
                 child_ref=child_ref,
                 update_metric=True,
@@ -1482,7 +1466,6 @@ class Session:
         )
         return transformation
 
-    # pylint: disable=line-too-long
     @typechecked
     def partition_and_create(
         self,
@@ -1576,7 +1559,6 @@ class Session:
             splits: Mapping of split name to value of partition.
                 Split name is ``source_id`` in new session.
         """
-        # pylint: enable=line-too-long
         # If you remove this if-block, mypy will complain
         if not (
             isinstance(self._accountant.privacy_budget, ExactNumber)

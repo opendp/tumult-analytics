@@ -354,7 +354,6 @@ class TestMeasurementVisitor:
             mock_measurement.privacy_function.return_value = self.visitor.budget.value
             mid_stability = ExactNumber(2).expr
             # This should finish without raising an error
-            # pylint: disable=protected-access
             self.visitor._validate_measurement(mock_measurement, mid_stability)
 
             # Change it so that the privacy function returns something else
@@ -364,7 +363,6 @@ class TestMeasurementVisitor:
                 match="Privacy function does not match per-query privacy budget.",
             ):
                 self.visitor._validate_measurement(mock_measurement, mid_stability)
-            # pylint: enable=protected-access
 
     def _check_measurement(self, measurement: Measurement):
         """Check the basic attributes of a measurement (for all query exprs).
@@ -692,10 +690,8 @@ class TestMeasurementVisitor:
         noise_info: NoiseInfo,
     ) -> None:
         """Test visit_groupby_quantile."""
-        # pylint: disable=protected-access
         self.run_with_empty_data_and_check_schema(query._query_expr, output_measure)
         self.check_noise_info(query._query_expr, output_measure, noise_info)
-        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "query,output_measure,noise_info",

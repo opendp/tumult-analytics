@@ -20,7 +20,7 @@ def test_table_equality():
     assert TableCollection(name="private1") != TableCollection(name="private2")
 
     temp_table = TemporaryTable()
-    assert temp_table == temp_table  # pylint: disable=comparison-with-itself
+    assert temp_table == temp_table
     assert temp_table != TemporaryTable()
 
 

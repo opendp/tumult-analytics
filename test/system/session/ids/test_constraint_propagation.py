@@ -32,11 +32,9 @@ _CONSTRAINTS0 = [
 def _test_propagation(query, expected_constraints, session):
     """Verify that the table resulting from a query has the expected constraints."""
     session.create_view(query, "view", cache=False)
-    # pylint: disable=protected-access
     assert set(session._table_constraints[NamedTable("view")]) == set(
         expected_constraints
     )
-    # pylint: enable=protected-access
 
 
 @pytest.mark.parametrize(

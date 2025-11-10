@@ -814,7 +814,7 @@ def test_size_from_df(_, spark, pd_df, expected_size, schema):
 
 @pytest.fixture(scope="module")
 def _eq_hashing_test_data(spark):
-    "Set up test data."
+    """Set up test data."""
     pdf_ab = pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]})
     df_ab = spark.createDataFrame(pdf_ab)
     pdf_ac = pd.DataFrame({"A": ["a1", "a2"], "C": [0, 1]})

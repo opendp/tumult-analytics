@@ -410,9 +410,7 @@ def test_mismatched_grouping_columns(session):
 )
 def test_noise_scale_puredp(query: QueryExpr, expected_noise: List[float], session):
     """Noise scales are adjusted correctly for different truncations with pure DP."""
-    # pylint: disable=protected-access
     noise_info = session._noise_info(query, PureDPBudget(1))
-    # pylint: enable=protected-access
     noise = [info["noise_parameter"] for info in noise_info]
     assert noise == expected_noise
 
@@ -485,9 +483,7 @@ def test_noise_scale_puredp(query: QueryExpr, expected_noise: List[float], sessi
 )
 def test_noise_scale_zcdp(query: QueryExpr, expected_noise: List[float], session):
     """Noise scales are adjusted correctly for different truncations with zCDP."""
-    # pylint: disable=protected-access
     noise_info = session._noise_info(query, RhoZCDPBudget(1))
-    # pylint: enable=protected-access
     noise = [info["noise_parameter"] for info in noise_info]
     assert noise == expected_noise
 
@@ -556,10 +552,7 @@ def test_constraint_selection_puredp(
     for c in constraints:
         base_query.enforce(c)
     query = base_query.groupby(group).count() if group else base_query.count()
-
-    # pylint: disable=protected-access
     noise_info = session._noise_info(query, PureDPBudget(1))
-    # pylint: enable=protected-access
     noise = [info["noise_parameter"] for info in noise_info]
     assert noise == expected_noise
 
@@ -641,9 +634,6 @@ def test_constraint_selection_zcdp(
     for c in constraints:
         base_query.enforce(c)
     query = base_query.groupby(group).count() if group else base_query.count()
-
-    # pylint: disable=protected-access
     noise_info = session._noise_info(query, RhoZCDPBudget(1))
-    # pylint: enable=protected-access
     noise = [info["noise_parameter"] for info in noise_info]
     assert noise == expected_noise

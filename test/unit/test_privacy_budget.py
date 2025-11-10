@@ -2,7 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
-# pylint: disable=pointless-string-statement
 
 import math
 from typing import List, Type, Union
@@ -265,17 +264,14 @@ def test_budget_hashing(budgets: List[PrivacyBudget], equal: bool):
         assert budget0_hash != budget1_hash
 
 
-# pylint: disable=protected-access
 def test_PureDPBudget_immutability():
     """Tests that the PureDPBudget is immutable."""
-
     with pytest.raises(AttributeError):
         PureDPBudget(1)._epsilon = 2  # type: ignore
 
 
 def test_ApproxDPBudget_immutability():
     """Tests that the ApproxDPBudget is immutable."""
-
     with pytest.raises(AttributeError):
         ApproxDPBudget(1, 0.1)._epsilon = 2  # type: ignore
     with pytest.raises(AttributeError):
@@ -284,12 +280,8 @@ def test_ApproxDPBudget_immutability():
 
 def test_RhoZCDPBudget_immutability():
     """Tests that the RhoZCDPBudget is immutable."""
-
     with pytest.raises(AttributeError):
         RhoZCDPBudget(1)._rho = 2  # type: ignore
-
-
-# pylint: enable=protected-access
 
 
 @pytest.mark.parametrize(

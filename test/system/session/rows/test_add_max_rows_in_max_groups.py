@@ -1,10 +1,10 @@
 """Tests for Session with the AddMaxRowsInMaxGroups ProtectedChange.
 
-
 Note that these tests are not intended to be exhaustive. They are intended to be a
 sanity check that the Session is working correctly with AddMaxRowsInMaxGroups. More
 thorough tests for Session are in
-test/system/session/rows/test_add_max_rows.py."""
+test/system/session/rows/test_add_max_rows.py.
+"""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -162,7 +162,7 @@ class TestSession:
                 "B", max_groups=1, max_rows_per_group=1
             ),
         )
-        # pylint: disable=protected-access
+
         info = session._noise_info(query_expr, query_budget)
-        # pylint: enable=protected-access
+
         assert info == expected

@@ -68,7 +68,6 @@ def test_schema_equality() -> None:
 
 def test_schema_hash() -> None:
     """Makes sure that schema hash is consistent."""
-
     columns_1 = {"a": "VARCHAR", "b": "INTEGER"}
     columns_2 = {"a": "VARCHAR", "b": "INTEGER"}
     columns_3 = {"y": "VARCHAR", "z": "INTEGER"}
@@ -87,7 +86,6 @@ def test_schema_hash() -> None:
 
 def test_frozen_dict():
     """FrozenDict works like an immutable dict."""
-
     a = FrozenDict.from_dict({"a": 1, "b": 2})
     assert a["a"] == 1
     assert a["b"] == 2
@@ -151,7 +149,7 @@ def test_frozen_dict_order_comparison():
     fd3 = FrozenDict.from_dict({3: 4, 1: 2})
     fd4 = FrozenDict.from_dict({1: 2, 3: 5})
 
-    assert fd1 == fd1  # pylint: disable=comparison-with-itself
+    assert fd1 == fd1
     assert fd1 == fd2
     assert fd1 != fd3
     assert fd1 != fd4

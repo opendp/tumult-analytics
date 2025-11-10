@@ -2,8 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
-# pylint: disable=pointless-string-statement
-
 
 from tmlt.core.utils.exact_number import ExactNumber
 from typeguard import typechecked
@@ -31,7 +29,6 @@ def test_int_request():
     we should never run into the tolerance threshold issue. This means the
     requested budget should be returned in all cases.
     """
-
     adjusted = _get_adjusted_budget(PURE_DP_99, PURE_DP_100)
     assert adjusted == PURE_DP_99
     adjusted = _get_adjusted_budget(PURE_DP_101, PURE_DP_100)

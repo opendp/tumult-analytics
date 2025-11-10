@@ -200,7 +200,6 @@ def test_rewrite_equality(
 
     if not allow_unchanged:
         # Ensure that rewriting actually happened
-        # pylint: disable-next=protected-access
         assert ks_rewritten._op_tree != ks_original._op_tree
 
     assert ks_rewritten.columns() == ks_original.columns()

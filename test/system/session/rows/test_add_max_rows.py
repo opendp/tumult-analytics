@@ -79,9 +79,7 @@ class TestSession:
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            # pylint: disable=protected-access
             query_expr = query_expr_or_builder._query_expr
-            # pylint: enable=protected-access
             assert query_expr == expected_expr
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
@@ -159,9 +157,8 @@ class TestSession:
             expected_df: The expected answer.
         """
         if expected_expr is not None:
-            # pylint: disable=protected-access
             query_expr = query_expr_or_builder._query_expr
-            # pylint: enable=protected-access
+
             assert query_expr == expected_expr
 
         session = Session.from_dataframe(
@@ -257,9 +254,9 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-        # pylint: disable=protected-access
+
         info = session._noise_info(query_expr, query_budget)
-        # pylint: enable=protected-access
+
         assert info == expected
 
     @pytest.mark.parametrize(
@@ -442,7 +439,6 @@ class TestSession:
     )
     def test_get_bounds_inf_budget(self, spark, data):
         """Test that the get_bounds produces reasonable bounds."""
-
         sdf = spark.createDataFrame(data)
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
@@ -492,7 +488,6 @@ class TestSession:
     )
     def test_get_bounds_inf_budget_sum(self, spark, data):
         """Test that the bounds from get_bounds produce a reasonable sum."""
-
         sdf = spark.createDataFrame(data)
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
@@ -559,7 +554,6 @@ class TestSession:
         self, spark, data, column, error_type, message, protected_change
     ):
         """Test that get_bounds throws appropriate errors."""
-
         sdf = spark.createDataFrame(data)
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
@@ -776,8 +770,8 @@ class TestSession:
         remaining_budget: PrivacyBudget,
     ):
         """Tests using :func:`partition_and_create` to create a new ApproxDP session
-        that supports PureDP partitions."""
-
+        that supports PureDP partitions.
+        """
         is_approxDP_starting_budget = isinstance(starting_budget, ApproxDPBudget)
         if is_approxDP_starting_budget and isinstance(partition_budget, PureDPBudget):
             partition_budget = ApproxDPBudget(partition_budget.value, 0)
@@ -985,7 +979,6 @@ class TestSession:
             "X": ColumnDescriptor(ColumnType.INTEGER),
         }
 
-        # pylint: disable=protected-access
         assert session1._accountant.state == PrivacyAccountantState.WAITING_FOR_CHILDREN
         assert session2._accountant.state == PrivacyAccountantState.ACTIVE
         assert session3._accountant.state == PrivacyAccountantState.WAITING_FOR_SIBLING
@@ -1018,8 +1011,6 @@ class TestSession:
             ),
         ):
             session3.create_view(select_query3, "select_view_again", cache=False)
-
-        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "budget", [(PureDPBudget(20)), (ApproxDPBudget(20, 0.5)), (RhoZCDPBudget(20))]
@@ -1085,7 +1076,6 @@ class TestSession:
     )
     def test_create_view_composed(self, budget: PrivacyBudget):
         """Composing views with :func:`create_view` works."""
-
         session = Session.from_dataframe(
             privacy_budget=budget,
             source_id="private",
@@ -1099,9 +1089,8 @@ class TestSession:
             max_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
-        # pylint: disable=protected-access
+
         assert session._accountant.d_in[NamedTable("flatmap1")] == 2
-        # pylint: enable=protected-access
 
         transformation_query2 = QueryBuilder("flatmap1").flat_map(
             f=lambda row: [{}, {}],
@@ -1110,9 +1099,8 @@ class TestSession:
             max_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
-        # pylint: disable=protected-access
+
         assert session._accountant.d_in[NamedTable("flatmap2")] == 6
-        # pylint: enable=protected-access
 
     @pytest.mark.parametrize(
         "budget", [(PureDPBudget(10)), (ApproxDPBudget(10, 0.5)), (RhoZCDPBudget(10))]
@@ -1199,7 +1187,6 @@ class TestSession:
 
     def test_caching(self, spark):
         """Tests that caching works as expected."""
-        # pylint: disable=protected-access
         session = Session.from_dataframe(
             privacy_budget=PureDPBudget(float("inf")),
             source_id="private",

@@ -533,7 +533,6 @@ def test_immutable():
     """Checks that each binning spec attribute is immutable."""
     binspec = BinningSpec([0, 1, 2])
 
-    # pylint: disable=protected-access
     with pytest.raises(FrozenInstanceError):
         binspec.bin_edges = [0, 1, 2, 3]  # type: ignore
 
@@ -571,7 +570,6 @@ def test_immutable():
 
     with pytest.raises(FrozenInstanceError):
         binspec._both_endpoints = True  # type: ignore
-    # pylint: enable=protected-access
 
 
 def test_repr():

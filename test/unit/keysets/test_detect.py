@@ -14,11 +14,11 @@ from tmlt.analytics.keyset._keyset import KeySetPlan
 
 def test_detect():
     """KeySet.detect works as expected."""
-    ks = KeySet._detect(["A", "B"])  # pylint: disable=protected-access
+    ks = KeySet._detect(["A", "B"])
     assert isinstance(ks, KeySetPlan)
     assert ks.columns() == ["A", "B"]
 
-    ks = KeySet._detect(["B", "A"])  # pylint: disable=protected-access
+    ks = KeySet._detect(["B", "A"])
     assert isinstance(ks, KeySetPlan)
     assert ks.columns() == ["B", "A"]
 
@@ -44,4 +44,4 @@ def test_detect():
 def test_invalid(columns: Any, expectation: ContextManager[None]):
     """Invalid domains are rejected."""
     with expectation:
-        KeySet._detect(columns)  # pylint: disable=protected-access
+        KeySet._detect(columns)

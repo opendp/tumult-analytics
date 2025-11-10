@@ -392,7 +392,7 @@ def create_empty_input(domain: SparkDataFrameDomain) -> DataFrame:
     ...
 
 
-def create_empty_input(domain):  # pylint: disable=missing-type-doc
+def create_empty_input(domain):
     """Returns an empty input for a given domain.
 
     Args:

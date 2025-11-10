@@ -38,8 +38,6 @@ and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import List
-
 from tmlt.analytics._utils import AnalyticsInternalError
 from tmlt.analytics.binning_spec import BinningSpec, BinT
 from tmlt.analytics.config import Config, FeatureFlag

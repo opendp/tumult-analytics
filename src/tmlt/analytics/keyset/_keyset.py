@@ -207,11 +207,11 @@ class KeySet:
     # Pydocstyle doesn't seem to understand overloads, so we need to disable the
     # check that a docstring exists for them.
     @overload
-    def __mul__(self, other: KeySet) -> KeySet:  # noqa: D105
+    def __mul__(self, other: KeySet) -> KeySet:
         ...
 
     @overload
-    def __mul__(self, other: KeySetPlan) -> KeySetPlan:  # noqa: D105
+    def __mul__(self, other: KeySetPlan) -> KeySetPlan:
         ...
 
     def __mul__(self, other):
@@ -320,11 +320,11 @@ class KeySet:
     # Pydocstyle doesn't seem to understand overloads, so we need to disable the
     # check that a docstring exists for them.
     @overload
-    def join(self, other: KeySet) -> KeySet:  # noqa: D105
+    def join(self, other: KeySet) -> KeySet:
         ...
 
     @overload
-    def join(self, other: KeySetPlan) -> KeySetPlan:  # noqa: D105
+    def join(self, other: KeySetPlan) -> KeySetPlan:
         ...
 
     def join(self, other):
@@ -353,13 +353,11 @@ class KeySet:
             )
         if isinstance(other, KeySet):
             return KeySet(
-                # pylint: disable-next=protected-access
                 Join(self._op_tree, other._op_tree),
                 columns=list(dict.fromkeys(self.columns() + other.columns())),
             )
         else:
             return KeySetPlan(
-                # pylint: disable-next=protected-access
                 Join(self._op_tree, other._op_tree),
                 columns=list(dict.fromkeys(self.columns() + other.columns())),
             )
@@ -413,7 +411,6 @@ class KeySet:
         return list(self._columns)
 
     def schema(self) -> dict[str, ColumnDescriptor]:
-        # pylint: disable=line-too-long
         """Returns the KeySet's schema.
 
         Example:
@@ -427,7 +424,6 @@ class KeySet:
             {'A': ColumnDescriptor(column_type=ColumnType.VARCHAR, allow_null=False, allow_nan=False, allow_inf=False),
              'B': ColumnDescriptor(column_type=ColumnType.INTEGER, allow_null=True, allow_nan=False, allow_inf=False)}
         """
-        # pylint: enable=line-too-long
         schema = self._op_tree.schema()
         return {c: schema[c] for c in self.columns()}  # Reorder to match self.columns()
 
@@ -491,7 +487,7 @@ class KeySet:
         if not isinstance(other, KeySet):
             return False
 
-        if self._op_tree == other._op_tree:  # pylint: disable=protected-access
+        if self._op_tree == other._op_tree:
             return True
 
         # Differing column nullability doesn't necessarily mean that two KeySets
@@ -729,7 +725,6 @@ class KeySetPlan:
             )
 
         return KeySetPlan(
-            # pylint: disable-next=protected-access
             Join(self._op_tree, other._op_tree),
             columns=list(dict.fromkeys(self.columns() + other.columns())),
         )
@@ -777,7 +772,7 @@ class KeySetPlan:
         if not isinstance(other, KeySetPlan):
             return False
 
-        if self._op_tree == other._op_tree:  # pylint: disable=protected-access
+        if self._op_tree == other._op_tree:
             return True
 
         if self.columns() != other.columns():

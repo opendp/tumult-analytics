@@ -151,7 +151,6 @@ def test_valid(
     assert ks.schema() == expected_schema
 
 
-# pylint: disable=protected-access
 @parametrize(
     Case("single_column")(
         left=KeySet._detect(["A"]),
@@ -177,7 +176,6 @@ def test_valid(
         expected_columns=["A", "B"],
     ),
 )
-# pylint: enable=protected-access
 def test_valid_plan(
     left: KeySetPlan,
     right: KeySet,
