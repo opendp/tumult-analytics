@@ -145,8 +145,15 @@ select = [
     "ISC", "SLF"
 ]
 ignore = [
-    "PLR09",   # too-many-*
-    "PLR2004", # magic-value-comparison
+    # too-many-*: These rules are too context-dependent to be generally useful,
+    #     we can evaluate this during code reviews.
+    "PLR09",
+    # magic-value-comparison: This rule flags a lot of constants that don't
+    #     really make sense, we can make this call during code reviews.
+    "PLR2004",
+    # explicit-f-string-type-conversion: we don't generally use the !r syntax in
+    #     f-strings, which this rule enforces.
+    "RUF010",
 
     # TODO: This disables every lint that is currently failing; go through and
     #     either fix/individually disable each instance, or choose to permanently

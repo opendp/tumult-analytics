@@ -1132,7 +1132,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
                 if not (isinstance(val, int) and pytypes[col] == float):
                     raise ValueError(
                         f"Column '{col}' cannot have nulls replaced with "
-                        f"{val!r}, as that value's type does not match the "
+                        f"{repr(val)}, as that value's type does not match the "
                         f"column type {input_schema[col].column_type.name}"
                     )
 
