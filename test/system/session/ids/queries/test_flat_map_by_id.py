@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from py4j.protocol import Py4JJavaError
 from pyspark.sql import Row
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
     AddRowsWithID,
@@ -19,7 +20,6 @@ from tmlt.analytics import (
     QueryBuilder,
 )
 
-from .....conftest import assert_frame_equal_with_sort
 from .conftest import make_session
 
 
@@ -42,7 +42,7 @@ def test_simple(spark):
     )
     expected = pd.DataFrame({"sum": [15]})
     result = sess.evaluate(q, budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected)
+    assert_dataframe_equal(result, expected)
 
 
 def test_map_inputs(spark):
@@ -67,7 +67,7 @@ def test_map_inputs(spark):
     q = QueryBuilder("t").flat_map_by_id(f, {}).enforce(MaxRowsPerID(1)).count()
     expected = pd.DataFrame({"count": [0]})
     result = sess.evaluate(q, budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected)
+    assert_dataframe_equal(result, expected)
 
 
 def test_id_conflict(spark):
@@ -318,7 +318,7 @@ def test_nulls_nans_infs_allowed(
     )
 
     result_df = sess.evaluate(base_query.enforce(MaxRowsPerID(10)).count(), budget)
-    assert_frame_equal_with_sort(result_df.toPandas(), expected_df)
+    assert_dataframe_equal(result_df, expected_df)
 
 
 @pytest.mark.xfail(reason="tumult-labs/tumult#3298")
@@ -380,4 +380,4 @@ def test_no_output_columns(spark):
     )
     expected = pd.DataFrame({"count": [15]})
     result = sess.evaluate(q, budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected)
+    assert_dataframe_equal(result, expected)

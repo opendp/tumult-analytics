@@ -1,5 +1,5 @@
 """Tests for MeasurementVisitor."""
-from test.conftest import assert_frame_equal_with_sort, create_empty_input
+from test.conftest import create_empty_input
 from typing import List, Union
 from unittest.mock import patch
 
@@ -27,6 +27,7 @@ from tmlt.core.metrics import (
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
     KeySet,
@@ -1332,4 +1333,4 @@ class TestMeasurementVisitor:
         self.visitor.adjusted_budget = budget
         measurement, _ = query.accept(self.visitor)
         got = measurement(input_data)
-        assert_frame_equal_with_sort(got.toPandas(), expected_result)
+        assert_dataframe_equal(got, expected_result)

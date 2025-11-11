@@ -33,6 +33,7 @@ from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.metrics import AddRemoveKeys, DictMetric, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
@@ -42,8 +43,6 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType
 from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollection
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
-
-from ....conftest import assert_frame_equal_with_sort
 
 # Example date and timestamp
 DATE1 = datetime.date.fromisoformat("2022-01-01")
@@ -401,7 +400,7 @@ class TestTransformationVisitor:
         assert isinstance(t.output_domain, DictDomain)
         assert isinstance(t.output_metric, (DictMetric, AddRemoveKeys))
         result_df = self._get_result(t, ref)
-        assert_frame_equal_with_sort(result_df, transformed_df)
+        assert_dataframe_equal(result_df, transformed_df)
 
 
 @pytest.fixture(scope="class")

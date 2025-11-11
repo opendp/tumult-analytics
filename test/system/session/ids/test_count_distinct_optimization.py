@@ -6,6 +6,7 @@ from typing import List
 
 import pandas as pd
 import pytest
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
     KeySet,
@@ -17,7 +18,6 @@ from tmlt.analytics import (
 )
 from tmlt.analytics._query_expr import QueryExpr
 
-from ....conftest import assert_frame_equal_with_sort
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
 _KEYSET = KeySet.from_dict({"group": ["A", "B"]})
@@ -68,9 +68,8 @@ def test_id_only(base_query: QueryBuilder, session):
 )
 def test_id_only_grouped(query: QueryBuilder, expected_res: pd.DataFrame, session):
     """Test grouped inference of count-distinct constraints."""
-    res = session.evaluate(query, session.remaining_privacy_budget).toPandas()
-
-    assert_frame_equal_with_sort(res, expected_res)
+    res = session.evaluate(query, session.remaining_privacy_budget)
+    assert_dataframe_equal(res, expected_res)
 
 
 @pytest.mark.parametrize(
