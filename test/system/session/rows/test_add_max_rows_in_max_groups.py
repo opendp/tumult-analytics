@@ -162,7 +162,5 @@ class TestSession:
                 "B", max_groups=1, max_rows_per_group=1
             ),
         )
-
         info = session._noise_info(query_expr, query_budget)
-
         assert info == expected

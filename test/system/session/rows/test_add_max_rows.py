@@ -158,7 +158,6 @@ class TestSession:
         """
         if expected_expr is not None:
             query_expr = query_expr_or_builder._query_expr
-
             assert query_expr == expected_expr
 
         session = Session.from_dataframe(
@@ -254,9 +253,7 @@ class TestSession:
             dataframe=self.sdf,
             protected_change=AddOneRow(),
         )
-
         info = session._noise_info(query_expr, query_budget)
-
         assert info == expected
 
     @pytest.mark.parametrize(
@@ -1089,7 +1086,6 @@ class TestSession:
             max_rows=2,
         )
         session.create_view(transformation_query1, "flatmap1", cache=False)
-
         assert session._accountant.d_in[NamedTable("flatmap1")] == 2
 
         transformation_query2 = QueryBuilder("flatmap1").flat_map(
@@ -1099,7 +1095,6 @@ class TestSession:
             max_rows=3,
         )
         session.create_view(transformation_query2, "flatmap2", cache=False)
-
         assert session._accountant.d_in[NamedTable("flatmap2")] == 6
 
     @pytest.mark.parametrize(

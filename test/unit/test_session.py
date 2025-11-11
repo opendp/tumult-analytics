@@ -1234,8 +1234,8 @@ Public table 'public1':\n"""
                     ],
                 )
             )
-            session.describe()
 
+            session.describe()
             mock_print.assert_called_with(expected)
 
     def test_describe_with_id_column(self, spark):
@@ -1503,8 +1503,8 @@ Public table 'public1':\n"""
                 + """\n\tConstraints:\n"""
                 + expected_output
             )
-            session.describe("private")
 
+            session.describe("private")
             mock_print.assert_called_with(expected)
 
     def test_supported_spark_types(self, spark):

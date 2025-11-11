@@ -137,7 +137,6 @@ def test_partition_and_create_with_MaxRowsPerID(session, table_stability):
     assert_frame_equal_with_sort(
         answer_session3.toPandas(), pd.DataFrame({"count": [1]})
     )
-
     assert session2._input_metric == DictMetric(
         {NamedTable("part0"): SymmetricDifference()}
     )
@@ -192,7 +191,6 @@ def test_partition_and_create_with_MaxGroupsPerID(session, table_stability):
     assert_frame_equal_with_sort(
         answer_session3.toPandas(), pd.DataFrame({"count": [1]})
     )
-
     assert session2._input_metric == DictMetric(
         {TableCollection("a"): CoreAddRemoveKeys({NamedTable("part0"): "id"})}
     )

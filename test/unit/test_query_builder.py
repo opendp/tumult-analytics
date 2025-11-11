@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# Disabling no-member because attributes of specific query types need to be referenced,
-# and the general QueryExpr type doesn't have the attribute.
-# Disabling protected-access to access the _query_expr attribute of Query regularly.
-
 import datetime
 import re
 from dataclasses import FrozenInstanceError
