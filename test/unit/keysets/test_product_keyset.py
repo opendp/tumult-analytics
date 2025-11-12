@@ -12,10 +12,9 @@ import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
-
-from ...conftest import assert_frame_equal_with_sort
 
 # pylint: disable=unused-argument
 
@@ -31,7 +30,7 @@ def test_init_with_product_keyset(
 
     got = ks1 * product_2_and_3
     expected_df = ks1.dataframe().crossJoin(ks2.dataframe()).crossJoin(ks3.dataframe())
-    assert_frame_equal_with_sort(got.dataframe().toPandas(), expected_df.toPandas())
+    assert_dataframe_equal(got.dataframe(), expected_df)
 
 
 def test_init_fails_with_duplicate_columns(spark: SparkSession) -> None:
@@ -122,7 +121,7 @@ def test_getitem_single_column(
     """Test filtering with __getitem__."""
     product = reduce(lambda x, y: x * y, factors)
     filtered_product = product[select_col]
-    assert_frame_equal_with_sort(filtered_product.dataframe().toPandas(), expect_df)
+    assert_dataframe_equal(filtered_product.dataframe(), expect_df)
 
 
 @pytest.mark.parametrize(
@@ -172,7 +171,7 @@ def test_getitem_multiple_columns_as_tuple(
 
     product = keyset_a * keyset_b * keyset_c
     filtered = product[select_cols]
-    assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expect_df)
+    assert_dataframe_equal(filtered.dataframe(), expect_df)
 
 
 def test_getitem_from_subset_of_columns(spark: SparkSession) -> None:
@@ -193,7 +192,7 @@ def test_getitem_from_subset_of_columns(spark: SparkSession) -> None:
     product = keyset1 * keyset2
     filtered = product["A"]
     expect_df = pd.DataFrame({"A": [1, 2, 3]})
-    assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expect_df)
+    assert_dataframe_equal(filtered.dataframe(), expect_df)
 
     filtered_ab = product["A", "B"]
     expect_df_ab = pd.DataFrame(
@@ -204,7 +203,7 @@ def test_getitem_from_subset_of_columns(spark: SparkSession) -> None:
         ],
         columns=["A", "B"],
     )
-    assert_frame_equal_with_sort(filtered_ab.dataframe().toPandas(), expect_df_ab)
+    assert_dataframe_equal(filtered_ab.dataframe(), expect_df_ab)
 
 
 def test_getitem_errors_with_duplicate_columns(
@@ -248,7 +247,7 @@ def test_dataframe(
     factors = [KeySet.from_dataframe(spark.createDataFrame(df)) for df in factor_dfs]
     product = reduce(lambda x, y: x * y, factors)
     got = product.dataframe()
-    assert_frame_equal_with_sort(got.toPandas(), expected_df)
+    assert_dataframe_equal(got, expected_df)
 
 
 def test_complex_filter(spark: SparkSession) -> None:
@@ -272,7 +271,7 @@ def test_complex_filter(spark: SparkSession) -> None:
         ],
         columns=["A", "B"],
     )
-    assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expect_df)
+    assert_dataframe_equal(filtered.dataframe(), expect_df)
 
 
 @pytest.mark.parametrize(
@@ -325,7 +324,7 @@ def test_getitem_ordering(spark: SparkSession, column_ordering: Sequence[str]) -
     selected_keyset = product[column_ordering]
     assert list(column_ordering) == selected_keyset.columns()
     got_df = selected_keyset.dataframe()
-    assert_frame_equal_with_sort(got_df.toPandas(), expect_df)
+    assert_dataframe_equal(got_df, expect_df)
     assert list(column_ordering) == got_df.columns
 
 

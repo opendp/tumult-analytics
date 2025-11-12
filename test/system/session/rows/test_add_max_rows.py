@@ -13,7 +13,7 @@ from tmlt.core.measurements.interactive_measurements import PrivacyAccountantSta
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.utils.exact_number import ExactNumber
 from tmlt.core.utils.parameters import calculate_noise_scale
-from tmlt.core.utils.testing import Case, parametrize
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics import (
     AddMaxRowsInMaxGroups,
@@ -44,7 +44,6 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 
-from ....conftest import assert_frame_equal_with_sort
 from .conftest import EVALUATE_TESTS
 
 Row = Dict[str, Any]
@@ -110,7 +109,7 @@ class TestSession:
             query_expr_or_builder, privacy_budget=PureDPBudget(float("inf"))
         )
         assert isinstance(actual_sdf, DataFrame)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_dataframe_equal(actual_sdf, expected_df)
 
     @pytest.mark.parametrize(
         "query_expr_or_builder,expected_expr,expected_df",
@@ -191,7 +190,7 @@ class TestSession:
             query_expr_or_builder, privacy_budget=RhoZCDPBudget(float("inf"))
         )
         assert isinstance(actual_sdf, DataFrame)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_dataframe_equal(actual_sdf, expected_df)
 
     @pytest.mark.parametrize(
         "query_expr,session_budget,query_budget,expected",
@@ -297,7 +296,7 @@ class TestSession:
         )
         actual_sdf = session.evaluate(query_builder, privacy_budget=privacy_budget)
         assert isinstance(actual_sdf, DataFrame)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_dataframe_equal(actual_sdf, expected_df)
 
     @pytest.mark.parametrize(
         "mechanism", [(CountMechanism.DEFAULT), (CountMechanism.LAPLACE)]
@@ -412,7 +411,7 @@ class TestSession:
         )
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
         assert isinstance(actual_sdf, DataFrame)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_dataframe_equal(actual_sdf, expected_df)
 
     @parametrize(
         Case("positive")(
@@ -644,7 +643,7 @@ class TestSession:
             .sum("X", 0, 3, name="sum")
         )
         actual = session.evaluate(sum_query, privacy_budget)
-        assert_frame_equal_with_sort(actual.toPandas(), expected)
+        assert_dataframe_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget",
@@ -818,16 +817,12 @@ class TestSession:
             ),
             inf_budget,
         )
-        assert_frame_equal_with_sort(
-            answer_session2.toPandas(), pd.DataFrame({"count": [3]})
-        )
+        assert_dataframe_equal(answer_session2, pd.DataFrame({"count": [3]}))
         answer_session3 = session3.evaluate(
             QueryBuilder("private1").count(),
             inf_budget,
         )
-        assert_frame_equal_with_sort(
-            answer_session3.toPandas(), pd.DataFrame({"count": [1]})
-        )
+        assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
 
     @pytest.mark.parametrize("output_measure", [(PureDP()), (ApproxDP()), (RhoZCDP())])
     def test_partitions_composed(
@@ -1193,9 +1188,9 @@ class TestSession:
             .groupby(KeySet.from_dict({}))
             .sum("i", low=0, high=3, mechanism=mechanism, name="sum")
         )
-        answer = session.evaluate(sum_query, inf_budget).toPandas()
+        answer = session.evaluate(sum_query, inf_budget)
         expected = pd.DataFrame({"sum": [9]})
-        assert_frame_equal_with_sort(answer, expected)
+        assert_dataframe_equal(answer, expected)
 
     def test_caching(self, spark):
         """Tests that caching works as expected."""
@@ -1262,7 +1257,7 @@ class TestSession:
         count_query = QueryBuilder("private").filter("B == 2").groupby(keyset).count()
         count_result = session.evaluate(count_query, budget_per_query)
         count_a_b = count_result.select("A", "B")
-        assert_frame_equal_with_sort(count_a_b.toPandas(), expected_a_b)
+        assert_dataframe_equal(count_a_b, expected_a_b)
 
         median_query = (
             QueryBuilder("private")
@@ -1272,7 +1267,7 @@ class TestSession:
         )
         median_result = session.evaluate(median_query, budget_per_query)
         median_a_b = median_result.select("A", "B")
-        assert_frame_equal_with_sort(median_a_b.toPandas(), expected_a_b)
+        assert_dataframe_equal(median_a_b, expected_a_b)
 
         average_query = (
             QueryBuilder("private")
@@ -1282,7 +1277,7 @@ class TestSession:
         )
         average_result = session.evaluate(average_query, budget_per_query)
         average_a_b = average_result.select("A", "B")
-        assert_frame_equal_with_sort(average_a_b.toPandas(), expected_a_b)
+        assert_dataframe_equal(average_a_b, expected_a_b)
 
     def test_grouping_noninteger_stability(self, spark) -> None:
         """Test that zCDP grouping_column and non-integer stabilities work."""

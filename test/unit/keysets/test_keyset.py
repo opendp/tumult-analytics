@@ -22,11 +22,9 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
-from tmlt.core.utils.testing import Case, parametrize
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
-
-from ...conftest import assert_frame_equal_with_sort
 
 
 @pytest.mark.parametrize(
@@ -91,7 +89,7 @@ def test_from_dict(
 ) -> None:
     """Test KeySet.from_dict works"""
     keyset = KeySet.from_dict(d)
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(keyset.dataframe(), expected_df)
 
 
 @pytest.mark.parametrize(
@@ -217,7 +215,7 @@ def test_from_tuples(
 ):
     """KeySet.from_tuples works as expected"""
     keyset = KeySet.from_tuples(tuples, columns)
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(keyset.dataframe(), expected_df)
 
 
 @parametrize(
@@ -299,7 +297,7 @@ def test_from_tuples_invalid_schema(
 def test_from_dataframe(spark, df_in: pd.DataFrame) -> None:
     """Test KeySet.from_dataframe works."""
     keyset = KeySet.from_dataframe(spark.createDataFrame(df_in))
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
+    assert_dataframe_equal(keyset.dataframe(), df_in)
 
 
 @pytest.mark.parametrize(
@@ -315,7 +313,7 @@ def test_from_dataframe(spark, df_in: pd.DataFrame) -> None:
 def test_from_dataframe_nonunique(spark, df: pd.DataFrame, expected_df: pd.DataFrame):
     """Test KeySet.from_dataframe works on a dataframe with duplicate rows."""
     keyset = KeySet.from_dataframe(spark.createDataFrame(df))
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(keyset.dataframe(), expected_df)
 
 
 @pytest.mark.parametrize(
@@ -345,7 +343,7 @@ def test_from_dataframe_with_null(
 ) -> None:
     """Test KeySet.from_dataframe allows nulls."""
     keyset = KeySet.from_dataframe(spark.createDataFrame(df_in, schema=schema))
-    assert_frame_equal_with_sort(keyset.dataframe().toPandas(), df_in)
+    assert_dataframe_equal(keyset.dataframe(), df_in)
 
 
 @pytest.mark.parametrize(
@@ -398,7 +396,7 @@ def test_filter_str(
     """Test KeySet.filter works"""
     keyset = KeySet.from_dataframe(spark.createDataFrame(keyset_df))
     filtered_keyset = keyset.filter(condition)
-    assert_frame_equal_with_sort(filtered_keyset.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(filtered_keyset.dataframe(), expected_df)
 
 
 @pytest.mark.parametrize(
@@ -508,12 +506,10 @@ def test_filter_condition() -> None:
     expected = pd.DataFrame(
         [["abc", 100], ["def", 100], ["ghi", 100]], columns=["A", "B"]
     )
-    assert_frame_equal_with_sort(filtered.dataframe().toPandas(), expected)
+    assert_dataframe_equal(filtered.dataframe(), expected)
 
     filtered2 = keyset.filter(sf.col("A") != "string that is not there")
-    assert_frame_equal_with_sort(
-        filtered2.dataframe().toPandas(), keyset.dataframe().toPandas()
-    )
+    assert_dataframe_equal(filtered2.dataframe(), keyset.dataframe())
 
 
 # This test also uses a Column as a filter condition, and is not
@@ -544,7 +540,7 @@ def test_getitem_single(col: str, expected_df: pd.DataFrame) -> None:
     """Test KeySet[col] returns a keyset for only the requested column."""
     keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1, 2, 3]})
     got = keyset[col]
-    assert_frame_equal_with_sort(got.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(got.dataframe(), expected_df)
 
 
 # This test is not parameterized because Python does not accept
@@ -554,16 +550,14 @@ def test_getitem_multiple() -> None:
     keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": ["b1"], "C": [0, 1]})
     got_ab = keyset["A", "B"]
     expected_ab = pd.DataFrame([["a1", "b1"], ["a2", "b1"]], columns=["A", "B"])
-    assert_frame_equal_with_sort(got_ab.dataframe().toPandas(), expected_ab)
+    assert_dataframe_equal(got_ab.dataframe(), expected_ab)
 
     got_bc = keyset["B", "C"]
     expected_bc = pd.DataFrame([["b1", 0], ["b1", 1]], columns=["B", "C"])
-    assert_frame_equal_with_sort(got_bc.dataframe().toPandas(), expected_bc)
+    assert_dataframe_equal(got_bc.dataframe(), expected_bc)
 
     got_abc = keyset["A", "B", "C"]
-    assert_frame_equal_with_sort(
-        got_abc.dataframe().toPandas(), keyset.dataframe().toPandas()
-    )
+    assert_dataframe_equal(got_abc.dataframe(), keyset.dataframe())
 
 
 @pytest.mark.parametrize(
@@ -577,7 +571,7 @@ def test_getitem_list(l: List[str], expected_df: pd.DataFrame) -> None:
     """Test KeySet[[col1, col2, ...]] returns a keyset for requested columns."""
     keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": ["b1"], "C": [0, 1]})
     got = keyset[l]
-    assert_frame_equal_with_sort(got.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(got.dataframe(), expected_df)
 
 
 @pytest.mark.parametrize(
@@ -600,8 +594,8 @@ def test_getitem_list_noncartesian(
 ) -> None:
     """Test that indexing multiple columns works on non-Cartesian KeySets."""
     keyset = KeySet.from_dataframe(spark.createDataFrame(keys_df))
-    actual_df = keyset[columns].dataframe().toPandas()
-    assert_frame_equal_with_sort(actual_df, expected_df)
+    actual_df = keyset[columns].dataframe()
+    assert_dataframe_equal(actual_df, expected_df)
 
 
 @pytest.mark.parametrize(
@@ -678,8 +672,8 @@ def test_crossproduct(other: KeySet, expected_df: pd.DataFrame) -> None:
     keyset = KeySet.from_dict({"A": ["a1", "a2"], "B": [0, 1]})
     product_left = keyset * other
     product_right = other * keyset
-    assert_frame_equal_with_sort(product_left.dataframe().toPandas(), expected_df)
-    assert_frame_equal_with_sort(product_right.dataframe().toPandas(), expected_df)
+    assert_dataframe_equal(product_left.dataframe(), expected_df)
+    assert_dataframe_equal(product_right.dataframe(), expected_df)
 
 
 @pytest.mark.parametrize(

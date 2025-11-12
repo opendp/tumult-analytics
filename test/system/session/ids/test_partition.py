@@ -9,6 +9,7 @@ import pytest
 import sympy as sp
 from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import DictMetric, SymmetricDifference
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
     KeySet,
@@ -20,7 +21,6 @@ from tmlt.analytics import (
 )
 from tmlt.analytics._table_identifier import NamedTable, TableCollection
 
-from ....conftest import assert_frame_equal_with_sort
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
 _KEYSET = KeySet.from_dict({"group": ["A", "B"]})
@@ -127,16 +127,12 @@ def test_partition_and_create_with_MaxRowsPerID(session, table_stability):
         QueryBuilder("part0").count(),
         session.remaining_privacy_budget,
     )
-    assert_frame_equal_with_sort(
-        answer_session2.toPandas(), pd.DataFrame({"count": [4]})
-    )
+    assert_dataframe_equal(answer_session2, pd.DataFrame({"count": [4]}))
     answer_session3 = session3.evaluate(
         QueryBuilder("part1").count(),
         session.remaining_privacy_budget,
     )
-    assert_frame_equal_with_sort(
-        answer_session3.toPandas(), pd.DataFrame({"count": [1]})
-    )
+    assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
     # pylint: disable=protected-access
     assert session2._input_metric == DictMetric(
         {NamedTable("part0"): SymmetricDifference()}
@@ -183,16 +179,12 @@ def test_partition_and_create_with_MaxGroupsPerID(session, table_stability):
         QueryBuilder("part0").enforce(MaxRowsPerID(2)).count(),
         session.remaining_privacy_budget,
     )
-    assert_frame_equal_with_sort(
-        answer_session2.toPandas(), pd.DataFrame({"count": [4]})
-    )
+    assert_dataframe_equal(answer_session2, pd.DataFrame({"count": [4]}))
     answer_session3 = session3.evaluate(
         QueryBuilder("part1").enforce(MaxRowsPerID(2)).count(),
         session.remaining_privacy_budget,
     )
-    assert_frame_equal_with_sort(
-        answer_session3.toPandas(), pd.DataFrame({"count": [1]})
-    )
+    assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
     # pylint: disable=protected-access
     assert session2._input_metric == DictMetric(
         {TableCollection("a"): CoreAddRemoveKeys({NamedTable("part0"): "id"})}
