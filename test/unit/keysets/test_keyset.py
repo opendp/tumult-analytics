@@ -518,13 +518,13 @@ def test_filter_to_empty() -> None:
     """Test when KeySet.filter should return an empty dataframe, it does"""
     keyset = KeySet.from_dict({"A": [-1, -2, -3]})
     filtered = keyset.filter("A > 0")
-    pd_df = filtered.dataframe()
+    pd_df = filtered.dataframe().toPandas()
     assert isinstance(pd_df, pd.DataFrame)
     assert pd_df.empty
 
     keyset2 = KeySet.from_dict({"A": ["a1", "a2", "a3"], "B": ["irrelevant"]})
     filtered2 = keyset2.filter(sf.col("A") == "string that is not there")
-    pd_df2 = filtered2.dataframe()
+    pd_df2 = filtered2.dataframe().toPandas()
     assert isinstance(pd_df2, pd.DataFrame)
     assert pd_df2.empty
 
