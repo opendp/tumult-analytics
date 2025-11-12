@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union, c
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
     BinningSpec,
@@ -52,8 +53,6 @@ from tmlt.analytics._query_expr import (
     VarianceMechanism,
 )
 from tmlt.analytics._schema import FrozenDict, Schema
-
-from ..conftest import assert_frame_equal_with_sort
 
 PRIVATE_ID = "private"
 
@@ -122,9 +121,7 @@ def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
     join_expr = query_expr.child
     assert isinstance(join_expr, JoinPublic)
     assert isinstance(join_expr.public_table, DataFrame)
-    assert_frame_equal_with_sort(
-        join_expr.public_table.toPandas(), join_table.toPandas()
-    )
+    assert_dataframe_equal(join_expr.public_table, join_table)
 
     root_expr = join_expr.child
     assert isinstance(root_expr, PrivateSource)

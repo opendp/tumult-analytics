@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
+from tmlt.core.utils.testing import assert_dataframe_equal
 from typeguard import TypeCheckError
 
 from tmlt.analytics import (
@@ -49,7 +50,6 @@ from ..conftest import (
     GROUPBY_AGGREGATION_QUERIES,
     NON_GROUPBY_AGGREGATION_QUERIES,
     SIMPLE_TRANSFORMATION_QUERIES,
-    assert_frame_equal_with_sort,
 )
 
 """Tests for invalid attributes on dataclasses."""
@@ -541,7 +541,7 @@ def test_join_public_string_nan(spark):
     df = spark.createDataFrame(pd.DataFrame({"col": ["nan", "NaN", "NAN", "Nan"]}))
     query_expr = JoinPublic(PrivateSource("a"), df)
     assert isinstance(query_expr.public_table, DataFrame)
-    assert_frame_equal_with_sort(query_expr.public_table.toPandas(), df.toPandas())
+    assert_dataframe_equal(query_expr.public_table, df)
 
 
 def test_join_public_dataframe_validation_column_type(spark):

@@ -6,7 +6,7 @@
 # TODO(#2206): Import these fixtures from core once it is rewritten
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence, TypeVar, Union, cast, overload
+from typing import Any, Dict, List, TypeVar, Union, cast, overload
 from unittest.mock import Mock, create_autospec
 
 import numpy as np
@@ -223,40 +223,6 @@ def pyspark_with_progress():
     # This is to silence pyspark logs.
     spark.sparkContext.setLogLevel("OFF")
     return spark
-
-
-def assert_frame_equal_with_sort(
-    first_df: pd.DataFrame,
-    second_df: pd.DataFrame,
-    sort_columns: Optional[Sequence[str]] = None,
-):
-    """Asserts that the two Pandas DataFrames are equal.
-
-    Wrapper around pandas test function. Both dataframes are sorted
-    since the ordering in Spark is not guaranteed.
-
-    Args:
-        first_df: First dataframe to compare.
-        second_df: Second dataframe to compare.
-        sort_columns: Names of column to sort on. By default sorts by all columns.
-    """
-    if sorted(first_df.columns) != sorted(second_df.columns):
-        raise ValueError(
-            "DataFrames must have matching columns. "
-            f"first_df: {sorted(first_df.columns)}. "
-            f"second_df: {sorted(second_df.columns)}."
-        )
-    if first_df.empty and second_df.empty:
-        return
-    if sort_columns is None:
-        sort_columns = list(first_df.columns)
-    if sort_columns:
-        first_df = first_df.set_index(sort_columns).sort_index().reset_index()
-        second_df = second_df.set_index(sort_columns).sort_index().reset_index()
-    # We explicitly pass check_dtype=False the equality check, so that identical
-    # DataFrames which differ only in dtypes (like one with an int64 column and
-    # the other with an Int64 column) are considered equal.
-    pd.testing.assert_frame_equal(first_df, second_df, check_dtype=False)
 
 
 def create_mock_measurement(

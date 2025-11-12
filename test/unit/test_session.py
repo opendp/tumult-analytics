@@ -48,6 +48,7 @@ from tmlt.core.metrics import (
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
+from tmlt.core.utils.testing import assert_dataframe_equal
 from typeguard import TypeCheckError
 
 from tmlt.analytics import (
@@ -86,8 +87,6 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable, TableCollection
 from tmlt.analytics.config import config
-
-from ..conftest import assert_frame_equal_with_sort
 
 # Disable redefined-outer-name because spark is used to create dataframes as test
 # inputs and within tests to check outputs and run queries.
@@ -309,11 +308,11 @@ class TestSession:
                 output_measure=expected_output_measure,
             )
             mock_composition_init.return_value.assert_called()
-            assert_frame_equal_with_sort(
+            assert_dataframe_equal(
                 mock_composition_init.return_value.mock_calls[0][1][0][
                     NamedTable("private")
-                ].toPandas(),
-                self.sdf.toPandas(),
+                ],
+                self.sdf,
             )
             mock_session_init.assert_called_with(
                 self=ANY, accountant=ANY, public_sources={}
@@ -385,11 +384,11 @@ class TestSession:
                 output_measure=expected_output_measure,
             )
             mock_composition_init.return_value.assert_called()
-            assert_frame_equal_with_sort(
+            assert_dataframe_equal(
                 mock_composition_init.return_value.mock_calls[0][1][0][
                     TableCollection("default_id_space")
-                ][NamedTable("private")].toPandas(),
-                self.sdf.toPandas(),
+                ][NamedTable("private")],
+                self.sdf,
             )
             mock_session_init.assert_called_with(
                 self=ANY, accountant=ANY, public_sources={}
@@ -569,9 +568,9 @@ class TestSession:
             session = Session(accountant=mock_accountant, public_sources={})
             session.add_public_dataframe(source_id="public", dataframe=self.join_df)
             assert "public" in session.public_source_dataframes
-            assert_frame_equal_with_sort(
-                session.public_source_dataframes["public"].toPandas(),
-                self.join_df.toPandas(),
+            assert_dataframe_equal(
+                session.public_source_dataframes["public"],
+                self.join_df,
             )
             expected_schema = self.join_df.schema
             actual_schema = session.public_source_dataframes["public"].schema
@@ -969,10 +968,10 @@ class TestSession:
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
 
         try:
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+            assert_dataframe_equal(actual_sdf, expected_df)
         except AssertionError:
             # Deals with the case where the DFs mismatched due to noise.
-            assert_frame_equal_with_sort(actual_sdf.toPandas(), possible_df)
+            assert_dataframe_equal(actual_sdf, possible_df)
 
     @pytest.mark.parametrize(
         "protected_change",
@@ -1036,7 +1035,7 @@ class TestSession:
         query = QueryBuilder("private").enforce(MaxRowsPerID(1)).get_groups(["count"])
         expected_df = pd.DataFrame({"count": [0]})
         actual_sdf = session.evaluate(query, session.remaining_privacy_budget)
-        assert_frame_equal_with_sort(actual_sdf.toPandas(), expected_df)
+        assert_dataframe_equal(actual_sdf, expected_df)
 
     @pytest.mark.parametrize("columns", [(["B"]), (["count", "B"])])
     def test_get_groups_on_id_column(self, spark, columns: List[str]):
@@ -2317,9 +2316,9 @@ class TestSessionBuilder:
         for table_id, private_source in expected_private_sources.items():
             assert accountant._queryable is not None
             assert isinstance(accountant._queryable, SequentialQueryable)
-            assert_frame_equal_with_sort(
-                accountant._queryable._data[table_id].toPandas(),
-                private_source.toPandas(),
+            assert_dataframe_equal(
+                accountant._queryable._data[table_id],
+                private_source,
             )
 
         assert accountant.d_in == expected_stabilities
@@ -2327,9 +2326,7 @@ class TestSessionBuilder:
         public_sources = session._public_sources
         assert public_sources.keys() == expected_public_sources.keys()
         for key in public_sources:
-            assert_frame_equal_with_sort(
-                public_sources[key].toPandas(), expected_public_sources[key].toPandas()
-            )
+            assert_dataframe_equal(public_sources[key], expected_public_sources[key])
         assert session._output_measure == expected_output_measure
 
     @pytest.mark.parametrize("nullable", [(True), (False)])
@@ -2461,7 +2458,7 @@ def test_automatic_partitions(
         end_pd_df = end_df.toPandas()
 
         if isinstance(expected_df, pd.DataFrame):
-            assert_frame_equal_with_sort(end_pd_df, expected_df)
+            assert_dataframe_equal(end_pd_df, expected_df)
         # Else the expected_df is a range of values for a quantile query.
         else:
             for pair, values in expected_df.items():
@@ -2520,7 +2517,7 @@ def test_automatic_partitions_with_ids(
         end_pd_df = end_df.toPandas()
 
         if isinstance(expected_df, pd.DataFrame):
-            assert_frame_equal_with_sort(end_pd_df, expected_df)
+            assert_dataframe_equal(end_pd_df, expected_df)
         # Else the expected_df is a range of values for a quantile query.
         else:
             for pair, values in expected_df.items():

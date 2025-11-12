@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from numpy import sqrt
 from pyspark.sql import DataFrame
-from tmlt.core.utils.testing import Case, parametrize
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics import (
     AddOneRow,
@@ -27,8 +27,6 @@ from tmlt.analytics import (
     TruncationStrategy,
 )
 from tmlt.analytics._schema import Schema, analytics_to_spark_schema
-
-from ...conftest import assert_frame_equal_with_sort
 
 
 @pytest.fixture(name="sdf_special_values", scope="module")
@@ -162,7 +160,7 @@ def test_default_behavior(
     )
     result = sess.evaluate(query, inf_budget)
     print(expected_df)
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -246,7 +244,7 @@ def test_replace_null_and_nan(
     query = base_query.replace_null_and_nan(replace_with).average(column, low, high)
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected_average]], columns=[column + "_average"])
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -351,7 +349,7 @@ def test_drop_null_and_nan(
     )
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected_sum]], columns=[measure_column + "_sum"])
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -421,7 +419,7 @@ def test_replace_infinity_average(
     query = base_query.replace_infinity(replace_with).average("float_infs", low, high)
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected_average]], columns=["float_infs_average"])
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -469,14 +467,14 @@ def test_replace_infinity_other_aggregations(
     )
     result_sum = sess.evaluate(query_sum, inf_budget)
     expected_df = pd.DataFrame([[expected_sum]], columns=["float_infs_sum"])
-    assert_frame_equal_with_sort(result_sum.toPandas(), expected_df)
+    assert_dataframe_equal(result_sum, expected_df)
 
     query_stdev = (
         QueryBuilder("private").replace_infinity(replace_with).stdev("float_infs", 0, 1)
     )
     result_stdev = sess.evaluate(query_stdev, inf_budget)
     expected_df = pd.DataFrame([[expected_stdev]], columns=["float_infs_stdev"])
-    assert_frame_equal_with_sort(result_stdev.toPandas(), expected_df)
+    assert_dataframe_equal(result_stdev, expected_df)
 
     query_variance = (
         QueryBuilder("private")
@@ -485,7 +483,7 @@ def test_replace_infinity_other_aggregations(
     )
     result_variance = sess.evaluate(query_variance, inf_budget)
     expected_df = pd.DataFrame([[expected_variance]], columns=["float_infs_variance"])
-    assert_frame_equal_with_sort(result_variance.toPandas(), expected_df)
+    assert_dataframe_equal(result_variance, expected_df)
 
 
 @parametrize(
@@ -534,7 +532,7 @@ def test_drop_infinity(
     query = base_query.drop_infinity(columns).sum("float_infs", 0, 1)
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected_sum]], columns=["float_infs_sum"])
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -591,7 +589,7 @@ def test_get_bounds(
         AddOneRow(),
     )
     result = sess.evaluate(query, inf_budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(
@@ -649,7 +647,7 @@ def test_privacy_ids(
         AddRowsWithID("string_nulls"),
     )
     result = sess.evaluate(query, inf_budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @pytest.fixture(name="sdf_for_joins", scope="module")
@@ -833,7 +831,7 @@ def test_joins(
         .build()
     )
     result = sess.evaluate(query, inf_budget)
-    assert_frame_equal_with_sort(result.toPandas(), expected_df)
+    assert_dataframe_equal(result, expected_df)
 
 
 @parametrize(

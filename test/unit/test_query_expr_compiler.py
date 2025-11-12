@@ -31,6 +31,7 @@ from tmlt.core.domains.spark_domains import (
 )
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import DictMetric, SymmetricDifference
+from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import KeySet, PureDPBudget, RhoZCDPBudget, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
@@ -68,8 +69,6 @@ from tmlt.analytics._schema import (
 )
 from tmlt.analytics._table_identifier import NamedTable
 from tmlt.analytics._transformation_utils import get_table_from_ref
-
-from ..conftest import assert_frame_equal_with_sort
 
 GROUPBY_TWO_COLUMNS = pd.DataFrame([["0", 0], ["0", 1], ["1", 1]], columns=["A", "B"])
 GROUPBY_TWO_SCHEMA = StructType(
@@ -650,7 +649,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): count_distinct_df})
-        assert_frame_equal_with_sort(actual.toPandas(), expected)
+        assert_dataframe_equal(actual, expected)
 
     @pytest.mark.parametrize("query_expr,expected", QUERY_EXPR_COMPILER_TESTS)
     def test_queries(self, query_expr: QueryExpr, expected: pd.DataFrame):
@@ -676,7 +675,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
-        assert_frame_equal_with_sort(actual.toPandas(), expected)
+        assert_dataframe_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "query,output_measure,expected",
@@ -1001,7 +1000,7 @@ class TestQueryExprCompiler:
             table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
-        assert_frame_equal_with_sort(actual.toPandas(), expected)
+        assert_dataframe_equal(actual, expected)
 
     def test_join_public_dataframe(self, spark):
         """Public join works with public tables given as Spark dataframes."""
@@ -1025,8 +1024,8 @@ class TestQueryExprCompiler:
         source_dict = {NamedTable("private"): self.sdf}
         output_sdf = get_table_from_ref(transformation, reference)(source_dict)
 
-        assert_frame_equal_with_sort(
-            output_sdf.toPandas(),
+        assert_dataframe_equal(
+            output_sdf,
             pd.DataFrame(
                 [
                     ("0", 0, 0.0, 0.1),
@@ -1061,8 +1060,8 @@ class TestQueryExprCompiler:
         source_dict = {NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2}
         output_sdf = get_table_from_ref(transformation, reference)(source_dict)
 
-        assert_frame_equal_with_sort(
-            output_sdf.toPandas(),
+        assert_dataframe_equal(
+            output_sdf,
             pd.DataFrame(
                 [
                     ["0", 0, 0.0, 0],
@@ -1248,7 +1247,7 @@ class TestQueryExprCompiler:
         )
         actual = measurement({NamedTable("private"): sdf_float})
         expected = pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})
-        assert_frame_equal_with_sort(actual.toPandas(), expected)
+        assert_dataframe_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "query_expr",
