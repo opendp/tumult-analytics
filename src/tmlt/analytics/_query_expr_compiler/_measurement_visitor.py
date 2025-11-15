@@ -63,9 +63,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
         **kwargs,
     ) -> Tuple[Transformation, TableReference]:
         """Enforce a constraint after a child transformation."""
-        return constraint._enforce(  # pylint: disable=protected-access
-            child_transformation, child_ref, **kwargs
-        )
+        return constraint._enforce(child_transformation, child_ref, **kwargs)
 
     def visit_get_groups(self, expr: GetGroups) -> Tuple[Measurement, NoiseInfo]:
         """Create a measurement from a GetGroups query expression."""

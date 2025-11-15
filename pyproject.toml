@@ -56,11 +56,10 @@ required-version = ">=0.7.0"
 default-groups = "all"
 
 [dependency-groups]
+ruff = ["ruff >=0.14.3,<1"]
 black = ["black >=23.3,<24"]
 isort = ["isort >=5.11,<6"]
 mypy = ["mypy >=1.14.0"]
-pylint = ["pylint >=3.2.5"]
-pydocstyle = ["pydocstyle[toml] >=6.3"]
 test = [
     "pytest",
     "pytest-cov >=5.0,<6",
@@ -135,6 +134,60 @@ packages = ["src/tmlt"]
 ################################################################################
 # Linter configuration
 
+[tool.ruff.lint]
+# A list of all of Ruff's rules can be found at https://docs.astral.sh/ruff/rules/
+select = [
+    # Enable Ruff-specific lints plus Pylint, pydocstyle, pyflakes, and pycodestyle.
+    # The latter two cover many lints that we previously used pylint for, but
+    # because they are overlapping Ruff only implements them in one set of rules.
+    "RUF", "PL", "D", "F", "E", "W",
+    # Also enable a subset of flake8 rules, for similar reasons to pyflakes/pycodestyle.
+    "ISC", "SLF"
+]
+ignore = [
+    # too-many-*: These rules are too context-dependent to be generally useful,
+    #     we can evaluate this during code reviews.
+    "PLR09",
+    # magic-value-comparison: This rule flags a lot of constants that don't
+    #     really make sense, we can make this call during code reviews.
+    "PLR2004",
+    # explicit-f-string-type-conversion: we don't generally use the !r syntax in
+    #     f-strings, which this rule enforces.
+    "RUF010",
+
+    # TODO: This disables every lint that is currently failing; go through and
+    #     either fix/individually disable each instance, or choose to permanently
+    #     ignore each one.
+    "PLW1641", # eq-without-hash
+    "PLC0206", # dict-index-missing-items
+    "RUF005",  # collection-literal-concatenation
+    "RUF015",  # unnecessary-iterable-allocation-for-first-element
+    "D415",    # missing-terminal-punctuation
+    "RUF043",  # pytest-raises-ambiguous-pattern
+    "D205",    # missing-blank-line-after-summary
+    "D210",    # surrounding-whitespace
+    "D102",    # undocumented-public-method
+    "E501",    # line-too-long
+    "E731",    # lambda-assignment
+    "E741",    # ambiguous-variable-name
+    "SLF001",  # private-member-access
+    "RET504",  # unnecessary-assign
+    "F401",    # unused-import
+    "RUF009",  # function-call-in-dataclass-default-argument
+    "E721",    # type-comparison
+    "D103",    # undocumented-public-function
+    "PLR0124", # comparison-with-itself
+]
+
+# Ruff's RUF001-003 rules disallow certain Unicode characters that are easily
+# confused with ASCII characters; this makes sense for the most part, but some
+# of our docstrings use Greek letters that fall into that category. This allows
+# those characters.
+allowed-confusables = ['α', 'ρ', '𝝆']
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.black]
 force-exclude = "noxfile.py"
 
@@ -162,70 +215,8 @@ module = "test.*"
 disallow_untyped_defs = false
 check_untyped_defs = true
 
-[tool.pylint.master]
-# See https://github.com/PyCQA/pylint/issues/1975#issuecomment-387924981
-extension-pkg-whitelist = ['numpy']
-load-plugins = ['pylint.extensions.docparams']
-# Only check param docs in docstrings that contain an Args: section.
-# Set to "no" to show docstrings missing argument documentation.
-accept-no-param-doc = true
-
-[tool.pylint.'MESSAGES CONTROL']
-enable = [
-  # Note: there is a false positive on 'useless-suppression' when you
-  # use 'disable=line-too-long' at the end of a docstring.
-  # See: https://github.com/pylint-dev/pylint/issues/8301
-  'useless-suppression'
-]
-# By default, informational rules like useless-suppression don't cause PyLint to
-# produce an error.
-fail-on = ['useless-suppression']
-disable = [
-  'arguments-differ',
-  'duplicate-code',
-  'fixme',
-  'invalid-name',
-  'logging-format-interpolation',
-  'logging-fstring-interpolation',
-  'missing-function-docstring',  # Redundant with pydocstyle
-  'missing-raises-doc',
-  'missing-return-doc',
-  'no-else-return',
-  'super-init-not-called',
-  'too-few-public-methods',
-  'too-many-ancestors',
-  'too-many-arguments',
-  'too-many-branches',
-  'too-many-instance-attributes',
-  'too-many-lines',
-  'too-many-locals',
-  'too-many-positional-arguments',
-  'too-many-public-methods',
-  'too-many-return-statements',
-  'too-many-statements',
-  'unbalanced-tuple-unpacking',
-  'unnecessary-lambda-assignment',
-  'unsubscriptable-object',
-  'use-dict-literal',
-  # There are a lot of false positives for unsupported-binary-operation
-  # on Python 3.9: https://github.com/pylint-dev/pylint/issues/7381
-  'unsupported-binary-operation',
-  # black and isort group tmlt.core separately from tmlt.analytics,
-  # but pylint thinks they should both be grouped as 'tmlt'.
-  'ungrouped-imports',
-  'wrong-import-order',
-]
-
-[tool.pylint.FORMAT]
-max-line-length = 88
-
-[tool.pydocstyle]
-convention = "google"
-add-ignore = [
-  # `D200: One-line docstring should fit on one line with quotes`
-  # conflicts with pylint's `max-line-length`.
-  "D200",
-]
+################################################################################
+# Test configuration
 
 [tool.pytest.ini_options]
 markers = [
@@ -235,9 +226,6 @@ markers = [
 # Avoids an re-import issue with serializers. See tumult-labs/tumult#3343 for
 # more information and a better future fix.
 addopts = ["--import-mode=importlib"]
-
-################################################################################
-# Test configuration
 
 [tool.coverage.run]
 relative_files = true

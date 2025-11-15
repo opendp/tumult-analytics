@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=protected-access
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -284,14 +283,13 @@ class AddRemoveKeys(NeighboringRelation):
                                 f" has type {df_field.dataType}."
                             )
                         key_type = df_field.dataType
-                    else:
-                        if not df_field.dataType == key_type:
-                            raise ValueError(
-                                f"Key column '{key_column}' has type "
-                                f"{df_field.dataType}, but in another"
-                                f" table it has type {key_type}. Key types"
-                                " must match across tables"
-                            )
+                    elif not df_field.dataType == key_type:
+                        raise ValueError(
+                            f"Key column '{key_column}' has type "
+                            f"{df_field.dataType}, but in another"
+                            f" table it has type {key_type}. Key types"
+                            " must match across tables"
+                        )
 
         return list(self.table_to_key_column.keys())
 

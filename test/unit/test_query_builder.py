@@ -2,10 +2,6 @@
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
-# pylint: disable=no-member, protected-access
-# Disabling no-member because attributes of specific query types need to be referenced,
-# and the general QueryExpr type doesn't have the attribute.
-# Disabling protected-access to access the _query_expr attribute of Query regularly.
 
 import datetime
 import re
@@ -72,7 +68,6 @@ def root_builder():
 @pytest.mark.parametrize("join_columns", [(None), (["B"])])
 def test_join_public(join_columns: Optional[List[str]]):
     """QueryBuilder.join_public works as expected with a public source ID."""
-
     join_table = "public"
     query = (
         root_builder()
@@ -104,7 +99,6 @@ def test_join_public(join_columns: Optional[List[str]]):
 @pytest.mark.parametrize("join_columns", [(None), (["B"])])
 def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
     """QueryBuilder.join_public works as expected when used with a dataframe."""
-
     join_table = spark.createDataFrame(pd.DataFrame({"A": [1, 2]}))
     query = (
         root_builder()
@@ -625,7 +619,6 @@ def test_histogram():
 
 def test_histogram_options():
     """QueryBuilder.histogram works as expected, with options."""
-
     query = root_builder().histogram("A", [0, 5, 10], name="New")
     assert isinstance(query, Query)
     query_expr = query._query_expr
@@ -1377,7 +1370,6 @@ class TestAggregations:
 )
 def test_query_immutability(query: Query):
     """Tests that Query objects are immutable."""
-
     with pytest.raises(FrozenInstanceError):
         query._query_expr = QueryBuilder("testdf").count()._query_expr  # type: ignore
 
@@ -1435,9 +1427,7 @@ def test_query_immutability(query: Query):
 )
 def test_query_fast_equality_check(query1: Query, query2: Query, equal: bool):
     """Tests that Query objects are equal when they should be."""
-    # pylint: disable=protected-access
     assert query1._is_equivalent(query2) == equal
-    # pylint: enable=protected-access
 
 
 def root_grouped_builder():

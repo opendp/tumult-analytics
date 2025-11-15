@@ -1,5 +1,3 @@
-# pylint: skip-file
-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
@@ -178,7 +176,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/1.18/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/version/1.2.0/", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
-    "pyspark": ("https://archive.apache.org/dist/spark/docs/3.1.1/api/python/", None),
+    "pyspark": ("https://downloads.apache.org/spark/docs/3.5.7/api/python/", None),
 }
 
 # Substitutions

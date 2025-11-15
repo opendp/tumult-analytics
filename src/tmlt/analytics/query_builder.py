@@ -69,20 +69,20 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 # Override exported names to include ColumnType and ColumnDescriptor, as well as
 # types from _query_expr.
 __all__ = [
-    "Row",
-    "QueryBuilder",
-    "GroupedQueryBuilder",
-    "ColumnDescriptor",
-    "ColumnType",
     "AnalyticsDefault",
     "AverageMechanism",
-    "CountMechanism",
+    "ColumnDescriptor",
+    "ColumnType",
     "CountDistinctMechanism",
+    "CountMechanism",
+    "GroupbyCountQuery",
+    "GroupedQueryBuilder",
+    "Query",
+    "QueryBuilder",
+    "Row",
     "StdevMechanism",
     "SumMechanism",
     "VarianceMechanism",
-    "Query",
-    "GroupbyCountQuery",
 ]
 
 Row = Dict[str, Any]
@@ -145,7 +145,7 @@ class Query:
             return False
 
         query = self._query_expr
-        other_query = other._query_expr  # pylint: disable=protected-access
+        other_query = other._query_expr
         return _query_expr_recursive_equivalence(query, other_query)
 
 
@@ -290,11 +290,11 @@ class QueryBuilder:
         self._source_id: str = source_id
         self._query_expr: QueryExpr = PrivateSource(source_id)
 
-    def clone(self) -> QueryBuilder:  # noqa: D102
+    def clone(self) -> QueryBuilder:
         # Returns a new QueryBuilder with the same partial query as the current one.
         # No docstring to prevent this from showing in docs.
         builder = QueryBuilder(self._source_id)
-        builder._query_expr = self._query_expr  # pylint: disable=protected-access
+        builder._query_expr = self._query_expr
         return builder
 
     def join_public(
@@ -467,7 +467,6 @@ class QueryBuilder:
         truncation_strategy_right: Optional[TruncationStrategy.Type] = None,
         join_columns: Optional[Sequence[str]] = None,
     ) -> "QueryBuilder":
-        # pylint: disable=protected-access
         """Join the table with another :class:`QueryBuilder`.
 
         The current query can also be joined with a named private table
@@ -2810,7 +2809,6 @@ class GroupedQueryBuilder:
 
         Do not construct directly; use :func:`~QueryBuilder.groupby`.
         """
-        # pylint: disable=pointless-string-statement
         """
         Args:
             source_id: The source id used in the query_expr.

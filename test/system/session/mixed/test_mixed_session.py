@@ -1,7 +1,8 @@
 """Tests for Sessions that employ a mixture of IDs and non-IDs features.
 
 These are not meant to be exhaustive, but rather to ensure that the Session
-functions properly when used with a mixture of IDs and non-IDs protected changes."""
+functions properly when used with a mixture of IDs and non-IDs protected changes.
+"""
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -33,18 +34,16 @@ def test_view_constraint(session):
         .enforce(MaxRowsPerGroupPerID("group", 1))
     )
     session.create_view(query, "view", cache=False)
-    # pylint: disable=protected-access
+
     assert session._table_constraints[NamedTable("view")] == [
         MaxRowsPerID(1),
         MaxGroupsPerID("group", 1),
         MaxRowsPerGroupPerID("group", 1),
     ]
-    # pylint: enable=protected-access
 
     session.delete_view("view")
-    # pylint: disable=protected-access
+
     assert NamedTable("view") not in session._table_constraints
-    # pylint: enable=protected-access
 
 
 # Test creating view, then doing (1) immediate aggregation and

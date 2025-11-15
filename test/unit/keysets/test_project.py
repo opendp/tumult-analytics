@@ -69,7 +69,7 @@ from tmlt.analytics.keyset._keyset import KeySetPlan
     ),
     Case("remove_detect_columns")(
         base=KeySet.from_tuples([(1, 2, 3)], ["A", "B", "C"])
-        * KeySet._detect(["D", "E", "F"]),  # pylint: disable=protected-access
+        * KeySet._detect(["D", "E", "F"]),
         columns=["A", "B"],
         expected_df=pd.DataFrame({"A": [1], "B": [2]}),
         expected_schema={
@@ -118,7 +118,6 @@ def test_valid(
     assert_dataframe_equal(ks.dataframe(), expected_df)
 
 
-# pylint: disable=protected-access
 @parametrize(
     Case("one_column_str")(
         base=KeySet._detect(["A", "B"]),
@@ -147,7 +146,6 @@ def test_valid(
         columns=["C", "A", "E"],
     ),
 )
-# pylint: enable=protected-access
 def test_valid_plan(
     base: KeySetPlan,
     columns: Union[str, Sequence[str]],

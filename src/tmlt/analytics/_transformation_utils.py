@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=unused-argument
-
 from typing import Callable, Dict, Optional, Tuple, Type, cast
 
 from tmlt.core.domains.base import Domain

@@ -1082,7 +1082,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
         else:
             # Check that all columns exist
             for col in replace_with:
-                if not col in analytics_schema:
+                if col not in analytics_schema:
                     raise ValueError(
                         f"Cannot replace values in column {col}, because it is not in"
                         " the schema"
@@ -1555,9 +1555,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
         child_transformation, child_ref, child_constraints = self._visit_child(
             expr.child
         )
-        # pylint: disable=protected-access
         transformation, ref = expr.constraint._enforce(child_transformation, child_ref)
-        # pylint: enable=protected-access
+
         return self.Output(
             transformation,
             ref,

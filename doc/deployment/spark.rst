@@ -44,12 +44,9 @@ database, you should use the following options when creating a Spark session:
         .enableHiveSupport()
         .getOrCreate()
 
-To see where Hive's warehouse directory is, you can use the
-`Hive CLI <https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli#LanguageManualCli-HiveInteractiveShellCommands>`_
-(or its replacement,
-`Beehive <https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-BeelineHiveCommands>`_)
-to view the
-`relevant configuration parameter <https://cwiki.apache.org/confluence/display/Hive/AdminManual+Metastore+3.0+Administration#AdminManualMetastore3.0Administration-GeneralConfiguration>`_:
+To see where Hive's warehouse directory is, you can use the `Hive CLI <https://hive.apache.org/docs/latest/language/languagemanual-cli/#hive-interactive-shell-commands>`_
+(or its replacement, `Beeline <https://hive.apache.org/docs/latest/user/hiveserver2-clients/#beeline-hive-commands>`_)
+to view the `relevant configuration parameter <https://hive.apache.org/docs/latest/admin/adminmanual-metastore-3-0-administration/#general-configuration>`_:
 
 .. code-block::
 

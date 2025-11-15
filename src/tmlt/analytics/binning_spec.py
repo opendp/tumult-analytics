@@ -105,17 +105,16 @@ def _default_bin_names(
                 f"({bin_edge_strs[i]}, {bin_edge_strs[i+1]}]"
                 for i in range(len(bin_edges) - 1)
             ]
+    elif include_edges:
+        return [
+            f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
+            for i in range(len(bin_edges) - 2)
+        ] + [f"[{bin_edge_strs[-2]}, {bin_edge_strs[-1]}]"]
     else:
-        if include_edges:
-            return [
-                f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
-                for i in range(len(bin_edges) - 2)
-            ] + [f"[{bin_edge_strs[-2]}, {bin_edge_strs[-1]}]"]
-        else:
-            return [
-                f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
-                for i in range(len(bin_edges) - 1)
-            ]
+        return [
+            f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
+            for i in range(len(bin_edges) - 1)
+        ]
 
 
 @dataclass(frozen=True, init=False, eq=False, repr=False)
@@ -234,10 +233,8 @@ class BinningSpec(Generic[BinT, BinNameT]):
             raise ValueError(f"Invalid bin names: {e}") from e
         # This typecheck cannot be done safely with isinstance because datetime
         # is a subclass of date.
-        if (
-            # pylint: disable=unidiomatic-typecheck
-            nan_bin is not None
-            and type(nan_bin) != column_type_to_py_type(column_descriptor.column_type)
+        if nan_bin is not None and type(nan_bin) != column_type_to_py_type(
+            column_descriptor.column_type
         ):
             raise ValueError("NaN bin name must have the same type as other bin names")
 

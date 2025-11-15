@@ -65,9 +65,7 @@ def check_installation():
             # If Spark is broken, the Core cleanup atexit hook will fail, which
             # produces some additional output the user doesn't need to see in
             # this case.
-            atexit.unregister(
-                core_cleanup._cleanup_temp  # pylint: disable=protected-access
-            )
+            atexit.unregister(core_cleanup._cleanup_temp)
             if (
                 e.args
                 and isinstance(e.args[0], str)
@@ -124,8 +122,8 @@ def check_installation():
             )
         if (
             len(result.columns) != 2
-            or not "A" in result.columns
-            or not "count" in result.columns
+            or "A" not in result.columns
+            or "count" not in result.columns
         ):
             raise RuntimeError(
                 "Expected output to have columns 'A' and 'count', but instead it had"
@@ -153,7 +151,7 @@ def check_installation():
             "Installation check complete. Tumult Analytics appears to be properly"
             " installed."
         )
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         print(" FAILED\n")
         if not str(e).startswith("It looks like the analytics session"):
             raise RuntimeError(

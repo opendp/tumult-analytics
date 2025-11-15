@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=comparison-with-itself
 
 from typing import Optional, Union
 
@@ -258,7 +257,6 @@ def test_equivalence_different_schemas():
     assert ks1.is_equivalent(ks3) is False
 
 
-# pylint: disable=protected-access
 @parametrize(
     Case("detect_eq")(
         ks1=KeySet._detect(["A", "B"]),
@@ -328,7 +326,6 @@ def test_equivalence_different_schemas():
         equivalent={False, None},
     ),
 )
-# pylint: enable=protected-access
 def test_plan_equivalence(
     ks1: KeySetPlan, ks2: KeySetPlan, equivalent: Union[None, bool, set[Optional[bool]]]
 ):
@@ -338,7 +335,7 @@ def test_plan_equivalence(
     assert ks1.is_equivalent(ks1)
     assert ks2.is_equivalent(ks2)
     if isinstance(equivalent, set):
-        assert (ks1 == ks2) in equivalent  # pylint: disable=superfluous-parens
+        assert (ks1 == ks2) in equivalent
         assert isinstance(ks1 == ks2, bool)
         assert ks1.is_equivalent(ks2) in equivalent
         assert ks2.is_equivalent(ks1) in equivalent

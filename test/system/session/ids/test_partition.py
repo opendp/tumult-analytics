@@ -133,7 +133,7 @@ def test_partition_and_create_with_MaxRowsPerID(session, table_stability):
         session.remaining_privacy_budget,
     )
     assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
-    # pylint: disable=protected-access
+
     assert session2._input_metric == DictMetric(
         {NamedTable("part0"): SymmetricDifference()}
     )
@@ -142,7 +142,6 @@ def test_partition_and_create_with_MaxRowsPerID(session, table_stability):
     )
     assert session2._accountant.d_in == {NamedTable("part0"): table_stability}
     assert session3._accountant.d_in == {NamedTable("part1"): table_stability}
-    # pylint: enable=protected-access
 
 
 @pytest.mark.parametrize(
@@ -185,7 +184,7 @@ def test_partition_and_create_with_MaxGroupsPerID(session, table_stability):
         session.remaining_privacy_budget,
     )
     assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
-    # pylint: disable=protected-access
+
     assert session2._input_metric == DictMetric(
         {TableCollection("a"): CoreAddRemoveKeys({NamedTable("part0"): "id"})}
     )
@@ -194,4 +193,3 @@ def test_partition_and_create_with_MaxGroupsPerID(session, table_stability):
     )
     assert session2._accountant.d_in == {TableCollection("a"): table_stability}
     assert session3._accountant.d_in == {TableCollection("a"): table_stability}
-    # pylint: enable=protected-access

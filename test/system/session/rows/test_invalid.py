@@ -55,7 +55,7 @@ class TestInvalidSession:
         error_type: Type[Exception],
         expected_error_msg: str,
     ):
-        """evaluate raises error on invalid queries."""
+        """Evaluate raises error on invalid queries."""
         mock_accountant = Mock()
         mock_accountant.output_measure = PureDP()
         mock_accountant.input_metric = DictMetric(
@@ -145,7 +145,7 @@ class TestInvalidSession:
     def test_invalid_privacy_budget_evaluate_and_create(
         self, output_measure: Union[PureDP, RhoZCDP]
     ):
-        """evaluate and create functions raise error on invalid privacy_budget."""
+        """Evaluate and create functions raise error on invalid privacy_budget."""
         one_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
         two_budget: Union[PureDPBudget, ApproxDPBudget, RhoZCDPBudget]
         if output_measure == PureDP():

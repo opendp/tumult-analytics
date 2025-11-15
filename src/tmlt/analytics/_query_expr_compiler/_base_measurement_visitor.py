@@ -645,34 +645,33 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                     f"The budget provided was {self.budget}."
                 )
             return
+        elif mechanism in (
+            AverageMechanism.LAPLACE,
+            CountDistinctMechanism.LAPLACE,
+            CountMechanism.LAPLACE,
+            StdevMechanism.LAPLACE,
+            SumMechanism.LAPLACE,
+            VarianceMechanism.LAPLACE,
+        ):
+            warnings.warn(
+                "When using LAPLACE with an ApproxDPBudget, the delta value of "
+                "the budget will be replaced with zero."
+            )
+            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+        elif mechanism in (
+            AverageMechanism.DEFAULT,
+            CountDistinctMechanism.DEFAULT,
+            CountMechanism.DEFAULT,
+            StdevMechanism.DEFAULT,
+            SumMechanism.DEFAULT,
+            VarianceMechanism.DEFAULT,
+        ):
+            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+        elif mechanism is None:
+            # Quantile has no mechanism
+            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
         else:
-            if mechanism in (
-                AverageMechanism.LAPLACE,
-                CountDistinctMechanism.LAPLACE,
-                CountMechanism.LAPLACE,
-                StdevMechanism.LAPLACE,
-                SumMechanism.LAPLACE,
-                VarianceMechanism.LAPLACE,
-            ):
-                warnings.warn(
-                    "When using LAPLACE with an ApproxDPBudget, the delta value of "
-                    "the budget will be replaced with zero."
-                )
-                self.adjusted_budget = ApproxDPBudget(epsilon, 0)
-            elif mechanism in (
-                AverageMechanism.DEFAULT,
-                CountDistinctMechanism.DEFAULT,
-                CountMechanism.DEFAULT,
-                StdevMechanism.DEFAULT,
-                SumMechanism.DEFAULT,
-                VarianceMechanism.DEFAULT,
-            ):
-                self.adjusted_budget = ApproxDPBudget(epsilon, 0)
-            elif mechanism is None:
-                # Quantile has no mechanism
-                self.adjusted_budget = ApproxDPBudget(epsilon, 0)
-            else:
-                raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
+            raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""

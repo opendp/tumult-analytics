@@ -114,7 +114,7 @@ class Config:
 
     _instance = None
 
-    def __new__(cls, *args, **kwargs):  # noqa: D102
+    def __new__(cls, *args, **kwargs):
         # Enforces that Config is a singleton.
         # No docstring to prevent this from showing up in docs.
         if not cls._instance:

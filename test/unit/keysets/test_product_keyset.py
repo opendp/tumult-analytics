@@ -16,8 +16,6 @@ from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import ColumnDescriptor, ColumnType, KeySet
 
-# pylint: disable=unused-argument
-
 
 def test_init_with_product_keyset(
     spark: SparkSession,
@@ -391,7 +389,7 @@ def test_size(_, keyset: KeySet, expected: int):
 
 @pytest.fixture(scope="module")
 def _eq_hashing_test_data(spark):
-    "Set up test data."
+    """Set up test data."""
     df_ab = spark.createDataFrame(pd.DataFrame({"A": ["a1", "a2"], "B": [0, 1]}))
     df_ij = spark.createDataFrame(pd.DataFrame({"I": ["i1", "i2"], "J": [0, 1]}))
     df_dc = spark.createDataFrame(pd.DataFrame({"D": ["d1", "d2"], "C": [0, 1]}))

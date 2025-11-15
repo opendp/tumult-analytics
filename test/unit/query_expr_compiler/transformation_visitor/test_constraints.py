@@ -56,7 +56,7 @@ class TestConstraints(TestTransformationVisitor):
         rows_per_id = result_df.groupby("id")["id"].count()
         assert all(
             rows_per_id <= constraint_max
-        ), f"MaxRowsPerID constraint violated, counts were:\n{str(rows_per_id)}"
+        ), f"MaxRowsPerID constraint violated, counts were:\n{rows_per_id}"
 
         self._test_is_subset(input_df, result_df)
 
@@ -79,7 +79,7 @@ class TestConstraints(TestTransformationVisitor):
         groups_per_id = result_df.groupby("id").nunique()[grouping_col]
         assert all(
             groups_per_id <= constraint_max
-        ), f"MaxGroupsPerID constraint violated, counts were:\n{str(groups_per_id)}"
+        ), f"MaxGroupsPerID constraint violated, counts were:\n{groups_per_id}"
 
         self._test_is_subset(input_df, result_df)
 

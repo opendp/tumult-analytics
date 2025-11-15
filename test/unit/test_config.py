@@ -20,16 +20,14 @@ def test_config_singleton():
 
 # Adding feature flags for use in the tests is necessary because the collection
 # of feature flags existing at any given time is not stable. Unfortunately doing
-# so makes mypy and pylint very unhappy, so we're ignoring errors related to the
-# existence of an attribute on a class for the rest of this file.
+# so makes mypy very unhappy, so we're ignoring errors related to the existence
+# of an attribute on a class for the rest of this file.
 
 # mypy: disable-error-code=attr-defined
-# pylint: disable=no-member
 
 
 @pytest.fixture
 def _with_example_features():
-    # pylint: disable=protected-access
     """Add some example feature flags for testing."""
 
     class _Features(Config.Features):
@@ -112,7 +110,6 @@ def test_config_feature_flag_raise_if_disabled():
 
 @pytest.mark.usefixtures("_with_example_features")
 def test_config_feature_flag_raise_if_disabled_snippet():
-    # pylint: disable=protected-access
     """Feature flags' raise_if_disabled produces example code that enables flag."""
     cfg = Config()
 
@@ -130,6 +127,6 @@ def test_config_feature_flag_raise_if_disabled_snippet():
         ), "No snippet to enable flag found in exception message"
         enable_snippet = error_message[enable_snippet_idx:]
         with patch("tmlt.analytics.config.config", cfg):
-            exec(enable_snippet, {}, {})  # pylint: disable=exec-used
+            exec(enable_snippet, {}, {})
         assert ff, f"Flag {ff._name} did not get set by snippet from exception message"
         ff.disable()

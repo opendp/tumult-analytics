@@ -1147,14 +1147,14 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan)
-                and not (name in [input_schema.grouping_column, input_schema.id_column])
+                and name not in [input_schema.grouping_column, input_schema.id_column]
             ]
         return Schema(
             {
                 name: ColumnDescriptor(
                     column_type=cd.column_type,
-                    allow_null=(cd.allow_null and not name in columns_to_change),
-                    allow_nan=(cd.allow_nan and not name in columns_to_change),
+                    allow_null=(cd.allow_null and name not in columns_to_change),
+                    allow_nan=(cd.allow_nan and name not in columns_to_change),
                     allow_inf=cd.allow_inf,
                 )
                 for name, cd in input_schema.column_descs.items()
@@ -1239,7 +1239,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
                 for name, cd in input_schema.column_descs.items()
                 if cd.column_type == ColumnType.DECIMAL
                 and cd.allow_inf
-                and not (name in [input_schema.grouping_column, input_schema.id_column])
+                and name not in [input_schema.grouping_column, input_schema.id_column]
             ]
         return Schema(
             {
@@ -1247,7 +1247,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
                     column_type=cd.column_type,
                     allow_null=cd.allow_null,
                     allow_nan=cd.allow_nan,
-                    allow_inf=(cd.allow_inf and not name in columns_to_change),
+                    allow_inf=(cd.allow_inf and name not in columns_to_change),
                 )
                 for name, cd in input_schema.column_descs.items()
             },
@@ -1322,15 +1322,15 @@ class DropNullAndNan(SingleChildQueryExpr):
                 name
                 for name, cd in input_schema.column_descs.items()
                 if (cd.allow_null or cd.allow_nan)
-                and not name in [input_schema.grouping_column, input_schema.id_column]
+                and name not in [input_schema.grouping_column, input_schema.id_column]
             )
 
         return Schema(
             {
                 name: ColumnDescriptor(
                     column_type=cd.column_type,
-                    allow_null=(cd.allow_null and not name in columns),
-                    allow_nan=(cd.allow_nan and not name in columns),
+                    allow_null=(cd.allow_null and name not in columns),
+                    allow_nan=(cd.allow_nan and name not in columns),
                     allow_inf=(cd.allow_inf),
                 )
                 for name, cd in input_schema.column_descs.items()
@@ -1403,7 +1403,7 @@ class DropInfinity(SingleChildQueryExpr):
                 for name, cd in input_schema.column_descs.items()
                 if cd.column_type == ColumnType.DECIMAL
                 and cd.allow_inf
-                and not name in (input_schema.grouping_column, input_schema.id_column)
+                and name not in (input_schema.grouping_column, input_schema.id_column)
             )
 
         return Schema(
@@ -1412,7 +1412,7 @@ class DropInfinity(SingleChildQueryExpr):
                     column_type=cd.column_type,
                     allow_null=cd.allow_null,
                     allow_nan=cd.allow_nan,
-                    allow_inf=(cd.allow_inf and not name in columns),
+                    allow_inf=(cd.allow_inf and name not in columns),
                 )
                 for name, cd in input_schema.column_descs.items()
             },

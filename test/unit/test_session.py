@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-# pylint: disable=protected-access
-
 import re
 from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
@@ -92,7 +90,6 @@ from tmlt.analytics.config import config
 
 # Disable redefined-outer-name because spark is used to create dataframes as test
 # inputs and within tests to check outputs and run queries.
-# pylint: disable=redefined-outer-name
 
 
 def _privacy_budget_to_exact_number(
@@ -452,7 +449,6 @@ class TestSession:
         """Tests that :func:`Session._from_neighboring_relation` works as expected
         with a single relation.
         """
-
         sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
@@ -493,7 +489,6 @@ class TestSession:
         """Tests that :func:`Session._from_neighboring_relation` works as expected
         with a single AddRemoveKeys relation.
         """
-
         sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
@@ -584,7 +579,8 @@ class TestSession:
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_puredp_session_approxdp_query(self, spark, d_in):
         """Confirm that using an approxdp query on a puredp accountant raises an
-        error."""
+        error.
+        """
         with patch.object(
             QueryExprCompiler, "__call__", autospec=True
         ) as mock_compiler, patch(
@@ -1165,7 +1161,7 @@ Public table 'public1':\n"""
                     ],
                 )
             )
-            # pylint: enable=line-too-long
+
             session.describe()
             mock_print.assert_called_with(expected)
 
@@ -1237,13 +1233,12 @@ Public table 'public1':\n"""
                     ],
                 )
             )
+
             session.describe()
-            # pylint: enable=line-too-long
             mock_print.assert_called_with(expected)
 
     def test_describe_with_id_column(self, spark):
         """Test :func:`_describe` with a table with an ID column."""
-
         with patch("builtins.print") as mock_print, patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1311,7 +1306,7 @@ Public table 'public1':\n"""
                     ],
                 )
             )
-            # pylint: enable=line-too-long
+
             session.describe()
             mock_print.assert_called_with(expected)
 
@@ -1507,8 +1502,8 @@ Public table 'public1':\n"""
                 + """\n\tConstraints:\n"""
                 + expected_output
             )
+
             session.describe("private")
-            # pylint: enable=line-too-long
             mock_print.assert_called_with(expected)
 
     def test_supported_spark_types(self, spark):
@@ -1652,7 +1647,7 @@ class TestInvalidSession:
         mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
 
     def test_invalid_dataframe_initialization(self):
-        """session raises error on invalid dataframe type"""
+        """Session raises error on invalid dataframe type"""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1678,7 +1673,7 @@ class TestInvalidSession:
                 session.add_public_dataframe(source_id="public", dataframe=self.pdf)
 
     def test_invalid_data_properties(self, spark):
-        """session raises error on invalid data properties"""
+        """Session raises error on invalid data properties"""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1814,7 +1809,7 @@ class TestInvalidSession:
     def test_invalid_source_id(
         self, source_id: str, exception_type: Type[Exception], expected_error_msg: str
     ):
-        """session raises error on invalid source_id."""
+        """Session raises error on invalid source_id."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1873,7 +1868,7 @@ class TestInvalidSession:
         "query_expr", [(["filter private A == 0"]), ([QueryBuilder("private")])]
     )
     def test_invalid_queries_evaluate(self, query_expr: Any):
-        """evaluate raises error on invalid queries."""
+        """Evaluate raises error on invalid queries."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1903,7 +1898,7 @@ class TestInvalidSession:
         exception_type: Type[Exception],
         expected_error_msg: str,
     ):
-        """create functions raise error on invalid input queries."""
+        """Create functions raise error on invalid input queries."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -2137,7 +2132,8 @@ class TestSessionBuilder:
 
     def test_build_invalid_identifier(self):
         """Tests that build fails if protected change does
-        not have associated ID space."""
+        not have associated ID space.
+        """
         builder = (
             Session.Builder()
             .with_private_dataframe(
@@ -2243,7 +2239,7 @@ class TestSessionBuilder:
 
     @pytest.mark.parametrize(
         "builder,expected_sympy_budget,expected_output_measure,"
-        + "private_dataframes,public_dataframes",
+        "private_dataframes,public_dataframes",
         [
             (
                 Session.Builder().with_privacy_budget(PureDPBudget(10)),
@@ -2445,7 +2441,6 @@ def test_automatic_partitions(
     protected_change: ProtectedChange,
 ):
     """Tests that partition selection is automatically called with correct queries."""
-
     # Turning on experimental features for this test.
     with config.features.auto_partition_selection.enabled():
         spark = SparkSession.builder.getOrCreate()
@@ -2558,7 +2553,6 @@ def test_automatic_partition_selection_invalid_budget(
     expected_error: str,
 ):
     """Test that Automatic Partition Selection queries with an invalid budget error."""
-
     with config.features.auto_partition_selection.enabled():
         spark = SparkSession.builder.getOrCreate()
         test_df = spark.createDataFrame(input_data)
@@ -2593,8 +2587,8 @@ def test_automatic_partition_selection_invalid_budget(
 )
 def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: List):
     """Tests that automatic partition selection with null keyset raises a warning and
-    completes with an output dataframe with len(0) but the correct schema."""
-
+    completes with an output dataframe with len(0) but the correct schema.
+    """
     with config.features.auto_partition_selection.enabled():
         spark = SparkSession.builder.getOrCreate()
         # An empty DF ensures that automatic partition selection returns a null keyset.

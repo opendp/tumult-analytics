@@ -150,7 +150,7 @@ def _inverse_cdf(noise_info: Dict[str, Any], p: float) -> float:
 
 @singledispatch
 def _noise_from_info(
-    info: Any,  # pylint: disable=unused-argument
+    info: Any,
 ) -> List[Dict[str, Any]]:
     """Get noise information from info (for a measurement).
 

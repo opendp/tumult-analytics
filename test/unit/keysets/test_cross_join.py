@@ -202,7 +202,6 @@ def test_valid(
     assert_dataframe_equal(ks.dataframe(), expected_df)
 
 
-# pylint: disable=protected-access
 @parametrize(
     Case("left_plan")(
         left=KeySet._detect(["A"]),
@@ -235,7 +234,6 @@ def test_valid(
         expected_columns=["B", "A"],
     ),
 )
-# pylint: enable=protected-access
 def test_valid_plan(
     left: Union[KeySet, KeySetPlan],
     right: Union[KeySet, KeySetPlan],
