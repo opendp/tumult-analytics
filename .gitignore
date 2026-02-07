@@ -69,11 +69,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-*/doc/_build/
-*/doc/analytics/reference/api/
-*/doc/synthetics/reference/api/
-*/doc/tune/reference/api/
-**/public/
+doc/reference/api/
+public/
 
 # PyBuilder
 target/
