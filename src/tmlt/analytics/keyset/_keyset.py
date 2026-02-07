@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from functools import reduce
-from typing import Any, Collection, Iterable, Mapping, Optional, Union, overload
+from typing import Any, Collection, Iterable, Mapping, Optional, overload
 
 from pyspark.sql import Column, DataFrame
 
@@ -25,6 +25,7 @@ from ._ops import (
     KeySetOp,
     Project,
     Subtract,
+    Union,
     rewrite,
 )
 
@@ -90,7 +91,7 @@ class KeySet:
 
     @staticmethod
     def from_tuples(
-        tuples: Iterable[tuple[Union[str, int, datetime.date, None], ...]],
+        tuples: Iterable[tuple[str | int | datetime.date | None, ...]],
         columns: Sequence[str],
     ) -> KeySet:
         """Creates a KeySet from a list of tuples and column names.
@@ -161,12 +162,10 @@ class KeySet:
     def from_dict(
         domains: Mapping[
             str,
-            Union[
-                Iterable[Optional[str]],
-                Iterable[Optional[int]],
-                Iterable[Optional[datetime.date]],
-            ],
-        ]
+            Iterable[Optional[str]]
+            | Iterable[Optional[int]]
+            | Iterable[Optional[datetime.date]],
+        ],
     ) -> KeySet:
         """Creates a KeySet from a dictionary.
 
@@ -204,8 +203,6 @@ class KeySet:
         """Detect the keys for a collection of columns."""
         return KeySetPlan(Detect(frozenset(columns)), columns=columns)
 
-    # Pydocstyle doesn't seem to understand overloads, so we need to disable the
-    # check that a docstring exists for them.
     @overload
     def __mul__(self, other: KeySet) -> KeySet:
         ...
@@ -267,7 +264,7 @@ class KeySet:
         """
         return KeySet(Subtract(self._op_tree, other._op_tree), self.columns())
 
-    def __getitem__(self, desired_columns: Union[str, Sequence[str]]) -> KeySet:
+    def __getitem__(self, desired_columns: str | Sequence[str]) -> KeySet:
         """``KeySet[col, col, ...]`` returns a KeySet with those columns only.
 
         The returned KeySet contains all unique combinations of values in the
@@ -317,8 +314,6 @@ class KeySet:
             Project(self._op_tree, frozenset(desired_columns)), columns=desired_columns
         )
 
-    # Pydocstyle doesn't seem to understand overloads, so we need to disable the
-    # check that a docstring exists for them.
     @overload
     def join(self, other: KeySet) -> KeySet:
         ...
@@ -348,8 +343,7 @@ class KeySet:
 
         if not isinstance(other, (KeySet, KeySetPlan)):
             raise ValueError(
-                "KeySet join expected another KeySet, not "
-                f"{type(other).__qualname__}."
+                f"KeySet join expected another KeySet, not {type(other).__qualname__}."
             )
         if isinstance(other, KeySet):
             return KeySet(
@@ -362,7 +356,7 @@ class KeySet:
                 columns=list(dict.fromkeys(self.columns() + other.columns())),
             )
 
-    def filter(self, condition: Union[Column, str]) -> KeySet:
+    def filter(self, condition: Column | str) -> KeySet:
         """Filters this KeySet using some condition.
 
         This method accepts the same syntax as
@@ -405,6 +399,49 @@ class KeySet:
                 the data.
         """
         return KeySet(Filter(self._op_tree, condition), columns=self.columns())
+
+    @overload
+    def union(self, other: KeySet) -> KeySet:
+        ...
+
+    @overload
+    def union(self, other: KeySetPlan) -> KeySetPlan:
+        ...
+
+    def union(self, other):
+        """Compute the union of this KeySet with another KeySet.
+
+        The two KeySets must have exactly the same columns. The result contains
+        all unique rows that appear in either KeySet.
+
+        Example:
+            >>> keyset1 = KeySet.from_tuples([(1, "a"), (2, "b")], columns=["A", "B"])
+            >>> keyset2 = KeySet.from_tuples([(2, "b"), (3, "c")], columns=["A", "B"])
+            >>> union_result = keyset1.union(keyset2)
+            >>> union_result.dataframe().sort("A", "B").toPandas()
+               A  B
+            0  1  a
+            1  2  b
+            2  3  c
+        """
+        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and to
+        #     the below error message.
+
+        if not isinstance(other, (KeySet, KeySetPlan)):
+            raise ValueError(
+                f"KeySet union expected another KeySet, not {type(other).__qualname__}."
+            )
+        if isinstance(other, KeySet):
+            return KeySet(
+                Union(self._op_tree, other._op_tree),
+                columns=self.columns(),
+            )
+        else:
+            return KeySetPlan(
+                Union(self._op_tree, other._op_tree),
+                columns=self.columns(),
+            )
 
     def columns(self) -> list[str]:
         """Returns the list of columns used in this KeySet."""
@@ -472,7 +509,7 @@ class KeySet:
         if self._dataframe:
             self._dataframe.unpersist()
 
-    def is_equivalent(self, other: Union[KeySet, KeySetPlan]) -> Optional[bool]:
+    def is_equivalent(self, other: KeySet | KeySetPlan) -> Optional[bool]:
         """Determine if another KeySet is equivalent to this one, if possible.
 
         This method is an alternative to :meth:`KeySet.__eq__` which is
@@ -629,7 +666,7 @@ class KeySetPlan:
         """Returns the list of columns used in this KeySetPlan."""
         return list(self._columns)
 
-    def __mul__(self, other: Union[KeySet, KeySetPlan]) -> KeySetPlan:
+    def __mul__(self, other: KeySet | KeySetPlan) -> KeySetPlan:
         """The Cartesian product of the two KeySet or KeySetPlan factors.
 
         Example:
@@ -667,9 +704,7 @@ class KeySetPlan:
             Subtract(self._op_tree, other._op_tree), columns=self.columns()
         )
 
-    def __getitem__(
-        self, desired_columns: Union[str, Sequence[str]]
-    ) -> Union[KeySet, KeySetPlan]:
+    def __getitem__(self, desired_columns: str | Sequence[str]) -> KeySet | KeySetPlan:
         """``KeySetPlan[col, col, ...]`` returns a KeySetPlan with those columns only.
 
         The returned KeySetPlan contains all unique combinations of values in the
@@ -705,7 +740,7 @@ class KeySetPlan:
             return KeySetPlan(op_tree, columns=desired_columns)
         return KeySet(op_tree, columns=desired_columns)
 
-    def join(self, other: Union[KeySet, KeySetPlan]) -> KeySetPlan:
+    def join(self, other: KeySet | KeySetPlan) -> KeySetPlan:
         r"""The inner natural join of two KeySet or KeySetPlan objects.
 
         The two KeySets are inner joined on columns with matching names,
@@ -729,7 +764,7 @@ class KeySetPlan:
             columns=list(dict.fromkeys(self.columns() + other.columns())),
         )
 
-    def filter(self, condition: Union[Column, str]) -> KeySetPlan:
+    def filter(self, condition: Column | str) -> KeySetPlan:
         """Filters this KeySetPlan using some condition.
 
         This method accepts the same syntax as
@@ -752,7 +787,32 @@ class KeySetPlan:
         """
         return KeySetPlan(Filter(self._op_tree, condition), columns=self.columns())
 
-    def is_equivalent(self, other: Union[KeySet, KeySetPlan]) -> Optional[bool]:
+    def union(self, other: KeySet | KeySetPlan) -> KeySetPlan:
+        """Compute the union of this KeySetPlan with another KeySet or KeySetPlan.
+
+        The two KeySets must have exactly the same columns. The result contains
+        all unique rows that appear in either KeySet (duplicates are removed,
+        following SQL UNION behavior). Unioning a :class:`KeySetPlan` with
+        any other value always produces a :class:`KeySetPlan`.
+
+        Example:
+            >>> keyset1 = KeySet._detect(["A", "B"])
+            >>> keyset2 = KeySet.from_tuples([(1, "a")], columns=["A", "B"])
+            >>> keyset1.union(keyset2).columns()
+            ['A', 'B']
+        """
+        if not isinstance(other, (KeySet, KeySetPlan)):
+            raise ValueError(
+                "KeySet union expected another KeySet or KeySetPlan, not "
+                f"{type(other).__qualname__}."
+            )
+
+        return KeySetPlan(
+            Union(self._op_tree, other._op_tree),
+            columns=self.columns(),
+        )
+
+    def is_equivalent(self, other: KeySet | KeySetPlan) -> Optional[bool]:
         """Determine if another KeySetPlan is equivalent to this one, if possible.
 
         This method is guaranteed to never evaluate any underlying dataframe,

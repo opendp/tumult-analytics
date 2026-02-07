@@ -18,6 +18,7 @@ from ._from_tuples import FromTuples
 from ._join import Join
 from ._project import Project
 from ._subtract import Subtract
+from ._union import Union
 
 _IN_MEMORY_CROSS_JOIN_THRESHOLD = 2**20
 """The maximum number of output rows where an InMemoryCrossJoin will be applied."""
@@ -55,6 +56,10 @@ def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Ke
             left = wrapped(op.left)
             right = wrapped(op.right)
             return func(Subtract(left, right))
+        elif isinstance(op, Union):
+            left = wrapped(op.left)
+            right = wrapped(op.right)
+            return func(Union(left, right))
         else:
             raise AnalyticsInternalError(
                 f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
@@ -95,6 +100,8 @@ def breadth_first(
             return Filter(wrapped(new_op.child), new_op.condition)
         elif isinstance(new_op, Subtract):
             return Subtract(wrapped(new_op.left), wrapped(new_op.right))
+        elif isinstance(new_op, Union):
+            return Union(wrapped(new_op.left), wrapped(new_op.right))
         else:
             raise AnalyticsInternalError(
                 f"Unhandled KeySetOp subtype {type(new_op).__qualname__} encountered."
@@ -376,6 +383,8 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
         return op
     if isinstance(op, Subtract):
         return Subtract(normalize_joins(op.left), normalize_joins(op.right))
+    if isinstance(op, Union):
+        return Union(normalize_joins(op.left), normalize_joins(op.right))
 
     if not isinstance(op, Join):
         raise AnalyticsInternalError(
@@ -402,6 +411,61 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     return reduce(lambda r, l: Join(l, r), leaves)
 
 
+def normalize_unions(op: KeySetOp) -> KeySetOp:
+    r"""Restructure Unions into a consistent layout.
+
+    This rewrite rule applies two related changes to collections of nested
+    Union operations to ensure a common structure:
+    * The unions are restructured such that only the right subtree of a
+      union can be another union.
+    * The leaves of this collection of joins are sorted by hash. This isn't
+      ideal, as two equivalent subtrees could still have different hashes, but
+      there isn't a better approach for ordering unions because the operands
+      always have the same schema.
+
+    As an example (where `*` represents a Union operation), it would
+    make the following transformation:
+
+    ::
+
+          *                *
+         / \              / \
+        *   3      ->     1 *
+       / \                 / \
+       1 2                 2 3
+    """
+    if isinstance(op, CrossJoin):
+        return type(op)(tuple(normalize_unions(f) for f in op.factors))
+    if isinstance(op, Project):
+        return Project(normalize_unions(op.child), op.projected_columns)
+    if isinstance(op, Filter):
+        return Filter(normalize_unions(op.child), op.condition)
+    if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
+        return op
+    if isinstance(op, Subtract):
+        return Subtract(normalize_unions(op.left), normalize_unions(op.right))
+    if isinstance(op, Join):
+        return Join(normalize_unions(op.left), normalize_unions(op.right))
+
+    if not isinstance(op, Union):
+        raise AnalyticsInternalError(
+            f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
+        )
+
+    leaves = []
+    unions = [op]
+    while unions:
+        current = unions.pop()
+        for child in (current.left, current.right):
+            if isinstance(child, Union):
+                unions.append(child)
+            else:
+                leaves.append(normalize_unions(child))
+
+    leaves.sort(key=lambda v: hash(v))
+    return reduce(lambda r, l: Union(l, r), leaves)
+
+
 def normalize_subtracts(op: KeySetOp) -> KeySetOp:
     """Restructure Subtracts into a consistent layout.
 
@@ -419,6 +483,8 @@ def normalize_subtracts(op: KeySetOp) -> KeySetOp:
         return Project(normalize_subtracts(op.child), op.projected_columns)
     if isinstance(op, Filter):
         return Filter(normalize_subtracts(op.child), op.condition)
+    if isinstance(op, Union):
+        return Union(normalize_subtracts(op.left), normalize_subtracts(op.right))
     if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
         return op
 
@@ -460,6 +526,9 @@ _REWRITE_RULES = [
     apply_cross_joins_in_memory,
     normalize_joins,
     normalize_subtracts,
+    # Normalizing unions depends heavily on op-tree hashes, so do it last to
+    # ensure that other operations are in their final formats first.
+    normalize_unions,
 ]
 """A list of all rewrite rules that will be applied, in order.
 
