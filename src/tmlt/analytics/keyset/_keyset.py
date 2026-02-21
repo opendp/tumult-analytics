@@ -196,7 +196,7 @@ class KeySet:
         )
         return reduce(lambda l, r: l * r, domain_keysets)
 
-    # TODO(tumult-labs/tumult#3384): Make this public and fill in its docstring
+    # TODO(opendp/tumult-analytics#124): Make this public and fill in its docstring
     #     with an example of usage.
     @staticmethod
     def _detect(columns: Sequence[str]) -> KeySetPlan:
@@ -225,8 +225,8 @@ class KeySet:
             2  a2  b1
             3  a2  b2
         """
-        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
-        #     terms of its interation with KeySetPlans in the docstring and to
+        # TODO(opendp/tumult-analytics#124): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and
         #     the below error message.
 
         if not isinstance(other, (KeySet, KeySetPlan)):
@@ -337,8 +337,8 @@ class KeySet:
                 A   B
             0  a2  b1
         """
-        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
-        #     terms of its interation with KeySetPlans in the docstring and to
+        # TODO(opendp/tumult-analytics#124): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and
         #     the below error message.
 
         if not isinstance(other, (KeySet, KeySetPlan)):
@@ -424,8 +424,8 @@ class KeySet:
             1  2  b
             2  3  c
         """
-        # TODO(tumult-labs/tumult#3384): Mention the behavior of this method in
-        #     terms of its interation with KeySetPlans in the docstring and to
+        # TODO(opendp/tumult-analytics#124): Mention the behavior of this method in
+        #     terms of its interation with KeySetPlans in the docstring and
         #     the below error message.
 
         if not isinstance(other, (KeySet, KeySetPlan)):
