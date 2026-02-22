@@ -11,6 +11,7 @@ about the intended semantics of :class:`QueryExpr` objects.
 # Copyright Tumult Labs 2025
 
 import datetime
+import math
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Collection
@@ -1071,6 +1072,13 @@ class AnalyticsDefault:
     """
 
 
+def _valid_replacement_value(val: Any):
+    """Determine if a value is a valid replacement, independent of schema matching."""
+    return val is not None and not (
+        isinstance(val, float) and (math.isnan(val) or math.isinf(val))
+    )
+
+
 @dataclass(frozen=True)
 class ReplaceNullAndNan(SingleChildQueryExpr):
     """Returns data with null and NaN expressions replaced by a default.
@@ -1097,6 +1105,9 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
             self.replace_with,
             FrozenDict,
         )
+        for col, val in self.replace_with.items():
+            if not _valid_replacement_value(val):
+                raise ValueError(f"Invalid replacement value {val} for column '{col}'")
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
@@ -1187,7 +1198,22 @@ class ReplaceInfinity(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         check_type(self.child, QueryExpr)
         check_type(self.replace_with, FrozenDict)
-        check_type(dict(self.replace_with), Dict[str, Tuple[float, float]])
+        # Allow passing None as a replacement for the purposes of this check,
+        # even though we disallow it later -- better consistency of error
+        # messages between the invalid values.
+        check_type(
+            dict(self.replace_with), Dict[str, Tuple[float | None, float | None]]
+        )
+
+        for col, (lower, upper) in self.replace_with.items():
+            if not _valid_replacement_value(lower):
+                raise ValueError(
+                    f"Invalid lower replacement value {lower} for column '{col}'"
+                )
+            if not _valid_replacement_value(upper):
+                raise ValueError(
+                    f"Invalid upper replacement value {upper} for column '{col}'"
+                )
 
         # Ensure that the values in replace_with are tuples of floats
         updated_dict = {}

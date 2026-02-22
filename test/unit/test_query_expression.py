@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 import datetime
 import re
 from typing import Any, Callable, Dict, List, Mapping, Tuple, Type, Union
@@ -269,6 +268,34 @@ def test_invalid_replace_infinity(replace_with: Any, expected_error_msg: str) ->
     """Test ReplaceInfinity with invalid arguments."""
     with pytest.raises((TypeCheckError), match=expected_error_msg):
         QueryBuilder("private").replace_infinity(replace_with)
+
+
+@pytest.mark.parametrize(
+    "replacement_value",
+    [float("nan"), float("-nan"), float("inf"), float("-inf"), None],
+)
+def test_replace_infinity_invalid_value(replacement_value: Any) -> None:
+    """Test ReplaceInfinity with invalid replacement values."""
+    with pytest.raises(
+        ValueError, match=f"Invalid lower replacement value {replacement_value}"
+    ):
+        QueryBuilder("private").replace_infinity({"A": (replacement_value, 0)})
+    with pytest.raises(
+        ValueError, match=f"Invalid upper replacement value {replacement_value}"
+    ):
+        QueryBuilder("private").replace_infinity({"A": (0, replacement_value)})
+
+
+@pytest.mark.parametrize(
+    "replacement_value",
+    [float("nan"), float("-nan"), float("inf"), float("-inf"), None],
+)
+def test_replace_null_and_nan_invalid_value(replacement_value: Any) -> None:
+    """Test ReplaceNullAndNan with invalid replacement values."""
+    with pytest.raises(
+        ValueError, match=f"Invalid replacement value {replacement_value}"
+    ):
+        QueryBuilder("private").replace_null_and_nan({"A": replacement_value})
 
 
 @pytest.mark.parametrize(
