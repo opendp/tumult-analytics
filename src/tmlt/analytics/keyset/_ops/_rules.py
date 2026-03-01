@@ -346,6 +346,7 @@ def apply_cross_joins_in_memory(op: KeySetOp) -> KeySetOp:
     return CrossJoin(tuple(large_factors))
 
 
+@depth_first
 def normalize_joins(op: KeySetOp) -> KeySetOp:
     r"""Restructure Joins into a consistent layout.
 
@@ -373,23 +374,8 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     would be transformed such that the child whose column list is first in the
     sort becomes the left child and the other becomes the right child.
     """
-    if isinstance(op, CrossJoin):
-        return type(op)(tuple(normalize_joins(f) for f in op.factors))
-    if isinstance(op, Project):
-        return Project(normalize_joins(op.child), op.projected_columns)
-    if isinstance(op, Filter):
-        return Filter(normalize_joins(op.child), op.condition)
-    if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
-        return op
-    if isinstance(op, Subtract):
-        return Subtract(normalize_joins(op.left), normalize_joins(op.right))
-    if isinstance(op, Union):
-        return Union(normalize_joins(op.left), normalize_joins(op.right))
-
     if not isinstance(op, Join):
-        raise AnalyticsInternalError(
-            f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
-        )
+        return op
 
     leaves = []
     joins = [op]
@@ -399,7 +385,7 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
             if isinstance(child, Join):
                 joins.append(child)
             else:
-                leaves.append(normalize_joins(child))
+                leaves.append(child)
 
     # Reversing the sort and swapping the right/left parameters in the reduce
     # produces a tree where the topmost leaf is the first in the un-reversed
@@ -411,6 +397,7 @@ def normalize_joins(op: KeySetOp) -> KeySetOp:
     return reduce(lambda r, l: Join(l, r), leaves)
 
 
+@depth_first
 def normalize_unions(op: KeySetOp) -> KeySetOp:
     r"""Restructure Unions into a consistent layout.
 
@@ -434,23 +421,8 @@ def normalize_unions(op: KeySetOp) -> KeySetOp:
        / \                 / \
        1 2                 2 3
     """
-    if isinstance(op, CrossJoin):
-        return type(op)(tuple(normalize_unions(f) for f in op.factors))
-    if isinstance(op, Project):
-        return Project(normalize_unions(op.child), op.projected_columns)
-    if isinstance(op, Filter):
-        return Filter(normalize_unions(op.child), op.condition)
-    if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
-        return op
-    if isinstance(op, Subtract):
-        return Subtract(normalize_unions(op.left), normalize_unions(op.right))
-    if isinstance(op, Join):
-        return Join(normalize_unions(op.left), normalize_unions(op.right))
-
     if not isinstance(op, Union):
-        raise AnalyticsInternalError(
-            f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
-        )
+        return op
 
     leaves = []
     unions = [op]
@@ -460,12 +432,13 @@ def normalize_unions(op: KeySetOp) -> KeySetOp:
             if isinstance(child, Union):
                 unions.append(child)
             else:
-                leaves.append(normalize_unions(child))
+                leaves.append(child)
 
     leaves.sort(key=lambda v: hash(v))
     return reduce(lambda r, l: Union(l, r), leaves)
 
 
+@depth_first
 def normalize_subtracts(op: KeySetOp) -> KeySetOp:
     """Restructure Subtracts into a consistent layout.
 
@@ -475,23 +448,8 @@ def normalize_subtracts(op: KeySetOp) -> KeySetOp:
     that doesn't involve looking at the records in each one (which would be
     slow), since they have the same columns.
     """
-    if isinstance(op, CrossJoin):
-        return type(op)(tuple(normalize_subtracts(f) for f in op.factors))
-    if isinstance(op, Join):
-        return Join(normalize_subtracts(op.left), normalize_subtracts(op.right))
-    if isinstance(op, Project):
-        return Project(normalize_subtracts(op.child), op.projected_columns)
-    if isinstance(op, Filter):
-        return Filter(normalize_subtracts(op.child), op.condition)
-    if isinstance(op, Union):
-        return Union(normalize_subtracts(op.left), normalize_subtracts(op.right))
-    if isinstance(op, (Detect, FromTuples, FromSparkDataFrame)):
-        return op
-
     if not isinstance(op, Subtract):
-        raise AnalyticsInternalError(
-            f"Unhandled KeySetOp subtype {type(op).__qualname__} encountered."
-        )
+        return op
 
     current = op
     subtracted_values = [current.right]
