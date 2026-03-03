@@ -751,11 +751,6 @@ class QueryBuilder:
         """
         if replace_with is None:
             replace_with = {}
-        # this assert is for mypy
-        if replace_with is None:
-            raise AnalyticsInternalError("replace_with parameter is None.")
-
-        check_type(replace_with, Dict[str, Tuple[float, float]])
 
         self._query_expr = ReplaceInfinity(
             child=self._query_expr,
