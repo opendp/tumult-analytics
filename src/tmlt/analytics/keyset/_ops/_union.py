@@ -68,6 +68,8 @@ class Union(KeySetOp):
             c: ColumnDescriptor(
                 left_schema[c].column_type,
                 allow_null=left_schema[c].allow_null or right_schema[c].allow_null,
+                allow_nan=left_schema[c].allow_nan or right_schema[c].allow_nan,
+                allow_inf=left_schema[c].allow_inf or right_schema[c].allow_inf,
             )
             for c in left_schema
         }
