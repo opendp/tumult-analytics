@@ -13,3 +13,4 @@ from ._join import Join
 from ._project import Project
 from ._rules import rewrite
 from ._subtract import Subtract
+from ._union import Union

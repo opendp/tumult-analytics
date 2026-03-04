@@ -65,6 +65,8 @@ class Join(KeySetOp):
                 schema[c] = ColumnDescriptor(
                     schema[c].column_type,
                     allow_null=schema[c].allow_null and desc.allow_null,
+                    allow_nan=schema[c].allow_nan and desc.allow_nan,
+                    allow_inf=schema[c].allow_inf and desc.allow_inf,
                 )
             else:
                 schema[c] = desc

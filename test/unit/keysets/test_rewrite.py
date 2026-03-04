@@ -71,6 +71,19 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
             )
         )
     ),
+    Case("union_reorder")(
+        ks=lambda spark: KeySet.from_dict({"A": [1, 2]}).union(
+            KeySet.from_dict({"A": [2, 3]})
+        ),
+        # Because the ordering depends on hashes, this may or may not change the
+        # resulting op-tree.
+        allow_unchanged=True,
+    ),
+    Case("union_linearize")(
+        ks=lambda spark: KeySet.from_dict({"A": [1, 2]})
+        .union(KeySet.from_dict({"A": [2, 3]}))
+        .union(KeySet.from_dict({"A": [4]}).union(KeySet.from_dict({"A": [5]}))),
+    ),
     Case("nested_project")(
         ks=lambda spark: (
             KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B"]["A"]

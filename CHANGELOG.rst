@@ -10,6 +10,10 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- :meth:`.KeySet.union`, which combines KeySets with matching schemas into a single KeySet containing all keys from either operand.
+
 Changed
 ~~~~~~~
 - Dropped support for Python 3.9, as it has reached end-of-life.
@@ -50,8 +54,8 @@ Changed
 0.20.0 - 2025-02-25
 -------------------
 
-This release introduces a major overhaul of KeySets, including several new operations and tweaks to existing ones. 
-It also features reorganized documentation. 
+This release introduces a major overhaul of KeySets, including several new operations and tweaks to existing ones.
+It also features reorganized documentation.
 
 Added
 ~~~~~

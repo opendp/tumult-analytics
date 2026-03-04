@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 from typing import Optional, Union
 
 import pyspark.sql.functions as sf
@@ -99,6 +98,33 @@ _KS_ABCDEF = _KS_A * _KS_B * _KS_C * _KS_DEF
         ks1=KeySet.from_dict({"A": [1, 2], "B": [3, 4], "C": [5], "D": [6, 7, 8]}),
         ks2=KeySet.from_dict({"A": [9, 2], "B": [3, 4], "C": [5], "D": [6, 7, 8]}),
         equal=False,
+    ),
+    Case("union_commutative")(
+        ks1=KeySet.from_dict({"A": [1, 2]}).union(KeySet.from_dict({"A": [3]})),
+        ks2=KeySet.from_dict({"A": [3]}).union(KeySet.from_dict({"A": [1, 2]})),
+        equal=True,
+        equivalence_known=True,
+    ),
+    Case("union_nested")(
+        ks1=(
+            KeySet.from_dict({"A": [1, 2]})
+            .union(KeySet.from_dict({"A": [3]}))
+            .union(KeySet.from_dict({"A": [4]}))
+            .union(KeySet.from_dict({"A": [5]}))
+        ),
+        ks2=(
+            KeySet.from_dict({"A": [1, 2]})
+            .union(KeySet.from_dict({"A": [3]}))
+            .union(KeySet.from_dict({"A": [4]}).union(KeySet.from_dict({"A": [5]})))
+        ),
+        equal=True,
+        equivalence_known=True,
+    ),
+    Case("union_ne")(
+        ks1=KeySet.from_dict({"A": [1, 2]}).union(KeySet.from_dict({"A": [3]})),
+        ks2=KeySet.from_dict({"A": [1]}).union(KeySet.from_dict({"A": [3]})),
+        equal=False,
+        equivalence_known=False,
     ),
     Case("filter_eq")(
         ks1=_KS_DEF.filter("E = -1"),
