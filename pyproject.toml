@@ -58,7 +58,6 @@ default-groups = "all"
 [dependency-groups]
 ruff = ["ruff >=0.14.3,<1"]
 black = ["black >=23.3,<24"]
-isort = ["isort >=5.11,<6"]
 mypy = ["mypy >=1.14.0"]
 test = [
     "pytest",
@@ -137,10 +136,11 @@ packages = ["src/tmlt"]
 [tool.ruff.lint]
 # A list of all of Ruff's rules can be found at https://docs.astral.sh/ruff/rules/
 select = [
-    # Enable Ruff-specific lints plus Pylint, pydocstyle, pyflakes, and pycodestyle.
-    # The latter two cover many lints that we previously used pylint for, but
-    # because they are overlapping Ruff only implements them in one set of rules.
-    "RUF", "PL", "D", "F", "E", "W",
+    # Enable Ruff-specific lints plus isort, Pylint, pydocstyle, pyflakes, and
+    # pycodestyle.  The latter two cover many lints that we previously used
+    # pylint for, but because they are overlapping Ruff only implements them in
+    # one set of rules.
+    "RUF", "I", "PL", "D", "F", "E", "W",
     # Also enable a subset of flake8 rules, for similar reasons to pyflakes/pycodestyle.
     "ISC", "SLF"
 ]
@@ -185,19 +185,15 @@ ignore = [
 # those characters.
 allowed-confusables = ['α', 'ρ', '𝝆']
 
+[tool.ruff.lint.isort]
+forced-separate = ["test"]
+combine-as-imports = true
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.black]
 force-exclude = "noxfile.py"
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"

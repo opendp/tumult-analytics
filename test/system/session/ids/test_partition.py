@@ -7,8 +7,11 @@
 import pandas as pd
 import pytest
 import sympy as sp
-from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
-from tmlt.core.metrics import DictMetric, SymmetricDifference
+from tmlt.core.metrics import (
+    AddRemoveKeys as CoreAddRemoveKeys,
+    DictMetric,
+    SymmetricDifference,
+)
 from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (

@@ -142,7 +142,6 @@ sm = SessionManager(
 sm.build()
 
 sm.black()
-sm.isort()
 sm.ruff_check()
 sm.mypy()
 
