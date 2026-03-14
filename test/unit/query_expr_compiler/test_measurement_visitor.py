@@ -1,5 +1,4 @@
 """Tests for MeasurementVisitor."""
-from test.conftest import create_empty_input
 from typing import List, Union
 from unittest.mock import patch
 
@@ -43,9 +42,7 @@ from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-)
-from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics._query_expr import (
+    DropInfinity as DropInfExpr,
     DropNullAndNan,
     Filter,
     FlatMap,
@@ -62,11 +59,9 @@ from tmlt.analytics._query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
-)
-from tmlt.analytics._query_expr import ReplaceInfinity as ReplaceInfExpr
-from tmlt.analytics._query_expr import ReplaceNullAndNan
-from tmlt.analytics._query_expr import Select as SelectExpr
-from tmlt.analytics._query_expr import (
+    ReplaceInfinity as ReplaceInfExpr,
+    ReplaceNullAndNan,
+    Select as SelectExpr,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
@@ -84,6 +79,8 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics._table_identifier import NamedTable
+
+from test.conftest import create_empty_input
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025

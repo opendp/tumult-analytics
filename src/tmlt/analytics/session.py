@@ -9,8 +9,10 @@ from warnings import warn
 
 import pandas as pd  # needed for doctests
 import sympy as sp
-from pyspark.sql import SparkSession  # needed for doctests
-from pyspark.sql import DataFrame
+from pyspark.sql import (
+    DataFrame,
+    SparkSession,  # needed for doctests
+)
 from tabulate import tabulate
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain

@@ -82,5 +82,3 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # This version file is populated during build -- do not commit it.
 from ._version import __version__
-
-# isort: off
