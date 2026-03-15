@@ -36,8 +36,8 @@ from tmlt.core.measurements.interactive_measurements import (
     SequentialQueryable,
 )
 from tmlt.core.measures import ApproxDP, Measure, PureDP, RhoZCDP
-from tmlt.core.metrics import AddRemoveKeys as CoreAddRemoveKeys
 from tmlt.core.metrics import (
+    AddRemoveKeys as CoreAddRemoveKeys,
     DictMetric,
     IfGroupedBy,
     Metric,

@@ -22,8 +22,8 @@ from tmlt.core.transformations.identity import Identity as IdentityTransformatio
 
 from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
 from tmlt.analytics._query_expr import (
+    DropInfinity as DropInfExpr,
     DropNullAndNan,
     Filter,
     FlatMap,

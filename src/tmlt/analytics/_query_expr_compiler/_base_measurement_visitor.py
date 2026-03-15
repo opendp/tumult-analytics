@@ -69,13 +69,12 @@ from tmlt.analytics._query_expr import (
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
-)
-from tmlt.analytics._query_expr import DropInfinity as DropInfExpr
-from tmlt.analytics._query_expr import DropNullAndNan, EnforceConstraint
-from tmlt.analytics._query_expr import Filter as FilterExpr
-from tmlt.analytics._query_expr import FlatMap as FlatMapExpr
-from tmlt.analytics._query_expr import FlatMapByID as FlatMapByIDExpr
-from tmlt.analytics._query_expr import (
+    DropInfinity as DropInfExpr,
+    DropNullAndNan,
+    EnforceConstraint,
+    Filter as FilterExpr,
+    FlatMap as FlatMapExpr,
+    FlatMapByID as FlatMapByIDExpr,
     GetBounds,
     GetGroups,
     GroupByBoundedAverage,
@@ -85,16 +84,16 @@ from tmlt.analytics._query_expr import (
     GroupByCount,
     GroupByCountDistinct,
     GroupByQuantile,
-)
-from tmlt.analytics._query_expr import JoinPrivate as JoinPrivateExpr
-from tmlt.analytics._query_expr import JoinPublic as JoinPublicExpr
-from tmlt.analytics._query_expr import Map as MapExpr
-from tmlt.analytics._query_expr import PrivateSource as PrivateSourceExpr
-from tmlt.analytics._query_expr import QueryExpr, QueryExprVisitor
-from tmlt.analytics._query_expr import Rename as RenameExpr
-from tmlt.analytics._query_expr import ReplaceInfinity, ReplaceNullAndNan
-from tmlt.analytics._query_expr import Select as SelectExpr
-from tmlt.analytics._query_expr import (
+    JoinPrivate as JoinPrivateExpr,
+    JoinPublic as JoinPublicExpr,
+    Map as MapExpr,
+    PrivateSource as PrivateSourceExpr,
+    QueryExpr,
+    QueryExprVisitor,
+    Rename as RenameExpr,
+    ReplaceInfinity,
+    ReplaceNullAndNan,
+    Select as SelectExpr,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
