@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'darwin'",
@@ -1840,15 +1840,14 @@ wheels = [
 
 [[package]]
 name = "sphinxcontrib-images"
-version = "0.9.4"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "sphinx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/52/f0f6bcaa59231d8ac1efc8f6e92c9e14004bab2b420cefe3fcd60c082d0b/sphinxcontrib-images-0.9.4.tar.gz", hash = "sha256:f6c237d0430793e65d91dbddb13b1fb26a2cf838040a9deeb52112969fbc4a4b", size = 116949, upload-time = "2021-08-09T04:53:49.104Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/63/ca2260e431b94cf9fe073c12d363a4981b94483e08fb3962089047248540/sphinxcontrib_images-0.9.4-py2.py3-none-any.whl", hash = "sha256:8863e8e8533a116f45cb92523938ab25879cc31dc594f5de4c3dbd9ab3d440b0", size = 118717, upload-time = "2021-08-09T04:53:46.435Z" },
+    { url = "https://files.pythonhosted.org/packages/08/c5/402cce1cc18caff306effa09e77fdb3872289edc956a5c1bf53c03799b3b/sphinxcontrib_images-1.0.1-py3-none-any.whl", hash = "sha256:3cc9738dc15bacb3ab153b411a1b50dbfaa2535b49853ef3eae4d22adbbffa26", size = 119672, upload-time = "2025-06-07T22:42:48.954Z" },
 ]
 
 [[package]]
@@ -1992,7 +1991,7 @@ docs = [
     { name = "sphinx-design", specifier = ">=0.5.0,<0.6" },
     { name = "sphinx-reredirects", specifier = ">=0.1.5,<0.2" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.2,<3" },
-    { name = "sphinxcontrib-images", specifier = ">=0.9.4,<0.10" },
+    { name = "sphinxcontrib-images", specifier = ">=1.0,<2" },
 ]
 docs-examples = [
     { name = "matplotlib", specifier = ">=3.1.0,<4" },
