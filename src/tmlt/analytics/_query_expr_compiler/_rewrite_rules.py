@@ -56,7 +56,7 @@ class CompilationInfo:
 
 
 def depth_first(
-    func: Callable[[QueryExpr], QueryExpr]
+    func: Callable[[QueryExpr], QueryExpr],
 ) -> Callable[[QueryExpr], QueryExpr]:
     """Recursively applies the given method to a QueryExpr, depth-first."""
 

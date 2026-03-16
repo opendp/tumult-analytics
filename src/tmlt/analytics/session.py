@@ -131,9 +131,9 @@ def _generate_neighboring_relation(sources: Dict[str, PrivateDataFrame]) -> Conj
         elif isinstance(protected_change, AddRowsWithID):
             if protected_ids_dict.get(protected_change.id_space) is None:
                 protected_ids_dict[protected_change.id_space] = {}
-            protected_ids_dict[protected_change.id_space][
-                name
-            ] = protected_change.id_column
+            protected_ids_dict[protected_change.id_space][name] = (
+                protected_change.id_column
+            )
         else:
             raise ValueError(
                 f"Unsupported ProtectedChange type: {type(protected_change)}"
@@ -668,9 +668,9 @@ class Session:
                     table_desc = f"Table '{name}':\n"
                     table_desc += table_schema
 
-                    constraints: Optional[
-                        List[Constraint]
-                    ] = self._table_constraints.get(NamedTable(name))
+                    constraints: Optional[List[Constraint]] = (
+                        self._table_constraints.get(NamedTable(name))
+                    )
                     if not constraints:
                         table_desc = (
                             f"Table '{name}' (no constraints):\n" + table_schema

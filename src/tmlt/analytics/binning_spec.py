@@ -80,7 +80,8 @@ def _edges_as_str(bin_edges: Tuple[BinT]) -> Tuple[str, ...]:
         else:
             timespec = "minutes"
         return tuple(
-            e.isoformat(sep=" ", timespec=timespec) for e in bin_edges  # type: ignore
+            e.isoformat(sep=" ", timespec=timespec)  # type: ignore
+            for e in bin_edges
         )
     elif isinstance(bin_edges[0], str):
         # Use repr for strings so that they get quoted.
@@ -97,22 +98,22 @@ def _default_bin_names(
     if right:
         if include_edges:
             return [f"[{bin_edge_strs[0]}, {bin_edge_strs[1]}]"] + [
-                f"({bin_edge_strs[i]}, {bin_edge_strs[i+1]}]"
+                f"({bin_edge_strs[i]}, {bin_edge_strs[i + 1]}]"
                 for i in range(1, len(bin_edges) - 1)
             ]
         else:
             return [
-                f"({bin_edge_strs[i]}, {bin_edge_strs[i+1]}]"
+                f"({bin_edge_strs[i]}, {bin_edge_strs[i + 1]}]"
                 for i in range(len(bin_edges) - 1)
             ]
     elif include_edges:
         return [
-            f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
+            f"[{bin_edge_strs[i]}, {bin_edge_strs[i + 1]})"
             for i in range(len(bin_edges) - 2)
         ] + [f"[{bin_edge_strs[-2]}, {bin_edge_strs[-1]}]"]
     else:
         return [
-            f"[{bin_edge_strs[i]}, {bin_edge_strs[i+1]})"
+            f"[{bin_edge_strs[i]}, {bin_edge_strs[i + 1]})"
             for i in range(len(bin_edges) - 1)
         ]
 

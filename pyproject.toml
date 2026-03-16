@@ -57,7 +57,6 @@ default-groups = "all"
 
 [dependency-groups]
 ruff = ["ruff >=0.14.3,<1"]
-black = ["black >=23.3,<24"]
 mypy = ["mypy >=1.14.0"]
 test = [
     "pytest",
@@ -191,9 +190,6 @@ combine-as-imports = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.black]
-force-exclude = "noxfile.py"
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"

@@ -93,7 +93,7 @@ from tmlt.analytics.config import config
 
 
 def _privacy_budget_to_exact_number(
-    budget: Union[PureDPBudget, RhoZCDPBudget]
+    budget: Union[PureDPBudget, RhoZCDPBudget],
 ) -> ExactNumber:
     """Turn a privacy budget into an Exact Number."""
     if isinstance(budget, (PureDPBudget, RhoZCDPBudget)):
@@ -278,11 +278,14 @@ class TestSession:
         from_dataframe_args: Dict,
     ):
         """Tests that :func:`Session.from_dataframe` works with a grouping column."""
-        with patch(
-            "tmlt.analytics.session.SequentialComposition", autospec=True
-        ) as mock_composition_init, patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
+        with (
+            patch(
+                "tmlt.analytics.session.SequentialComposition", autospec=True
+            ) as mock_composition_init,
+            patch.object(
+                Session, "__init__", autospec=True, return_value=None
+            ) as mock_session_init,
+        ):
             mock_composition_init.return_value = Mock(
                 spec_set=SequentialComposition,
                 return_value=Mock(spec_set=SequentialComposition),
@@ -349,11 +352,14 @@ class TestSession:
 
         AddRemoveKeys doesn't create a DictMetric because it's special.
         """
-        with patch(
-            "tmlt.analytics.session.SequentialComposition", autospec=True
-        ) as mock_composition_init, patch.object(
-            Session, "__init__", autospec=True, return_value=None
-        ) as mock_session_init:
+        with (
+            patch(
+                "tmlt.analytics.session.SequentialComposition", autospec=True
+            ) as mock_composition_init,
+            patch.object(
+                Session, "__init__", autospec=True, return_value=None
+            ) as mock_session_init,
+        ):
             mock_composition_init.return_value = Mock(
                 spec_set=SequentialComposition,
                 return_value=Mock(spec_set=SequentialComposition),
@@ -581,11 +587,12 @@ class TestSession:
         """Confirm that using an approxdp query on a puredp accountant raises an
         error.
         """
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch.object(QueryExprCompiler, "__call__", autospec=True) as mock_compiler,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_and_compiler(
                 spark, d_in, mock_accountant, mock_compiler
             )
@@ -607,11 +614,12 @@ class TestSession:
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_with_zero_budget(self, spark, d_in):
         """Confirm that calling evaluate with a 'budget' of 0 fails."""
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch.object(QueryExprCompiler, "__call__", autospec=True) as mock_compiler,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_and_compiler(
                 spark, d_in, mock_accountant, mock_compiler
             )
@@ -653,11 +661,12 @@ class TestSession:
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_zcdp_session_puredp_query(self, spark, d_in):
         """Confirm that using a puredp query on a zcdp accountant raises an error."""
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch.object(QueryExprCompiler, "__call__", autospec=True) as mock_compiler,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_and_compiler(
                 spark, d_in, mock_accountant, mock_compiler
             )
@@ -681,11 +690,12 @@ class TestSession:
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_puredp_session_zcdp_query(self, spark, d_in):
         """Confirm that using a zcdp query on a puredp accountant raises an error."""
-        with patch.object(
-            QueryExprCompiler, "__call__", autospec=True
-        ) as mock_compiler, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch.object(QueryExprCompiler, "__call__", autospec=True) as mock_compiler,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_and_compiler(
                 spark, d_in, mock_accountant, mock_compiler
             )
@@ -1099,9 +1109,12 @@ class TestSession:
 
     def test_describe(self, spark):
         """Test that :func:`_describe` works correctly."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
             mock_accountant.state = PrivacyAccountantState.ACTIVE
 
@@ -1167,9 +1180,12 @@ Public table 'public1':\n"""
 
     def test_describe_with_constraints(self, spark):
         """Test :func:`_describe` with a table with constraints."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant(mock_accountant, privacy_budget=ExactNumber(10))
             mock_accountant.state = PrivacyAccountantState.ACTIVE
 
@@ -1239,9 +1255,12 @@ Public table 'public1':\n"""
 
     def test_describe_with_id_column(self, spark):
         """Test :func:`_describe` with a table with an ID column."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_with_id(
                 mock_accountant, privacy_budget=ExactNumber(10)
             )
@@ -1474,9 +1493,12 @@ Public table 'public1':\n"""
         self, constraints: List[Constraint], expected_output: str
     ):
         """Test :func:`_describe` with a table with constraints."""
-        with patch("builtins.print") as mock_print, patch(
-            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
-        ) as mock_accountant:
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+            ) as mock_accountant,
+        ):
             self._setup_accountant_with_id(
                 mock_accountant, privacy_budget=ExactNumber(10)
             )
@@ -2537,12 +2559,12 @@ def test_automatic_partitions_with_ids(
         (
             ApproxDPBudget(0, 0.1),
             "Automatic partition selection requires a positive "
-            f"epsilon. The budget provided was {ApproxDPBudget(0,.1)}.",
+            f"epsilon. The budget provided was {ApproxDPBudget(0, 0.1)}.",
         ),
         (
             ApproxDPBudget(1, 0),
             "Automatic partition selection requires a positive "
-            f"delta. The budget provided was {ApproxDPBudget(1,0)}.",
+            f"delta. The budget provided was {ApproxDPBudget(1, 0)}.",
         ),
     ],
 )

@@ -145,7 +145,9 @@ def test_dataframes_rejects_wrong_types(spark):
         builder.with_private_dataframe(1, df, AddMaxRows(1))  # type: ignore
     with pytest.raises(TypeCheckError):
         builder.with_private_dataframe(
-            "source_id", "not a dataframe", AddMaxRows(1)  # type: ignore
+            "source_id",
+            "not a dataframe",  # type: ignore
+            AddMaxRows(1),
         )
     with pytest.raises(TypeCheckError):
         # wrong type for ProtectedChange

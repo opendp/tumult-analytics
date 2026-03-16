@@ -349,13 +349,11 @@ def assert_approx_equal_budgets(
 
 
 @overload
-def create_empty_input(domain: DictDomain) -> Dict:
-    ...
+def create_empty_input(domain: DictDomain) -> Dict: ...
 
 
 @overload
-def create_empty_input(domain: SparkDataFrameDomain) -> DataFrame:
-    ...
+def create_empty_input(domain: SparkDataFrameDomain) -> DataFrame: ...
 
 
 def create_empty_input(domain):

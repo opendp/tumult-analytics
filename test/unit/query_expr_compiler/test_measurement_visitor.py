@@ -1,4 +1,5 @@
 """Tests for MeasurementVisitor."""
+
 from typing import List, Union
 from unittest.mock import patch
 

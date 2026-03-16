@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 import pandas as pd
 import pytest
 import sympy as sp

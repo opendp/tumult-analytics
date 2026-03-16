@@ -122,9 +122,9 @@ def test_config_feature_flag_raise_if_disabled_snippet():
             ff.raise_if_disabled()
         error_message = str(exc_info.value)
         enable_snippet_idx = error_message.find("from tmlt.analytics")
-        assert (
-            enable_snippet_idx != -1
-        ), "No snippet to enable flag found in exception message"
+        assert enable_snippet_idx != -1, (
+            "No snippet to enable flag found in exception message"
+        )
         enable_snippet = error_message[enable_snippet_idx:]
         with patch("tmlt.analytics.config.config", cfg):
             exec(enable_snippet, {}, {})

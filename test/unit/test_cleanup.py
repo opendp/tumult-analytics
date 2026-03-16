@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 from unittest.mock import patch
 
 from tmlt.analytics.utils import cleanup, remove_all_temp_tables

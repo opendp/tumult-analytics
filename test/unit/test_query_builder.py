@@ -664,7 +664,7 @@ def test_histogram_options():
 def test_replace_null_and_nan(
     replace_with: Optional[
         Mapping[str, Union[int, float, str, datetime.date, datetime.datetime]]
-    ]
+    ],
 ) -> None:
     """QueryBuilder.replace_null_and_nan works as expected."""
     query = root_builder().replace_null_and_nan(replace_with).count()
@@ -700,7 +700,7 @@ def test_replace_null_and_nan(
     ],
 )
 def test_replace_infinity(
-    replace_with: Optional[Dict[str, Tuple[float, float]]]
+    replace_with: Optional[Dict[str, Tuple[float, float]]],
 ) -> None:
     """QueryBuilder.replace_infinity works as expected."""
     query = root_builder().replace_infinity(replace_with).count()
@@ -846,9 +846,7 @@ class TestAggregations:
         return KeySet.from_dataframe(
             # This conditional works around an odd behavior in Spark where
             # converting an empty pandas dataframe with no columns will fail.
-            spark.createDataFrame(df)
-            if not df.empty
-            else spark.createDataFrame([], "")
+            spark.createDataFrame(df) if not df.empty else spark.createDataFrame([], "")
         )
 
     def assert_root_expr(self, root_expr: QueryExpr):

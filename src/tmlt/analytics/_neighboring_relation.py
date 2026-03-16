@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
@@ -340,8 +339,9 @@ class Conjunction(NeighboringRelation):
             if set(covered_tables) & set(relation_table_names):
                 raise ValueError(
                     f"""It appears a table is used more than once in the relation.
-                    Duplicate table(s): {set(covered_tables)&
-                    set(relation_table_names)}"""
+                    Duplicate table(s): {
+                        set(covered_tables) & set(relation_table_names)
+                    }"""
                 )
             covered_tables.extend(relation_table_names)
         # the sets don't match, meaning a table was left out of either the relation
@@ -350,8 +350,9 @@ class Conjunction(NeighboringRelation):
             raise ValueError(
                 f"""It appears that the list of input tables doesn't match the list of
                 tables used in the relation.
-                Tables that appear in only one list: {set(dfs.keys())^
-                set(covered_tables)}
+                Tables that appear in only one list: {
+                    set(dfs.keys()) ^ set(covered_tables)
+                }
                 """
             )
         return True

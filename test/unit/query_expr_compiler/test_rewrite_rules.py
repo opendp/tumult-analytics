@@ -1,4 +1,5 @@
 """Tests for rewrite rules."""
+
 from dataclasses import dataclass, replace
 from typing import Any, Union
 

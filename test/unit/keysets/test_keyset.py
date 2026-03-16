@@ -110,7 +110,7 @@ def test_from_dict_empty_list(
             List[Optional[int]],
             List[Optional[datetime.date]],
         ],
-    ]
+    ],
 ) -> None:
     """Test that calls like ``KeySet.from_dict({'A': []})`` raise a friendly error."""
     with pytest.raises(

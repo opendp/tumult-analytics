@@ -27,13 +27,13 @@ def session(_session_data, request):
     up this way allows parametrizing tests to run with Sessions that use
     multiple privacy definitions without duplicating all of the test logic.
     """
-    assert hasattr(
-        request, "param"
-    ), "The session fixture requires a parameter indicating its budget"
+    assert hasattr(request, "param"), (
+        "The session fixture requires a parameter indicating its budget"
+    )
     budget = request.param
-    assert isinstance(
-        budget, PrivacyBudget
-    ), "The session fixture parameter must be a PrivacyBudget"
+    assert isinstance(budget, PrivacyBudget), (
+        "The session fixture parameter must be a PrivacyBudget"
+    )
 
     sess = (
         Session.Builder()
