@@ -1565,9 +1565,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
 
-        # Peek at the schema, to see if there are errors there
-        expr.schema(self.catalog)
-
         child_transformation, child_ref = self._truncate_table(
             *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
             grouping_columns=groupby_cols,
