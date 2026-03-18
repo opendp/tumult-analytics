@@ -151,8 +151,7 @@ class Query:
 
 class _QueryProtocol(Protocol):
     @property
-    def _query_expr(self) -> QueryExpr:
-        ...
+    def _query_expr(self) -> QueryExpr: ...
 
 
 class _PostProcessSuppressMixin:

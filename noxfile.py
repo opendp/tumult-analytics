@@ -141,7 +141,7 @@ sm = SessionManager(
 
 sm.build()
 
-sm.black()
+sm.ruff_format()
 sm.ruff_check()
 sm.mypy()
 

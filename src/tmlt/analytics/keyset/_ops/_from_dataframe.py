@@ -52,16 +52,13 @@ class FromSparkDataFrame(KeySetOp):
         return False
 
     @overload
-    def size(self, fast: Literal[True]) -> Optional[int]:
-        ...
+    def size(self, fast: Literal[True]) -> Optional[int]: ...
 
     @overload
-    def size(self, fast: Literal[False]) -> int:
-        ...
+    def size(self, fast: Literal[False]) -> int: ...
 
     @overload
-    def size(self, fast: bool) -> Optional[int]:
-        ...
+    def size(self, fast: bool) -> Optional[int]: ...
 
     def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""

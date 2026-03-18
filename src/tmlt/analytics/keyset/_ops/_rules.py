@@ -69,7 +69,7 @@ def depth_first(func: Callable[[KeySetOp], KeySetOp]) -> Callable[[KeySetOp], Ke
 
 
 def breadth_first(
-    func: Callable[[KeySetOp], KeySetOp]
+    func: Callable[[KeySetOp], KeySetOp],
 ) -> Callable[[KeySetOp], KeySetOp]:
     """Recursively apply the given method to an op-tree, breadth-first.
 

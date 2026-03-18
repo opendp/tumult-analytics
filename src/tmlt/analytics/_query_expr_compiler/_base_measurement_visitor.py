@@ -1,4 +1,5 @@
 """Defines a base class for building measurement visitors."""
+
 import math
 import warnings
 from abc import abstractmethod
@@ -126,7 +127,7 @@ def _get_core_mechanism(
         GroupByBoundedVariance,
         GroupByCount,
         GroupByCountDistinct,
-    ]
+    ],
 ) -> NoiseMechanism:
     if query.core_mechanism is None:
         raise AnalyticsInternalError(
@@ -143,7 +144,7 @@ def _get_query_bounds(
         GroupByBoundedSum,
         GroupByBoundedVariance,
         GroupByQuantile,
-    ]
+    ],
 ) -> Tuple[ExactNumber, ExactNumber]:
     """Returns lower and upper clamping bounds of a query as :class:`~.ExactNumbers`."""
     if query.high == query.low:

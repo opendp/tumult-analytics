@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-
 import itertools
 from functools import reduce
 from typing import Dict, List, Sequence, Tuple

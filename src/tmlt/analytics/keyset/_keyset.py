@@ -204,12 +204,10 @@ class KeySet:
         return KeySetPlan(Detect(frozenset(columns)), columns=columns)
 
     @overload
-    def __mul__(self, other: KeySet) -> KeySet:
-        ...
+    def __mul__(self, other: KeySet) -> KeySet: ...
 
     @overload
-    def __mul__(self, other: KeySetPlan) -> KeySetPlan:
-        ...
+    def __mul__(self, other: KeySetPlan) -> KeySetPlan: ...
 
     def __mul__(self, other):
         r"""The Cartesian product of the two KeySet factors.
@@ -315,12 +313,10 @@ class KeySet:
         )
 
     @overload
-    def join(self, other: KeySet) -> KeySet:
-        ...
+    def join(self, other: KeySet) -> KeySet: ...
 
     @overload
-    def join(self, other: KeySetPlan) -> KeySetPlan:
-        ...
+    def join(self, other: KeySetPlan) -> KeySetPlan: ...
 
     def join(self, other):
         r"""The inner natural join of two KeySet objects.
@@ -401,12 +397,10 @@ class KeySet:
         return KeySet(Filter(self._op_tree, condition), columns=self.columns())
 
     @overload
-    def union(self, other: KeySet) -> KeySet:
-        ...
+    def union(self, other: KeySet) -> KeySet: ...
 
     @overload
-    def union(self, other: KeySetPlan) -> KeySetPlan:
-        ...
+    def union(self, other: KeySetPlan) -> KeySetPlan: ...
 
     def union(self, other):
         """Compute the union of this KeySet with another KeySet.

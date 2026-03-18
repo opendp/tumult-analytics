@@ -108,16 +108,13 @@ class CrossJoin(KeySetOp):
         return any(f.is_plan() for f in self.factors)
 
     @overload
-    def size(self, fast: Literal[True]) -> Optional[int]:
-        ...
+    def size(self, fast: Literal[True]) -> Optional[int]: ...
 
     @overload
-    def size(self, fast: Literal[False]) -> int:
-        ...
+    def size(self, fast: Literal[False]) -> int: ...
 
     @overload
-    def size(self, fast: bool) -> Optional[int]:
-        ...
+    def size(self, fast: bool) -> Optional[int]: ...
 
     def size(self, fast):
         """Determine the size of the KeySet resulting from this operation."""

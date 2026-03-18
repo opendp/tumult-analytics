@@ -54,9 +54,9 @@ class TestConstraints(TestTransformationVisitor):
 
         # Check that each ID doesn't appear more times than the constraint bound.
         rows_per_id = result_df.groupby("id")["id"].count()
-        assert all(
-            rows_per_id <= constraint_max
-        ), f"MaxRowsPerID constraint violated, counts were:\n{rows_per_id}"
+        assert all(rows_per_id <= constraint_max), (
+            f"MaxRowsPerID constraint violated, counts were:\n{rows_per_id}"
+        )
 
         self._test_is_subset(input_df, result_df)
 
@@ -77,9 +77,9 @@ class TestConstraints(TestTransformationVisitor):
         # Check that each no ID has more groups associated with it than the
         # truncation bound.
         groups_per_id = result_df.groupby("id").nunique()[grouping_col]
-        assert all(
-            groups_per_id <= constraint_max
-        ), f"MaxGroupsPerID constraint violated, counts were:\n{groups_per_id}"
+        assert all(groups_per_id <= constraint_max), (
+            f"MaxGroupsPerID constraint violated, counts were:\n{groups_per_id}"
+        )
 
         self._test_is_subset(input_df, result_df)
 
@@ -100,10 +100,9 @@ class TestConstraints(TestTransformationVisitor):
         # Check that each (ID, grouping_column) pair doesn't appear more
         # times than the constraint bound.
         rows_per_group_per_id = result_df.value_counts(["id", grouping_col])
-        assert all(
-            rows_per_group_per_id <= constraint_max
-        ), "MaxRowsPerGroupPerID constraint violated, counts were:\n" + str(
-            rows_per_group_per_id
+        assert all(rows_per_group_per_id <= constraint_max), (
+            "MaxRowsPerGroupPerID constraint violated, counts were:\n"
+            + str(rows_per_group_per_id)
         )
 
         self._test_is_subset(input_df, result_df)

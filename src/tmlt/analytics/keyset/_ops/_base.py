@@ -53,19 +53,16 @@ class KeySetOp(ABC):
         """Determine whether this plan has any parts requiring partition selection."""
 
     @overload
-    def size(self, fast: Literal[True]) -> Optional[int]:
-        ...
+    def size(self, fast: Literal[True]) -> Optional[int]: ...
 
     @overload
-    def size(self, fast: Literal[False]) -> int:
-        ...
+    def size(self, fast: Literal[False]) -> int: ...
 
     # Needed to make mypy happy, as it won't automatically combine the above
     # overloads to understand that fast is a bool.
     #   https://github.com/python/mypy/issues/10194
     @overload
-    def size(self, fast: bool) -> Optional[int]:
-        ...
+    def size(self, fast: bool) -> Optional[int]: ...
 
     @abstractmethod
     def size(self, fast):

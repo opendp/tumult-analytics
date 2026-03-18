@@ -193,8 +193,7 @@ def test_valid_plan(
         right=KeySet.from_tuples([(1,)], columns=["B"]),
         expectation=pytest.raises(
             ValueError,
-            match="right hand side has columns that do not exist in the left hand "
-            "side",
+            match="right hand side has columns that do not exist in the left hand side",
         ),
     ),
     Case("non_overlapping_columns")(
@@ -202,8 +201,7 @@ def test_valid_plan(
         right=KeySet.from_tuples([(2, 3)], columns=["B", "C"]),
         expectation=pytest.raises(
             ValueError,
-            match="right hand side has columns that do not exist in the left hand "
-            "side",
+            match="right hand side has columns that do not exist in the left hand side",
         ),
     ),
     Case("subtract_plan")(
