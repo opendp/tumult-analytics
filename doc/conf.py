@@ -49,6 +49,7 @@ linkcheck_ignore = [
     "https://colab.research.google.com/drive/1hIbp7y1uXIXc-MeiCAV4_0EwgSZzoM8U#offline=true&sandboxMode=true",
     "https://docs.databricks.com/release-notes/runtime/releases.html",
     "http://creativecommons.org/licenses/by-sa/4.0/",
+    "https://join.slack.com/t/opendp/shared_invite/zt-1aca9bm7k-hG7olKz6CiGm8htI2lxE8w",
 ]
 
 ### Sphinx configuration
