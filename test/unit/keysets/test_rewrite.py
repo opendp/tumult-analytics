@@ -26,16 +26,20 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
 # tests, as apply_cross_joins_in_memory will hide lots of other optimizations.
 @parametrize(
     Case("from_tuples_crossjoin")(
-        ks=lambda spark: KeySet.from_tuples([(1, 2), (3, 4)], columns=["A", "B"])
-        * KeySet.from_tuples([(5,), (6,), (7,)], columns=["C"])
+        ks=lambda spark: (
+            KeySet.from_tuples([(1, 2), (3, 4)], columns=["A", "B"])
+            * KeySet.from_tuples([(5,), (6,), (7,)], columns=["C"])
+        )
     ),
     Case("crossjoin_reorder")(
         ks=lambda spark: KeySet.from_dict({"A": [1], "C": [2], "B": [3]})
     ),
     Case("crossjoin_reorder_df")(
-        ks=lambda spark: _from_df({"A": [1]}, spark)
-        * _from_df({"C": [2]}, spark)
-        * _from_df({"B": [3]}, spark)
+        ks=lambda spark: (
+            _from_df({"A": [1]}, spark)
+            * _from_df({"C": [2]}, spark)
+            * _from_df({"B": [3]}, spark)
+        )
     ),
     Case("crossjoin_merge")(
         ks=lambda spark: (
@@ -80,19 +84,21 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
         allow_unchanged=True,
     ),
     Case("union_linearize")(
-        ks=lambda spark: KeySet.from_dict({"A": [1, 2]})
-        .union(KeySet.from_dict({"A": [2, 3]}))
-        .union(KeySet.from_dict({"A": [4]}).union(KeySet.from_dict({"A": [5]}))),
+        ks=lambda spark: (
+            KeySet.from_dict({"A": [1, 2]})
+            .union(KeySet.from_dict({"A": [2, 3]}))
+            .union(KeySet.from_dict({"A": [4]}).union(KeySet.from_dict({"A": [5]})))
+        ),
     ),
     Case("nested_project")(
-        ks=lambda spark: (
-            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B"]["A"]
-        )
+        ks=lambda spark: KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])[
+            "A", "B"
+        ]["A"]
     ),
     Case("noop_project")(
-        ks=lambda spark: (
-            KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])["A", "B", "C"]
-        )
+        ks=lambda spark: KeySet.from_tuples([(1, 2, 3)], columns=["A", "B", "C"])[
+            "A", "B", "C"
+        ]
     ),
     Case("crossjoin_project_left")(
         ks=lambda spark: (
@@ -197,10 +203,10 @@ def _from_df(data: dict, spark: SparkSession) -> KeySet:
         allow_unchanged=True,
     ),
     Case("extract_crossjoin_from_subtract")(
-        ks=lambda spark: KeySet.from_dict(
-            {"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]}
+        ks=lambda spark: (
+            KeySet.from_dict({"A": [1, 2, 3], "B": [4, 5, 6], "C": [7, 8, 9]})
+            - KeySet.from_tuples([(5, 7), (6, 8)], columns=["B", "C"])
         )
-        - KeySet.from_tuples([(5, 7), (6, 8)], columns=["B", "C"])
     ),
 )
 def test_rewrite_equality(

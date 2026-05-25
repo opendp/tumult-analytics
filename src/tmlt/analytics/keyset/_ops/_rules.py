@@ -434,7 +434,7 @@ def normalize_unions(op: KeySetOp) -> KeySetOp:
             else:
                 leaves.append(child)
 
-    leaves.sort(key=lambda v: hash(v))
+    leaves.sort(key=hash)
     return reduce(lambda r, l: Union(l, r), leaves)
 
 

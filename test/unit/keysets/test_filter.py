@@ -83,8 +83,9 @@ from tmlt.analytics.keyset._keyset import KeySetPlan
     ),
     Case("no_filtering_column")(
         base=KeySet.from_dict({"A": [1, 2], "B": ["a", "b"]}),
-        condition=lambda: (sf.col("B") != "string_that_does_not_exist")
-        & (sf.col("A") > 0),
+        condition=lambda: (
+            (sf.col("B") != "string_that_does_not_exist") & (sf.col("A") > 0)
+        ),
         expected_df=pd.DataFrame(
             [[1, "a"], [2, "a"], [1, "b"], [2, "b"]], columns=["A", "B"]
         ),

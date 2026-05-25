@@ -59,13 +59,13 @@ GET_GROUPBY_COLUMN_A = lambda: SparkSession.builder.getOrCreate().createDataFram
 GET_GROUPBY_COLUMN_B = lambda: SparkSession.builder.getOrCreate().createDataFrame(
     [], schema=StructType([StructField("B", LongType(), False)])
 )
-GET_GROUPBY_NON_EXISTING_COLUMN = (
-    lambda: SparkSession.builder.getOrCreate().createDataFrame(
+GET_GROUPBY_NON_EXISTING_COLUMN = lambda: (
+    SparkSession.builder.getOrCreate().createDataFrame(
         [], schema=StructType([StructField("yay", LongType(), False)])
     )
 )
-GET_GROUPBY_COLUMN_WRONG_TYPE = (
-    lambda: SparkSession.builder.getOrCreate().createDataFrame(
+GET_GROUPBY_COLUMN_WRONG_TYPE = lambda: (
+    SparkSession.builder.getOrCreate().createDataFrame(
         [], schema=StructType([StructField("A", LongType(), False)])
     )
 )

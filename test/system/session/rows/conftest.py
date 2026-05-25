@@ -54,8 +54,8 @@ GROUPBY_ONE_COLUMN_DICT = {"A": ["0", "1", "2"]}
 GROUPBY_WITH_DUPLICATES = pd.DataFrame(
     [["0"], ["0"], ["1"], ["1"], ["2"], ["2"]], columns=["A"]
 )
-GET_GROUPBY_WITH_DUPLICATES = (
-    lambda: SparkSession.builder.getOrCreate().createDataFrame(GROUPBY_WITH_DUPLICATES)
+GET_GROUPBY_WITH_DUPLICATES = lambda: (
+    SparkSession.builder.getOrCreate().createDataFrame(GROUPBY_WITH_DUPLICATES)
 )
 
 
