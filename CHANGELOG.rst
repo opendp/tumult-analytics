@@ -12,6 +12,7 @@ Unreleased
 
 Added
 ~~~~~
+- Supports Tumult Core 0.19.0, which adds official support for Python 3.12 and PySpark 4.
 - :meth:`.KeySet.union`, which combines KeySets with matching schemas into a single KeySet containing all keys from either operand.
 
 Changed
