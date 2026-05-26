@@ -134,7 +134,7 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
                 " not supported."
             )
 
-        metric = IfGroupedBy(relation.grouping_column, agg_metric)
+        metric = IfGroupedBy([relation.grouping_column], agg_metric)
         data = self.tables[relation.table]
         domain = SparkDataFrameDomain.from_spark_schema(data.schema)
         return self.Output(domain, metric, distance, data)

@@ -83,7 +83,7 @@ class TestAddKeys(TestTransformationVisitor):
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
-        expected_output_metric = IfGroupedBy(grouping_column, SymmetricDifference())
+        expected_output_metric = IfGroupedBy([grouping_column], SymmetricDifference())
 
         table_transform = get_table_from_ref(transformation, reference)
         assert table_transform.output_domain == expected_output_domain
@@ -559,7 +559,7 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         expected_output_domain = SparkDataFrameDomain(
             analytics_to_spark_columns_descriptor(expected_schema)
         )
-        expected_output_metric = IfGroupedBy("id", SymmetricDifference())
+        expected_output_metric = IfGroupedBy(["id"], SymmetricDifference())
 
         table_transform = get_table_from_ref(transformation, reference)
         assert table_transform.output_domain == expected_output_domain

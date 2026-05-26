@@ -219,11 +219,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
             )
         if expected_schema.grouping_column is not None:
             expected_output_metric = IfGroupedBy(
-                expected_schema.grouping_column, self.inner_metric()
+                [expected_schema.grouping_column], self.inner_metric()
             )
         elif expected_schema.id_column is not None:
             expected_output_metric = IfGroupedBy(
-                expected_schema.id_column, SymmetricDifference()
+                [expected_schema.id_column], SymmetricDifference()
             )
         else:
             expected_output_metric = SymmetricDifference()

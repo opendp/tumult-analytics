@@ -91,7 +91,7 @@ class TestAddRows(TestTransformationVisitor):
             SymmetricDifference()
             if expected_schema.grouping_column is None
             else IfGroupedBy(
-                expected_schema.grouping_column, self.visitor.inner_metric()
+                [expected_schema.grouping_column], self.visitor.inner_metric()
             )
         )
         assert lookup_domain(t.output_domain, reference) == expected_output_domain
@@ -401,7 +401,7 @@ class TestAddRows(TestTransformationVisitor):
             SymmetricDifference()
             if expected_schema.grouping_column is None
             else IfGroupedBy(
-                expected_schema.grouping_column, self.visitor.inner_metric()
+                [expected_schema.grouping_column], self.visitor.inner_metric()
             )
         )
         assert (
@@ -852,7 +852,7 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
             SymmetricDifference()
             if expected_schema.grouping_column is None
             else IfGroupedBy(
-                expected_schema.grouping_column, self.visitor.inner_metric()
+                [expected_schema.grouping_column], self.visitor.inner_metric()
             )
         )
         assert lookup_domain(t.output_domain, reference) == expected_output_domain

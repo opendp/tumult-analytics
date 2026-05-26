@@ -225,19 +225,19 @@ class MaxGroupsPerID(Constraint):
             if use_l2:
                 inner_metric = RootSumOfSquared(
                     IfGroupedBy(
-                        transformation.output_metric.column, SymmetricDifference()
+                        [transformation.output_metric.column], SymmetricDifference()
                     )
                 )
             else:
                 inner_metric = SumOf(
                     IfGroupedBy(
-                        transformation.output_metric.column, SymmetricDifference()
+                        [transformation.output_metric.column], SymmetricDifference()
                     )
                 )
 
             transformation |= LimitKeysPerGroup(
                 transformation.output_domain,
-                IfGroupedBy(self.grouping_column, inner_metric),
+                IfGroupedBy([self.grouping_column], inner_metric),
                 transformation.output_metric.column,
                 self.grouping_column,
                 self.max,
