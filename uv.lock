@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'darwin'",
@@ -1421,17 +1421,42 @@ wheels = [
 name = "pyspark"
 version = "3.5.8"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and sys_platform != 'darwin'",
+    "python_full_version < '3.11' and sys_platform == 'darwin'",
+]
 dependencies = [
-    { name = "py4j" },
+    { name = "py4j", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/80/5a/3806f44eb47387e8af803508cdd6bbc0df784febf4dc010700be04a1ff89/pyspark-3.5.8.tar.gz", hash = "sha256:54cca0767b21b40e3953ad1d30f8601c53abf9cbda763653289cdcfcac52313c", size = 317817299, upload-time = "2026-01-15T11:46:14.487Z" }
 
 [package.optional-dependencies]
 sql = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version < '3.12'" },
     { name = "pandas", version = "1.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "pyarrow", marker = "python_full_version < '3.12'" },
+]
+
+[[package]]
+name = "pyspark"
+version = "4.1.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform != 'darwin'",
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+]
+dependencies = [
+    { name = "py4j", marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5e/71/4dd20c69332a2a4bf7ece8a655c9da98e4bd9b6bcea235349c1a00399d57/pyspark-4.1.2.tar.gz", hash = "sha256:fa5d6159f700d0990a07f4f62df1b7449401dccee9cd7d5d6df8957530841602", size = 455428043, upload-time = "2026-05-21T14:49:21.785Z" }
+
+[package.optional-dependencies]
+sql = [
+    { name = "numpy", marker = "python_full_version >= '3.12'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pyarrow" },
+    { name = "pyarrow", marker = "python_full_version >= '3.12'" },
 ]
 
 [[package]]
@@ -2027,10 +2052,12 @@ source = { editable = "." }
 dependencies = [
     { name = "pandas", version = "1.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pyspark", extra = ["sql"] },
+    { name = "pyspark", version = "3.5.8", source = { registry = "https://pypi.org/simple" }, extra = ["sql"], marker = "python_full_version < '3.12'" },
+    { name = "pyspark", version = "4.1.2", source = { registry = "https://pypi.org/simple" }, extra = ["sql"], marker = "python_full_version >= '3.12'" },
     { name = "sympy" },
     { name = "tabulate" },
-    { name = "tmlt-core" },
+    { name = "tmlt-core", version = "0.18.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "tmlt-core", version = "0.19.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tqdm" },
     { name = "typeguard" },
     { name = "types-tabulate" },
@@ -2081,13 +2108,13 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version < '3.11'", specifier = ">=1.4.0,<2" },
     { name = "pandas", marker = "python_full_version == '3.11.*'", specifier = ">=1.5.0,<2" },
     { name = "pandas", marker = "python_full_version >= '3.12'", specifier = ">=2.2.0,<3" },
-    { name = "pyspark", extras = ["sql"], marker = "sys_platform == 'darwin'", specifier = ">=3.5.0,<3.6" },
+    { name = "pyspark", extras = ["sql"], marker = "python_full_version >= '3.12'", specifier = ">=4,<5" },
+    { name = "pyspark", extras = ["sql"], marker = "python_full_version < '3.12' and sys_platform == 'darwin'", specifier = ">=3.5.0,<3.6" },
     { name = "pyspark", extras = ["sql"], marker = "python_full_version < '3.11' and sys_platform != 'darwin'", specifier = ">=3.3.1,<3.6" },
     { name = "pyspark", extras = ["sql"], marker = "python_full_version == '3.11.*' and sys_platform != 'darwin'", specifier = ">=3.4.0,<3.6" },
-    { name = "pyspark", extras = ["sql"], marker = "python_full_version >= '3.12' and sys_platform != 'darwin'", specifier = ">=3.5.0,<3.6" },
     { name = "sympy", specifier = ">=1.8,<1.13" },
     { name = "tabulate", specifier = ">=0.8.9,<0.9" },
-    { name = "tmlt-core", specifier = ">=0.18.0,<0.19" },
+    { name = "tmlt-core", specifier = ">=0.18.0,<0.20" },
     { name = "tqdm", specifier = ">=4.66.4,<5" },
     { name = "typeguard", specifier = ">=4.0.0,<5" },
     { name = "types-tabulate", specifier = ">=0.8.10,<0.9" },
@@ -2129,21 +2156,26 @@ test = [
 name = "tmlt-core"
 version = "0.18.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and sys_platform != 'darwin'",
+    "python_full_version < '3.11' and sys_platform == 'darwin'",
+]
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version < '3.12'" },
     { name = "pandas", version = "1.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "parameterized" },
-    { name = "pyarrow" },
-    { name = "pyspark", extra = ["sql"] },
-    { name = "pytest" },
+    { name = "parameterized", marker = "python_full_version < '3.12'" },
+    { name = "pyarrow", marker = "python_full_version < '3.12'" },
+    { name = "pyspark", version = "3.5.8", source = { registry = "https://pypi.org/simple" }, extra = ["sql"], marker = "python_full_version < '3.12'" },
+    { name = "pytest", marker = "python_full_version < '3.12'" },
     { name = "randomgen", version = "1.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "randomgen", version = "1.26.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "randomgen", version = "1.26.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "setuptools" },
-    { name = "sympy" },
-    { name = "typeguard" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "setuptools", marker = "python_full_version < '3.12'" },
+    { name = "sympy", marker = "python_full_version < '3.12'" },
+    { name = "typeguard", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a4/ed/414950e18eb4ea304df176e907fd9e7d36e1b8c536679a29dceb71f6a1e0/tmlt_core-0.18.2.tar.gz", hash = "sha256:496818dd1128176fc3bc7d8da50632d9a3a8580dfc84b060a0a1249aaeb0819a", size = 11255548, upload-time = "2025-04-02T01:22:37.787Z" }
 wheels = [
@@ -2156,6 +2188,32 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/ce/24e78350d598b738a79d6a626bfcaebcbafa63fca8ffb128c16186372389/tmlt_core-0.18.2-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:99578c1aad56a03a3cfaba019cc90de797571e18e37fc8de4711e8d44edc37ce", size = 8051360, upload-time = "2025-04-02T01:22:21.403Z" },
     { url = "https://files.pythonhosted.org/packages/62/9f/82be8e0b61e23eb69c0d418c068ea82b73cd0bfa3df15a19e588dc4f4c9e/tmlt_core-0.18.2-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:764c1467d26419e415e2fa4c2aafbe72626d385b42e0ee486d2039b9a400c8db", size = 9712790, upload-time = "2025-04-02T01:22:23.012Z" },
     { url = "https://files.pythonhosted.org/packages/13/67/e2d95cc47391c314d50c163ff8c06aaf8f01e98fa99dd5e6833808f7d555/tmlt_core-0.18.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f898ddd7dbf4064d0d4c117f001e34d95918a3ec4f982b478b82bb91c39d75f", size = 43275203, upload-time = "2025-04-02T01:22:26.459Z" },
+]
+
+[[package]]
+name = "tmlt-core"
+version = "0.19.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform != 'darwin'",
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+]
+dependencies = [
+    { name = "numpy", marker = "python_full_version >= '3.12'" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pyarrow", marker = "python_full_version >= '3.12'" },
+    { name = "pyspark", version = "4.1.2", source = { registry = "https://pypi.org/simple" }, extra = ["sql"], marker = "python_full_version >= '3.12'" },
+    { name = "randomgen", version = "1.26.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+    { name = "sympy", marker = "python_full_version >= '3.12'" },
+    { name = "typeguard", marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/85/d6/bc5c66ed50ac52527a90ab54a5593125ba091598afcc74de7257dac0b27b/tmlt_core-0.19.0.tar.gz", hash = "sha256:740687e19e536990f5a26f0c64ecdeeee4cfe957307c9244915f4fac6a3e2e56", size = 11256335, upload-time = "2026-05-23T02:07:50.894Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3c/0e/c8b8346b6fe6a44b6457ca7e2d7108dd26c99f127790402ff0feb9fc66f4/tmlt_core-0.19.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:c620fe48a54cb3ac89d7306a6ac7df1e713372c8d6d2d818d217d4f0c8ed75bb", size = 7859238, upload-time = "2026-05-23T02:07:42.393Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/df/4eb8d19c23ec43c0372e9ed458e75c391395ba4ce8b03c273ae20b89f336/tmlt_core-0.19.0-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:9586f01383762b6877b6df49c375a5fe36b19e1d95cd26383620b015870d10e5", size = 9295532, upload-time = "2026-05-23T02:07:44.816Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/d5/9c1666601f5232d51224967c53fbef7445b59aaf6069a9773b3ee2d45cd2/tmlt_core-0.19.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:06f271d0e80c6db97177761a4382d256585aac23263dc545ab22e14f2cbf2387", size = 43270920, upload-time = "2026-05-23T02:07:47.549Z" },
 ]
 
 [[package]]
