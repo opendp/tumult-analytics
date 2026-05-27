@@ -1074,11 +1074,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
             )
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
-            grouping_column = input_metric.column
+            grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.replace_with:
                 raise ValueError(
                     "Cannot replace null values in column"
-                    f" {input_metric.column}, because it is being used as a"
+                    f" {grouping_column}, because it is being used as a"
                     " grouping column"
                 )
         analytics_schema = spark_dataframe_domain_to_analytics_columns(input_domain)
@@ -1372,11 +1372,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
         # TODO(2702): This should be supported for IDs tables
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
-            grouping_column = input_metric.column
+            grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.columns:
                 raise ValueError(
                     "Cannot drop null values in column"
-                    f" {input_metric.column}, because it is being used as a"
+                    f" {grouping_column}, because it is being used as a"
                     " grouping column"
                 )
 

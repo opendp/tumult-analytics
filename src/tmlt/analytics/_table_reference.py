@@ -72,7 +72,9 @@ def lookup_metric(metric: Metric, ref: TableReference) -> Metric:
         if isinstance(metric, DictMetric):
             metric = metric.key_to_metric[table]
         elif isinstance(metric, AddRemoveKeys):
-            metric = IfGroupedBy([metric.df_to_key_column[table]], SymmetricDifference())
+            metric = IfGroupedBy(
+                [metric.df_to_key_column[table]], SymmetricDifference()
+            )
         else:
             raise ValueError(
                 f"Metric at {path[:i]} is a {type(metric)}, cannot reference into it."

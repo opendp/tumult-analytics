@@ -131,7 +131,7 @@ class MaxRowsPerID(Constraint):
             transformation |= LimitRowsPerGroup(
                 transformation.output_domain,
                 SymmetricDifference(),
-                transformation.output_metric.column,
+                transformation.output_metric.columns,
                 self.max,
             )
             transformation = AugmentDictTransformation(
@@ -225,20 +225,20 @@ class MaxGroupsPerID(Constraint):
             if use_l2:
                 inner_metric = RootSumOfSquared(
                     IfGroupedBy(
-                        [transformation.output_metric.column], SymmetricDifference()
+                        transformation.output_metric.columns, SymmetricDifference()
                     )
                 )
             else:
                 inner_metric = SumOf(
                     IfGroupedBy(
-                        [transformation.output_metric.column], SymmetricDifference()
+                        transformation.output_metric.columns, SymmetricDifference()
                     )
                 )
 
             transformation |= LimitKeysPerGroup(
                 transformation.output_domain,
                 IfGroupedBy([self.grouping_column], inner_metric),
-                transformation.output_metric.column,
+                transformation.output_metric.columns,
                 self.grouping_column,
                 self.max,
             )
@@ -333,7 +333,7 @@ class MaxRowsPerGroupPerID(Constraint):
             transformation |= LimitRowsPerKeyPerGroup(
                 transformation.output_domain,
                 transformation.output_metric,
-                transformation.output_metric.inner_metric.inner_metric.column,
+                transformation.output_metric.inner_metric.inner_metric.columns,
                 self.grouping_column,
                 self.max,
             )
