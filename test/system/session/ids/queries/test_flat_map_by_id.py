@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from py4j.protocol import Py4JJavaError
 from pyspark.sql import Row
+from pyspark.sql import functions as f
 from tmlt.core.utils.testing import assert_dataframe_equal
 
 from tmlt.analytics import (
@@ -304,6 +305,7 @@ def test_schema(
             pd.DataFrame({"count": [1]}),
         ),
     ],
+    ids = [f"test_{i}" for i in range(10)]
 )
 def test_nulls_nans_infs_allowed(
     spark,
