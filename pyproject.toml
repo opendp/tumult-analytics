@@ -30,7 +30,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     # When updating Core, PySpark, Pandas, or SymPy, remember to update the
     # dependency matrix in the noxfile.
-    # "tmlt.core >=0.19.1,<0.20",
+    "tmlt.core >=0.19.1,<0.20",
     "pandas >=1.4.0,<2 ; python_version < '3.11'",
     "pandas >=1.5.0,<2 ; python_version == '3.11'",
     "pandas >=2.2.0,<3 ; python_version >= '3.12'",
@@ -44,7 +44,6 @@ dependencies = [
     "tqdm >=4.66.4,<5",
     "tabulate >=0.8.9,<0.9",
     "types-tabulate >=0.8.10,<0.9",
-    "tmlt-core",
 ]
 
 [project.urls]
@@ -91,7 +90,6 @@ scripting = [
 # Switch which of these is commented out to test local changes to nox-utils:
 # "tmlt.nox_utils" = { path = "../tumult-tools/nox-utils", editable = true }
 "tmlt.nox_utils" = { git = "https://github.com/opendp/tumult-tools.git", subdirectory = "nox-utils" }
-tmlt-core = { path = "../tumult-core" }
 
 ################################################################################
 # Build configuration
