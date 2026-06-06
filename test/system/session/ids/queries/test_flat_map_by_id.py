@@ -304,7 +304,6 @@ def test_schema(
             pd.DataFrame({"count": [1]}),
         ),
     ],
-    ids=[f"test_{i}" for i in range(10)],
 )
 def test_nulls_nans_infs_allowed(
     spark,
