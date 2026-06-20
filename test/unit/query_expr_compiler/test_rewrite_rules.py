@@ -33,10 +33,14 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
-from tmlt.analytics._query_expr_compiler._rewrite_rules import (
-    CompilationInfo,
-    add_special_value_handling,
+from tmlt.analytics._query_expr_compiler._rewrite_rules._select_noise import (
     select_noise_mechanism,
+)
+from tmlt.analytics._query_expr_compiler._rewrite_rules._special_values import (
+    add_special_value_handling,
+)
+from tmlt.analytics._query_expr_compiler._rewrite_rules._utils import (
+    CompilationInfo,
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
 

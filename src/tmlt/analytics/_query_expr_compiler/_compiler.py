@@ -21,7 +21,7 @@ from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo
 from tmlt.analytics._query_expr import QueryExpr
 from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
-from tmlt.analytics._query_expr_compiler._rewrite_rules import CompilationInfo, rewrite
+from tmlt.analytics._query_expr_compiler._rewrite_rules import rewrite
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
 )
@@ -135,11 +135,7 @@ class QueryExprCompiler:
         query.schema(catalog)
 
         # Compilation happens in two stages: first, we apply rewrite rules...
-        compilation_info = CompilationInfo(
-            output_measure=self._output_measure,
-            catalog=catalog,
-        )
-        query = rewrite(compilation_info, query)
+        query = rewrite(query, output_measure=self._output_measure, catalog=catalog)
 
         # ... then we visit the query.
         visitor = MeasurementVisitor(
