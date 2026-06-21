@@ -376,7 +376,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         input_metric: DictMetric,
         output_measure: Union[PureDP, ApproxDP, RhoZCDP],
         default_mechanism: NoiseMechanism,
-        public_sources: Dict[str, DataFrame],
         catalog: Catalog,
         table_constraints: Dict[Identifier, List[Constraint]],
     ):
@@ -387,7 +386,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self.input_domain = input_domain
         self.input_metric = input_metric
         self.default_mechanism = default_mechanism
-        self.public_sources = public_sources
         self.output_measure = output_measure
         self.catalog = catalog
         self.table_constraints = table_constraints

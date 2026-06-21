@@ -172,7 +172,7 @@ def _dataframes(request, spark):
 
 
 @pytest.fixture(scope="class")
-def _catalog(request):
+def _catalog(request, spark):
     """Returns a catalog for use in test functions."""
     catalog = Catalog()
     catalog.add_private_table(
@@ -258,12 +258,23 @@ def _catalog(request):
             "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "public": ColumnDescriptor(ColumnType.VARCHAR),
         },
+        spark.createDataFrame(
+            pd.DataFrame({"S": ["0", "1"], "I": [0, 1], "public": ["x", "y"]}),
+            schema=StructType(
+                [
+                    StructField("S", StringType(), True),
+                    StructField("I", LongType(), True),
+                    StructField("public", StringType(), False),
+                ]
+            ),
+        ),
     )
     request.cls.catalog = catalog
+    return catalog
 
 
 @pytest.fixture(scope="class")
-def _visitor(spark, request):
+def _visitor(request, _catalog):
     """Returns a TransformationVisitor for use in test functions."""
     input_domain = DictDomain(
         {
@@ -349,23 +360,10 @@ def _visitor(spark, request):
             ),
         }
     )
-    public_sources = {
-        "public": spark.createDataFrame(
-            pd.DataFrame({"S": ["0", "1"], "I": [0, 1], "public": ["x", "y"]}),
-            schema=StructType(
-                [
-                    StructField("S", StringType(), True),
-                    StructField("I", LongType(), True),
-                    StructField("public", StringType(), False),
-                ]
-            ),
-        )
-    }
     visitor = TransformationVisitor(
         input_domain=input_domain,
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
-        public_sources=public_sources,
         table_constraints={
             NamedTable(t): []
             for t in (
@@ -378,6 +376,7 @@ def _visitor(spark, request):
                 "ids_duplicates",
             )
         },
+        catalog=_catalog,
     )
     request.cls.visitor = visitor
 
@@ -430,10 +429,11 @@ def _nulls_catalog(request):
         grouping_column="id",
     )
     request.cls.catalog = catalog
+    return catalog
 
 
 @pytest.fixture(scope="class")
-def _nulls_visitor(request):
+def _nulls_visitor(request, _nulls_catalog):
     """Returns a TransformationVisitor for tests of null/NaN/inf behavior."""
     df_columns: Dict[str, SparkColumnDescriptor] = {
         "not_null": SparkFloatColumnDescriptor(allow_null=False),
@@ -472,8 +472,8 @@ def _nulls_visitor(request):
         input_domain=input_domain,
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
-        public_sources={},
         table_constraints={NamedTable(t): [] for t in ("rows", "ids")},
+        catalog=_nulls_catalog,
     )
     request.cls.visitor = visitor
 

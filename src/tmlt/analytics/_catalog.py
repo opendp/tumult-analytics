@@ -7,10 +7,12 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Dict, Mapping, Optional, Union
 
+from pyspark.sql import DataFrame
+
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 
-@dataclass
+@dataclass(frozen=True)
 class Table(ABC):
     """Metadata for a public or private table."""
 
@@ -18,11 +20,9 @@ class Table(ABC):
     """The source id, or unique identifier, for the table."""
     schema: Schema
     """The analytics schema for the table. Describes the column types."""
-    id_space: Optional[str] = None
-    """The identifier space for the table."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class PublicTable(Table):
     """Metadata for a public table.
 
@@ -30,13 +30,16 @@ class PublicTable(Table):
     require any special privacy protections.
     """
 
+    dataframe: DataFrame
+    """The public data for the table."""
+
     def __post_init__(self):
         """Check inputs to constructor."""
         if self.schema.grouping_column is not None:
             raise ValueError("Public tables cannot have a grouping_column")
 
 
-@dataclass
+@dataclass(frozen=True)
 class PrivateTable(Table):
     """Metadata for a private table.
 
@@ -90,12 +93,14 @@ class Catalog:
         self,
         source_id: str,
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+        dataframe: DataFrame,
     ):
         """Adds public table to catalog.
 
         Args:
             source_id: The source id, or unique identifier, for the public table.
             col_types: Mapping from column names to types for the public table.
+            dataframe: Public data source for the table.
 
         Raises:
             ValueError: If there is already a public table with the given source_id.
@@ -103,7 +108,7 @@ class Catalog:
         if source_id in self._public_tables:
             raise ValueError(f"Table '{source_id}' already exists in catalog")
         self._public_tables[source_id] = PublicTable(
-            source_id=source_id, schema=Schema(col_types)
+            source_id=source_id, schema=Schema(col_types), dataframe=dataframe
         )
 
     @property

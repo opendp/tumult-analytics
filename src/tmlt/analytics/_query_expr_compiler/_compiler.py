@@ -9,7 +9,6 @@
 
 from typing import Any, Dict, List, Tuple, Union
 
-from pyspark.sql import DataFrame
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
 from tmlt.core.measurements.base import Measurement
@@ -121,7 +120,6 @@ class QueryExprCompiler:
         stability: Any,
         input_domain: DictDomain,
         input_metric: DictMetric,
-        public_sources: Dict[str, DataFrame],
         catalog: Catalog,
         table_constraints: Dict[Identifier, List[Constraint]],
     ) -> Tuple[Measurement, NoiseInfo]:
@@ -133,7 +131,6 @@ class QueryExprCompiler:
             stability: The stability of the input to compiled query.
             input_domain: The input domain of the compiled query.
             input_metric: The input metric of the compiled query.
-            public_sources: Public data sources for the queries.
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
@@ -155,7 +152,6 @@ class QueryExprCompiler:
             input_metric=input_metric,
             output_measure=self._output_measure,
             default_mechanism=self._mechanism,
-            public_sources=public_sources,
             catalog=catalog,
             table_constraints=table_constraints,
         )
@@ -190,7 +186,6 @@ class QueryExprCompiler:
         query: QueryExpr,
         input_domain: DictDomain,
         input_metric: DictMetric,
-        public_sources: Dict[str, DataFrame],
         catalog: Catalog,
         table_constraints: Dict[Identifier, List[Constraint]],
     ) -> Tuple[Transformation, TableReference, List[Constraint]]:
@@ -212,7 +207,6 @@ class QueryExprCompiler:
             query: A query representing a transformation to compile.
             input_domain: The input domain of the compiled query.
             input_metric: The input metric of the compiled query.
-            public_sources: Public data sources for the queries.
             catalog: The catalog, used only for query validation.
             table_constraints: A mapping of tables to the existing constraints on them.
         """
@@ -225,8 +219,8 @@ class QueryExprCompiler:
             input_domain=input_domain,
             input_metric=input_metric,
             mechanism=self.mechanism,
-            public_sources=public_sources,
             table_constraints=table_constraints,
+            catalog=catalog,
         )
         transformation, reference, constraints = query.accept(transformation_visitor)
         if not isinstance(transformation, Transformation):

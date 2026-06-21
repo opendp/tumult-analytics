@@ -227,17 +227,15 @@ def prepare_visitor(spark, request):
         }
     )
 
-    public_sources = {
-        "public": spark.createDataFrame(
-            pd.DataFrame({"A": ["zero", "one"], "B": [0, 1]}),
-            schema=StructType(
-                [
-                    StructField("A", StringType(), False),
-                    StructField("B", LongType(), False),
-                ]
-            ),
-        )
-    }
+    public_df = spark.createDataFrame(
+        pd.DataFrame({"A": ["zero", "one"], "B": [0, 1]}),
+        schema=StructType(
+            [
+                StructField("A", StringType(), False),
+                StructField("B", LongType(), False),
+            ]
+        ),
+    )
     request.cls.base_query = PrivateSource(source_id="private")
 
     catalog = Catalog()
@@ -277,6 +275,7 @@ def prepare_visitor(spark, request):
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
         },
+        public_df,
     )
     request.cls.catalog = catalog
 
@@ -292,7 +291,6 @@ def prepare_visitor(spark, request):
         input_metric=input_metric,
         output_measure=PureDP(),
         default_mechanism=NoiseMechanism.LAPLACE,
-        public_sources=public_sources,
         catalog=catalog,
         table_constraints={t: [] for t in stability},
     )
@@ -304,7 +302,6 @@ def prepare_visitor(spark, request):
         input_metric=input_metric,
         output_measure=PureDP(),
         default_mechanism=NoiseMechanism.LAPLACE,
-        public_sources=public_sources,
         catalog=catalog,
         table_constraints={t: [] for t in stability},
     )

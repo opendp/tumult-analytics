@@ -325,6 +325,8 @@ class Session:
         if not isinstance(self._accountant.input_domain, DictDomain):
             raise ValueError("The input domain to a session must be a DictDomain.")
         self._public_sources = public_sources
+        # Note: Currently, only NamedTable identifiers make sense as keys here,
+        #     and we may assume that no other types of identifiers are included.
         self._table_constraints: Dict[Identifier, List[Constraint]] = {
             NamedTable(t): [] for t in self.private_sources
         }
@@ -711,7 +713,6 @@ class Session:
                 query=query_obj,
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
-                public_sources=self._public_sources,
                 catalog=self._catalog,
                 table_constraints=self._table_constraints,
             )[2]
@@ -906,9 +907,8 @@ class Session:
         for table in self.public_sources:
             catalog.add_public_table(
                 table,
-                spark_schema_to_analytics_columns(
-                    self.public_source_dataframes[table].schema
-                ),
+                spark_schema_to_analytics_columns(self._public_sources[table].schema),
+                self._public_sources[table],
             )
         return catalog
 
@@ -994,7 +994,6 @@ class Session:
             stability=self._accountant.d_in,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            public_sources=self._public_sources,
             catalog=self._catalog,
             table_constraints=self._table_constraints,
         )
@@ -1232,7 +1231,6 @@ class Session:
             query=query,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            public_sources=self._public_sources,
             catalog=self._catalog,
             table_constraints=self._table_constraints,
         )

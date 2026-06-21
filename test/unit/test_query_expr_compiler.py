@@ -512,6 +512,7 @@ def setup(spark, request) -> None:
             "B": ColumnDescriptor(ColumnType.INTEGER),
             "A+B": ColumnDescriptor(ColumnType.INTEGER),
         },
+        join_df,
     )
     catalog.add_public_table(
         "dtypes",
@@ -524,6 +525,7 @@ def setup(spark, request) -> None:
             "date": ColumnDescriptor(ColumnType.DATE),
             "timestamp": ColumnDescriptor(ColumnType.TIMESTAMP),
         },
+        dtypes_df,
     )
     catalog.add_public_table(
         "groupby_two_columns",
@@ -531,9 +533,12 @@ def setup(spark, request) -> None:
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "B": ColumnDescriptor(ColumnType.INTEGER),
         },
+        groupby_two_columns_df,
     )
     catalog.add_public_table(
-        "groupby_one_column", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+        "groupby_one_column",
+        {"A": ColumnDescriptor(ColumnType.VARCHAR)},
+        groupby_one_column_df,
     )
 
     request.cls.catalog = catalog
@@ -639,11 +644,6 @@ class TestQueryExprCompiler:
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={
-                "public": self.join_df,
-                "groupby_two_columns": self.groupby_two_columns_df,
-                "groupby_one_column": self.groupby_one_column_df,
-            },
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -664,12 +664,6 @@ class TestQueryExprCompiler:
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={
-                "public": self.join_df,
-                "dtypes": self.dtypes_df,
-                "groupby_two_columns": self.groupby_two_columns_df,
-                "groupby_one_column": self.groupby_one_column_df,
-            },
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -994,7 +988,6 @@ class TestQueryExprCompiler:
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={"public": self.join_df},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1015,7 +1008,6 @@ class TestQueryExprCompiler:
             JoinPublic(PrivateSource("private"), public_sdf),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1052,7 +1044,6 @@ class TestQueryExprCompiler:
             ),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1135,7 +1126,6 @@ class TestQueryExprCompiler:
             join_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1166,7 +1156,6 @@ class TestQueryExprCompiler:
                 query,
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
-                public_sources={},
                 catalog=self.catalog,
                 table_constraints={t: [] for t in self.stability.keys()},
             )
@@ -1207,7 +1196,6 @@ class TestQueryExprCompiler:
             flatmap_query,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1240,7 +1228,6 @@ class TestQueryExprCompiler:
             stability=self.stability,
             input_domain=self.input_domain,
             input_metric=self.input_metric,
-            public_sources={},
             catalog=self.catalog,
             table_constraints={t: [] for t in self.stability.keys()},
         )
@@ -1284,7 +1271,6 @@ class TestQueryExprCompiler:
                 stability=self.stability,
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
-                public_sources={"public": self.join_df},
                 catalog=self.catalog,
                 table_constraints={t: [] for t in self.stability.keys()},
             )
@@ -1340,7 +1326,6 @@ class TestQueryExprCompiler:
             stability=stability,
             input_domain=input_domain,
             input_metric=input_metric,
-            public_sources={"public": self.join_df},
             catalog=self.catalog,
             table_constraints={t: [] for t in stability.keys()},
         )
@@ -1417,7 +1402,6 @@ class TestCompileGroupByQuantile:
             stability=stability,
             input_domain=input_domain,
             input_metric=input_metric,
-            public_sources={},
             catalog=catalog,
             table_constraints={t: [] for t in stability},
         )
