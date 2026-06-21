@@ -1308,7 +1308,7 @@ class TestQueryExprCompiler:
     )
     def test_different_source_id(self, query_expr: QueryExpr):
         """Tests that different source ids are allowed."""
-        if not self.catalog.tables.get("doubled"):
+        if not self.catalog.private_tables.get("doubled"):
             self.catalog.add_private_table(
                 source_id="doubled",
                 col_types={

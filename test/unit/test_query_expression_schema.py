@@ -73,7 +73,7 @@ GET_GROUPBY_COLUMN_WRONG_TYPE = lambda: (
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
         PrivateSource("public"),
-        "Attempted query on table 'public', which is not a private table",
+        "Table 'public' is not a private table",
     ),
     (  # JoinPublic has invalid public_id
         JoinPublic(child=PrivateSource("private"), public_table="private"),
@@ -674,7 +674,7 @@ class TestValidationWithNulls:
         """Test schema for private_source."""
         query = PrivateSource("private")
         schema = query.schema(self.catalog)
-        assert schema == self.catalog.tables["private"].schema
+        assert schema == self.catalog.private_tables["private"].schema
 
     @pytest.mark.parametrize(
         "column_mapper,expected_schema",
@@ -759,7 +759,7 @@ class TestValidationWithNulls:
         """Test schema for filter."""
         query = Filter(child=PrivateSource("private"), condition=condition)
         schema = query.schema(self.catalog)
-        assert schema == self.catalog.tables["private"].schema
+        assert schema == self.catalog.private_tables["private"].schema
 
     @pytest.mark.parametrize(
         "columns,expected_schema",

@@ -20,8 +20,8 @@ def test_add_private_table(grouping_column: Optional["str"]):
         col_types={"A": ColumnDescriptor(ColumnType.VARCHAR)},
         grouping_column=grouping_column,
     )
-    assert len(catalog.tables) == 1
-    private_table = catalog.tables["private"]
+    assert len(catalog.private_tables) == 1
+    private_table = catalog.private_tables["private"]
     assert isinstance(private_table, PrivateTable)
     assert private_table.source_id == "private"
     actual_schema = private_table.schema
@@ -32,11 +32,11 @@ def test_add_private_table(grouping_column: Optional["str"]):
 def test_add_public_table():
     """Adding a public table works as expected."""
     catalog = Catalog()
-    catalog.add_private_table(source_id="public", col_types={"A": ColumnType.VARCHAR})
-    assert len(catalog.tables) == 1
-    assert list(catalog.tables)[0] == "public"
-    assert catalog.tables["public"].source_id == "public"
-    actual_schema = catalog.tables["public"].schema
+    catalog.add_public_table(source_id="public", col_types={"A": ColumnType.VARCHAR})
+    assert len(catalog.public_tables) == 1
+    assert list(catalog.public_tables)[0] == "public"
+    assert catalog.public_tables["public"].source_id == "public"
+    actual_schema = catalog.public_tables["public"].schema
     expected_schema = Schema({"A": ColumnType.VARCHAR})
     assert actual_schema == expected_schema
 
@@ -46,7 +46,9 @@ def test_invalid_addition_private_table():
     catalog = Catalog()
     source_id = "private"
     catalog.add_private_table(source_id=source_id, col_types={"A": ColumnType.VARCHAR})
-    with pytest.raises(ValueError, match=f"{source_id} already exists in catalog."):
+    with pytest.raises(
+        ValueError, match=f"Table '{source_id}' already exists in catalog"
+    ):
         catalog.add_private_table(
             source_id=source_id, col_types={"B": ColumnType.VARCHAR}
         )
@@ -57,5 +59,7 @@ def test_invalid_addition_public_table():
     catalog = Catalog()
     source_id = "public"
     catalog.add_public_table(source_id, {"A": ColumnType.VARCHAR})
-    with pytest.raises(ValueError, match=f"{source_id} already exists in catalog."):
+    with pytest.raises(
+        ValueError, match=f"Table '{source_id}' already exists in catalog"
+    ):
         catalog.add_public_table(source_id, {"C": ColumnType.VARCHAR})

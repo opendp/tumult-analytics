@@ -114,6 +114,7 @@ regardless of how many books they've checked out. Let's take a look at our Sessi
     publication_date  INTEGER        False                       True
     publisher         VARCHAR        False                       True
     genres            VARCHAR        False                       True
+    No public tables are available.
 
 We can see that our Session has a single table, ``checkouts``, with 7 columns, and that
 the 'member_id' column is marked as our ID column.

@@ -1,5 +1,7 @@
 """Defines a base class for building measurement visitors."""
 
+# SPDX-License-Identifier: Apache-2.0
+
 import math
 import warnings
 from abc import abstractmethod
@@ -9,9 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import sympy as sp
 from pyspark.sql import DataFrame, SparkSession
-
-# SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
 from pyspark.sql.types import (
     BooleanType,
     ByteType,

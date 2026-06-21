@@ -50,17 +50,8 @@ class Catalog:
 
     def __init__(self):
         """Constructor."""
-        self._tables = {}
-
-    def _add_table(self, table: Table):
-        """Adds table to catalog.
-
-        Args:
-            table: The table, public or private.
-        """
-        if table.source_id in self._tables:
-            raise ValueError(f"{table.source_id} already exists in catalog.")
-        self._tables[table.source_id] = table
+        self._private_tables = {}
+        self._public_tables = {}
 
     def add_private_table(
         self,
@@ -70,7 +61,7 @@ class Catalog:
         id_column: Optional[str] = None,
         id_space: Optional[str] = None,
     ):
-        """Adds a private table to catalog. There may only be a single private table.
+        """Adds a private table to catalog.
 
         Args:
             source_id: The source id, or unique identifier, for the private table.
@@ -81,18 +72,18 @@ class Catalog:
             id_space: Name of the identifier space for this table (if any).
 
         Raises:
-            ValueError: If there is already a private table.
+            ValueError: If there is already a private table with the given source_id.
         """
-        self._add_table(
-            PrivateTable(
-                source_id=source_id,
-                schema=Schema(
-                    col_types,
-                    grouping_column=grouping_column,
-                    id_column=id_column,
-                    id_space=id_space,
-                ),
-            )
+        if source_id in self._private_tables:
+            raise ValueError(f"Table '{source_id}' already exists in catalog")
+        self._private_tables[source_id] = PrivateTable(
+            source_id=source_id,
+            schema=Schema(
+                col_types,
+                grouping_column=grouping_column,
+                id_column=id_column,
+                id_space=id_space,
+            ),
         )
 
     def add_public_table(
@@ -107,11 +98,20 @@ class Catalog:
             col_types: Mapping from column names to types for the public table.
 
         Raises:
-            ValueError: If there is already a private table.
+            ValueError: If there is already a public table with the given source_id.
         """
-        self._add_table(PublicTable(source_id=source_id, schema=Schema(col_types)))
+        if source_id in self._public_tables:
+            raise ValueError(f"Table '{source_id}' already exists in catalog")
+        self._public_tables[source_id] = PublicTable(
+            source_id=source_id, schema=Schema(col_types)
+        )
 
     @property
-    def tables(self) -> Dict[str, Table]:
-        """Returns the catalog as a dictionary of tables."""
-        return self._tables
+    def private_tables(self) -> Dict[str, PrivateTable]:
+        """Returns the catalog's private tables."""
+        return self._private_tables
+
+    @property
+    def public_tables(self) -> Dict[str, PublicTable]:
+        """Returns the catalog's public tables."""
+        return self._public_tables

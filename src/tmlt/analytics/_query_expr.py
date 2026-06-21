@@ -26,7 +26,7 @@ from tmlt.core.utils.join import domain_after_join
 from typeguard import check_type
 
 from tmlt.analytics import AnalyticsInternalError
-from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
+from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -224,18 +224,18 @@ class PrivateSource(QueryExpr):
 
     def _validate(self, catalog: Catalog):
         """Validation checks for this QueryExpr."""
-        if self.source_id not in catalog.tables:
-            raise ValueError(f"Query references nonexistent table '{self.source_id}'")
-        if not isinstance(catalog.tables[self.source_id], PrivateTable):
+        if self.source_id in catalog.public_tables:
             raise ValueError(
-                f"Attempted query on table '{self.source_id}', which is "
-                "not a private table."
+                f"Table '{self.source_id}' is not a private table, and so cannot be "
+                "the starting point of a query"
             )
+        if self.source_id not in catalog.private_tables:
+            raise ValueError(f"Query references nonexistent table '{self.source_id}'")
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         self._validate(catalog)
-        return catalog.tables[self.source_id].schema
+        return catalog.private_tables[self.source_id].schema
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visits this QueryExpr with visitor."""
@@ -969,12 +969,6 @@ class JoinPublic(SingleChildQueryExpr):
 
     def _validate(self, catalog: Catalog, left_schema: Schema, right_schema: Schema):
         """Validation checks for this QueryExpr."""
-        if isinstance(self.public_table, str):
-            if not isinstance(catalog.tables[self.public_table], PublicTable):
-                raise ValueError(
-                    f"Attempted public join on table '{self.public_table}', "
-                    "which is not a public table"
-                )
         _validate_join(left_schema, right_schema, self.join_columns)
 
     def schema(self, catalog: Catalog) -> Schema:
@@ -985,7 +979,12 @@ class JoinPublic(SingleChildQueryExpr):
         """
         input_schema = self.child.schema(catalog)
         if isinstance(self.public_table, str):
-            right_schema = catalog.tables[self.public_table].schema
+            if self.public_table not in catalog.public_tables:
+                raise ValueError(
+                    f"Attempted public join on table '{self.public_table}', "
+                    "which is not a public table"
+                )
+            right_schema = catalog.public_tables[self.public_table].schema
         else:
             right_schema = Schema(
                 spark_schema_to_analytics_columns(self.public_table.schema)
