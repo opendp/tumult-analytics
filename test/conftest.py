@@ -186,8 +186,7 @@ def pyspark():
     )
     # This is to silence pyspark logs.
     spark.sparkContext.setLogLevel("OFF")
-    yield spark
-    spark.stop()
+    return spark
 
 
 @pytest.fixture(scope="function", name="spark_with_progress")
@@ -209,11 +208,6 @@ def pyspark_with_progress():
         .config("spark.driver.memory", "2g")
         .config("spark.port.maxRetries", "30")
         .config("spark.sql.shuffle.partitions", "1")
-        # Mac Java initialization fixes.
-        .config("spark.driver.host", "127.0.0.1")  # Force Spark to bind to local host.
-        .config(
-            "spark.driver.bindAddress", "127.0.0.1"
-        )  # Force Spark to bind to local host.
         # Disable Spark UI, leave console display enabled
         .config("spark.ui.showConsoleProgress", "true")
         .config("spark.ui.enabled", "false")
@@ -228,8 +222,7 @@ def pyspark_with_progress():
     )
     # This is to silence pyspark logs.
     spark.sparkContext.setLogLevel("OFF")
-    yield spark
-    spark.stop()
+    return spark
 
 
 def create_mock_measurement(
