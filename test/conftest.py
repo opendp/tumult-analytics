@@ -172,11 +172,6 @@ def pyspark():
         .config("spark.driver.memory", "2g")
         .config("spark.port.maxRetries", "30")
         .config("spark.sql.shuffle.partitions", "1")
-        # Mac Java initialization fixes.
-        .config("spark.driver.host", "127.0.0.1")  # Force Spark to bind to local host.
-        .config(
-            "spark.driver.bindAddress", "127.0.0.1"
-        )  # Force Spark to bind to local host.
         # Disable Spark UI / Console display
         .config("spark.ui.showConsoleProgress", "false")
         .config("spark.ui.enabled", "false")
