@@ -1074,6 +1074,10 @@ class BaseTransformationVisitor(QueryExprVisitor):
             )
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
+            if len(input_metric.columns) != 1:
+                raise AnalyticsInternalError(
+                    f"Expected exactly one grouping column in the input metric, but found {input_metric.columns}."
+                )
             grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.replace_with:
                 raise ValueError(
@@ -1372,6 +1376,10 @@ class BaseTransformationVisitor(QueryExprVisitor):
         # TODO(2702): This should be supported for IDs tables
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
+            if len(input_metric.columns) != 1:
+                raise AnalyticsInternalError(
+                    f"Expected exactly one grouping column in the input metric, but found {input_metric.columns}."
+                )
             grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.columns:
                 raise ValueError(
