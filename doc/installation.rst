@@ -13,7 +13,7 @@ Prerequisites
 
 |project| is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
 It is compatible with Python 3.10 through 3.12.
-Because Tumult Analytics uses PySpark for computation, it also `requires Java 8 or 11 <https://archive.apache.org/dist/spark/docs/3.1.1/#downloading>`__, or Java 17 if PySpark 3.4 or later is used.
+Because Tumult Analytics uses PySpark for computation, it also `requires Java 8, 11, or 17 <https://spark.apache.org/docs/latest/#downloading>`__.
 Java 21 is not currently supported.
 
 Tumult Analytics supports the ``x86_64`` processor architecture, as well as Apple silicon.
