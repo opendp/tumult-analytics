@@ -55,6 +55,7 @@ def fixture_catalog():
             "int_col": ColumnDescriptor(ColumnType.INTEGER),
             "float_col": ColumnDescriptor(ColumnType.DECIMAL),
         },
+        constraints=[],
     )
     return c
 
@@ -432,7 +433,7 @@ def test_special_value_handling_count_unaffected(
         mechanism=AggMech["DEFAULT"],
     )
     catalog = Catalog()
-    catalog.add_private_table("private", {"col": col_desc})
+    catalog.add_private_table("private", {"col": col_desc}, constraints=[])
     info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
     got_expr = add_special_value_handling(info)(expr)
     assert got_expr == expr
@@ -539,7 +540,7 @@ def test_special_value_handling_numeric_aggregations(
         mechanism=AggMech["DEFAULT"],
     )
     catalog = Catalog()
-    catalog.add_private_table("private", {"col": col_desc})
+    catalog.add_private_table("private", {"col": col_desc}, constraints=[])
     info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
     got_expr = add_special_value_handling(info)(expr)
     assert got_expr == replace(
@@ -628,7 +629,7 @@ def test_special_value_handling_get_bounds(
         upper_bound_column="upper",
     )
     catalog = Catalog()
-    catalog.add_private_table("private", {"col": col_desc})
+    catalog.add_private_table("private", {"col": col_desc}, constraints=[])
     info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
     got_expr = add_special_value_handling(info)(expr)
     assert got_expr == replace(

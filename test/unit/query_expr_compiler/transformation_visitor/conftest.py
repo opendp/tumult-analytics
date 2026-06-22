@@ -186,6 +186,7 @@ def _catalog(request, spark):
             "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "rows2",
@@ -193,6 +194,7 @@ def _catalog(request, spark):
             "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "field": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "rows_infs_nans",
@@ -205,6 +207,7 @@ def _catalog(request, spark):
                 ColumnType.DECIMAL, allow_nan=True, allow_null=True
             ),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "ids1",
@@ -218,6 +221,7 @@ def _catalog(request, spark):
             "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         },
+        constraints=[],
         grouping_column="id",
     )
     catalog.add_private_table(
@@ -227,6 +231,7 @@ def _catalog(request, spark):
             "I": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "field": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         },
+        constraints=[],
         grouping_column="id",
     )
     catalog.add_private_table(
@@ -241,6 +246,7 @@ def _catalog(request, spark):
                 ColumnType.DECIMAL, allow_nan=True, allow_null=True
             ),
         },
+        constraints=[],
         grouping_column="id",
     )
     catalog.add_private_table(
@@ -249,6 +255,7 @@ def _catalog(request, spark):
             "id": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
             "St": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
         },
+        constraints=[],
         grouping_column="id",
     )
     catalog.add_public_table(
@@ -364,18 +371,6 @@ def _visitor(request, _catalog):
         input_domain=input_domain,
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
-        table_constraints={
-            NamedTable(t): []
-            for t in (
-                "rows1",
-                "rows2",
-                "rows_infs_nans",
-                "ids1",
-                "ids2",
-                "ids_infs_nans",
-                "ids_duplicates",
-            )
-        },
         catalog=_catalog,
     )
     request.cls.visitor = visitor
@@ -422,10 +417,11 @@ def _nulls_catalog(request):
         ),
     }
     catalog = Catalog()
-    catalog.add_private_table("rows", df_columns)
+    catalog.add_private_table("rows", df_columns, constraints=[])
     catalog.add_private_table(
         "ids",
         {"id": ColumnDescriptor(ColumnType.INTEGER, allow_null=True), **df_columns},
+        constraints=[],
         grouping_column="id",
     )
     request.cls.catalog = catalog
@@ -472,7 +468,6 @@ def _nulls_visitor(request, _nulls_catalog):
         input_domain=input_domain,
         input_metric=input_metric,
         mechanism=NoiseMechanism.LAPLACE,
-        table_constraints={NamedTable(t): [] for t in ("rows", "ids")},
         catalog=_nulls_catalog,
     )
     request.cls.visitor = visitor

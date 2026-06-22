@@ -343,6 +343,7 @@ def setup_validation(request):
             "D": ColumnDescriptor(ColumnType.DATE),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP),
         },
+        constraints=[],
     )
     catalog.add_public_table(
         "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema), GET_PUBLIC()
@@ -368,7 +369,9 @@ def setup_validation(request):
         GET_GROUPBY_COLUMN_WRONG_TYPE(),
     )
     catalog.add_private_table(
-        "groupby_one_column_private", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+        "groupby_one_column_private",
+        {"A": ColumnDescriptor(ColumnType.VARCHAR)},
+        constraints=[],
     )
     request.cls.catalog = catalog
 
@@ -527,10 +530,12 @@ def setup_catalog_with_nulls(request) -> None:
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
             "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "groupby_one_column_private",
         {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
+        constraints=[],
     )
 
     public_schemas = {
@@ -1135,8 +1140,8 @@ class TestValidationWithNulls:
     ):
         """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
-        catalog.add_private_table("left", left_schema)
-        catalog.add_private_table("right", right_schema)
+        catalog.add_private_table("left", left_schema, constraints=[])
+        catalog.add_private_table("right", right_schema, constraints=[])
         query = JoinPrivate(
             left_child=PrivateSource("left"),
             right_child=PrivateSource("right"),
@@ -1197,7 +1202,7 @@ class TestValidationWithNulls:
     ):
         """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
-        catalog.add_private_table("private", private_schema)
+        catalog.add_private_table("private", private_schema, constraints=[])
         catalog.add_public_table(
             "public", public_schema, _empty_public_dataframe(public_schema)
         )

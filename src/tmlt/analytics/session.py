@@ -714,7 +714,6 @@ class Session:
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
                 catalog=self._catalog,
-                table_constraints=self._table_constraints,
             )[2]
         except NotImplementedError:
             # If the query results in a measurement, this will happen.
@@ -900,6 +899,7 @@ class Session:
             catalog.add_private_table(
                 table,
                 self.get_schema(table),
+                constraints=self._table_constraints[NamedTable(table)],
                 grouping_column=self.get_grouping_column(table),
                 id_column=self.get_id_column(table),
                 id_space=self.get_id_space(table),
@@ -995,7 +995,6 @@ class Session:
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             catalog=self._catalog,
-            table_constraints=self._table_constraints,
         )
         return measurement, adjusted_budget, noise_info
 
@@ -1232,7 +1231,6 @@ class Session:
             input_domain=self._input_domain,
             input_metric=self._input_metric,
             catalog=self._catalog,
-            table_constraints=self._table_constraints,
         )
         if cache:
             transformation, ref = persist_table(

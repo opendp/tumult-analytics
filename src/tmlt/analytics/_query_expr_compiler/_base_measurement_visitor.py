@@ -100,7 +100,6 @@ from tmlt.analytics._query_expr import (
     VarianceMechanism,
 )
 from tmlt.analytics._schema import Schema
-from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.constraints import (
@@ -377,7 +376,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         output_measure: Union[PureDP, ApproxDP, RhoZCDP],
         default_mechanism: NoiseMechanism,
         catalog: Catalog,
-        table_constraints: Dict[Identifier, List[Constraint]],
     ):
         """Constructor for MeasurementVisitor."""
         self.budget = privacy_budget
@@ -388,7 +386,6 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self.default_mechanism = default_mechanism
         self.output_measure = output_measure
         self.catalog = catalog
-        self.table_constraints = table_constraints
 
     def _get_zero_budget(self) -> PrivacyBudget:
         """Return a budget with zero epsilon and zero delta."""

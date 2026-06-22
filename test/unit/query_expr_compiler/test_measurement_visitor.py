@@ -261,6 +261,7 @@ def prepare_visitor(spark, request):
                 ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
             ),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "private_2",
@@ -268,6 +269,7 @@ def prepare_visitor(spark, request):
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "C": ColumnDescriptor(ColumnType.INTEGER),
         },
+        constraints=[],
     )
     catalog.add_public_table(
         "public",
@@ -292,7 +294,6 @@ def prepare_visitor(spark, request):
         output_measure=PureDP(),
         default_mechanism=NoiseMechanism.LAPLACE,
         catalog=catalog,
-        table_constraints={t: [] for t in stability},
     )
     # for the methods which alter the output measure of a visitor.
     request.cls.pick_noise_visitor = MeasurementVisitor(
@@ -303,7 +304,6 @@ def prepare_visitor(spark, request):
         output_measure=PureDP(),
         default_mechanism=NoiseMechanism.LAPLACE,
         catalog=catalog,
-        table_constraints={t: [] for t in stability},
     )
 
 

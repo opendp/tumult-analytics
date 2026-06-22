@@ -5,11 +5,12 @@
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Dict, Mapping, Optional, Union
+from typing import Collection, Dict, Mapping, Optional, Union
 
 from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics.constraints import Constraint
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,9 @@ class PrivateTable(Table):
     protected.
     """
 
+    constraints: tuple[Constraint, ...]
+    """The constraints known to hold on this private table."""
+
 
 class Catalog:
     """Specifies schemas and constraints on public and private tables."""
@@ -60,6 +64,7 @@ class Catalog:
         self,
         source_id: str,
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+        constraints: Collection[Constraint],
         grouping_column: Optional[str] = None,
         id_column: Optional[str] = None,
         id_space: Optional[str] = None,
@@ -69,6 +74,7 @@ class Catalog:
         Args:
             source_id: The source id, or unique identifier, for the private table.
             col_types: Mapping from column names to types for private table.
+            constraints: The constraints known to hold on the private table.
             grouping_column: Name of the column (if any) that must be grouped by in any
                 groupby aggregations that use this table.
             id_column: Name of the ID column for this table (if any).
@@ -87,6 +93,7 @@ class Catalog:
                 id_column=id_column,
                 id_space=id_space,
             ),
+            constraints=tuple(constraints),
         )
 
     def add_public_table(

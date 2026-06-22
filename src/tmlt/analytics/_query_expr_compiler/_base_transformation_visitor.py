@@ -126,7 +126,7 @@ from tmlt.analytics._schema import (
     spark_dataframe_domain_to_analytics_columns,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics._table_identifier import Identifier, TemporaryTable
+from tmlt.analytics._table_identifier import NamedTable, TemporaryTable
 from tmlt.analytics._table_reference import (
     TableReference,
     find_named_tables,
@@ -154,7 +154,6 @@ class BaseTransformationVisitor(QueryExprVisitor):
         input_domain: DictDomain,
         input_metric: DictMetric,
         mechanism: NoiseMechanism,
-        table_constraints: Dict[Identifier, List[Constraint]],
         catalog: Catalog,
     ):
         """Constructor for a TransformationVisitor.
@@ -163,13 +162,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
             input_domain: The input domain that the transformation should have.
             input_metric: The input metric that the transformation should have.
             mechanism: The noise mechanism (only used for FlatMaps).
-            table_constraints: A mapping of tables to the existing constraints on them.
             catalog: The catalog, used for JoinPublic queries.
         """
         self.input_domain = input_domain
         self.input_metric = input_metric
         self.mechanism = mechanism
-        self.table_constraints = table_constraints
         self.catalog = catalog
 
     def _new_visitor_after_transformation(self, transformation: Transformation):
@@ -191,7 +188,6 @@ class BaseTransformationVisitor(QueryExprVisitor):
             transformation.output_domain,
             transformation.output_metric,
             self.mechanism,
-            self.table_constraints,
             self.catalog,
         )
 
@@ -336,11 +332,18 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 f"Available tables are: {named_tables}"
             )
         transformation = IdentityTransformation(self.input_metric, self.input_domain)
+        if not isinstance(ref.identifier, NamedTable):
+            raise AnalyticsInternalError(
+                f"Expected a named table reference for '{expr.source_id}', "
+                f"but got {ref.identifier}"
+            )
         try:
-            constraints = self.table_constraints[ref.identifier]
+            constraints = list(
+                self.catalog.private_tables[ref.identifier.name].constraints
+            )
         except KeyError as e:
             raise AnalyticsInternalError(
-                f"Table {ref.identifier} not present in constraints dictionary."
+                f"Table '{ref.identifier.name}' not present in catalog private tables"
             ) from e
         return self.Output(transformation, ref, constraints)
 

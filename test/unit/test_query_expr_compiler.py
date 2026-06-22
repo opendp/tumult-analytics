@@ -497,6 +497,7 @@ def setup(spark, request) -> None:
             "B": ColumnDescriptor(ColumnType.INTEGER),
             "X": ColumnDescriptor(ColumnType.DECIMAL),
         },
+        constraints=[],
     )
     catalog.add_private_table(
         "private_2",
@@ -504,6 +505,7 @@ def setup(spark, request) -> None:
             "A": ColumnDescriptor(ColumnType.VARCHAR),
             "C": ColumnDescriptor(ColumnType.INTEGER),
         },
+        constraints=[],
     )
     catalog.add_public_table(
         "public",
@@ -645,7 +647,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): count_distinct_df})
         assert_dataframe_equal(actual, expected)
@@ -665,7 +666,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
         assert_dataframe_equal(actual, expected)
@@ -989,7 +989,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): self.sdf})
         assert_dataframe_equal(actual, expected)
@@ -1009,7 +1008,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
 
         source_dict = {NamedTable("private"): self.sdf}
@@ -1045,7 +1043,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         source_dict = {NamedTable("private"): self.sdf, NamedTable("private_2"): sdf_2}
         output_sdf = get_table_from_ref(transformation, reference)(source_dict)
@@ -1127,7 +1124,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
 
         get_value_transform = get_table_from_ref(transformation, reference)
@@ -1157,7 +1153,6 @@ class TestQueryExprCompiler:
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
                 catalog=self.catalog,
-                table_constraints={t: [] for t in self.stability.keys()},
             )
 
     @pytest.mark.parametrize(
@@ -1197,7 +1192,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         get_value_transform = get_table_from_ref(transformation, reference)
 
@@ -1229,7 +1223,6 @@ class TestQueryExprCompiler:
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in self.stability.keys()},
         )
         actual = measurement({NamedTable("private"): sdf_float})
         expected = pd.DataFrame({"A": ["0", "1"], "sum": [2.0, 1.0]})
@@ -1272,7 +1265,6 @@ class TestQueryExprCompiler:
                 input_domain=self.input_domain,
                 input_metric=self.input_metric,
                 catalog=self.catalog,
-                table_constraints={t: [] for t in self.stability.keys()},
             )
 
     @pytest.mark.parametrize(
@@ -1302,6 +1294,7 @@ class TestQueryExprCompiler:
                     "B": ColumnType.INTEGER,
                     "X": ColumnType.DECIMAL,
                 },
+                constraints=[],
             )
         stability = {
             NamedTable("doubled"): self.stability[NamedTable("private")] * 2,
@@ -1327,7 +1320,6 @@ class TestQueryExprCompiler:
             input_domain=input_domain,
             input_metric=input_metric,
             catalog=self.catalog,
-            table_constraints={t: [] for t in stability.keys()},
         )
         assert measurement.privacy_relation(stability, sp.Integer(10))
 
@@ -1367,6 +1359,7 @@ class TestCompileGroupByQuantile:
                 "Gender": ColumnDescriptor(ColumnType.VARCHAR),
                 "Age": ColumnDescriptor(ColumnType.INTEGER),
             },
+            constraints=[],
         )
         stability = {NamedTable("private"): sp.Integer(1)}
         input_domain = DictDomain(
@@ -1403,7 +1396,6 @@ class TestCompileGroupByQuantile:
             input_domain=input_domain,
             input_metric=input_metric,
             catalog=catalog,
-            table_constraints={t: [] for t in stability},
         )
         assert measurement.input_domain == input_domain
         assert measurement.input_metric == input_metric
@@ -1433,5 +1425,7 @@ def setup_components(request):
     request.cls._input_metric = DictMetric({NamedTable("test"): SymmetricDifference()})
     request.cls._catalog = Catalog()
     request.cls._catalog.add_private_table(
-        source_id="test", col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER}
+        source_id="test",
+        col_types={"A": ColumnType.VARCHAR, "X": ColumnType.INTEGER},
+        constraints=[],
     )
