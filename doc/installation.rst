@@ -12,7 +12,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 |project| is built in `Python <https://www.python.org/>`__, so a Python installation is required to use it.
-Tumult Analytics uses PySpark for computation, users must have Python, Java, and PySpark versions that match the compatibility table below:
+Tumult Analytics is built on top of Tumult Core, which uses PySpark for computation. Users must have Python, Java, and PySpark versions that match the compatibility table below:
 
 +---------------+-------------------------+-------------------+
 | Python Version| PySpark Versions        | Java Versions     |
