@@ -12,7 +12,7 @@ Unreleased
 
 Added
 ~~~~~
-- Added support for PySpark 4 on Python 3.12 and changed Python 3.12 support from experimental to official.
+- Added support for PySpark 4 on Python 3.12, 3.13, and 3.14, Tumult Analytics now officially supports these Python versions.
 - :meth:`.KeySet.union`, which combines KeySets with matching schemas into a single KeySet containing all keys from either operand.
 
 Changed
