@@ -253,7 +253,7 @@ class TestSession:
             pytest.param(
                 PureDPBudget(float("inf")),
                 PureDP(),
-                IfGroupedBy("X", SumOf(SymmetricDifference())),
+                IfGroupedBy(["X"], SumOf(SymmetricDifference())),
                 {
                     "protected_change": AddMaxRowsInMaxGroups("X", 3, 7),
                 },
@@ -262,7 +262,7 @@ class TestSession:
             pytest.param(
                 RhoZCDPBudget(float("inf")),
                 RhoZCDP(),
-                IfGroupedBy("X", RootSumOfSquared(SymmetricDifference())),
+                IfGroupedBy(["X"], RootSumOfSquared(SymmetricDifference())),
                 {
                     "protected_change": AddMaxRowsInMaxGroups("X", 9, 7),
                 },
@@ -420,7 +420,7 @@ class TestSession:
                 DictMetric(
                     key_to_metric={
                         NamedTable("private"): IfGroupedBy(
-                            column="X", inner_metric=SumOf(SymmetricDifference())
+                            columns=["X"], inner_metric=SumOf(SymmetricDifference())
                         )
                     }
                 ),
@@ -435,7 +435,7 @@ class TestSession:
                 DictMetric(
                     key_to_metric={
                         NamedTable("private"): IfGroupedBy(
-                            column="X",
+                            columns=["X"],
                             inner_metric=RootSumOfSquared(SymmetricDifference()),
                         )
                     }
@@ -525,7 +525,7 @@ class TestSession:
                 DictMetric(
                     key_to_metric={
                         NamedTable("join_private"): IfGroupedBy(
-                            column="A+B", inner_metric=SumOf(SymmetricDifference())
+                            columns=["A+B"], inner_metric=SumOf(SymmetricDifference())
                         ),
                         NamedTable("private"): SymmetricDifference(),
                     }
@@ -776,7 +776,7 @@ class TestSession:
         mock_accountant.input_metric = DictMetric(
             {
                 NamedTable("private"): IfGroupedBy(
-                    "A", RootSumOfSquared(SymmetricDifference())
+                    ["A"], RootSumOfSquared(SymmetricDifference())
                 )
             }
         )

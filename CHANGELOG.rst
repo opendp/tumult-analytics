@@ -12,6 +12,7 @@ Unreleased
 
 Added
 ~~~~~
+- Added support for PySpark 4 on Python 3.12 and changed Python 3.12 support from experimental to official.
 - :meth:`.KeySet.union`, which combines KeySets with matching schemas into a single KeySet containing all keys from either operand.
 
 Changed
@@ -25,7 +26,9 @@ Changed
 - Fixed the documentation of the behavior of some numeric aggregations (:meth:`~tmlt.analytics.QueryBuilder.sum`, :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, :meth:`~tmlt.analytics.QueryBuilder.variance`, :meth:`~tmlt.analytics.QueryBuilder.quantile`) to match the actual behavior: infinity values are clamped using the specified bounds before being passed to the aggregation function, not dropped.
 - Single column names can now be passed as a string to :meth:`~tmlt.analytics.QueryBuilder.groupby`, :meth:`~tmlt.analytics.QueryBuilder.get_bounds`, :meth:`~tmlt.analytics.QueryBuilder.select`, :meth:`~tmlt.analytics.QueryBuilder.drop_infinity`, and :meth:`~tmlt.analytics.QueryBuilder.drop_null_and_nan`.
 
-
+Removed
+~~~~~~~
+- Support for Tumult Core <0.19 has been dropped.
 
 
 

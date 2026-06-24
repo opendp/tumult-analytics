@@ -219,11 +219,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
             )
         if expected_schema.grouping_column is not None:
             expected_output_metric = IfGroupedBy(
-                expected_schema.grouping_column, self.inner_metric()
+                [expected_schema.grouping_column], self.inner_metric()
             )
         elif expected_schema.id_column is not None:
             expected_output_metric = IfGroupedBy(
-                expected_schema.id_column, SymmetricDifference()
+                [expected_schema.id_column], SymmetricDifference()
             )
         else:
             expected_output_metric = SymmetricDifference()
@@ -1074,11 +1074,15 @@ class BaseTransformationVisitor(QueryExprVisitor):
             )
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
-            grouping_column = input_metric.column
+            if len(input_metric.columns) != 1:
+                raise AnalyticsInternalError(
+                    f"Expected exactly one grouping column in the input metric, but found {input_metric.columns}."
+                )
+            grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.replace_with:
                 raise ValueError(
                     "Cannot replace null values in column"
-                    f" {input_metric.column}, because it is being used as a"
+                    f" {grouping_column}, because it is being used as a"
                     " grouping column"
                 )
         analytics_schema = spark_dataframe_domain_to_analytics_columns(input_domain)
@@ -1372,11 +1376,15 @@ class BaseTransformationVisitor(QueryExprVisitor):
         # TODO(2702): This should be supported for IDs tables
         grouping_column: Optional[str] = None
         if isinstance(input_metric, IfGroupedBy):
-            grouping_column = input_metric.column
+            if len(input_metric.columns) != 1:
+                raise AnalyticsInternalError(
+                    f"Expected exactly one grouping column in the input metric, but found {input_metric.columns}."
+                )
+            grouping_column = list(input_metric.columns)[0]
             if grouping_column in expr.columns:
                 raise ValueError(
                     "Cannot drop null values in column"
-                    f" {input_metric.column}, because it is being used as a"
+                    f" {grouping_column}, because it is being used as a"
                     " grouping column"
                 )
 

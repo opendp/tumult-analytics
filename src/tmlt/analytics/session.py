@@ -837,7 +837,7 @@ class Session:
         if isinstance(metric, IfGroupedBy) and isinstance(
             metric.inner_metric, (SumOf, RootSumOfSquared)
         ):
-            return metric.column
+            return list(metric.columns)[0]
         return None
 
     @typechecked
@@ -862,7 +862,7 @@ class Session:
         if isinstance(metric, IfGroupedBy) and isinstance(
             metric.inner_metric, SymmetricDifference
         ):
-            return metric.column
+            return list(metric.columns)[0]
         return None
 
     @typechecked

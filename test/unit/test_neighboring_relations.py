@@ -162,13 +162,13 @@ class TestNeighboringRelations:
 
         assert AddRemoveRowsAcrossGroups("table2", "B", 2, 3).accept(pure_visitor) == (
             SparkDataFrameDomain.from_spark_schema(self.table2.schema),
-            IfGroupedBy("B", SumOf(SymmetricDifference())),
+            IfGroupedBy(["B"], SumOf(SymmetricDifference())),
             ExactNumber(2 * 3),
             self.table2,
         )
         assert AddRemoveRowsAcrossGroups("table1", "A", 2, 3).accept(rho_visitor) == (
             SparkDataFrameDomain.from_spark_schema(self.table1.schema),
-            IfGroupedBy("A", RootSumOfSquared(SymmetricDifference())),
+            IfGroupedBy(["A"], RootSumOfSquared(SymmetricDifference())),
             ExactNumber(sp.sqrt(2) * 3),
             self.table1,
         )
