@@ -79,7 +79,7 @@ Running linters, tests, or building docs tends to generate a lot of files in the
 
 ## Releasing
 
-To release a new version of the library, add a sentence under the "Unreleased" section to [`CHANGELOG.rst`](./CHANGELOG.rst) to describe the changes at a high level, and add a tag with new release version to `main` after merging your PR.
+To release a new version of the library, add a sentence under the "Unreleased" section of [`CHANGELOG.rst`](./CHANGELOG.rst) to describe the changes at a high level, and add a tag with the new version number to `main` after merging your PR.
 
 ## Final thoughts
 
