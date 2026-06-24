@@ -10,8 +10,8 @@ Changelog
 Unreleased
 ----------
 
-This release adds full support for Python 3.12 and PySpark 4 and drops support for older versions of Python and PySpark.
-It also implement various quality of life improvements, see below for a full list.
+This release adds full support for Python 3.12 and PySpark 4 and removes support for older dependency combinations.
+It also removes some deprecated arguments, improves the documentation, and adds a few quality of life improvements.
 
 Added
 ~~~~~
