@@ -77,6 +77,10 @@ on:
 
 Running linters, tests, or building docs tends to generate a lot of files in the repository that you generally don't want to keep around. Simply run `make clean` to get rid of all those. This is particularly useful when working on the documentation; Sphinx tends to get confused by files generated in previous documentation builds.
 
+## Releasing
+
+To release a new version of the library, add a sentence under the "Unreleased" section to [`CHANGELOG.rst`](./CHANGELOG.rst) to describe the changes at a high level, and add a tag with new release version to `main` after merging your PR.
+
 ## Final thoughts
 
 We want to actively encourage contributions and help you merge your bug fixes or new features. Please don't hesitate to ask us for help on [Slack][slack] if you encounter any difficulty during the process!
