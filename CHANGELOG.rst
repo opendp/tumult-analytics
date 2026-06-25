@@ -10,6 +10,9 @@ Changelog
 Unreleased
 ----------
 
+This release adds full support for Python 3.12 and PySpark 4 and removes support for older dependency combinations.
+It also removes some deprecated arguments, improves the documentation, and adds a few quality of life improvements.
+
 Added
 ~~~~~
 - Added support for PySpark 4 on Python 3.12 and changed Python 3.12 support from experimental to official.
@@ -18,7 +21,7 @@ Added
 Changed
 ~~~~~~~
 - Dropped support for Python 3.9, as it has reached end-of-life.
-- Dropped support for pyspark <3.5.0 on Macs after discovering that these configurations frequently crash. Older versions of the library may also be affected.
+- Dropped support for PySpark <3.5.0 on Macs after discovering that these configurations frequently crash. Older versions of the library may also be affected.
 - Aggregation mechanisms can now be specified as strings instead of enums, e.g. ``"laplace"`` instead of ``CountMechanism.LAPLACE`` or ``SumMechanism.LAPLACE``.
 - Removed previously deprecated argument ``max_num_rows`` to :meth:`~tmlt.analytics.QueryBuilder.flat_map`. Use ``max_rows`` instead.
 - Removed previously deprecated argument ``cols`` to :meth:`~tmlt.analytics.QueryBuilder.count_distinct`. Use ``columns`` instead.

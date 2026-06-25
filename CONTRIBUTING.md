@@ -77,6 +77,14 @@ on:
 
 Running linters, tests, or building docs tends to generate a lot of files in the repository that you generally don't want to keep around. Simply run `make clean` to get rid of all those. This is particularly useful when working on the documentation; Sphinx tends to get confused by files generated in previous documentation builds.
 
+## Releasing
+
+To release a new version of the library:
+
+1. Add a sentence under the "Unreleased" section of [`CHANGELOG.rst`](./CHANGELOG.rst) to describe the changes at a high level.
+2. Run `nox -s make-release -- VERSION`, where VERSION is the new version of the library. This will create a PR.
+3. Merge that PR into `main` without squashing its commits (so the release commit ends up in the history of `main`).
+
 ## Final thoughts
 
 We want to actively encourage contributions and help you merge your bug fixes or new features. Please don't hesitate to ask us for help on [Slack][slack] if you encounter any difficulty during the process!
