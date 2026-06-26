@@ -23,6 +23,10 @@ It is built on top of Tumult Core and uses PySpark for computation, which in tur
 +---------------+-------------------------+-------------------+
 | 3.12          | PySpark >=4.0.0         | Java 17 and 21    |
 +---------------+-------------------------+-------------------+
+| 3.13          | PySpark >=4.0.0         | Java 17 and 21    |
++---------------+-------------------------+-------------------+
+| 3.14          | PySpark >=4.0.0         | Java 17 and 21    |
++---------------+-------------------------+-------------------+
 
 Tumult Analytics supports the ``x86_64`` processor architecture, as well as Apple silicon.
 

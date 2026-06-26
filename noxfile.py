@@ -104,9 +104,65 @@ DEPENDENCY_MATRIX = [
              "tmlt.core": ">=0.19.1",
         },
     ),
+        DependencyConfiguration(
+        id="3.13-oldest",
+        python="3.13",
+        packages={
+            "pyspark[sql]": "==4.0.0",
+             "sympy": "==1.8",
+             "pandas": "==2.2.0",
+             "numpy": "==1.26.0",
+             "scipy": "==1.11.2",
+             "randomgen": "==1.26.0",
+             "pyarrow": "==18.0.0",
+             "tmlt.core": ">=0.19.1",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.13-newest",
+        python="3.13",
+        packages={
+            "pyspark[sql]": "==4.1.0",
+             "sympy": "==1.12",
+             "pandas": "==2.3.3",
+             "numpy": "==1.26.4",
+             "scipy": "==1.17.1",
+             "randomgen": "==2.3.0",
+             "pyarrow": "==18.1.0",
+             "tmlt.core": ">=0.19.1",
+        },
+    ),
+        DependencyConfiguration(
+        id="3.14-oldest",
+        python="3.14",
+        packages={
+            "pyspark[sql]": "==4.0.0",
+             "sympy": "==1.8",
+             "pandas": "==2.2.0",
+             "numpy": "==1.26.0",
+             "scipy": "==1.11.2",
+             "randomgen": "==1.26.0",
+             "pyarrow": "==18.0.0",
+             "tmlt.core": ">=0.19.1",
+        },
+    ),
+    DependencyConfiguration(
+        id="3.14-newest",
+        python="3.14",
+        packages={
+            "pyspark[sql]": "==4.1.0",
+             "sympy": "==1.12",
+             "pandas": "==2.3.3",
+             "numpy": "==1.26.4",
+             "scipy": "==1.17.1",
+             "randomgen": "==2.3.0",
+             "pyarrow": "==18.1.0",
+             "tmlt.core": ">=0.19.1",
+        },
+    ),
 ]
 
-AUDIT_VERSIONS = ["3.10", "3.11", "3.12"]
+AUDIT_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 AUDIT_SUPPRESSIONS = [
     "PYSEC-2023-228",
     # Affects: pip<23.3
