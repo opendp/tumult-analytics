@@ -130,9 +130,9 @@ AUDIT_SUPPRESSIONS = [
 # timeouts have been set in https://github.com/opendp/tumult-analytics/pull/49
 # to 25% longer than one run on the GitHub runners (rounded up).
 BENCHMARK_TO_TIMEOUT = {
-    "benchmark/benchmark_keyset_projection.py": 9,
-    "benchmark/benchmark_keyset_cross_product_per_size.py": 45,
-    "benchmark/benchmark_keyset_cross_product_per_factors.py": 37,
+    "keyset_projection": 9 * 60,
+    "keyset_cross_product_per_size": 45 * 60,
+    "keyset_cross_product_per_factors": 37 * 60,
 }
 
 sm = SessionManager(
@@ -164,8 +164,8 @@ sm.docs_linkcheck()
 sm.docs_doctest()
 sm.docs()
 
-for benchmark_name, timeout in BENCHMARK_TO_TIMEOUT.items():
-    sm.benchmark(CWD / benchmark_name, timeout * 60)
+for name, timeout in BENCHMARK_TO_TIMEOUT.items():
+    sm.benchmark(Path("benchmark") / f"{name}.py", timeout)
 
 sm.audit()
 
