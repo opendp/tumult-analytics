@@ -1,5 +1,7 @@
 """Defines a base class for building measurement visitors."""
 
+# SPDX-License-Identifier: Apache-2.0
+
 import math
 import warnings
 from abc import abstractmethod
@@ -9,9 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import sympy as sp
 from pyspark.sql import DataFrame, SparkSession
-
-# SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
 from pyspark.sql.types import (
     BooleanType,
     ByteType,
@@ -101,7 +100,6 @@ from tmlt.analytics._query_expr import (
     VarianceMechanism,
 )
 from tmlt.analytics._schema import Schema
-from tmlt.analytics._table_identifier import Identifier
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics._transformation_utils import get_table_from_ref
 from tmlt.analytics.constraints import (
@@ -377,9 +375,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         input_metric: DictMetric,
         output_measure: Union[PureDP, ApproxDP, RhoZCDP],
         default_mechanism: NoiseMechanism,
-        public_sources: Dict[str, DataFrame],
         catalog: Catalog,
-        table_constraints: Dict[Identifier, List[Constraint]],
     ):
         """Constructor for MeasurementVisitor."""
         self.budget = privacy_budget
@@ -388,10 +384,8 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self.input_domain = input_domain
         self.input_metric = input_metric
         self.default_mechanism = default_mechanism
-        self.public_sources = public_sources
         self.output_measure = output_measure
         self.catalog = catalog
-        self.table_constraints = table_constraints
 
     def _get_zero_budget(self) -> PrivacyBudget:
         """Return a budget with zero epsilon and zero delta."""

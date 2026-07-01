@@ -42,6 +42,7 @@ from tmlt.analytics._schema import (
     ColumnType,
     FrozenDict,
     Schema,
+    analytics_to_spark_schema,
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.config import config
@@ -70,10 +71,17 @@ GET_GROUPBY_COLUMN_WRONG_TYPE = lambda: (
     )
 )
 
+
+def _empty_public_dataframe(col_types):
+    return SparkSession.builder.getOrCreate().createDataFrame(
+        [], schema=analytics_to_spark_schema(Schema(col_types))
+    )
+
+
 OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     (  # Query references public source instead of private source
         PrivateSource("public"),
-        "Attempted query on table 'public', which is not a private table",
+        "Table 'public' is not a private table",
     ),
     (  # JoinPublic has invalid public_id
         JoinPublic(child=PrivateSource("private"), public_table="private"),
@@ -335,28 +343,35 @@ def setup_validation(request):
             "D": ColumnDescriptor(ColumnType.DATE),
             "T": ColumnDescriptor(ColumnType.TIMESTAMP),
         },
+        constraints=[],
     )
     catalog.add_public_table(
-        "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema)
+        "public", spark_schema_to_analytics_columns(GET_PUBLIC().schema), GET_PUBLIC()
     )
     catalog.add_public_table(
         "groupby_column_a",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_A().schema),
+        GET_GROUPBY_COLUMN_A(),
     )
     catalog.add_public_table(
         "groupby_column_b",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_B().schema),
+        GET_GROUPBY_COLUMN_B(),
     )
     catalog.add_public_table(
         "groupby_non_existing_column",
         spark_schema_to_analytics_columns(GET_GROUPBY_NON_EXISTING_COLUMN().schema),
+        GET_GROUPBY_NON_EXISTING_COLUMN(),
     )
     catalog.add_public_table(
         "groupby_column_wrong_type",
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
+        GET_GROUPBY_COLUMN_WRONG_TYPE(),
     )
     catalog.add_private_table(
-        "groupby_one_column_private", {"A": ColumnDescriptor(ColumnType.VARCHAR)}
+        "groupby_one_column_private",
+        {"A": ColumnDescriptor(ColumnType.VARCHAR)},
+        constraints=[],
     )
     request.cls.catalog = catalog
 
@@ -515,30 +530,31 @@ def setup_catalog_with_nulls(request) -> None:
             "T": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
             "NOTNULL": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
         },
-    )
-    catalog.add_public_table(
-        "public",
-        {
-            "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-        },
-    )
-    catalog.add_public_table(
-        "groupby_column_a", {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)}
-    )
-    catalog.add_public_table(
-        "groupby_column_b", {"B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)}
-    )
-    catalog.add_public_table(
-        "groupby_nonexistent_column", {"yay": ColumnDescriptor(ColumnType.INTEGER)}
-    )
-    catalog.add_public_table(
-        "groupby_column_wrong_type", {"A": ColumnDescriptor(ColumnType.INTEGER)}
+        constraints=[],
     )
     catalog.add_private_table(
         "groupby_one_column_private",
         {"A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)},
+        constraints=[],
     )
+
+    public_schemas = {
+        "public": {
+            "A": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "A+B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+        },
+        "groupby_column_a": {
+            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True)
+        },
+        "groupby_column_b": {
+            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True)
+        },
+        "groupby_nonexistent_column": {"yay": ColumnDescriptor(ColumnType.INTEGER)},
+        "groupby_column_wrong_type": {"A": ColumnDescriptor(ColumnType.INTEGER)},
+    }
+    for source_id, schema in public_schemas.items():
+        catalog.add_public_table(source_id, schema, _empty_public_dataframe(schema))
+
     request.cls.catalog = catalog
 
 
@@ -674,7 +690,7 @@ class TestValidationWithNulls:
         """Test schema for private_source."""
         query = PrivateSource("private")
         schema = query.schema(self.catalog)
-        assert schema == self.catalog.tables["private"].schema
+        assert schema == self.catalog.private_tables["private"].schema
 
     @pytest.mark.parametrize(
         "column_mapper,expected_schema",
@@ -759,7 +775,7 @@ class TestValidationWithNulls:
         """Test schema for filter."""
         query = Filter(child=PrivateSource("private"), condition=condition)
         schema = query.schema(self.catalog)
-        assert schema == self.catalog.tables["private"].schema
+        assert schema == self.catalog.private_tables["private"].schema
 
     @pytest.mark.parametrize(
         "columns,expected_schema",
@@ -1124,8 +1140,8 @@ class TestValidationWithNulls:
     ):
         """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
-        catalog.add_private_table("left", left_schema)
-        catalog.add_private_table("right", right_schema)
+        catalog.add_private_table("left", left_schema, constraints=[])
+        catalog.add_private_table("right", right_schema, constraints=[])
         query = JoinPrivate(
             left_child=PrivateSource("left"),
             right_child=PrivateSource("right"),
@@ -1186,8 +1202,10 @@ class TestValidationWithNulls:
     ):
         """Test that schema correctly propagates nulls through a join."""
         catalog = Catalog()
-        catalog.add_private_table("private", private_schema)
-        catalog.add_public_table("public", public_schema)
+        catalog.add_private_table("private", private_schema, constraints=[])
+        catalog.add_public_table(
+            "public", public_schema, _empty_public_dataframe(public_schema)
+        )
         query = JoinPublic(child=PrivateSource("private"), public_table="public")
         result_schema = query.schema(catalog)
         assert result_schema == expected_schema

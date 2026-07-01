@@ -107,6 +107,7 @@ Let's check that we initialized the Session as intended using the
    books_borrowed   INTEGER        True
    favorite_genres  VARCHAR        True
    date_joined      DATE           True
+   No public tables are available.
 
 Initializing a Session with a finite privacy budget gives a simple interface
 promise: all queries evaluated on this Session, *taken together*, will provide

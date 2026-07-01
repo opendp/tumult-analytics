@@ -416,7 +416,9 @@ class TestAddKeys(TestTransformationVisitor):
     def test_visit_join_public_df(self) -> None:
         """Test generating transformations from a JoinPublic using a dataframe."""
         query = JoinPublic(
-            PrivateSource("ids1"), self.visitor.public_sources["public"], None
+            PrivateSource("ids1"),
+            self.visitor.catalog.public_tables["public"].dataframe,
+            None,
         )
         expected_df = pd.DataFrame(
             [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],

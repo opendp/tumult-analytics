@@ -5,12 +5,15 @@
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Dict, Mapping, Optional, Union
+from typing import Collection, Dict, Mapping, Optional, Union
+
+from pyspark.sql import DataFrame
 
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
+from tmlt.analytics.constraints import Constraint
 
 
-@dataclass
+@dataclass(frozen=True)
 class Table(ABC):
     """Metadata for a public or private table."""
 
@@ -18,11 +21,9 @@ class Table(ABC):
     """The source id, or unique identifier, for the table."""
     schema: Schema
     """The analytics schema for the table. Describes the column types."""
-    id_space: Optional[str] = None
-    """The identifier space for the table."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class PublicTable(Table):
     """Metadata for a public table.
 
@@ -30,13 +31,16 @@ class PublicTable(Table):
     require any special privacy protections.
     """
 
+    dataframe: DataFrame
+    """The public data for the table."""
+
     def __post_init__(self):
         """Check inputs to constructor."""
         if self.schema.grouping_column is not None:
             raise ValueError("Public tables cannot have a grouping_column")
 
 
-@dataclass
+@dataclass(frozen=True)
 class PrivateTable(Table):
     """Metadata for a private table.
 
@@ -44,74 +48,82 @@ class PrivateTable(Table):
     protected.
     """
 
+    constraints: tuple[Constraint, ...]
+    """The constraints known to hold on this private table."""
+
 
 class Catalog:
     """Specifies schemas and constraints on public and private tables."""
 
     def __init__(self):
         """Constructor."""
-        self._tables = {}
-
-    def _add_table(self, table: Table):
-        """Adds table to catalog.
-
-        Args:
-            table: The table, public or private.
-        """
-        if table.source_id in self._tables:
-            raise ValueError(f"{table.source_id} already exists in catalog.")
-        self._tables[table.source_id] = table
+        self._private_tables = {}
+        self._public_tables = {}
 
     def add_private_table(
         self,
         source_id: str,
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+        constraints: Collection[Constraint],
         grouping_column: Optional[str] = None,
         id_column: Optional[str] = None,
         id_space: Optional[str] = None,
     ):
-        """Adds a private table to catalog. There may only be a single private table.
+        """Adds a private table to catalog.
 
         Args:
             source_id: The source id, or unique identifier, for the private table.
             col_types: Mapping from column names to types for private table.
+            constraints: The constraints known to hold on the private table.
             grouping_column: Name of the column (if any) that must be grouped by in any
                 groupby aggregations that use this table.
             id_column: Name of the ID column for this table (if any).
             id_space: Name of the identifier space for this table (if any).
 
         Raises:
-            ValueError: If there is already a private table.
+            ValueError: If there is already a private table with the given source_id.
         """
-        self._add_table(
-            PrivateTable(
-                source_id=source_id,
-                schema=Schema(
-                    col_types,
-                    grouping_column=grouping_column,
-                    id_column=id_column,
-                    id_space=id_space,
-                ),
-            )
+        if source_id in self._private_tables:
+            raise ValueError(f"Table '{source_id}' already exists in catalog")
+        self._private_tables[source_id] = PrivateTable(
+            source_id=source_id,
+            schema=Schema(
+                col_types,
+                grouping_column=grouping_column,
+                id_column=id_column,
+                id_space=id_space,
+            ),
+            constraints=tuple(constraints),
         )
 
     def add_public_table(
         self,
         source_id: str,
         col_types: Mapping[str, Union[ColumnDescriptor, ColumnType]],
+        dataframe: DataFrame,
     ):
         """Adds public table to catalog.
 
         Args:
             source_id: The source id, or unique identifier, for the public table.
             col_types: Mapping from column names to types for the public table.
+            dataframe: Public data source for the table.
 
         Raises:
-            ValueError: If there is already a private table.
+            ValueError: If there is already a public table with the given source_id.
         """
-        self._add_table(PublicTable(source_id=source_id, schema=Schema(col_types)))
+        if source_id in self._public_tables:
+            raise ValueError(f"Table '{source_id}' already exists in catalog")
+        self._public_tables[source_id] = PublicTable(
+            source_id=source_id, schema=Schema(col_types), dataframe=dataframe
+        )
 
     @property
-    def tables(self) -> Dict[str, Table]:
-        """Returns the catalog as a dictionary of tables."""
-        return self._tables
+    def private_tables(self) -> Dict[str, PrivateTable]:
+        """Returns the catalog's private tables."""
+        return self._private_tables
+
+    @property
+    def public_tables(self) -> Dict[str, PublicTable]:
+        """Returns the catalog's public tables."""
+        return self._public_tables

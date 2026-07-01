@@ -46,8 +46,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             mechanism=mechanism,
-            public_sources=self.public_sources,
-            table_constraints=self.table_constraints,
+            catalog=self.catalog,
         )
         child, reference, constraints = expr.accept(tv)
 

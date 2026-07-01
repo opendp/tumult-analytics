@@ -47,7 +47,7 @@ from tmlt.analytics._base_builder import (
     PrivacyBudgetMixin,
     PrivateDataFrame,
 )
-from tmlt.analytics._catalog import Catalog, PrivateTable, PublicTable
+from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
@@ -325,6 +325,8 @@ class Session:
         if not isinstance(self._accountant.input_domain, DictDomain):
             raise ValueError("The input domain to a session must be a DictDomain.")
         self._public_sources = public_sources
+        # Note: Currently, only NamedTable identifiers make sense as keys here,
+        #     and we may assume that no other types of identifiers are included.
         self._table_constraints: Dict[Identifier, List[Constraint]] = {
             NamedTable(t): [] for t in self.private_sources
         }
@@ -597,6 +599,7 @@ class Session:
             A              VARCHAR        True
             B              INTEGER        True
             X              INTEGER        True
+            No public tables are available.
             >>> # describe a query object
             >>> query = QueryBuilder("my_private_data").drop_null_and_nan(["B", "X"])
             >>> sess.describe(query) # doctest: +NORMALIZE_WHITESPACE
@@ -654,51 +657,45 @@ class Session:
             raise AnalyticsInternalError(f"Unrecognized accountant state {out}. ")
         budget: PrivacyBudget = self.remaining_privacy_budget
         out.append(f"The session has a remaining privacy budget of {budget}.")
-        if len(self._catalog.tables) == 0:
-            out.append("The session has no tables available.")
+
+        public_table_descs = []
+        private_table_descs = []
+        for name, public_table in self._catalog.public_tables.items():
+            table_schema = _describe_schema(public_table.schema)
+            table_desc = f"Public table '{name}':\n" + table_schema
+            public_table_descs.append(table_desc)
+        for name, private_table in self._catalog.private_tables.items():
+            table_schema = _describe_schema(private_table.schema)
+            table_desc = f"Table '{name}':\n"
+            table_desc += table_schema
+
+            constraints = self._table_constraints.get(NamedTable(name))
+            if not constraints:
+                table_desc = f"Table '{name}' (no constraints):\n" + table_schema
+            else:
+                table_desc = f"Table '{name}':\n" + table_schema + "\n\tConstraints:\n"
+                constraints_strs = [f"\t\t- {e}" for e in constraints]
+                table_desc += "\n".join(constraints_strs)
+
+            private_table_descs.append(table_desc)
+
+        if len(private_table_descs) != 0:
+            out.append(
+                "The following private tables are available:\n"
+                + "\n".join(private_table_descs)
+            )
         else:
-            public_table_descs = []
-            private_table_descs = []
-            for name, table in self._catalog.tables.items():
-                table_schema = _describe_schema(table.schema)
-                if isinstance(table, PublicTable):
-                    table_desc = f"Public table '{name}':\n" + table_schema
-                    public_table_descs.append(table_desc)
-                elif isinstance(table, PrivateTable):
-                    table_desc = f"Table '{name}':\n"
-                    table_desc += table_schema
+            raise AnalyticsInternalError(
+                "Sessions should never contain no private tables"
+            )
+        if len(public_table_descs) != 0:
+            out.append(
+                "The following public tables are available:\n"
+                + "\n".join(public_table_descs)
+            )
+        else:
+            out.append("No public tables are available.")
 
-                    constraints: Optional[List[Constraint]] = (
-                        self._table_constraints.get(NamedTable(name))
-                    )
-                    if not constraints:
-                        table_desc = (
-                            f"Table '{name}' (no constraints):\n" + table_schema
-                        )
-                    else:
-                        table_desc = (
-                            f"Table '{name}':\n" + table_schema + "\n\tConstraints:\n"
-                        )
-                        constraints_strs = [f"\t\t- {e}" for e in constraints]
-                        table_desc += "\n".join(constraints_strs)
-
-                    private_table_descs.append(table_desc)
-                else:
-                    raise AssertionError(
-                        f"Table {name} has an unrecognized type: {type(table)}. This is"
-                        " probably a bug; please let us know about it so we can"
-                        " fix it!"
-                    )
-            if len(private_table_descs) != 0:
-                out.append(
-                    "The following private tables are available:\n"
-                    + "\n".join(private_table_descs)
-                )
-            if len(public_table_descs) != 0:
-                out.append(
-                    "The following public tables are available:\n"
-                    + "\n".join(public_table_descs)
-                )
         return "\n".join(out)
 
     def _describe_query_obj(
@@ -716,9 +713,7 @@ class Session:
                 query=query_obj,
                 input_domain=self._input_domain,
                 input_metric=self._input_metric,
-                public_sources=self._public_sources,
                 catalog=self._catalog,
-                table_constraints=self._table_constraints,
             )[2]
         except NotImplementedError:
             # If the query results in a measurement, this will happen.
@@ -904,6 +899,7 @@ class Session:
             catalog.add_private_table(
                 table,
                 self.get_schema(table),
+                constraints=self._table_constraints[NamedTable(table)],
                 grouping_column=self.get_grouping_column(table),
                 id_column=self.get_id_column(table),
                 id_space=self.get_id_space(table),
@@ -911,9 +907,8 @@ class Session:
         for table in self.public_sources:
             catalog.add_public_table(
                 table,
-                spark_schema_to_analytics_columns(
-                    self.public_source_dataframes[table].schema
-                ),
+                spark_schema_to_analytics_columns(self._public_sources[table].schema),
+                self._public_sources[table],
             )
         return catalog
 
@@ -999,9 +994,7 @@ class Session:
             stability=self._accountant.d_in,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            public_sources=self._public_sources,
             catalog=self._catalog,
-            table_constraints=self._table_constraints,
         )
         return measurement, adjusted_budget, noise_info
 
@@ -1237,9 +1230,7 @@ class Session:
             query=query,
             input_domain=self._input_domain,
             input_metric=self._input_metric,
-            public_sources=self._public_sources,
             catalog=self._catalog,
-            table_constraints=self._table_constraints,
         )
         if cache:
             transformation, ref = persist_table(
