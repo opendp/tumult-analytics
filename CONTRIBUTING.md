@@ -82,7 +82,7 @@ Running linters, tests, or building docs tends to generate a lot of files in the
 To release a new version of the library:
 
 1. Add a sentence under the "Unreleased" section of [`CHANGELOG.rst`](./CHANGELOG.rst) to describe the changes at a high level. Merge this in a PR.
-2. Once the changelog PR is in, `nox -s make-release -- VERSION`, where VERSION is the new version of the library. This will create a release PR.
+2. Once the changelog PR is in, run `git pull` to make sure you have the latest version of `main` locally, then run `nox -s make-release -- VERSION`, where VERSION is the new version of the library. This will create a release PR.
 3. Merge that PR into `main` without squashing its commits (so the release commit ends up in the history of `main`).
 
 If the release pipeline associated with the PR failed, and additional work needed to be merged before the release, revert the steps 2 and 3 as follows:
