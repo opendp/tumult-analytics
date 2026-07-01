@@ -7,8 +7,14 @@
 Changelog
 =========
 
+
 Unreleased
 ----------
+
+.. _v0.21.0:
+
+0.21.0 - 2026-06-30
+-------------------
 
 This release adds full support for Python 3.12 and PySpark 4 and removes support for older dependency combinations.
 It also removes some deprecated arguments, improves the documentation, and adds a few quality of life improvements.
