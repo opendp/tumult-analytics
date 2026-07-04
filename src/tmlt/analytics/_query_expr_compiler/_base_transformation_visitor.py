@@ -191,6 +191,17 @@ class BaseTransformationVisitor(QueryExprVisitor):
             self.catalog,
         )
 
+    def _validate_constraints(self, expr: QueryExpr, old_constraints: List[Constraint]):
+        """Validate that expr.constraints() produces the same constraints as the old
+        constraint propagation logic.
+        """
+        new_constraints = simplify_constraints(list(expr.constraints(self.catalog)))
+        if frozenset(old_constraints) != frozenset(new_constraints):
+            raise AnalyticsInternalError(
+                f"Constraint mismatch for {type(expr).__name__}: "
+                f"old={list(old_constraints)}, new={list(new_constraints)}"
+            )
+
     def validate_transformation(
         self,
         query: QueryExpr,
@@ -345,6 +356,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             raise AnalyticsInternalError(
                 f"Table '{ref.identifier.name}' not present in catalog private tables"
             ) from e
+        self._validate_constraints(expr, constraints)
         return self.Output(transformation, ref, constraints)
 
     def visit_rename(self, expr: RenameExpr) -> Output:
@@ -392,11 +404,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_rename(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_rename(expr, child_constraints)),
+            constraints,
         )
 
     def visit_filter(self, expr: FilterExpr) -> Output:
@@ -437,11 +451,15 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(
+            propagate_unmodified(expr, child_constraints)
+        )
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_unmodified(expr, child_constraints)),
+            constraints,
         )
 
     def visit_select(self, expr: SelectExpr) -> Output:
@@ -490,11 +508,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_select(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_select(expr, child_constraints)),
+            constraints,
         )
 
     def visit_map(self, expr: MapExpr) -> Output:
@@ -573,11 +593,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_map(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_map(expr, child_constraints)),
+            constraints,
         )
 
     def build_flat_map(
@@ -716,11 +738,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_flat_map(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_flat_map(expr, child_constraints)),
+            constraints,
         )
 
     def visit_flat_map_by_id(self, expr: FlatMapByIDExpr) -> Output:
@@ -765,6 +789,8 @@ class BaseTransformationVisitor(QueryExprVisitor):
         transformation_generators: Dict[Type[Metric], Callable] = {
             AddRemoveKeys: gen_transformation_ark,
         }
+        constraints: List[Constraint] = []
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
@@ -772,7 +798,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             # FlatMapByID does not preserve anything except the ID column from the
             # original table, and each ID is not guaranteed to have the same number of
             # records afterwards as it did before, so no constraints can be propagated.
-            [],
+            constraints,
         )
 
     def build_private_join_transformation(
@@ -902,9 +928,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
         common_cols = set(left_domain.schema) & set(right_domain.schema)
         join_cols = set(expr.join_columns or common_cols)
         overlapping_cols = common_cols - join_cols
-        constraints = propagate_join_private(
+        raw_constraints = propagate_join_private(
             join_cols, overlapping_cols, left_constraints, right_constraints
         )
+        constraints = simplify_constraints(raw_constraints)
+        self._validate_constraints(expr, constraints)
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
@@ -918,7 +946,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
                 right_ref.parent,
                 transformation_generators,
             ),
-            simplify_constraints(constraints),
+            constraints,
         )
 
     def visit_join_public(self, expr: JoinPublicExpr) -> Output:
@@ -994,9 +1022,11 @@ class BaseTransformationVisitor(QueryExprVisitor):
         common_cols = set(child_domain.schema) & set(public_df_schema)
         join_cols = set(expr.join_columns or common_cols)
         overlapping_cols = common_cols - join_cols
-        constraints = propagate_join_public(
+        raw_constraints = propagate_join_public(
             join_cols, overlapping_cols, public_df, child_constraints
         )
+        constraints = simplify_constraints(raw_constraints)
+        self._validate_constraints(expr, constraints)
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
@@ -1006,7 +1036,7 @@ class BaseTransformationVisitor(QueryExprVisitor):
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(constraints),
+            constraints,
         )
 
     @staticmethod
@@ -1225,11 +1255,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_replace(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_replace(expr, child_constraints)),
+            constraints,
         )
 
     def visit_replace_infinity(self, expr: ReplaceInfinity) -> Output:
@@ -1289,11 +1321,13 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(propagate_replace(expr, child_constraints))
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_replace(expr, child_constraints)),
+            constraints,
         )
 
     def visit_drop_infinity(self, expr: DropInfExpr) -> Output:
@@ -1358,11 +1392,15 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(
+            propagate_unmodified(expr, child_constraints)
+        )
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_unmodified(expr, child_constraints)),
+            constraints,
         )
 
     def visit_drop_null_and_nan(self, expr: DropNullAndNan) -> Output:
@@ -1509,11 +1547,15 @@ class BaseTransformationVisitor(QueryExprVisitor):
             AddRemoveKeys: gen_transformation_ark,
         }
 
+        constraints = simplify_constraints(
+            propagate_unmodified(expr, child_constraints)
+        )
+        self._validate_constraints(expr, constraints)
         return self.Output(
             *generate_nested_transformation(
                 child_transformation, child_ref.parent, transformation_generators
             ),
-            simplify_constraints(propagate_unmodified(expr, child_constraints)),
+            constraints,
         )
 
     # override in new subclass, if constraints aren't enforced
@@ -1529,10 +1571,12 @@ class BaseTransformationVisitor(QueryExprVisitor):
         )
         transformation, ref = expr.constraint._enforce(child_transformation, child_ref)
 
+        constraints = simplify_constraints(child_constraints + [expr.constraint])
+        self._validate_constraints(expr, constraints)
         return self.Output(
             transformation,
             ref,
-            simplify_constraints(child_constraints + [expr.constraint]),
+            constraints,
         )
 
     # None of the queries that produce measurements are implemented

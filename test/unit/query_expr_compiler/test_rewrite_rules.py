@@ -1,7 +1,7 @@
 """Tests for rewrite rules."""
 
 from dataclasses import dataclass, replace
-from typing import Any, Union
+from typing import Any, FrozenSet, List, Union
 
 import pytest
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -39,6 +39,7 @@ from tmlt.analytics._query_expr_compiler._rewrite_rules import (
     select_noise_mechanism,
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
+from tmlt.analytics.constraints import Constraint
 
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
@@ -358,6 +359,10 @@ class SomeKindOfPostProcessing(SingleChildQueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Just propagate the schema from the child."""
         return self.child.schema(catalog)
+
+    def constraints(self, catalog: Catalog) -> FrozenSet[Constraint]:
+        """Just propagate the constraints from the child."""
+        return self.child.constraints(catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """This should not be called."""
