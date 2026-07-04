@@ -17,8 +17,20 @@ from abc import ABC, abstractmethod
 from collections.abc import Collection
 from dataclasses import dataclass, replace
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
+import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -40,7 +52,13 @@ from tmlt.analytics._schema import (
     spark_schema_to_analytics_columns,
 )
 from tmlt.analytics.config import config
-from tmlt.analytics.constraints import Constraint, MaxGroupsPerID, MaxRowsPerGroupPerID
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+    simplify_constraints,
+)
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
@@ -187,9 +205,21 @@ class QueryExpr(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Constraints on the output of this query when applied to the given catalog."""
+        raise NotImplementedError()
+
+    @abstractmethod
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Dispatch methods on a visitor based on the QueryExpr type."""
         raise NotImplementedError()
+
+
+def _simplify_constraint_set(
+    constraints: Iterable[Constraint],
+) -> frozenset[Constraint]:
+    """Simplify constraints and return them as an immutable set."""
+    return frozenset(simplify_constraints(list(constraints)))
 
 
 @dataclass(frozen=True)
@@ -237,6 +267,13 @@ class PrivateSource(QueryExpr):
         self._validate(catalog)
         return catalog.private_tables[self.source_id].schema
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        self._validate(catalog)
+        return _simplify_constraint_set(
+            catalog.private_tables[self.source_id].constraints
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visits this QueryExpr with visitor."""
         return visitor.visit_private_source(self)
@@ -281,6 +318,12 @@ class GetGroups(SingleChildQueryExpr):
             }
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_get_groups(self)
@@ -314,6 +357,12 @@ class GetBounds(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -380,6 +429,31 @@ class Rename(SingleChildQueryExpr):
             id_space=input_schema.id_space,
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        # Renames do not change the rows in a table, so all constraints remain
+        # valid after updating references to renamed grouping columns.
+        result: List[Constraint] = []
+        for c in child_constraints:
+            if isinstance(c, MaxRowsPerID):
+                result.append(c)
+            elif isinstance(c, MaxGroupsPerID):
+                result.append(
+                    MaxGroupsPerID(
+                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        c.max,
+                    )
+                )
+            elif isinstance(c, MaxRowsPerGroupPerID):
+                result.append(
+                    MaxRowsPerGroupPerID(
+                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        c.max,
+                    )
+                )
+        return _simplify_constraint_set(result)
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_rename(self)
@@ -417,6 +491,13 @@ class Filter(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         self._validate(input_schema)
         return input_schema
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        # Filters can only modify a table by dropping rows, and all current
+        # constraints remain valid when rows are dropped, so just return the input
+        # constraints unmodified.
+        return self.child.constraints(catalog)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -465,6 +546,21 @@ class Select(SingleChildQueryExpr):
             grouping_column=input_schema.grouping_column,
             id_column=input_schema.id_column,
             id_space=input_schema.id_space,
+        )
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        # Select does not change the rows in a table, so row constraints remain
+        # valid. Constraints that refer to grouping columns not present in the
+        # output schema are dropped.
+        return _simplify_constraint_set(
+            c
+            for c in child_constraints
+            if not (
+                isinstance(c, (MaxGroupsPerID, MaxRowsPerGroupPerID))
+                and c.grouping_column not in self.columns
+            )
         )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
@@ -537,6 +633,17 @@ class Map(SingleChildQueryExpr):
             )
         # If augment=False, there is no grouping column nor ID column
         return Schema(new_columns)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        if not self.augment and child_constraints:
+            raise AnalyticsInternalError(
+                "Non-augmenting map applied to table with constraints"
+            )
+        # Map can only add columns to the existing rows, so existing constraints
+        # remain valid.
+        return child_constraints
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -662,6 +769,21 @@ class FlatMap(SingleChildQueryExpr):
         # If augment=False, there is no grouping column nor ID column
         return Schema(new_columns)
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        if not self.augment and child_constraints:
+            raise AnalyticsInternalError(
+                "Non-augmenting flat map applied to table with constraints"
+            )
+        # Because rows can be duplicated arbitrarily many times by a flat map,
+        # MaxRowsPerID and MaxRowsPerGroupPerID constraints cannot be propagated
+        # through them; MaxGroupsPerID remains valid when existing rows are
+        # duplicated, because this can't add any new groups.
+        return _simplify_constraint_set(
+            c for c in child_constraints if isinstance(c, MaxGroupsPerID)
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_flat_map(self)
@@ -740,6 +862,13 @@ class FlatMapByID(SingleChildQueryExpr):
             id_column=id_column,
             id_space=input_schema.id_space,
         )
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        # FlatMapByID does not preserve anything except the ID column from the
+        # original table, and each ID is not guaranteed to have the same number of
+        # records afterwards as it did before, so no constraints can be propagated.
+        return frozenset()
 
     def __eq__(self, other: object) -> bool:
         """Returns true iff self == other.
@@ -845,6 +974,41 @@ def _schema_for_join(
     )
 
 
+def _propagate_join_by_stability(
+    c: Constraint,
+    join_stability: Optional[int],
+    overlapping_cols: Set[str],
+    suffix: str,
+) -> Optional[Constraint]:
+    """Propagate a constraint through a join based on the maximum join stability.
+
+    This function returns a constraint that results from propagating the given
+    constraint through a join with the given join stability. If that stability
+    is None, the join is assumed to be unbounded. Column renaming because of
+    overlapping columns is handled, appending the given suffix to any relevant
+    columns mentioned in the constraint.
+    """
+
+    def col_name(base: str):
+        return base + suffix if base in overlapping_cols else base
+
+    if isinstance(c, MaxRowsPerID):
+        if join_stability:
+            return MaxRowsPerID(c.max * join_stability)
+        else:
+            return None
+    elif isinstance(c, MaxGroupsPerID):
+        return MaxGroupsPerID(col_name(c.grouping_column), c.max)
+    elif isinstance(c, MaxRowsPerGroupPerID):
+        if join_stability:
+            return MaxRowsPerGroupPerID(
+                col_name(c.grouping_column), c.max * join_stability
+            )
+        else:
+            return None
+    return None
+
+
 @dataclass(frozen=True)
 class JoinPrivate(QueryExpr):
     """Returns the join of two private tables.
@@ -928,6 +1092,55 @@ class JoinPrivate(QueryExpr):
             how="inner",
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        left_constraints = self.left_child.constraints(catalog)
+        right_constraints = self.right_child.constraints(catalog)
+        left_schema = self.left_child.schema(catalog)
+        right_schema = self.right_child.schema(catalog)
+        common_cols = set(left_schema) & set(right_schema)
+        join_cols = set(self.join_columns or common_cols)
+        overlapping_cols = common_cols - join_cols
+
+        def max_join_stability(cs: frozenset[Constraint]) -> Optional[int]:
+            stabilities = []
+            # A MaxRowsPerID constraint limits the duplication factor from a table,
+            # as it limits the number of times each value in the ID column can
+            # appear.
+            max_rows_per_group = next(
+                (c for c in cs if isinstance(c, MaxRowsPerID)), None
+            )
+            if max_rows_per_group:
+                stabilities.append(max_rows_per_group.max)
+            # When a MaxGroupsPerID constraint has a grouping column in the join
+            # columns, that also limits the duplication factor because each (ID,
+            # grouping column) value pair can only appear a limited number of times.
+            for c in (c for c in cs if isinstance(c, MaxGroupsPerID)):
+                if c.grouping_column in join_cols:
+                    stabilities.append(c.max)
+            if not stabilities:
+                return None
+            return min(stabilities)
+
+        left_stability = max_join_stability(left_constraints)
+        right_stability = max_join_stability(right_constraints)
+
+        left_propagated = [
+            _propagate_join_by_stability(
+                c, right_stability, overlapping_cols, suffix="_left"
+            )
+            for c in left_constraints
+        ]
+        right_propagated = [
+            _propagate_join_by_stability(
+                c, left_stability, overlapping_cols, suffix="_right"
+            )
+            for c in right_constraints
+        ]
+        return _simplify_constraint_set(
+            c for c in left_propagated + right_propagated if c is not None
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_join_private(self)
@@ -997,6 +1210,49 @@ class JoinPublic(SingleChildQueryExpr):
             join_id_space=input_schema.id_space,
             how=self.how,
         )
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+
+        if isinstance(self.public_table, str):
+            if self.public_table not in catalog.public_tables:
+                raise ValueError(
+                    f"Attempted public join on table '{self.public_table}', "
+                    "which is not a public table"
+                )
+            public_df = catalog.public_tables[self.public_table].dataframe
+            right_schema = catalog.public_tables[self.public_table].schema
+        else:
+            public_df = self.public_table
+            right_schema = Schema(
+                spark_schema_to_analytics_columns(self.public_table.schema)
+            )
+
+        input_schema = self.child.schema(catalog)
+        common_cols = set(input_schema) & set(right_schema)
+        join_cols = set(self.join_columns or tuple(common_cols))
+        overlapping_cols = common_cols - join_cols
+
+        count_df = cast(
+            pd.DataFrame,
+            public_df.select(*join_cols)
+            .groupby(*join_cols)
+            .count()
+            .select("count")
+            .toPandas(),
+        )
+        # The maximum number of matching public rows for any join key bounds the
+        # number of times each private row can appear in the join output.
+        join_stability = max(count_df["count"].to_list(), default=0)
+
+        propagated = [
+            _propagate_join_by_stability(
+                c, join_stability, overlapping_cols, suffix="_left"
+            )
+            for c in child_constraints
+        ]
+        return _simplify_constraint_set(c for c in propagated if c is not None)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1174,6 +1430,22 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
             id_space=input_schema.id_space,
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        # Replacements on grouping columns potentially invalidate the
+        # MaxRowsPerGroupPerID constraint, so they get dropped. All other
+        # constraints remain valid.
+        return _simplify_constraint_set(
+            c
+            for c in child_constraints
+            if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
+            or (
+                isinstance(c, MaxRowsPerGroupPerID)
+                and c.grouping_column not in self.replace_with
+            )
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_replace_null_and_nan(self)
@@ -1281,6 +1553,22 @@ class ReplaceInfinity(SingleChildQueryExpr):
             id_space=input_schema.id_space,
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        # Replacements on grouping columns potentially invalidate the
+        # MaxRowsPerGroupPerID constraint, so they get dropped. All other
+        # constraints remain valid.
+        return _simplify_constraint_set(
+            c
+            for c in child_constraints
+            if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
+            or (
+                isinstance(c, MaxRowsPerGroupPerID)
+                and c.grouping_column not in self.replace_with
+            )
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_replace_infinity(self)
@@ -1365,6 +1653,13 @@ class DropNullAndNan(SingleChildQueryExpr):
             id_space=input_schema.id_space,
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        # DropNullAndNans can only modify a table by dropping rows, and all
+        # current constraints remain valid when rows are dropped, so just return
+        # the input constraints unmodified.
+        return self.child.constraints(catalog)
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_drop_null_and_nan(self)
@@ -1446,6 +1741,13 @@ class DropInfinity(SingleChildQueryExpr):
             id_space=input_schema.id_space,
         )
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        # DropInfinities can only modify a table by dropping rows, and all current
+        # constraints remain valid when rows are dropped, so just return the input
+        # constraints unmodified.
+        return self.child.constraints(catalog)
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_drop_infinity(self)
@@ -1484,6 +1786,13 @@ class EnforceConstraint(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         self._validate(input_schema)
         return input_schema
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        child_constraints = self.child.constraints(catalog)
+        return _simplify_constraint_set(
+            child_constraints | frozenset([self.constraint])
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1680,6 +1989,12 @@ class GroupByCount(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_count(self)
@@ -1721,6 +2036,12 @@ class GroupByCountDistinct(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1787,6 +2108,12 @@ class GroupByQuantile(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_quantile(self)
@@ -1847,6 +2174,12 @@ class GroupByBoundedSum(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1909,6 +2242,12 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_average(self)
@@ -1969,6 +2308,12 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2032,6 +2377,12 @@ class GroupByBoundedStdev(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
+
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_stdev(self)
@@ -2067,6 +2418,12 @@ class SuppressAggregates(SingleChildQueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         return self.child.schema(catalog)
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
