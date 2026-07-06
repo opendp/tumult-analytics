@@ -1103,6 +1103,12 @@ class JoinPrivate(QueryExpr):
         overlapping_cols = common_cols - join_cols
 
         def max_join_stability(cs: frozenset[Constraint]) -> Optional[int]:
+            """Compute the join stability for one side of a join from its constraints.
+
+            Using a set of constraints on one table in the join, this determines
+            the maximum number of times each row in the other table can be
+            duplicated by the join. If there is no limit, None is returned.
+            """
             stabilities = []
             # A MaxRowsPerID constraint limits the duplication factor from a table,
             # as it limits the number of times each value in the ID column can
@@ -1112,10 +1118,11 @@ class JoinPrivate(QueryExpr):
             )
             if max_rows_per_group:
                 stabilities.append(max_rows_per_group.max)
-            # When a MaxGroupsPerID constraint has a grouping column in the join
-            # columns, that also limits the duplication factor because each (ID,
-            # grouping column) value pair can only appear a limited number of times.
-            for c in (c for c in cs if isinstance(c, MaxGroupsPerID)):
+            # When a MaxRowsPerGroupPerID constraint has a grouping column in
+            # the join columns, that also limits the duplication factor because
+            # each (ID, grouping column) value pair can only appear a limited
+            # number of times.
+            for c in (c for c in cs if isinstance(c, MaxRowsPerGroupPerID)):
                 if c.grouping_column in join_cols:
                     stabilities.append(c.max)
             if not stabilities:
