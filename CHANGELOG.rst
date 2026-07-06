@@ -11,6 +11,12 @@ Changelog
 Unreleased
 ----------
 
+Fixed
+~~~~~
+
+- Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
+
+
 .. _v0.21.0:
 
 0.21.0 - 2026-06-30
