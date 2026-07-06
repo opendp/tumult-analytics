@@ -78,7 +78,7 @@ def _session_from_dataframes(
 
 @parametrize(
     [
-        Case("JoinPrivate", marks=pytest.mark.xfail)(
+        Case("JoinPrivate")(
             dataframes={
                 "left": pd.DataFrame({"id": [1, 1], "group": ["A", "B"]}),
                 "right": pd.DataFrame({"id": [1, 1], "group": ["A", "B"]}),
@@ -334,7 +334,7 @@ def test_flat_map(
         (
             [MaxGroupsPerID("group", 2)],
             [MaxRowsPerID(3)],
-            [MaxGroupsPerID("group", 2), MaxRowsPerID(6)],
+            [MaxGroupsPerID("group", 2)],
         ),
         (
             [MaxGroupsPerID("group2", 2)],
@@ -345,7 +345,7 @@ def test_flat_map(
         (
             [MaxRowsPerGroupPerID("group", 2)],
             [MaxRowsPerID(3)],
-            [MaxRowsPerGroupPerID("group", 6)],
+            [MaxRowsPerGroupPerID("group", 6), MaxRowsPerID(6)],
         ),
         (
             [MaxRowsPerGroupPerID("group2", 2)],
