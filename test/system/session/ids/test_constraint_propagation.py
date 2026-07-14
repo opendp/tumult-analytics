@@ -3,18 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import pandas as pd
 import pytest
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics import (
+    AddRowsWithID,
     ColumnType,
     Constraint,
+    KeySet,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    PureDPBudget,
     QueryBuilder,
+    Session,
 )
 from tmlt.analytics._table_identifier import NamedTable
 
@@ -48,6 +53,71 @@ def _test_propagation(query, expected_constraints, session):
     assert set(session._table_constraints[NamedTable("view")]) == set(
         expected_constraints
     )
+
+
+def _session_from_dataframes(dataframes: Dict[str, pd.DataFrame], spark) -> Session:
+    """Construct a Session with all tables using the same ID space."""
+    builder = Session.Builder().with_privacy_budget(PureDPBudget(float("inf")))
+    builder = builder.with_id_space("ids")
+    for source_id, dataframe in dataframes.items():
+        builder = builder.with_private_dataframe(
+            source_id,
+            spark.createDataFrame(dataframe),
+            protected_change=AddRowsWithID("id", "ids"),
+        )
+    return builder.build()
+
+
+@parametrize(
+    [
+        Case("JoinPrivate", marks=pytest.mark.xfail)(
+            dataframes={
+                "left": pd.DataFrame({"id": [1, 1], "group": ["A", "A"]}),
+                "right": pd.DataFrame({"id": [1, 1], "group": ["A", "A"]}),
+            },
+            query=(
+                QueryBuilder("left")
+                .enforce(MaxRowsPerID(2))
+                .join_private(
+                    QueryBuilder("right")
+                    .enforce(MaxGroupsPerID("group", 1))
+                    .enforce(MaxRowsPerGroupPerID("group", 2)),
+                    join_columns=["id", "group"],
+                )
+                .select(["id", "group"])
+            ),
+        ),
+    ]
+)
+def test_final_enforcement_is_noop(
+    dataframes: Dict[str, pd.DataFrame],
+    query: QueryBuilder,
+    spark,
+):
+    """Propagated constraints do not cause additional truncation."""
+    session = _session_from_dataframes(dataframes, spark)
+    session.create_view(query, "view", cache=False)
+
+    ks = KeySet.from_dict({"group": ["A"]})
+    propagated = session.evaluate(
+        QueryBuilder("view").groupby(ks).count(), PureDPBudget(float("inf"))
+    )
+    # Using flat_map_by_id erases the existing, propagated constraints, so it
+    # can be used to check that applying the propagated constraints doesn't drop
+    # additional rows.
+    nonpropagated = session.evaluate(
+        QueryBuilder("view")
+        .flat_map_by_id(
+            lambda rows: [{"group": row["group"]} for row in rows],
+            {"group": ColumnType.VARCHAR},
+        )
+        .enforce(MaxRowsPerID(100))
+        .groupby(ks)
+        .count(),
+        PureDPBudget(float("inf")),
+    )
+
+    assert_dataframe_equal(propagated, nonpropagated)
 
 
 @pytest.mark.parametrize(
