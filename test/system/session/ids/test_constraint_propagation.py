@@ -20,11 +20,24 @@ from tmlt.analytics._table_identifier import NamedTable
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
-_CONSTRAINTS0 = [
+_BASIC_CONSTRAINTS = [
     MaxRowsPerID(5),
     MaxGroupsPerID("group", 4),
     MaxGroupsPerID("group2", 3),
     MaxRowsPerGroupPerID("group", 2),
+    MaxRowsPerGroupPerID("group2", 1),
+]
+_CONSTRAINTS_REQUIRING_SIMPLIFICATION = [
+    MaxRowsPerID(5),
+    MaxRowsPerID(1),
+    MaxGroupsPerID("group", 4),
+    MaxGroupsPerID("group", 2),
+    MaxRowsPerGroupPerID("group2", 3),
+    MaxRowsPerGroupPerID("group2", 1),
+]
+_SIMPLIFIED_CONSTRAINTS = [
+    MaxRowsPerID(1),
+    MaxGroupsPerID("group", 2),
     MaxRowsPerGroupPerID("group2", 1),
 ]
 
@@ -45,7 +58,7 @@ def _test_propagation(query, expected_constraints, session):
     [
         (
             {"group": "g"},
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("g", 4),
@@ -54,7 +67,16 @@ def _test_propagation(query, expected_constraints, session):
                 MaxRowsPerGroupPerID("group2", 1),
             ],
         ),
-        ({"id": "id2"}, _CONSTRAINTS0, _CONSTRAINTS0),
+        ({"id": "id2"}, _BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (
+            {"group": "g"},
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(1),
+                MaxGroupsPerID("g", 2),
+                MaxRowsPerGroupPerID("group2", 1),
+            ],
+        ),
     ],
 )
 def test_rename(
@@ -75,7 +97,11 @@ def test_rename(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_filter(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -95,13 +121,17 @@ def test_filter(
     "constraints,expected_constraints",
     [
         (
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("group", 4),
                 MaxRowsPerGroupPerID("group", 2),
             ],
-        )
+        ),
+        (
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [MaxRowsPerID(1), MaxGroupsPerID("group", 2)],
+        ),
     ],
 )
 def test_select(
@@ -119,7 +149,11 @@ def test_select(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_map(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -141,7 +175,10 @@ def test_map(
 )
 @pytest.mark.parametrize(
     "constraints,expected_constraints",
-    [(_CONSTRAINTS0, [MaxGroupsPerID("group", 4), MaxGroupsPerID("group2", 3)])],
+    [
+        (_BASIC_CONSTRAINTS, [MaxGroupsPerID("group", 4), MaxGroupsPerID("group2", 3)]),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, [MaxGroupsPerID("group", 2)]),
+    ],
 )
 def test_flat_map(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -187,6 +224,11 @@ def test_flat_map(
             [MaxRowsPerGroupPerID("group2", 2)],
             [MaxRowsPerID(3)],
             [MaxRowsPerGroupPerID("group2", 6)],
+        ),
+        (
+            [MaxRowsPerID(5), MaxRowsPerID(1)],
+            [MaxRowsPerID(3)],
+            [MaxRowsPerID(3)],
         ),
     ],
 )
@@ -247,6 +289,11 @@ def test_join_private(
             [MaxRowsPerID(2)],
             [MaxRowsPerGroupPerID("x", 3)],
             [MaxRowsPerGroupPerID("x", 6)],
+        ),
+        (
+            [MaxGroupsPerID("group", 5), MaxGroupsPerID("group", 2)],
+            [MaxRowsPerID(3)],
+            [MaxGroupsPerID("group_left", 2)],
         ),
     ],
 )
@@ -313,6 +360,15 @@ def test_join_private_disambiguation(
                 MaxRowsPerID(2),
                 MaxGroupsPerID("group", 1),
                 MaxRowsPerGroupPerID("group", 2),
+            ],
+        ),
+        (
+            pd.DataFrame({"n": [1, 1]}),
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(2),
+                MaxGroupsPerID("group", 2),
+                MaxRowsPerGroupPerID("group2", 2),
             ],
         ),
     ],
@@ -392,6 +448,15 @@ def test_join_public(
                 MaxRowsPerGroupPerID("group_left", 1),
             ],
         ),
+        (
+            pd.DataFrame({"n": [1, 1], "group": ["A", "A"]}),
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(2),
+                MaxGroupsPerID("group_left", 2),
+                MaxRowsPerGroupPerID("group2", 2),
+            ],
+        ),
     ],
 )
 def test_join_public_disambiguation(
@@ -417,14 +482,18 @@ def test_join_public_disambiguation(
     "constraints,expected_constraints",
     [
         (
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("group", 4),
                 MaxGroupsPerID("group2", 3),
                 MaxRowsPerGroupPerID("group", 2),
             ],
-        )
+        ),
+        (
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [MaxRowsPerID(1), MaxGroupsPerID("group", 2)],
+        ),
     ],
 )
 def test_replace_null_and_nan(
@@ -442,7 +511,11 @@ def test_replace_null_and_nan(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_replace_infinity(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -459,7 +532,11 @@ def test_replace_infinity(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_drop_null_and_nan(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -476,7 +553,11 @@ def test_drop_null_and_nan(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_drop_infinity(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
