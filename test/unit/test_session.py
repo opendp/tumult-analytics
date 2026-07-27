@@ -1206,7 +1206,9 @@ Public table 'public1':\n"""
                 public_sources={"public1": public_df_1, "public2": public_df_2},
             )
 
-            session._table_constraints[NamedTable("private")] = [MaxRowsPerID(5)]
+            session._table_constraints[NamedTable("private")] = frozenset(
+                {MaxRowsPerID(5)}
+            )
             expected = (
                 f"""The session has a remaining privacy budget of {PureDPBudget(10)}.
 The following private tables are available:
@@ -1481,16 +1483,30 @@ Public table 'public1':\n"""
     @pytest.mark.parametrize(
         "constraints,expected_output",
         [
-            ([MaxRowsPerID(5)], "\t\t- MaxRowsPerID(max=5)"),
+            (frozenset({MaxRowsPerID(5)}), "\t\t- MaxRowsPerID(max=5)"),
             (
-                [MaxRowsPerGroupPerID("B", 1), MaxGroupsPerID("X", 5)],
+                frozenset({MaxRowsPerGroupPerID("B", 1), MaxGroupsPerID("X", 5)}),
                 "\t\t- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
+                "- MaxGroupsPerID(grouping_column='X', max=5)",
+            ),
+            (
+                frozenset(
+                    {
+                        MaxRowsPerGroupPerID("B", 1),
+                        MaxGroupsPerID("X", 5),
+                        MaxRowsPerID(3),
+                        MaxGroupsPerID("B", 4),
+                    }
+                ),
+                "\t\t- MaxRowsPerID(max=3)\n\t\t"
+                "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
+                "- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
                 "- MaxGroupsPerID(grouping_column='X', max=5)",
             ),
         ],
     )
     def test_describe_table_with_constraints(
-        self, constraints: List[Constraint], expected_output: str
+        self, constraints: frozenset[Constraint], expected_output: str
     ):
         """Test :func:`_describe` with a table with constraints."""
         with (
@@ -2674,6 +2690,18 @@ def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: Li
                 ],
             ),
             pd.DataFrame({"A": ["A", "B", "C"]}),
+            True,
+        ),
+        (
+            "Non-measurement Query, with ordered constraints",
+            QueryBuilder("private")
+            .enforce(MaxRowsPerGroupPerID("B", 1))
+            .enforce(MaxGroupsPerID("B", 4))
+            .enforce(MaxRowsPerID(3)),
+            "\t\t- MaxRowsPerID(max=3)\n\t\t"
+            "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
+            "- MaxRowsPerGroupPerID(grouping_column='B', max=1)",
+            pd.DataFrame({"A": ["A", "B", "C"], "B": [1, 2, 3]}),
             True,
         ),
         (

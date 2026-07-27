@@ -209,6 +209,10 @@ class QueryExpr(ABC):
         """Constraints on the output of this query when applied to the given catalog."""
         raise NotImplementedError()
 
+    def is_measurement(self) -> bool:
+        """Returns True if this query expression evaluates to a measurement."""
+        return False
+
     @abstractmethod
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Dispatch methods on a visitor based on the QueryExpr type."""
@@ -222,6 +226,15 @@ def _simplify_constraint_set(
     return frozenset(simplify_constraints(list(constraints)))
 
 
+def _validate_child_is_transformation_expr(child: QueryExpr):
+    """Validate that an object is a non-measurement query expression."""
+    check_type(child, QueryExpr)
+    if child.is_measurement():
+        raise AnalyticsInternalError(
+            "Measurement used as query expression child where only transformations are allowed"
+        )
+
+
 @dataclass(frozen=True)
 class SingleChildQueryExpr(QueryExpr):
     """A QueryExpr that has a single child.
@@ -232,6 +245,14 @@ class SingleChildQueryExpr(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr used to generate the input table to this QueryExpr."""
+
+
+class MeasurementQueryExpr(SingleChildQueryExpr):
+    """A QueryExpr that produces a measurement rather than a transformation."""
+
+    def is_measurement(self) -> bool:
+        """Returns True if this query expression evaluates to a measurement."""
+        return True
 
 
 @dataclass(frozen=True)
@@ -280,7 +301,7 @@ class PrivateSource(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GetGroups(SingleChildQueryExpr):
+class GetGroups(MeasurementQueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
 
     columns: Tuple[str, ...] = tuple()
@@ -291,7 +312,7 @@ class GetGroups(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -330,7 +351,7 @@ class GetGroups(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GetBounds(SingleChildQueryExpr):
+class GetBounds(MeasurementQueryExpr):
     """Returns approximate upper and lower bounds of a column."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -344,7 +365,7 @@ class GetBounds(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
@@ -383,7 +404,7 @@ class Rename(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.column_mapper, FrozenDict)
         check_type(dict(self.column_mapper), Dict[str, str])
         for k, v in self.column_mapper.items():
@@ -472,7 +493,7 @@ class Filter(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.condition, str)
 
     def _validate(self, input_schema: Schema):
@@ -513,7 +534,7 @@ class Select(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")
@@ -585,7 +606,7 @@ class Map(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[Row], Row])
         check_type(self.schema_new_columns, Schema)
         check_type(self.augment, bool)
@@ -690,7 +711,7 @@ class FlatMap(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[Row], List[Row]])
         check_type(self.max_rows, Optional[int])
         check_type(self.schema_new_columns, Schema)
@@ -820,7 +841,7 @@ class FlatMapByID(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[List[Row]], List[Row]])
         check_type(self.schema_new_columns, Schema)
         if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:
@@ -1032,8 +1053,8 @@ class JoinPrivate(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.left_child, QueryExpr)
-        check_type(self.right_child, QueryExpr)
+        _validate_child_is_transformation_expr(self.left_child)
+        _validate_child_is_transformation_expr(self.right_child)
         check_type(
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
@@ -1166,7 +1187,7 @@ class JoinPublic(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.public_table, Union[DataFrame, str])
         check_type(self.join_columns, Optional[Tuple[str, ...]])
 
@@ -1362,7 +1383,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(
             self.replace_with,
             FrozenDict,
@@ -1474,7 +1495,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.replace_with, FrozenDict)
         # Allow passing None as a replacement for the purposes of this check,
         # even though we disallow it later -- better consistency of error
@@ -1600,7 +1621,7 @@ class DropNullAndNan(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -1684,7 +1705,7 @@ class DropInfinity(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -1766,6 +1787,11 @@ class EnforceConstraint(SingleChildQueryExpr):
 
     constraint: Constraint
     """A constraint to be enforced."""
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        _validate_child_is_transformation_expr(self.child)
+        check_type(self.constraint, Constraint)
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
@@ -1965,7 +1991,7 @@ def _schema_for_groupby(
 
 
 @dataclass(frozen=True)
-class GroupByCount(SingleChildQueryExpr):
+class GroupByCount(MeasurementQueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -1985,7 +2011,7 @@ class GroupByCount(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
         check_type(self.mechanism, CountMechanism)
@@ -2008,7 +2034,7 @@ class GroupByCount(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByCountDistinct(SingleChildQueryExpr):
+class GroupByCountDistinct(MeasurementQueryExpr):
     """Returns the count of distinct rows in each groupby domain value."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2032,7 +2058,7 @@ class GroupByCountDistinct(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns_to_count, Tuple[str, ...])
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
@@ -2056,7 +2082,7 @@ class GroupByCountDistinct(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByQuantile(SingleChildQueryExpr):
+class GroupByQuantile(MeasurementQueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -2086,7 +2112,7 @@ class GroupByQuantile(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.quantile, float)
@@ -2127,7 +2153,7 @@ class GroupByQuantile(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedSum(SingleChildQueryExpr):
+class GroupByBoundedSum(MeasurementQueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2157,7 +2183,7 @@ class GroupByBoundedSum(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2194,7 +2220,7 @@ class GroupByBoundedSum(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedAverage(SingleChildQueryExpr):
+class GroupByBoundedAverage(MeasurementQueryExpr):
     """Returns bounded average of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2224,7 +2250,7 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2261,7 +2287,7 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedVariance(SingleChildQueryExpr):
+class GroupByBoundedVariance(MeasurementQueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2291,7 +2317,7 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2328,7 +2354,7 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedStdev(SingleChildQueryExpr):
+class GroupByBoundedStdev(MeasurementQueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2358,7 +2384,7 @@ class GroupByBoundedStdev(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2396,7 +2422,7 @@ class GroupByBoundedStdev(SingleChildQueryExpr):
 
 
 @dataclass(frozen=True)
-class SuppressAggregates(SingleChildQueryExpr):
+class SuppressAggregates(MeasurementQueryExpr):
     """Remove all counts that are less than the threshold."""
 
     child: GroupByCount
