@@ -21,7 +21,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     List,
     Optional,
     Set,
@@ -209,17 +208,23 @@ class QueryExpr(ABC):
         """Constraints on the output of this query when applied to the given catalog."""
         raise NotImplementedError()
 
+    def is_measurement(self) -> bool:
+        """Returns True if evaluating this expression produces a publishable table."""
+        return False
+
     @abstractmethod
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Dispatch methods on a visitor based on the QueryExpr type."""
         raise NotImplementedError()
 
 
-def _simplify_constraint_set(
-    constraints: Iterable[Constraint],
-) -> frozenset[Constraint]:
-    """Simplify constraints and return them as an immutable set."""
-    return frozenset(simplify_constraints(list(constraints)))
+def _validate_child_is_transformation_expr(child: QueryExpr):
+    """Validate that an object is a non-measurement query expression."""
+    check_type(child, QueryExpr)
+    if child.is_measurement():
+        raise AnalyticsInternalError(
+            "Measurement used as query expression child where only transformations are allowed"
+        )
 
 
 @dataclass(frozen=True)
@@ -232,6 +237,20 @@ class SingleChildQueryExpr(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr used to generate the input table to this QueryExpr."""
+
+
+class MeasurementQueryExpr(SingleChildQueryExpr):
+    """A QueryExpr that can be evaluated to produce a publishable table."""
+
+    def is_measurement(self) -> bool:
+        """Returns True if evaluating this expression produces a publishable table."""
+        return True
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Returns the constraints on the output of this query."""
+        raise AnalyticsInternalError(
+            "Measurement queries do not have constraints on their outputs"
+        )
 
 
 @dataclass(frozen=True)
@@ -270,9 +289,7 @@ class PrivateSource(QueryExpr):
     def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
         """Returns the constraints on the output of this query."""
         self._validate(catalog)
-        return _simplify_constraint_set(
-            catalog.private_tables[self.source_id].constraints
-        )
+        return simplify_constraints(catalog.private_tables[self.source_id].constraints)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visits this QueryExpr with visitor."""
@@ -280,7 +297,7 @@ class PrivateSource(QueryExpr):
 
 
 @dataclass(frozen=True)
-class GetGroups(SingleChildQueryExpr):
+class GetGroups(MeasurementQueryExpr):
     """Returns groups based on the geometric partition selection for these columns."""
 
     columns: Tuple[str, ...] = tuple()
@@ -291,7 +308,7 @@ class GetGroups(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -318,19 +335,13 @@ class GetGroups(SingleChildQueryExpr):
             }
         )
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_get_groups(self)
 
 
 @dataclass(frozen=True)
-class GetBounds(SingleChildQueryExpr):
+class GetBounds(MeasurementQueryExpr):
     """Returns approximate upper and lower bounds of a column."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -344,7 +355,7 @@ class GetBounds(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
@@ -357,12 +368,6 @@ class GetBounds(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
-
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -383,7 +388,7 @@ class Rename(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.column_mapper, FrozenDict)
         check_type(dict(self.column_mapper), Dict[str, str])
         for k, v in self.column_mapper.items():
@@ -452,7 +457,7 @@ class Rename(SingleChildQueryExpr):
                         c.max,
                     )
                 )
-        return _simplify_constraint_set(result)
+        return simplify_constraints(result)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -472,7 +477,7 @@ class Filter(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.condition, str)
 
     def _validate(self, input_schema: Schema):
@@ -513,7 +518,7 @@ class Select(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")
@@ -554,7 +559,7 @@ class Select(SingleChildQueryExpr):
         # Select does not change the rows in a table, so row constraints remain
         # valid. Constraints that refer to grouping columns not present in the
         # output schema are dropped.
-        return _simplify_constraint_set(
+        return simplify_constraints(
             c
             for c in child_constraints
             if not (
@@ -585,7 +590,7 @@ class Map(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[Row], Row])
         check_type(self.schema_new_columns, Schema)
         check_type(self.augment, bool)
@@ -690,7 +695,7 @@ class FlatMap(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[Row], List[Row]])
         check_type(self.max_rows, Optional[int])
         check_type(self.schema_new_columns, Schema)
@@ -780,7 +785,7 @@ class FlatMap(SingleChildQueryExpr):
         # MaxRowsPerID and MaxRowsPerGroupPerID constraints cannot be propagated
         # through them; MaxGroupsPerID remains valid when existing rows are
         # duplicated, because this can't add any new groups.
-        return _simplify_constraint_set(
+        return simplify_constraints(
             c for c in child_constraints if isinstance(c, MaxGroupsPerID)
         )
 
@@ -820,7 +825,7 @@ class FlatMapByID(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.f, Callable[[List[Row]], List[Row]])
         check_type(self.schema_new_columns, Schema)
         if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:
@@ -1032,8 +1037,8 @@ class JoinPrivate(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.left_child, QueryExpr)
-        check_type(self.right_child, QueryExpr)
+        _validate_child_is_transformation_expr(self.left_child)
+        _validate_child_is_transformation_expr(self.right_child)
         check_type(
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
@@ -1109,15 +1114,14 @@ class JoinPrivate(QueryExpr):
             the maximum number of times each row in the other table can be
             duplicated by the join. If there is no limit, None is returned.
             """
+            cs = simplify_constraints(cs)
             stabilities = []
             # A MaxRowsPerID constraint limits the duplication factor from a table,
             # as it limits the number of times each value in the ID column can
             # appear.
-            max_rows_per_group = next(
-                (c for c in cs if isinstance(c, MaxRowsPerID)), None
-            )
-            if max_rows_per_group:
-                stabilities.append(max_rows_per_group.max)
+            max_rows_per_id = next((c for c in cs if isinstance(c, MaxRowsPerID)), None)
+            if max_rows_per_id:
+                stabilities.append(max_rows_per_id.max)
             # When a MaxRowsPerGroupPerID constraint has a grouping column in
             # the join columns, that also limits the duplication factor because
             # each (ID, grouping column) value pair can only appear a limited
@@ -1144,7 +1148,7 @@ class JoinPrivate(QueryExpr):
             )
             for c in right_constraints
         ]
-        return _simplify_constraint_set(
+        return simplify_constraints(
             c for c in left_propagated + right_propagated if c is not None
         )
 
@@ -1166,7 +1170,7 @@ class JoinPublic(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.public_table, Union[DataFrame, str])
         check_type(self.join_columns, Optional[Tuple[str, ...]])
 
@@ -1259,7 +1263,7 @@ class JoinPublic(SingleChildQueryExpr):
             )
             for c in child_constraints
         ]
-        return _simplify_constraint_set(c for c in propagated if c is not None)
+        return simplify_constraints(c for c in propagated if c is not None)
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1362,7 +1366,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(
             self.replace_with,
             FrozenDict,
@@ -1440,10 +1444,11 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
     def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
         """Returns the constraints on the output of this query."""
         child_constraints = self.child.constraints(catalog)
-        # Replacements on grouping columns potentially invalidate the
-        # MaxRowsPerGroupPerID constraint, so they get dropped. All other
-        # constraints remain valid.
-        return _simplify_constraint_set(
+        # Replacing grouping values can combine groups. This cannot increase the
+        # number of rows or groups per ID, but it can increase the rows in one
+        # group, so only MaxRowsPerGroupPerID constraints on replaced columns
+        # are dropped.
+        return simplify_constraints(
             c
             for c in child_constraints
             if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
@@ -1474,7 +1479,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.replace_with, FrozenDict)
         # Allow passing None as a replacement for the purposes of this check,
         # even though we disallow it later -- better consistency of error
@@ -1563,10 +1568,11 @@ class ReplaceInfinity(SingleChildQueryExpr):
     def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
         """Returns the constraints on the output of this query."""
         child_constraints = self.child.constraints(catalog)
-        # Replacements on grouping columns potentially invalidate the
-        # MaxRowsPerGroupPerID constraint, so they get dropped. All other
-        # constraints remain valid.
-        return _simplify_constraint_set(
+        # Replacing grouping values can combine groups. This cannot increase the
+        # number of rows or groups per ID, but it can increase the rows in one
+        # group, so only MaxRowsPerGroupPerID constraints on replaced columns
+        # are dropped.
+        return simplify_constraints(
             c
             for c in child_constraints
             if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
@@ -1600,7 +1606,7 @@ class DropNullAndNan(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -1684,7 +1690,7 @@ class DropInfinity(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -1767,6 +1773,11 @@ class EnforceConstraint(SingleChildQueryExpr):
     constraint: Constraint
     """A constraint to be enforced."""
 
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        _validate_child_is_transformation_expr(self.child)
+        check_type(self.constraint, Constraint)
+
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
         if not input_schema.id_column:
@@ -1797,9 +1808,7 @@ class EnforceConstraint(SingleChildQueryExpr):
     def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
         """Returns the constraints on the output of this query."""
         child_constraints = self.child.constraints(catalog)
-        return _simplify_constraint_set(
-            child_constraints | frozenset([self.constraint])
-        )
+        return simplify_constraints(child_constraints | frozenset([self.constraint]))
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1965,7 +1974,7 @@ def _schema_for_groupby(
 
 
 @dataclass(frozen=True)
-class GroupByCount(SingleChildQueryExpr):
+class GroupByCount(MeasurementQueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -1985,7 +1994,7 @@ class GroupByCount(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
         check_type(self.mechanism, CountMechanism)
@@ -1996,19 +2005,13 @@ class GroupByCount(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_count(self)
 
 
 @dataclass(frozen=True)
-class GroupByCountDistinct(SingleChildQueryExpr):
+class GroupByCountDistinct(MeasurementQueryExpr):
     """Returns the count of distinct rows in each groupby domain value."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2032,7 +2035,7 @@ class GroupByCountDistinct(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.columns_to_count, Tuple[str, ...])
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
@@ -2044,19 +2047,13 @@ class GroupByCountDistinct(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_count_distinct(self)
 
 
 @dataclass(frozen=True)
-class GroupByQuantile(SingleChildQueryExpr):
+class GroupByQuantile(MeasurementQueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -2086,7 +2083,7 @@ class GroupByQuantile(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.quantile, float)
@@ -2115,19 +2112,13 @@ class GroupByQuantile(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_quantile(self)
 
 
 @dataclass(frozen=True)
-class GroupByBoundedSum(SingleChildQueryExpr):
+class GroupByBoundedSum(MeasurementQueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2157,7 +2148,7 @@ class GroupByBoundedSum(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2182,19 +2173,13 @@ class GroupByBoundedSum(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_sum(self)
 
 
 @dataclass(frozen=True)
-class GroupByBoundedAverage(SingleChildQueryExpr):
+class GroupByBoundedAverage(MeasurementQueryExpr):
     """Returns bounded average of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2224,7 +2209,7 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2249,19 +2234,13 @@ class GroupByBoundedAverage(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_average(self)
 
 
 @dataclass(frozen=True)
-class GroupByBoundedVariance(SingleChildQueryExpr):
+class GroupByBoundedVariance(MeasurementQueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2291,7 +2270,7 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2316,19 +2295,13 @@ class GroupByBoundedVariance(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_variance(self)
 
 
 @dataclass(frozen=True)
-class GroupByBoundedStdev(SingleChildQueryExpr):
+class GroupByBoundedStdev(MeasurementQueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2358,7 +2331,7 @@ class GroupByBoundedStdev(SingleChildQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        check_type(self.child, QueryExpr)
+        _validate_child_is_transformation_expr(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.low, float)
@@ -2384,19 +2357,13 @@ class GroupByBoundedStdev(SingleChildQueryExpr):
         _validate_groupby(self, input_schema)
         return _schema_for_groupby(self, input_schema)
 
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
-
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_stdev(self)
 
 
 @dataclass(frozen=True)
-class SuppressAggregates(SingleChildQueryExpr):
+class SuppressAggregates(MeasurementQueryExpr):
     """Remove all counts that are less than the threshold."""
 
     child: GroupByCount
@@ -2425,12 +2392,6 @@ class SuppressAggregates(SingleChildQueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         return self.child.schema(catalog)
-
-    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
-        """Returns the constraints on the output of this query."""
-        raise AnalyticsInternalError(
-            "Measurement queries do not have constraints on their outputs"
-        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
