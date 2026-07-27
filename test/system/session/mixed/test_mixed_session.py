@@ -34,11 +34,13 @@ def test_view_constraint(session):
     )
     session.create_view(query, "view", cache=False)
 
-    assert session._table_constraints[NamedTable("view")] == [
-        MaxRowsPerID(1),
-        MaxGroupsPerID("group", 1),
-        MaxRowsPerGroupPerID("group", 1),
-    ]
+    assert session._table_constraints[NamedTable("view")] == frozenset(
+        {
+            MaxRowsPerID(1),
+            MaxGroupsPerID("group", 1),
+            MaxRowsPerGroupPerID("group", 1),
+        }
+    )
 
     session.delete_view("view")
 

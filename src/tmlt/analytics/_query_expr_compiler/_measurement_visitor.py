@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import List, Tuple
+from typing import Tuple
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measurements.aggregations import (
@@ -40,7 +40,7 @@ class MeasurementVisitor(BaseMeasurementVisitor):
 
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
-    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
+    ) -> Tuple[Transformation, TableReference]:
         """Visit a child transformation, producing a transformation."""
         tv = TransformationVisitor(
             input_domain=self.input_domain,
@@ -48,11 +48,11 @@ class MeasurementVisitor(BaseMeasurementVisitor):
             mechanism=mechanism,
             catalog=self.catalog,
         )
-        child, reference, constraints = expr.accept(tv)
+        child, reference = expr.accept(tv)
 
         tv.validate_transformation(expr, child, reference, self.catalog)
 
-        return child, reference, constraints
+        return child, reference
 
     def _handle_enforce(
         self,
@@ -89,8 +89,14 @@ class MeasurementVisitor(BaseMeasurementVisitor):
                 " change."
             )
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, NoiseMechanism.GEOMETRIC
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=tuple(),
         )
 

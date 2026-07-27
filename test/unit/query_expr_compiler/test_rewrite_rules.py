@@ -1,7 +1,7 @@
 """Tests for rewrite rules."""
 
 from dataclasses import dataclass, replace
-from typing import Any, FrozenSet, List, Union
+from typing import Any, FrozenSet, Union
 
 import pytest
 from tmlt.core.measurements.aggregations import NoiseMechanism

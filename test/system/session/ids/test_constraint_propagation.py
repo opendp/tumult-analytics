@@ -119,9 +119,7 @@ def _session_from_dataframes(
         ),
         Case("JoinPublic")(
             dataframes={"private": pd.DataFrame({"id": [1, 1], "group": ["A", "A"]})},
-            public_dataframes={
-                "public": pd.DataFrame({"group": ["A", "A"]})
-            },
+            public_dataframes={"public": pd.DataFrame({"group": ["A", "A"]})},
             query=(
                 QueryBuilder("private")
                 .enforce(MaxGroupsPerID("group", 1))
@@ -133,9 +131,7 @@ def _session_from_dataframes(
             dataframes={
                 "private": pd.DataFrame({"id": [1, 1, 1], "group": ["A", "A", "B"]})
             },
-            public_dataframes={
-                "public": pd.DataFrame({"group": ["A", "A", "B"]})
-            },
+            public_dataframes={"public": pd.DataFrame({"group": ["A", "A", "B"]})},
             query=(
                 QueryBuilder("private")
                 .enforce(MaxGroupsPerID("group", 1))
