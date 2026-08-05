@@ -28,6 +28,41 @@ then before running Tumult Analytics code, you should create that Spark session:
 
 As long as this session is active, Tumult Analytics will use it.
 
+Logging and quieting Spark
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _spark-logging:
+
+Tumult Analytics emits diagnostic messages via Python's built-in :mod:`logging`
+module (for example when a :class:`~tmlt.analytics.Session` is created). The
+library does not configure log handlers; enable them in your application if you
+want to see Analytics messages:
+
+.. code-block::
+
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    # Or configure only Analytics:
+    # logging.getLogger("tmlt.analytics").setLevel(logging.DEBUG)
+
+Spark's own logging is separate from Python logging. If you create a Spark
+session without lowering its log level, Spark output can dominate the console
+regardless of the Analytics log level you chose. After creating a session,
+prefer:
+
+.. code-block::
+
+    from pyspark.sql import SparkSession
+    spark = SparkSession.builder.getOrCreate()
+    spark.sparkContext.setLogLevel("ERROR")
+
+When Analytics detects a noisy SparkContext log level (``ALL``, ``DEBUG``, or
+``INFO``), it emits a one-time :class:`UserWarning` and a matching
+``logging`` warning. py4j can also be chatty independently of
+``setLogLevel``; you can quiet it with:
+
+.. code-block::
+
+    logging.getLogger("py4j").setLevel(logging.ERROR)
 
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+import logging
 from operator import xor
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from warnings import warn
@@ -49,6 +50,7 @@ from tmlt.analytics._base_builder import (
 )
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._coerce_spark_schema import coerce_spark_schema_or_fail
+from tmlt.analytics._logging import warn_if_spark_logging_noisy
 from tmlt.analytics._neighboring_relation import (
     AddRemoveKeys,
     AddRemoveRows,
@@ -106,6 +108,8 @@ from tmlt.analytics.query_builder import (
     Query,
     QueryBuilder,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["Session"]
 
@@ -292,6 +296,11 @@ class Session:
             for source_id, dataframe in self._public_dataframes.items():
                 sess.add_public_dataframe(source_id, dataframe)
 
+            logger.info(
+                "Created Session with privacy budget type %s",
+                type(self._privacy_budget).__name__,
+            )
+            warn_if_spark_logging_noisy()
             return sess
 
     def __init__(
@@ -1105,6 +1114,7 @@ class Session:
         """
         check_type(query_expr, Query)
         query = query_expr._query_expr
+        logger.debug("Evaluating query of type %s", type(query).__name__)
         measurement, adjusted_budget, _ = self._compile_and_get_info(
             query, privacy_budget
         )
@@ -1114,24 +1124,32 @@ class Session:
             isinstance(self._accountant.privacy_budget, tuple),
             isinstance(adjusted_budget.value, tuple),
         ):
-            raise AnalyticsInternalError(
+            message = (
                 "Expected type of adjusted_budget to match type of accountant's privacy"
                 f" budget ({type(self._accountant.privacy_budget)}), but instead"
                 f" received {type(adjusted_budget.value)}."
             )
+            logger.error(message)
+            raise AnalyticsInternalError(message)
 
         try:
             if not measurement.privacy_relation(
                 self._accountant.d_in, adjusted_budget.value
             ):
-                raise AnalyticsInternalError(
+                message = (
                     "With these inputs and this privacy budget, similar inputs will"
                     " *not* produce similar outputs."
                 )
+                logger.error(message)
+                raise AnalyticsInternalError(message)
             try:
-                return self._accountant.measure(
+                result = self._accountant.measure(
                     measurement, d_out=adjusted_budget.value
                 )
+                logger.debug(
+                    "Finished evaluating query of type %s", type(query).__name__
+                )
+                return result
             except InsufficientBudgetError as err:
                 msg = _format_insufficient_budget_msg(
                     err.requested_budget.value,

@@ -38,6 +38,8 @@ and then evaluating these queries with :meth:`~.session.Session.evaluate`.
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+import logging
+
 from tmlt.analytics._utils import AnalyticsInternalError
 from tmlt.analytics.binning_spec import BinningSpec, BinT
 from tmlt.analytics.config import Config, FeatureFlag
@@ -82,3 +84,7 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 # This version file is populated during build -- do not commit it.
 from ._version import __version__
+
+# Libraries should not configure handlers; apps/notebooks do that. A NullHandler
+# avoids "No handlers could be found" if something logs before configuration.
+logging.getLogger(__name__).addHandler(logging.NullHandler())
