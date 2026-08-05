@@ -50,6 +50,15 @@ If you are using Hive tables to read and write data, you may instead want to con
 the :ref:`Hive section <hive-tips>` of the :ref:`Spark topic guide <spark>`. For more tips
 related to Spark, see the entirety of that guide.
 
+Noisy Spark or py4j logs
+------------------------
+
+If your console is flooded with Spark or py4j messages even after configuring
+Python's :mod:`logging` for Tumult Analytics, see
+:ref:`Logging and quieting Spark <spark-logging>` in the Spark topic guide.
+``spark.sparkContext.setLogLevel("ERROR")`` and quieting the ``py4j`` logger
+usually resolve this.
+
 
 ``PicklingError`` on map queries
 --------------------------------
