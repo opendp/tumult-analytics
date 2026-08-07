@@ -1129,19 +1129,16 @@ class Session:
                 f" budget ({type(self._accountant.privacy_budget)}), but instead"
                 f" received {type(adjusted_budget.value)}."
             )
-            logger.error(message)
             raise AnalyticsInternalError(message)
 
         try:
             if not measurement.privacy_relation(
                 self._accountant.d_in, adjusted_budget.value
             ):
-                message = (
+                raise AnalyticsInternalError(
                     "With these inputs and this privacy budget, similar inputs will"
                     " *not* produce similar outputs."
                 )
-                logger.error(message)
-                raise AnalyticsInternalError(message)
             try:
                 result = self._accountant.measure(
                     measurement, d_out=adjusted_budget.value
