@@ -40,10 +40,11 @@ Lint vs review
 
 Ruff enforces *mechanical* conventions in CI (``LOG``, ``G``, and ``TID251``
 banned-api for ``logging.basicConfig`` / ``dictConfig`` / ``fileConfig``, plus
-``loguru`` / ``structlog``). Judgment calls — which level to use, log-once vs
-raise/wrap, channel choice (``print`` / ``warnings`` / ``logging``), and message
-coarseness — are documented in ``CONTRIBUTING.md`` and reviewed in PRs; they are
-not lintable.
+``loguru`` / ``structlog``). A unit test bans ``logger.error`` /
+``logger.exception`` under ``src/tmlt/analytics`` so failure stays raise-only.
+Other judgment calls — which of DEBUG/INFO/WARNING to use, channel choice
+(``print`` / ``warnings`` / ``logging``), and message coarseness — are
+documented in ``CONTRIBUTING.md`` and reviewed in PRs.
 """
 
 # SPDX-License-Identifier: Apache-2.0

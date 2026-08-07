@@ -48,23 +48,23 @@ Helpers and a short channel summary live in [`src/tmlt/analytics/_logging.py`](.
 | **DEBUG** | High-volume diagnostic detail (query compile/evaluate steps, noise mechanism summary). |
 | **INFO** | Rare, high-signal lifecycle events (e.g. Session created; log budget *type* only). |
 | **WARNING** | Recoverable or suboptimal situations that still continue (e.g. noisy Spark log level). |
-| **ERROR** | Unexpected internal failures (`AnalyticsInternalError`). Not for expected control-flow errors such as insufficient privacy budget — raise those without logging. |
+| **ERROR** | Not used at Analytics call sites. Applications may log at ERROR when they catch failures at their boundary. Internal bugs use `AnalyticsInternalError` (raise only). |
 
 #### Channels
 
 - **`print`** — intentional interactive UX (`Session.describe`, `check_installation`).
 - **`warnings.warn`** — advisories that must be visible without configuring logging.
-- **`logging`** — diagnostics for operators who configure logging.
+- **`logging`** — diagnostics for operators who configure logging (DEBUG / INFO / WARNING in this library).
 
 Do not migrate existing `warnings.warn` call sites to `logger.warning` without considering visibility.
 
 #### Log-once vs raise
 
-Prefer raising (and wrapping with `raise ... from e` when translating errors) in the middle of the stack. Do not log-and-re-raise expected failures. For true internal bugs, `logger.error` immediately before raising `AnalyticsInternalError` is an allowed library bug-signal at that boundary.
+Prefer raising (and wrapping with `raise ... from e` when translating errors) in the middle of the stack. Do not log-and-re-raise — neither for expected failures (e.g. insufficient privacy budget) nor for `AnalyticsInternalError`. The exception is the failure signal; applications that care about ERROR-level records should log when they catch at their boundary.
 
 #### Lint vs review
 
-Ruff enforces mechanical conventions (`LOG`, `G`, and `TID251` bans on `logging.basicConfig` / `dictConfig` / `fileConfig`, plus `loguru` / `structlog`). Level choice, log-once judgment, channel choice, and message coarseness are reviewed against this section — they are not fully lintable.
+Ruff enforces mechanical conventions (`LOG`, `G`, and `TID251` bans on `logging.basicConfig` / `dictConfig` / `fileConfig`, plus `loguru` / `structlog`). A unit test bans `logger.error` / `logger.exception` under `src/tmlt/analytics` (library call sites raise instead). Other level choice, channel choice, and message coarseness are reviewed against this section.
 
 ### Testing
 

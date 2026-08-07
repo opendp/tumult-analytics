@@ -3,8 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+from __future__ import annotations
+
+import ast
 import logging
 import warnings
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,6 +17,9 @@ from tmlt.analytics._logging import (
     _reset_spark_logging_warning_for_tests,
     warn_if_spark_logging_noisy,
 )
+
+_ANALYTICS_SRC = Path(__file__).resolve().parents[2] / "src" / "tmlt" / "analytics"
+_BANNED_LOG_METHODS = frozenset({"error", "exception"})
 
 
 @pytest.fixture(autouse=True)
@@ -98,3 +105,33 @@ def test_warn_if_spark_logging_noisy_swallows_get_log_level_errors(
             warn_if_spark_logging_noisy(spark)
             assert caught == []
         assert caplog.records == []
+
+
+def test_no_library_error_level_logging() -> None:
+    """Library call sites must not use logger.error / logger.exception.
+
+    Failures are signaled by raising (see CONTRIBUTING.md Logging). Applications
+    may log at ERROR when they catch at their boundary.
+    """
+    violations: list[str] = []
+    for path in sorted(_ANALYTICS_SRC.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not isinstance(func, ast.Attribute):
+                continue
+            if func.attr not in _BANNED_LOG_METHODS:
+                continue
+            # Match logger.error(...) / logging.error(...) style call sites.
+            if isinstance(func.value, ast.Name) and func.value.id in {
+                "logger",
+                "logging",
+            }:
+                rel = path.relative_to(_ANALYTICS_SRC.parent.parent.parent)
+                violations.append(f"{rel}:{node.lineno}: {func.value.id}.{func.attr}")
+    assert violations == [], (
+        "ERROR-level logging is banned in tmlt.analytics; raise instead:\n"
+        + "\n".join(violations)
+    )

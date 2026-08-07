@@ -181,12 +181,10 @@ class QueryExprCompiler:
                 measurement.privacy_function(stability) != visitor.adjusted_budget.value
             )
         if privacy_function_budget_mismatch:
-            message = (
+            raise AnalyticsInternalError(
                 "Query measurement privacy function does not match "
                 "privacy budget value."
             )
-            logger.error(message)
-            raise AnalyticsInternalError(message)
 
         return measurement, noise_info
 
