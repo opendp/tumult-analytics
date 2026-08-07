@@ -141,7 +141,11 @@ select = [
     # one set of rules.
     "RUF", "I", "PL", "D", "F", "E", "W",
     # Also enable a subset of flake8 rules, for similar reasons to pyflakes/pycodestyle.
-    "ISC", "SLF"
+    "ISC", "SLF",
+    # Mechanical logging conventions for library code (see src/tmlt/analytics/_logging.py).
+    "LOG",  # flake8-logging
+    "G",    # flake8-logging-format
+    "TID",  # flake8-tidy-imports (banned-api)
 ]
 ignore = [
     # too-many-*: These rules are too context-dependent to be generally useful,
@@ -176,6 +180,9 @@ ignore = [
     "E721",    # type-comparison
     "D103",    # undocumented-public-function
     "PLR0124", # comparison-with-itself
+    # TID251 (banned-api) is the logging policy rule we want; TID252 would force
+    # rewriting existing relative imports in tests and is out of scope.
+    "TID252",
 ]
 
 # Ruff's RUF001-003 rules disallow certain Unicode characters that are easily
@@ -190,6 +197,13 @@ combine-as-imports = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"logging.basicConfig".msg = "Library code must not configure logging; apps/notebooks configure handlers."
+"logging.config.dictConfig".msg = "Library code must not configure logging."
+"logging.config.fileConfig".msg = "Library code must not configure logging."
+"loguru".msg = "Use stdlib logging only."
+"structlog".msg = "Use stdlib logging only."
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"

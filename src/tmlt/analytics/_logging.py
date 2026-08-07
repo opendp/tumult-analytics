@@ -16,6 +16,10 @@ should configure logging themselves (for example with
 ``logging.basicConfig(level=logging.INFO)`` or a logger-specific handler on
 ``tmlt.analytics``).
 
+Contributor guidelines for levels, channels, and log-once behavior live in
+``CONTRIBUTING.md`` (Logging section). This module documents the same channel
+rules briefly for discoverability next to the helpers.
+
 Output channels
 ---------------
 
@@ -30,6 +34,16 @@ Use the right channel for the job:
 
 Keep log messages coarse: prefer query class names and privacy-budget
 *types* over full query ASTs, row data, or numeric remaining budgets.
+
+Lint vs review
+--------------
+
+Ruff enforces *mechanical* conventions in CI (``LOG``, ``G``, and ``TID251``
+banned-api for ``logging.basicConfig`` / ``dictConfig`` / ``fileConfig``, plus
+``loguru`` / ``structlog``). Judgment calls — which level to use, log-once vs
+raise/wrap, channel choice (``print`` / ``warnings`` / ``logging``), and message
+coarseness — are documented in ``CONTRIBUTING.md`` and reviewed in PRs; they are
+not lintable.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -46,8 +60,11 @@ from pyspark.sql import SparkSession
 logger = logging.getLogger(__name__)
 
 _NOISY_SPARK_LOG_LEVELS = frozenset({"ALL", "DEBUG", "INFO"})
-# Mutable container avoids a ``global`` statement for the once-per-process flag.
-_spark_noise_warned = [False]
+_spark_noise_warned = False
+
+_SPARK_DOCS_URL = (
+    "https://docs.tmlt.dev/analytics/latest/deployment/spark.html#spark-logging"
+)
 
 _SPARK_NOISE_MESSAGE = (
     "The active SparkSession has SparkContext log level {level!r}. "
@@ -55,13 +72,14 @@ _SPARK_NOISE_MESSAGE = (
     "Analytics log levels will not quiet Spark output. Consider calling "
     "spark.sparkContext.setLogLevel('ERROR') after creating the session. "
     "py4j and log4j can also produce noise independently; see the Spark "
-    "deployment guide for details."
+    f"deployment guide for details: {_SPARK_DOCS_URL}"
 )
 
 
-def reset_spark_logging_warning_for_tests() -> None:
+def _reset_spark_logging_warning_for_tests() -> None:
     """Reset the once-per-process Spark noise warning (for unit tests only)."""
-    _spark_noise_warned[0] = False
+    global _spark_noise_warned  # noqa: PLW0603
+    _spark_noise_warned = False
 
 
 def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
@@ -78,7 +96,8 @@ def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
         spark: Session to inspect. If omitted, the active session is used when
             one exists.
     """
-    if _spark_noise_warned[0]:
+    global _spark_noise_warned  # noqa: PLW0603
+    if _spark_noise_warned:
         return
 
     if spark is None:
@@ -87,7 +106,11 @@ def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
         return
 
     try:
-        level = spark.sparkContext.getLogLevel()
+        # PySpark exposes getLogLevel at runtime; stubs often omit it.
+        get_log_level = getattr(spark.sparkContext, "getLogLevel", None)
+        if not callable(get_log_level):
+            return
+        level = get_log_level()
     except Exception:
         # Never fail Session creation because Spark logging could not be inspected.
         return
@@ -102,4 +125,4 @@ def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
     message = _SPARK_NOISE_MESSAGE.format(level=level_name)
     warnings.warn(message, UserWarning, stacklevel=2)
     logger.warning(message)
-    _spark_noise_warned[0] = True
+    _spark_noise_warned = True

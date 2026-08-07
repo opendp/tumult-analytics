@@ -35,6 +35,37 @@ Note that some operating systems, including macOS, include versions of `make` th
 
 Behind the scenes, these commands use the `uv` environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `uv run nox --list`, then run one of these sessions using e.g. `uv run nox -s test-fast`.
 
+### Logging
+
+Tumult Analytics uses Python's stdlib [`logging`](https://docs.python.org/3/library/logging.html) module. Library code should use `logging.getLogger(__name__)`, never configure handlers or call `basicConfig` / `dictConfig`, and keep messages coarse (query class names and privacy-budget *types*, not ASTs, row data, or numeric remaining budgets).
+
+Helpers and a short channel summary live in [`src/tmlt/analytics/_logging.py`](./src/tmlt/analytics/_logging.py).
+
+#### Levels
+
+| Level | Use for |
+|-------|---------|
+| **DEBUG** | High-volume diagnostic detail (query compile/evaluate steps, noise mechanism summary). |
+| **INFO** | Rare, high-signal lifecycle events (e.g. Session created; log budget *type* only). |
+| **WARNING** | Recoverable or suboptimal situations that still continue (e.g. noisy Spark log level). |
+| **ERROR** | Unexpected internal failures (`AnalyticsInternalError`). Not for expected control-flow errors such as insufficient privacy budget — raise those without logging. |
+
+#### Channels
+
+- **`print`** — intentional interactive UX (`Session.describe`, `check_installation`).
+- **`warnings.warn`** — advisories that must be visible without configuring logging.
+- **`logging`** — diagnostics for operators who configure logging.
+
+Do not migrate existing `warnings.warn` call sites to `logger.warning` without considering visibility.
+
+#### Log-once vs raise
+
+Prefer raising (and wrapping with `raise ... from e` when translating errors) in the middle of the stack. Do not log-and-re-raise expected failures. For true internal bugs, `logger.error` immediately before raising `AnalyticsInternalError` is an allowed library bug-signal at that boundary.
+
+#### Lint vs review
+
+Ruff enforces mechanical conventions (`LOG`, `G`, and `TID251` bans on `logging.basicConfig` / `dictConfig` / `fileConfig`, plus `loguru` / `structlog`). Level choice, log-once judgment, channel choice, and message coarseness are reviewed against this section — they are not fully lintable.
+
 ### Testing
 
 Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. For example, to check tests in a particular test file, run:
