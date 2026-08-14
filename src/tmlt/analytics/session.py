@@ -1124,12 +1124,11 @@ class Session:
             isinstance(self._accountant.privacy_budget, tuple),
             isinstance(adjusted_budget.value, tuple),
         ):
-            message = (
+            raise AnalyticsInternalError(
                 "Expected type of adjusted_budget to match type of accountant's privacy"
                 f" budget ({type(self._accountant.privacy_budget)}), but instead"
                 f" received {type(adjusted_budget.value)}."
             )
-            raise AnalyticsInternalError(message)
 
         try:
             if not measurement.privacy_relation(

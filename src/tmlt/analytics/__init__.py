@@ -86,5 +86,7 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 from ._version import __version__
 
 # Libraries should not configure handlers; apps/notebooks do that. A NullHandler
-# avoids "No handlers could be found" if something logs before configuration.
+# on the package logger is the stdlib library howto so this logger does not
+# rely on the root logger or lastResort:
+# https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
 logging.getLogger(__name__).addHandler(logging.NullHandler())

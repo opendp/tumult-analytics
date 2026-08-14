@@ -57,12 +57,23 @@ prefer:
 
 When Analytics detects a noisy SparkContext log level (``ALL``, ``DEBUG``, or
 ``INFO``), it emits a one-time :class:`UserWarning` and a matching
-``logging`` warning. py4j can also be chatty independently of
+:mod:`logging` warning. py4j can also be chatty independently of
 ``setLogLevel``; you can quiet it with:
 
 .. code-block::
 
     logging.getLogger("py4j").setLevel(logging.ERROR)
+
+Spark console progress bars (``[Stage 0:> (0 + 1) / 1]``) are separate from
+log level. Disable them if that noise is unwanted:
+
+.. code-block::
+
+    spark = SparkSession.builder.config(
+        "spark.ui.showConsoleProgress", "false"
+    ).getOrCreate()
+    # Or, after the session exists:
+    # spark.conf.set("spark.ui.showConsoleProgress", "false")
 
 Connecting to Hive
 ^^^^^^^^^^^^^^^^^^
