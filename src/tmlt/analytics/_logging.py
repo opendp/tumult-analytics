@@ -55,7 +55,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional
 
 from pyspark.sql import SparkSession
 
@@ -84,28 +83,22 @@ def _reset_spark_logging_warning_for_tests() -> None:
     _spark_noise_warned = False
 
 
-def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
+def warn_if_spark_logging_noisy() -> None:
     """Warn once if Spark's built-in logging looks noisy.
 
-    Uses only an existing Spark session: the optional ``spark`` argument
-    (usually omitted; a test/injection seam), or
-    :meth:`SparkSession.getActiveSession`. Never calls ``getOrCreate()``.
+    Uses :meth:`SparkSession.getActiveSession` only. Never calls
+    ``getOrCreate()``.
 
     Emits a :class:`UserWarning` (visible without logging config) and a
     matching ``logger.warning`` (for configured log pipelines). Dual-emit is
     scoped to this setup advisory: a ``NullHandler`` on ``tmlt.analytics``
     means lastResort does not print library WARNING to stderr.
-
-    Args:
-        spark: Session to inspect. Usually omitted; the active session is used
-            when one exists.
     """
     global _spark_noise_warned  # noqa: PLW0603
     if _spark_noise_warned:
         return
 
-    if spark is None:
-        spark = SparkSession.getActiveSession()
+    spark = SparkSession.getActiveSession()
     if spark is None:
         return
 
