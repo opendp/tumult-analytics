@@ -30,8 +30,10 @@ def _reset_spark_warning():
 
 
 @pytest.fixture
-def mock_spark(request: pytest.FixtureRequest) -> MagicMock:
-    """Spark session mock with a configurable SparkContext log level.
+def mock_spark(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> MagicMock:
+    """Spark session mock installed as the active session.
 
     Parametrize with ``@pytest.mark.parametrize("mock_spark", [...], indirect=True)``.
     Defaults to ``"INFO"`` when not parametrized.
@@ -39,6 +41,9 @@ def mock_spark(request: pytest.FixtureRequest) -> MagicMock:
     log_level = getattr(request, "param", "INFO")
     spark = MagicMock()
     spark.sparkContext.getLogLevel.return_value = log_level
+    monkeypatch.setattr(
+        "tmlt.analytics._logging.SparkSession.getActiveSession", lambda: spark
+    )
     return spark
 
 
@@ -49,13 +54,13 @@ def test_warn_if_spark_logging_noisy_warns_once(
     """Noisy Spark levels trigger UserWarning and logger.warning once."""
     with caplog.at_level(logging.WARNING, logger="tmlt.analytics._logging"):
         with pytest.warns(UserWarning, match="setLogLevel"):
-            warn_if_spark_logging_noisy(mock_spark)
+            warn_if_spark_logging_noisy()
         assert any("setLogLevel" in r.message for r in caplog.records)
         assert any("docs.tmlt.dev" in r.message for r in caplog.records)
 
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            warn_if_spark_logging_noisy(mock_spark)
+            warn_if_spark_logging_noisy()
             assert caught == []
         assert sum(1 for r in caplog.records if "setLogLevel" in r.message) == 1
 
@@ -72,7 +77,7 @@ def test_warn_if_spark_logging_noisy_quiet_levels(
     with caplog.at_level(logging.WARNING, logger="tmlt.analytics._logging"):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            warn_if_spark_logging_noisy(mock_spark)
+            warn_if_spark_logging_noisy()
             assert caught == []
         assert caplog.records == []
 
@@ -80,7 +85,7 @@ def test_warn_if_spark_logging_noisy_quiet_levels(
 def test_warn_if_spark_logging_noisy_noop_without_session(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """No active session and no argument means no warning."""
+    """No active session means no warning."""
     monkeypatch.setattr(
         "tmlt.analytics._logging.SparkSession.getActiveSession", lambda: None
     )
@@ -93,15 +98,19 @@ def test_warn_if_spark_logging_noisy_noop_without_session(
 
 
 def test_warn_if_spark_logging_noisy_swallows_get_log_level_errors(
+    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Failures inspecting Spark log level must not propagate."""
     spark = MagicMock()
     spark.sparkContext.getLogLevel.side_effect = RuntimeError("unavailable")
+    monkeypatch.setattr(
+        "tmlt.analytics._logging.SparkSession.getActiveSession", lambda: spark
+    )
     with caplog.at_level(logging.WARNING, logger="tmlt.analytics._logging"):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            warn_if_spark_logging_noisy(spark)
+            warn_if_spark_logging_noisy()
             assert caught == []
         assert caplog.records == []
 
