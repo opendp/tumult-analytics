@@ -95,6 +95,11 @@ particular, public sources and parameters like ``groupby`` information or
 clamping bounds are not protected. They can reveal private information if the
 private data is used directly to determine them.
 
+Logs are also **not** covered outputs. Messages from Python's :mod:`logging`
+module, Spark's own logging, and Analytics diagnostics are not covered by the
+privacy promise. Do not release logs to anyone who is not trusted with the
+private input data. (See also the side-channel note under Subtlety 2.)
+
 Subtlety 2: adversarial model
 -----------------------------
 

@@ -27,13 +27,14 @@ Use the right channel for the job:
 
 * ``print`` — intentional interactive UX (for example ``Session.describe`` and
   ``check_installation``).
-* ``warnings.warn`` — user-facing behavioral or setup advisories that must be
-  visible without configuring logging.
-* ``logging`` — diagnostic / lifecycle messages for operators who configure
-  logging.
+* ``warnings.warn`` — advisories that must be visible without configuring
+  logging (the package ``NullHandler`` prevents stdlib lastResort from
+  emitting library WARNING to stderr).
+* ``logging`` — diagnostic / lifecycle messages (DEBUG / INFO / WARNING).
 
-Keep log messages coarse: prefer query class names and privacy-budget
-*types* over full query ASTs, row data, or numeric remaining budgets.
+Never log row data, query ASTs, or PII. Coarseness is operator hygiene, not a
+privacy control. Budget *values* may appear at DEBUG; Session INFO stays
+budget *type* only.
 
 Lint vs review
 --------------
@@ -86,16 +87,18 @@ def _reset_spark_logging_warning_for_tests() -> None:
 def warn_if_spark_logging_noisy(spark: Optional[SparkSession] = None) -> None:
     """Warn once if Spark's built-in logging looks noisy.
 
-    Uses only an existing Spark session: the optional ``spark`` argument, or
+    Uses only an existing Spark session: the optional ``spark`` argument
+    (usually omitted; a test/injection seam), or
     :meth:`SparkSession.getActiveSession`. Never calls ``getOrCreate()``.
 
-    Emits both a :class:`UserWarning` (visible by default) and a
-    ``logger.warning`` (for configured log pipelines). This dual emit is
-    intentional and scoped to this setup advisory only.
+    Emits a :class:`UserWarning` (visible without logging config) and a
+    matching ``logger.warning`` (for configured log pipelines). Dual-emit is
+    scoped to this setup advisory: a ``NullHandler`` on ``tmlt.analytics``
+    means lastResort does not print library WARNING to stderr.
 
     Args:
-        spark: Session to inspect. If omitted, the active session is used when
-            one exists.
+        spark: Session to inspect. Usually omitted; the active session is used
+            when one exists.
     """
     global _spark_noise_warned  # noqa: PLW0603
     if _spark_noise_warned:

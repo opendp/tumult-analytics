@@ -17,8 +17,8 @@ Added
   (for example on Session creation and during query compilation/evaluation).
   Applications should configure logging handlers themselves. When an active
   SparkSession has a noisy SparkContext log level (``ALL``/``DEBUG``/``INFO``),
-  Analytics emits a one-time warning suggesting ``setLogLevel("ERROR")``.
-  See the Spark deployment guide for details.
+  Analytics emits a one-time :class:`UserWarning` and :mod:`logging` warning
+  suggesting ``setLogLevel("ERROR")``. See :ref:`spark-logging`.
 
 .. _v0.21.0:
 

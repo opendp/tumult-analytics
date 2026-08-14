@@ -53,7 +53,6 @@ def test_warn_if_spark_logging_noisy_warns_once(
         assert any("setLogLevel" in r.message for r in caplog.records)
         assert any("docs.tmlt.dev" in r.message for r in caplog.records)
 
-        # Second call should be a no-op.
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             warn_if_spark_logging_noisy(mock_spark)
