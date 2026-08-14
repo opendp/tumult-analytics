@@ -35,6 +35,49 @@ Note that some operating systems, including macOS, include versions of `make` th
 
 Behind the scenes, these commands use the `uv` environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `uv run nox --list`, then run one of these sessions using e.g. `uv run nox -s test-fast`.
 
+### Logging
+
+Tumult Analytics uses Python's stdlib [`logging`](https://docs.python.org/3/library/logging.html) module. Library code should use `logging.getLogger(__name__)` and never configure handlers or call `basicConfig` / `dictConfig`. Coverage is intentionally thin and will grow; these guidelines apply to new statements.
+
+Helpers and a short channel summary live in [`src/tmlt/analytics/_logging.py`](./src/tmlt/analytics/_logging.py).
+
+#### When to log (consider)
+
+- The library makes a decision that is not user-specified (e.g. picking a default mechanism).
+- A major milestone in program execution (e.g. Session creation, executing a query).
+- Bracketing a long-running or otherwise expensive operation (e.g. compiling a query or executing a Spark plan).
+
+These are considerations, not a checklist. Existing call sites are a starting pattern; this section does not require expanding them to match the list.
+
+#### Levels
+
+| Level | Use for |
+|-------|---------|
+| **DEBUG** | High-volume diagnostic detail (query compile/evaluate steps, noise mechanism summary). Budget *values* may appear here if they help operators. |
+| **INFO** | Rare, high-signal lifecycle events (e.g. Session created; log budget *type* only). |
+| **WARNING** | Recoverable or suboptimal situations that still continue (e.g. noisy Spark log level). Library WARNING is *not* visible by default: a `NullHandler` on `tmlt.analytics` prevents stdlib lastResort from writing to stderr. |
+| **ERROR** | Not used at Analytics call sites. Applications may log at ERROR when they catch failures at their boundary. Internal bugs use `AnalyticsInternalError` (raise only). |
+
+#### Coarseness
+
+Never log row data, query ASTs, or PII. That is a hard ban (volume and accidental leak into operator logs). Remaining privacy-budget numbers are *not* the same class: they are optional at DEBUG. Session INFO stays budget *type* only so INFO remains rare and high-signal.
+
+Coarseness is operator hygiene, not a privacy control. Logs are not covered outputs — see the [privacy promise](./doc/topic-guides/privacy-promise.rst) (Subtlety 1).
+
+#### Channels
+
+- **`print`** — intentional interactive UX (`Session.describe`, `check_installation`).
+- **`warnings.warn`** — advisories that must be visible without configuring logging. Do not mass-migrate existing call sites to `logger.warning`.
+- **`logging`** — diagnostics (DEBUG / INFO / WARNING in this library). The Spark noisy-check dual-emits `warnings.warn` + `logger.warning` because NullHandler blocks lastResort; that exception is scoped to this setup advisory.
+
+#### Log-once vs raise
+
+Prefer raising (and wrapping with `raise ... from e` when translating errors) in the middle of the stack. Do not log-and-re-raise — neither for expected failures (e.g. insufficient privacy budget) nor for `AnalyticsInternalError`. The exception is the failure signal; applications that care about ERROR-level records should log when they catch at their boundary.
+
+#### Lint vs review
+
+Ruff enforces mechanical conventions (`LOG`, `G`, and `TID251` bans on `logging.basicConfig` / `dictConfig` / `fileConfig`, plus `loguru` / `structlog`). A unit test bans `logger.error` / `logger.exception` under `src/tmlt/analytics` (library call sites raise instead). Other level choice, channel choice, and message coarseness are reviewed against this section.
+
 ### Testing
 
 Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. For example, to check tests in a particular test file, run:

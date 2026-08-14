@@ -11,6 +11,15 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+- Diagnostic messages are emitted via Python's built-in :mod:`logging` module
+  (for example on Session creation and during query compilation/evaluation).
+  Applications should configure logging handlers themselves. When an active
+  SparkSession has a noisy SparkContext log level (``ALL``/``DEBUG``/``INFO``),
+  Analytics emits a one-time :class:`UserWarning` and :mod:`logging` warning
+  suggesting ``setLogLevel("ERROR")``. See :ref:`spark-logging`.
+
 .. _v0.21.0:
 
 0.21.0 - 2026-06-30

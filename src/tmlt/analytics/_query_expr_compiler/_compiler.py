@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+import logging
 from typing import Any, List, Tuple, Union
 
 from tmlt.core.domains.collections import DictDomain
@@ -29,6 +30,8 @@ from tmlt.analytics._schema import Schema
 from tmlt.analytics._table_reference import TableReference
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.privacy_budget import PrivacyBudget
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MECHANISM = "DEFAULT"
 """Constant used for DEFAULT noise mechanism"""
@@ -135,6 +138,7 @@ class QueryExprCompiler:
         query.schema(catalog)
 
         # Compilation happens in two stages: first, we apply rewrite rules...
+        logger.debug("Rewriting query of type %s", type(query).__name__)
         compilation_info = CompilationInfo(
             output_measure=self._output_measure,
             catalog=catalog,
@@ -155,6 +159,13 @@ class QueryExprCompiler:
         measurement, noise_info = query.accept(visitor)
         if not isinstance(measurement, Measurement):
             raise AnalyticsInternalError("This query did not create a measurement.")
+
+        mechanisms = [info.get("noise_mechanism") for info in noise_info]
+        logger.debug(
+            "Compiled query of type %s; noise mechanisms: %s",
+            type(query).__name__,
+            mechanisms,
+        )
 
         if isinstance(visitor.adjusted_budget.value, tuple):
             # TODO(#2754): add a log message.
