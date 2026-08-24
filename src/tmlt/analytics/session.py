@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2025
 
 from operator import xor
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple, Type, Union, cast
 from warnings import warn
 
 import pandas as pd  # needed for doctests
@@ -82,7 +82,12 @@ from tmlt.analytics._transformation_utils import (
 )
 from tmlt.analytics._type_checking import is_exact_number_tuple
 from tmlt.analytics._utils import assert_is_identifier
-from tmlt.analytics.constraints import Constraint, MaxGroupsPerID, MaxRowsPerID
+from tmlt.analytics.constraints import (
+    Constraint,
+    MaxGroupsPerID,
+    MaxRowsPerGroupPerID,
+    MaxRowsPerID,
+)
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.privacy_budget import (
     ApproxDPBudget,
@@ -327,8 +332,8 @@ class Session:
         self._public_sources = public_sources
         # Note: Currently, only NamedTable identifiers make sense as keys here,
         #     and we may assume that no other types of identifiers are included.
-        self._table_constraints: Dict[Identifier, List[Constraint]] = {
-            NamedTable(t): [] for t in self.private_sources
+        self._table_constraints: Dict[Identifier, FrozenSet[Constraint]] = {
+            NamedTable(t): frozenset() for t in self.private_sources
         }
 
     @classmethod
@@ -674,7 +679,10 @@ class Session:
                 table_desc = f"Table '{name}' (no constraints):\n" + table_schema
             else:
                 table_desc = f"Table '{name}':\n" + table_schema + "\n\tConstraints:\n"
-                constraints_strs = [f"\t\t- {e}" for e in constraints]
+                constraints_strs = [
+                    f"\t\t- {e}"
+                    for e in _ordered_constraints(constraints, private_table.schema)
+                ]
                 table_desc += "\n".join(constraints_strs)
 
             private_table_descs.append(table_desc)
@@ -704,25 +712,16 @@ class Session:
         groupby_keys: Optional[Union[KeySet, Tuple[str, ...]]] = None,
     ) -> str:
         """Build a description of a query object."""
-        compiler = QueryExprCompiler(self._output_measure)
-        schema = compiler.query_schema(query_obj, self._catalog)
+        schema = QueryExprCompiler.query_schema(query_obj, self._catalog)
         description = _describe_schema(schema)
-        constraints: Optional[List[Constraint]] = None
-        try:
-            constraints = compiler.build_transformation(
-                query=query_obj,
-                input_domain=self._input_domain,
-                input_metric=self._input_metric,
-                catalog=self._catalog,
-            )[2]
-        except NotImplementedError:
-            # If the query results in a measurement, this will happen.
-            # There are no constraints on measurements, so we can just
-            # pass the schema description through.
-            pass
+        constraints: Optional[FrozenSet[Constraint]] = None
+        if not query_obj.is_measurement():
+            constraints = query_obj.constraints(self._catalog)
         if constraints:
             description += "\n\tConstraints:\n"
-            constraints_strs = [f"\t\t- {e}" for e in constraints]
+            constraints_strs = [
+                f"\t\t- {e}" for e in _ordered_constraints(constraints, schema)
+            ]
             description += "\n".join(constraints_strs)
         if isinstance(groupby_keys, tuple):
             description += "\nGrouped on columns "
@@ -1393,7 +1392,9 @@ class Session:
             constraint = next(
                 (
                     c
-                    for c in self._table_constraints.get(table_ref.identifier, [])
+                    for c in self._table_constraints.get(
+                        table_ref.identifier, frozenset()
+                    )
                     if isinstance(c, MaxGroupsPerID) and c.grouping_column == column
                 ),
                 None,
@@ -1405,7 +1406,9 @@ class Session:
                 constraint = next(
                     (
                         c
-                        for c in self._table_constraints.get(table_ref.identifier, [])
+                        for c in self._table_constraints.get(
+                            table_ref.identifier, frozenset()
+                        )
                         if isinstance(c, MaxRowsPerID)
                     ),
                     None,
@@ -1813,3 +1816,21 @@ def _describe_schema(schema: Schema) -> str:
         table.append(row)
 
     return tabulate(table, headers=column_headers)
+
+
+def _ordered_constraints(
+    constraints: FrozenSet[Constraint], schema: Schema
+) -> List[Constraint]:
+    """Order constraints for display."""
+    column_positions = {column: index for index, column in enumerate(schema.columns)}
+
+    def sort_key(constraint: Constraint) -> Tuple[int, int, int]:
+        if isinstance(constraint, MaxRowsPerID):
+            return (0, -1, 0)
+        if isinstance(constraint, MaxGroupsPerID):
+            return (1, column_positions[constraint.grouping_column], 0)
+        if isinstance(constraint, MaxRowsPerGroupPerID):
+            return (1, column_positions[constraint.grouping_column], 1)
+        return (2, 0, 0)
+
+    return sorted(constraints, key=sort_key)

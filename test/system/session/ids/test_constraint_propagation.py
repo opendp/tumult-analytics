@@ -3,28 +3,46 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 import pytest
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 
 from tmlt.analytics import (
+    AddRowsWithID,
     ColumnType,
     Constraint,
+    KeySet,
     MaxGroupsPerID,
     MaxRowsPerGroupPerID,
     MaxRowsPerID,
+    PureDPBudget,
     QueryBuilder,
+    Session,
 )
 from tmlt.analytics._table_identifier import NamedTable
 
 from ..conftest import INF_BUDGET, INF_BUDGET_ZCDP
 
-_CONSTRAINTS0 = [
+_BASIC_CONSTRAINTS = [
     MaxRowsPerID(5),
     MaxGroupsPerID("group", 4),
     MaxGroupsPerID("group2", 3),
     MaxRowsPerGroupPerID("group", 2),
+    MaxRowsPerGroupPerID("group2", 1),
+]
+_CONSTRAINTS_REQUIRING_SIMPLIFICATION = [
+    MaxRowsPerID(5),
+    MaxRowsPerID(1),
+    MaxGroupsPerID("group", 4),
+    MaxGroupsPerID("group", 2),
+    MaxRowsPerGroupPerID("group2", 3),
+    MaxRowsPerGroupPerID("group2", 1),
+]
+_SIMPLIFIED_CONSTRAINTS = [
+    MaxRowsPerID(1),
+    MaxGroupsPerID("group", 2),
     MaxRowsPerGroupPerID("group2", 1),
 ]
 
@@ -37,6 +55,128 @@ def _test_propagation(query, expected_constraints, session):
     )
 
 
+def _session_from_dataframes(
+    dataframes: Dict[str, pd.DataFrame],
+    spark,
+    public_dataframes: Optional[Dict[str, pd.DataFrame]] = None,
+) -> Session:
+    """Construct a Session with all tables using the same ID space."""
+    builder = Session.Builder().with_privacy_budget(PureDPBudget(float("inf")))
+    builder = builder.with_id_space("ids")
+    for source_id, dataframe in dataframes.items():
+        builder = builder.with_private_dataframe(
+            source_id,
+            spark.createDataFrame(dataframe),
+            protected_change=AddRowsWithID("id", "ids"),
+        )
+    for source_id, dataframe in (public_dataframes or {}).items():
+        builder = builder.with_public_dataframe(
+            source_id, spark.createDataFrame(dataframe)
+        )
+    return builder.build()
+
+
+@parametrize(
+    [
+        Case("JoinPrivate")(
+            dataframes={
+                "left": pd.DataFrame({"id": [1, 1], "group": ["A", "B"]}),
+                "right": pd.DataFrame({"id": [1, 1], "group": ["A", "B"]}),
+            },
+            query=(
+                QueryBuilder("left")
+                .enforce(MaxRowsPerID(2))
+                .join_private(
+                    QueryBuilder("right")
+                    .enforce(MaxGroupsPerID("group", 1))
+                    .enforce(MaxRowsPerGroupPerID("group", 2)),
+                    join_columns=["id", "group"],
+                )
+            ),
+            public_dataframes=None,
+        ),
+        Case("JoinPrivate-truncating")(
+            dataframes={
+                "left": pd.DataFrame({"id": [1, 1], "group": ["A", "B"]}),
+                "right": pd.DataFrame(
+                    {
+                        "id": [1, 1, 1, 1, 1, 1],
+                        "group": ["A", "A", "A", "B", "B", "B"],
+                    }
+                ),
+            },
+            query=(
+                QueryBuilder("left")
+                .enforce(MaxRowsPerID(2))
+                .join_private(
+                    QueryBuilder("right")
+                    .enforce(MaxGroupsPerID("group", 1))
+                    .enforce(MaxRowsPerGroupPerID("group", 2)),
+                    join_columns=["id", "group"],
+                )
+            ),
+            public_dataframes=None,
+        ),
+        Case("JoinPublic")(
+            dataframes={"private": pd.DataFrame({"id": [1, 1], "group": ["A", "A"]})},
+            public_dataframes={
+                "public": pd.DataFrame({"group": ["A", "A"]})
+            },
+            query=(
+                QueryBuilder("private")
+                .enforce(MaxGroupsPerID("group", 1))
+                .enforce(MaxRowsPerGroupPerID("group", 2))
+                .join_public("public", join_columns=["group"])
+            ),
+        ),
+        Case("JoinPublic-truncating")(
+            dataframes={
+                "private": pd.DataFrame({"id": [1, 1, 1], "group": ["A", "A", "B"]})
+            },
+            public_dataframes={
+                "public": pd.DataFrame({"group": ["A", "A", "B"]})
+            },
+            query=(
+                QueryBuilder("private")
+                .enforce(MaxGroupsPerID("group", 1))
+                .enforce(MaxRowsPerGroupPerID("group", 2))
+                .join_public("public", join_columns=["group"])
+            ),
+        ),
+    ]
+)
+def test_final_enforcement_is_noop(
+    dataframes: Dict[str, pd.DataFrame],
+    query: QueryBuilder,
+    public_dataframes: Optional[Dict[str, pd.DataFrame]],
+    spark,
+):
+    """Propagated constraints do not cause additional truncation."""
+    session = _session_from_dataframes(dataframes, spark, public_dataframes)
+    session.create_view(query, "view", cache=False)
+
+    ks = KeySet.from_dict({"group": ["A", "B"]})
+    propagated = session.evaluate(
+        QueryBuilder("view").groupby(ks).count(), PureDPBudget(float("inf"))
+    )
+    # Using flat_map_by_id erases the existing, propagated constraints, so it
+    # can be used to check that applying the propagated constraints doesn't drop
+    # additional rows.
+    nonpropagated = session.evaluate(
+        QueryBuilder("view")
+        .flat_map_by_id(
+            lambda rows: [{"group": row["group"]} for row in rows],
+            {"group": ColumnType.VARCHAR},
+        )
+        .enforce(MaxRowsPerID(100))
+        .groupby(ks)
+        .count(),
+        PureDPBudget(float("inf")),
+    )
+
+    assert_dataframe_equal(propagated, nonpropagated)
+
+
 @pytest.mark.parametrize(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
@@ -45,7 +185,7 @@ def _test_propagation(query, expected_constraints, session):
     [
         (
             {"group": "g"},
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("g", 4),
@@ -54,7 +194,16 @@ def _test_propagation(query, expected_constraints, session):
                 MaxRowsPerGroupPerID("group2", 1),
             ],
         ),
-        ({"id": "id2"}, _CONSTRAINTS0, _CONSTRAINTS0),
+        ({"id": "id2"}, _BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (
+            {"group": "g"},
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(1),
+                MaxGroupsPerID("g", 2),
+                MaxRowsPerGroupPerID("group2", 1),
+            ],
+        ),
     ],
 )
 def test_rename(
@@ -75,7 +224,11 @@ def test_rename(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_filter(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -95,13 +248,17 @@ def test_filter(
     "constraints,expected_constraints",
     [
         (
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("group", 4),
                 MaxRowsPerGroupPerID("group", 2),
             ],
-        )
+        ),
+        (
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [MaxRowsPerID(1), MaxGroupsPerID("group", 2)],
+        ),
     ],
 )
 def test_select(
@@ -119,7 +276,11 @@ def test_select(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_map(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -141,7 +302,10 @@ def test_map(
 )
 @pytest.mark.parametrize(
     "constraints,expected_constraints",
-    [(_CONSTRAINTS0, [MaxGroupsPerID("group", 4), MaxGroupsPerID("group2", 3)])],
+    [
+        (_BASIC_CONSTRAINTS, [MaxGroupsPerID("group", 4), MaxGroupsPerID("group2", 3)]),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, [MaxGroupsPerID("group", 2)]),
+    ],
 )
 def test_flat_map(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -170,7 +334,7 @@ def test_flat_map(
         (
             [MaxGroupsPerID("group", 2)],
             [MaxRowsPerID(3)],
-            [MaxGroupsPerID("group", 2), MaxRowsPerID(6)],
+            [MaxGroupsPerID("group", 2)],
         ),
         (
             [MaxGroupsPerID("group2", 2)],
@@ -181,12 +345,17 @@ def test_flat_map(
         (
             [MaxRowsPerGroupPerID("group", 2)],
             [MaxRowsPerID(3)],
-            [MaxRowsPerGroupPerID("group", 6)],
+            [MaxRowsPerGroupPerID("group", 6), MaxRowsPerID(6)],
         ),
         (
             [MaxRowsPerGroupPerID("group2", 2)],
             [MaxRowsPerID(3)],
             [MaxRowsPerGroupPerID("group2", 6)],
+        ),
+        (
+            [MaxRowsPerID(5), MaxRowsPerID(1)],
+            [MaxRowsPerID(3)],
+            [MaxRowsPerID(3)],
         ),
     ],
 )
@@ -247,6 +416,11 @@ def test_join_private(
             [MaxRowsPerID(2)],
             [MaxRowsPerGroupPerID("x", 3)],
             [MaxRowsPerGroupPerID("x", 6)],
+        ),
+        (
+            [MaxGroupsPerID("group", 5), MaxGroupsPerID("group", 2)],
+            [MaxRowsPerID(3)],
+            [MaxGroupsPerID("group_left", 2)],
         ),
     ],
 )
@@ -313,6 +487,15 @@ def test_join_private_disambiguation(
                 MaxRowsPerID(2),
                 MaxGroupsPerID("group", 1),
                 MaxRowsPerGroupPerID("group", 2),
+            ],
+        ),
+        (
+            pd.DataFrame({"n": [1, 1]}),
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(2),
+                MaxGroupsPerID("group", 2),
+                MaxRowsPerGroupPerID("group2", 2),
             ],
         ),
     ],
@@ -392,6 +575,15 @@ def test_join_public(
                 MaxRowsPerGroupPerID("group_left", 1),
             ],
         ),
+        (
+            pd.DataFrame({"n": [1, 1], "group": ["A", "A"]}),
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [
+                MaxRowsPerID(2),
+                MaxGroupsPerID("group_left", 2),
+                MaxRowsPerGroupPerID("group2", 2),
+            ],
+        ),
     ],
 )
 def test_join_public_disambiguation(
@@ -417,14 +609,18 @@ def test_join_public_disambiguation(
     "constraints,expected_constraints",
     [
         (
-            _CONSTRAINTS0,
+            _BASIC_CONSTRAINTS,
             [
                 MaxRowsPerID(5),
                 MaxGroupsPerID("group", 4),
                 MaxGroupsPerID("group2", 3),
                 MaxRowsPerGroupPerID("group", 2),
             ],
-        )
+        ),
+        (
+            _CONSTRAINTS_REQUIRING_SIMPLIFICATION,
+            [MaxRowsPerID(1), MaxGroupsPerID("group", 2)],
+        ),
     ],
 )
 def test_replace_null_and_nan(
@@ -442,7 +638,11 @@ def test_replace_null_and_nan(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_replace_infinity(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -459,7 +659,11 @@ def test_replace_infinity(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_drop_null_and_nan(
     constraints: List[Constraint], expected_constraints: List[Constraint], session
@@ -476,7 +680,11 @@ def test_drop_null_and_nan(
     "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
 )
 @pytest.mark.parametrize(
-    "constraints,expected_constraints", [(_CONSTRAINTS0, _CONSTRAINTS0)]
+    "constraints,expected_constraints",
+    [
+        (_BASIC_CONSTRAINTS, _BASIC_CONSTRAINTS),
+        (_CONSTRAINTS_REQUIRING_SIMPLIFICATION, _SIMPLIFIED_CONSTRAINTS),
+    ],
 )
 def test_drop_infinity(
     constraints: List[Constraint], expected_constraints: List[Constraint], session

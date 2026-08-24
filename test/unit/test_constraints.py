@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import List
+from typing import Iterable, List
 
 import pytest
 from typeguard import TypeCheckError
@@ -159,7 +159,7 @@ def test_max_rows_per_group_per_id():
     ],
 )
 def test_simplify_constraints(
-    constraints: List[Constraint], expected_constraints: List[Constraint]
+    constraints: Iterable[Constraint], expected_constraints: List[Constraint]
 ):
     """Test simplification of constraints."""
-    assert set(simplify_constraints(constraints)) == set(expected_constraints)
+    assert simplify_constraints(constraints) == frozenset(expected_constraints)

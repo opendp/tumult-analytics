@@ -7,7 +7,18 @@ import warnings
 from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import sympy as sp
 from pyspark.sql import DataFrame, SparkSession
@@ -154,7 +165,7 @@ def _get_query_bounds(
 
 
 def _get_truncatable_constraints(
-    constraints: List[Constraint],
+    constraints: Collection[Constraint],
 ) -> List[Tuple[Constraint, ...]]:
     """Get sets of constraints that produce a finite aggregation stability."""
     # Because of constraint simplification, there should be at most one
@@ -215,7 +226,7 @@ def _constraint_stability(
 
 
 def _generate_constrained_count_distinct(
-    query: GroupByCountDistinct, schema: Schema, constraints: List[Constraint]
+    query: GroupByCountDistinct, schema: Schema, constraints: Collection[Constraint]
 ) -> Optional[GroupByCount]:
     """Return a more optimal query for the given count-distinct, if one exists.
 
@@ -512,7 +523,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
     @abstractmethod
     def _visit_child_transformation(
         self, expr: QueryExpr, mechanism: NoiseMechanism
-    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
+    ) -> Tuple[Transformation, TableReference]:
         pass
 
     @abstractmethod
@@ -535,7 +546,7 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         self,
         transformation: Transformation,
         reference: TableReference,
-        constraints: List[Constraint],
+        constraints: Collection[Constraint],
         grouping_columns: Tuple[str, ...],
     ) -> Tuple[Transformation, TableReference]:
         table_transformation = get_table_from_ref(transformation, reference)
@@ -886,8 +897,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         mechanism = _get_core_mechanism(expr)
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -970,11 +987,10 @@ class BaseMeasurementVisitor(QueryExprVisitor):
             )
 
         mechanism = _get_core_mechanism(expr)
-        (
-            child_transformation,
-            child_ref,
-            child_constraints,
-        ) = self._visit_child_transformation(expr.child, mechanism)
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         constrained_query = _generate_constrained_count_distinct(
             expr,
             expr.child.schema(self.catalog),
@@ -1092,8 +1108,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         # Peek at the schema, to see if there are errors there
         expr.schema(self.catalog)
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, self.default_mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, self.default_mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1187,8 +1209,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         lower, upper = _get_query_bounds(expr)
         mechanism = _get_core_mechanism(expr)
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1282,8 +1310,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         lower, upper = _get_query_bounds(expr)
         mechanism = _get_core_mechanism(expr)
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1377,8 +1411,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         lower, upper = _get_query_bounds(expr)
         mechanism = _get_core_mechanism(expr)
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1472,8 +1512,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
         lower, upper = _get_query_bounds(expr)
         mechanism = _get_core_mechanism(expr)
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, mechanism
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, mechanism),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
         transformation = get_table_from_ref(child_transformation, child_ref)
@@ -1560,8 +1606,14 @@ class BaseMeasurementVisitor(QueryExprVisitor):
                 self.adjusted_budget
             )
 
+        child_constraints = expr.child.constraints(self.catalog)
+        child_transformation, child_ref = self._visit_child_transformation(
+            expr.child, NoiseMechanism.GEOMETRIC
+        )
         child_transformation, child_ref = self._truncate_table(
-            *self._visit_child_transformation(expr.child, NoiseMechanism.GEOMETRIC),
+            child_transformation,
+            child_ref,
+            child_constraints,
             grouping_columns=groupby_cols,
         )
 
