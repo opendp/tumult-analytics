@@ -2198,133 +2198,6 @@ class TestSessionBuilder:
         assert len(builder._id_spaces) == 2
         builder.build()
 
-    def test_build_multiple_ids(self):
-        """Tests that build succeeds with multiple ID spaces.
-
-        Also checks that tables are grouped into ``AddRemoveKeys`` collections by
-        their ID space: ``private1`` and ``private3`` share ``id_space_1`` and so
-        must end up in a *single* collection, while ``private2`` gets its own.
-        This grouping decision is made in ``_generate_neighboring_relation`` and
-        it determines ``d_in``, so it is asserted rather than merely exercised --
-        two tables wrongly split across ID spaces would let a single person's
-        rows count as independent contributions.
-        """
-        builder = (
-            Session.Builder()
-            .with_private_dataframe(
-                source_id="private1",
-                dataframe=self.dataframes["df1"],
-                protected_change=AddRowsWithID("A", "id_space_1"),
-            )
-            .with_id_space("id_space_1")
-        )
-        builder.with_private_dataframe(
-            source_id="private2",
-            dataframe=self.dataframes["df2"],
-            protected_change=AddRowsWithID("C", "id_space_2"),
-        ).with_id_space("id_space_2")
-
-        builder.with_private_dataframe(
-            source_id="private3",
-            dataframe=self.dataframes["df3"],
-            protected_change=AddRowsWithID("Y", "id_space_1"),
-        )
-
-        session = builder.with_privacy_budget(PureDPBudget(1)).build()
-
-        assert session._input_metric == DictMetric(
-            {
-                TableCollection("id_space_1"): CoreAddRemoveKeys(
-                    {
-                        NamedTable("private1"): "A",
-                        NamedTable("private3"): "Y",
-                    }
-                ),
-                TableCollection("id_space_2"): CoreAddRemoveKeys(
-                    {NamedTable("private2"): "C"}
-                ),
-            }
-        )
-        # One key may be added/removed from each ID space.
-        assert session._accountant.d_in == {
-            TableCollection("id_space_1"): 1,
-            TableCollection("id_space_2"): 1,
-        }
-
-    def test_build_mixed_id_and_row_tables(self):
-        """Tests the metric and d_in for a session mixing ID and row tables.
-
-        ``_generate_neighboring_relation`` accumulates ``AddRowsWithID`` tables
-        into per-ID-space collections while emitting ``AddRemoveRows`` relations
-        for the rest; this covers both branches at once. The row table's ``d_in``
-        must be its ``max_rows`` rather than 1.
-        """
-        session = (
-            Session.Builder()
-            .with_private_dataframe(
-                source_id="ids",
-                dataframe=self.dataframes["df1"],
-                protected_change=AddRowsWithID("A", "id_space_1"),
-            )
-            .with_id_space("id_space_1")
-            .with_private_dataframe(
-                source_id="rows",
-                dataframe=self.dataframes["df3"],
-                protected_change=AddMaxRows(7),
-            )
-            .with_privacy_budget(PureDPBudget(1))
-            .build()
-        )
-
-        assert session._input_metric == DictMetric(
-            {
-                NamedTable("rows"): SymmetricDifference(),
-                TableCollection("id_space_1"): CoreAddRemoveKeys(
-                    {NamedTable("ids"): "A"}
-                ),
-            }
-        )
-        assert session._accountant.d_in == {
-            NamedTable("rows"): 7,
-            TableCollection("id_space_1"): 1,
-        }
-
-    def test_build_with_id_and_only_one_df(self) -> None:
-        """Test that build works with only one private df + AddRowsWithID.
-
-        Specifically, if there is only one private dataframe and that dataframe
-        uses the AddRowsWithID ProtectedChange, building should succeed.
-        """
-        builder = Session.Builder().with_private_dataframe(
-            source_id="private1",
-            dataframe=self.dataframes["df1"],
-            protected_change=AddRowsWithID("A", "id_space_1"),
-        )
-
-        # This should not raise an error
-        builder.with_privacy_budget(PureDPBudget(1)).build()
-
-        # Explicitly providing the ID space should also work
-        builder = (
-            Session.Builder()
-            .with_private_dataframe(
-                source_id="private1",
-                dataframe=self.dataframes["df1"],
-                protected_change=AddRowsWithID("A", "id_space_1"),
-            )
-            .with_id_space("id_space_1")
-        )
-        builder.with_privacy_budget(PureDPBudget(1)).build()
-
-        # It should also work if you don't name the ID space
-
-        builder = Session.Builder().with_private_dataframe(
-            source_id="private1",
-            dataframe=self.dataframes["df1"],
-            protected_change=AddRowsWithID("A"),
-        )
-        builder.with_privacy_budget(PureDPBudget(1)).build()
-
     @pytest.mark.parametrize(
         "builder,expected_sympy_budget,expected_output_measure,"
         "private_dataframes,public_dataframes",
@@ -2443,6 +2316,153 @@ class TestSessionBuilder:
         expected_schema = StructType([StructField("A", LongType(), nullable=nullable)])
         assert actual_private_schema == expected_schema
         assert actual_public_schema == expected_schema
+
+    def test_build_with_id_and_only_one_df(self) -> None:
+        """Test that build works with only one private df + AddRowsWithID.
+
+        Specifically, if there is only one private dataframe and that dataframe
+        uses the AddRowsWithID ProtectedChange, building should succeed.
+        """
+        builder = Session.Builder().with_private_dataframe(
+            source_id="private1",
+            dataframe=self.dataframes["df1"],
+            protected_change=AddRowsWithID("A", "id_space_1"),
+        )
+
+        # This should not raise an error
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+        # Explicitly providing the ID space should also work
+        builder = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="private1",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "id_space_1"),
+            )
+            .with_id_space("id_space_1")
+        )
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+        # It should also work if you don't name the ID space
+
+        builder = Session.Builder().with_private_dataframe(
+            source_id="private1",
+            dataframe=self.dataframes["df1"],
+            protected_change=AddRowsWithID("A"),
+        )
+        builder.with_privacy_budget(PureDPBudget(1)).build()
+
+    def test_build_multiple_ids(self):
+        """Tests that build succeeds and initializes the right Core metric & measure
+        with multiple ID spaces.
+        """
+        builder = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="private1",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "id_space_1"),
+            )
+            .with_id_space("id_space_1")
+        )
+        builder.with_private_dataframe(
+            source_id="private2",
+            dataframe=self.dataframes["df2"],
+            protected_change=AddRowsWithID("C", "id_space_2"),
+        ).with_id_space("id_space_2")
+
+        builder.with_private_dataframe(
+            source_id="private3",
+            dataframe=self.dataframes["df3"],
+            protected_change=AddRowsWithID("Y", "id_space_1"),
+        )
+
+        session = builder.with_privacy_budget(PureDPBudget(1)).build()
+
+        assert session._input_metric == DictMetric(
+            {
+                TableCollection("id_space_1"): CoreAddRemoveKeys(
+                    {
+                        NamedTable("private1"): "A",
+                        NamedTable("private3"): "Y",
+                    }
+                ),
+                TableCollection("id_space_2"): CoreAddRemoveKeys(
+                    {NamedTable("private2"): "C"}
+                ),
+            }
+        )
+        # One key may be added/removed from each ID space.
+        assert session._accountant.d_in == {
+            TableCollection("id_space_1"): 1,
+            TableCollection("id_space_2"): 1,
+        }
+
+    @pytest.mark.parametrize(
+        "budget,expected_group_metric,expected_group_d_in",
+        [
+            pytest.param(
+                PureDPBudget(1),
+                IfGroupedBy(["C"], SumOf(SymmetricDifference())),
+                # L1: max_rows_per_group * max_groups
+                12,
+                id="puredp",
+            ),
+            pytest.param(
+                RhoZCDPBudget(1),
+                IfGroupedBy(["C"], RootSumOfSquared(SymmetricDifference())),
+                # L2: max_rows_per_group * sqrt(max_groups)
+                6,
+                id="zcdp",
+            ),
+        ],
+    )
+    def test_build_all_protected_changes(
+        self,
+        budget: PrivacyBudget,
+        expected_group_metric: IfGroupedBy,
+        expected_group_d_in: int,
+    ):
+        """Tests the metric and d_in for a session using mixed protected changes."""
+        session = (
+            Session.Builder()
+            .with_private_dataframe(
+                source_id="ids",
+                dataframe=self.dataframes["df1"],
+                protected_change=AddRowsWithID("A", "id_space_1"),
+            )
+            .with_id_space("id_space_1")
+            .with_private_dataframe(
+                source_id="rows",
+                dataframe=self.dataframes["df3"],
+                protected_change=AddMaxRows(7),
+            )
+            .with_private_dataframe(
+                source_id="groups",
+                dataframe=self.dataframes["df2"],
+                protected_change=AddMaxRowsInMaxGroups(
+                    "C", max_groups=4, max_rows_per_group=3
+                ),
+            )
+            .with_privacy_budget(budget)
+            .build()
+        )
+
+        assert session._input_metric == DictMetric(
+            {
+                NamedTable("rows"): SymmetricDifference(),
+                NamedTable("groups"): expected_group_metric,
+                TableCollection("id_space_1"): CoreAddRemoveKeys(
+                    {NamedTable("ids"): "A"}
+                ),
+            }
+        )
+        assert session._accountant.d_in == {
+            NamedTable("rows"): 7,
+            NamedTable("groups"): expected_group_d_in,
+            TableCollection("id_space_1"): 1,
+        }
 
 
 # Test Constants
