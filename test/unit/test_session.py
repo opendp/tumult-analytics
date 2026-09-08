@@ -2418,7 +2418,7 @@ class TestSessionBuilder:
             ),
         ],
     )
-    def test_build_all_protected_changes(
+    def test_build_mixed_protected_changes(
         self,
         budget: PrivacyBudget,
         expected_group_metric: IfGroupedBy,
