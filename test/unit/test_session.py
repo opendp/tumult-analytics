@@ -1861,7 +1861,7 @@ class TestInvalidSession:
             with pytest.raises(exception_type, match=expected_error_msg):
                 session.create_view(QueryBuilder("private"), source_id, cache=False)
 
-    def test_invalid_public_source(self):
+    def test_duplicate_source_id_public_dataframe(self):
         """Session raises an error adding a public source with duplicate source_id."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
@@ -1885,6 +1885,35 @@ class TestInvalidSession:
                 ValueError, match="This session already has a table named 'public_df'."
             ):
                 session.add_public_dataframe("public_df", dataframe=self.sdf)
+
+            # And this should also not
+            with pytest.raises(
+                ValueError, match="This session already has a table named 'private'."
+            ):
+                session.add_public_dataframe("private", dataframe=self.sdf)
+
+    def test_duplicate_source_id_view(self):
+        """Session raises an error creating a view named like an existing table."""
+        with patch(
+            "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
+        ) as mock_accountant:
+            mock_accountant.output_measure = PureDP()
+            mock_accountant.input_metric = DictMetric(
+                {NamedTable("private"): SymmetricDifference()}
+            )
+            mock_accountant.input_domain = DictDomain(
+                {NamedTable("private"): self.sdf_input_domain}
+            )
+            mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
+
+            session = Session(accountant=mock_accountant, public_sources={})
+            session.add_public_dataframe("public_df", dataframe=self.sdf)
+
+            with pytest.raises(ValueError, match="Table 'private' already exists."):
+                session.create_view(QueryBuilder("private"), "private", cache=False)
+
+            with pytest.raises(ValueError, match="Table 'public_df' already exists."):
+                session.create_view(QueryBuilder("private"), "public_df", cache=False)
 
     @pytest.mark.parametrize(
         "query_expr", [(["filter private A == 0"]), ([QueryBuilder("private")])]
