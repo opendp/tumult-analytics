@@ -123,7 +123,7 @@ class TestNeighboringRelations:
         )
 
     def test_add_remove_rows_across_groups_validation(self):
-        """Tests that validate_input works as expected for AddRemoveRowsAcrossGroups"""
+        """Tests that validate_input works as expected for AddRemoveRowsAcrossGroups."""
         assert AddRemoveRowsAcrossGroups("table1", "A", 1, 1).validate_input(
             {"table1": self.table1}
         )
@@ -154,7 +154,7 @@ class TestNeighboringRelations:
             )
 
     def test_add_remove_rows_across_groups_accept(self):
-        """Tests that accept works as expected for AddRemoveRowsAcrossGroups"""
+        """Tests that accept works as expected for AddRemoveRowsAcrossGroups."""
         pure_visitor = NeighboringRelationCoreVisitor(
             self.testdfsdict, output_measure=PureDP()
         )

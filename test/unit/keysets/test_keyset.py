@@ -87,7 +87,7 @@ def test_from_dict(
     ],
     expected_df: pd.DataFrame,
 ) -> None:
-    """Test KeySet.from_dict works"""
+    """Test KeySet.from_dict works."""
     keyset = KeySet.from_dict(d)
     assert_dataframe_equal(keyset.dataframe(), expected_df)
 
@@ -213,7 +213,7 @@ def test_from_tuples(
     columns: Tuple[str, ...],
     expected_df: pd.DataFrame,
 ):
-    """KeySet.from_tuples works as expected"""
+    """KeySet.from_tuples works as expected."""
     keyset = KeySet.from_tuples(tuples, columns)
     assert_dataframe_equal(keyset.dataframe(), expected_df)
 
@@ -393,7 +393,7 @@ def test_filter_str(
     condition: Union[Column, str],
     expected_df: pd.DataFrame,
 ) -> None:
-    """Test KeySet.filter works"""
+    """Test KeySet.filter works."""
     keyset = KeySet.from_dataframe(spark.createDataFrame(keyset_df))
     filtered_keyset = keyset.filter(condition)
     assert_dataframe_equal(filtered_keyset.dataframe(), expected_df)
@@ -515,7 +515,7 @@ def test_filter_condition() -> None:
 # This test also uses a Column as a filter condition, and is not
 # parameterized for the same reason as test_filter_condition.
 def test_filter_to_empty() -> None:
-    """Test when KeySet.filter should return an empty dataframe, it does"""
+    """Test when KeySet.filter should return an empty dataframe, it does."""
     keyset = KeySet.from_dict({"A": [-1, -2, -3]})
     filtered = keyset.filter("A > 0")
     pd_df = filtered.dataframe().toPandas()

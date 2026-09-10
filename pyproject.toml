@@ -161,7 +161,6 @@ ignore = [
     "PLC0206", # dict-index-missing-items
     "RUF005",  # collection-literal-concatenation
     "RUF015",  # unnecessary-iterable-allocation-for-first-element
-    "D415",    # missing-terminal-punctuation
     "RUF043",  # pytest-raises-ambiguous-pattern
     "D210",    # surrounding-whitespace
     "E501",    # line-too-long

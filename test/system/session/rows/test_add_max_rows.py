@@ -612,7 +612,7 @@ class TestSession:
     def test_create_view_with_stability(
         self, privacy_budget: PrivacyBudget, expected: pd.DataFrame
     ):
-        """Smoke test for querying on views with stability changes"""
+        """Smoke test for querying on views with stability changes."""
         session = Session.from_dataframe(
             privacy_budget=privacy_budget,
             source_id="private",

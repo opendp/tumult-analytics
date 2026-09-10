@@ -1548,7 +1548,7 @@ Public table 'public1':\n"""
         session.evaluate(sum_a_query, privacy_budget=PureDPBudget(1))
 
     def test_stop(self):
-        """Test that after session.stop(), session returns the right error"""
+        """Test that after session.stop(), session returns the right error."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1661,7 +1661,7 @@ class TestInvalidSession:
         mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
 
     def test_invalid_dataframe_initialization(self):
-        """Session raises error on invalid dataframe type"""
+        """Session raises error on invalid dataframe type."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1687,7 +1687,7 @@ class TestInvalidSession:
                 session.add_public_dataframe(source_id="public", dataframe=self.pdf)
 
     def test_invalid_data_properties(self, spark):
-        """Session raises error on invalid data properties"""
+        """Session raises error on invalid data properties."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
