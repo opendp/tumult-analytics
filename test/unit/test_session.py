@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
+import difflib
 import re
-from typing import Any, Dict, List, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from unittest.mock import ANY, Mock, patch
 
 import pandas as pd
