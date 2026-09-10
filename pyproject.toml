@@ -163,7 +163,6 @@ ignore = [
     "RUF015",  # unnecessary-iterable-allocation-for-first-element
     "D415",    # missing-terminal-punctuation
     "RUF043",  # pytest-raises-ambiguous-pattern
-    "D205",    # missing-blank-line-after-summary
     "D210",    # surrounding-whitespace
     "E501",    # line-too-long
     "E731",    # lambda-assignment

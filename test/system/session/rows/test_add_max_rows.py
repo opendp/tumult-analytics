@@ -765,9 +765,7 @@ class TestSession:
         partition_budget: PrivacyBudget,
         remaining_budget: PrivacyBudget,
     ):
-        """Tests using :func:`partition_and_create` to create a new ApproxDP session
-        that supports PureDP partitions.
-        """
+        """:func:`partition_and_create` can split ApproxDP into ApproxDP or PureDP."""
         is_approxDP_starting_budget = isinstance(starting_budget, ApproxDPBudget)
         if is_approxDP_starting_budget and isinstance(partition_budget, PureDPBudget):
             partition_budget = ApproxDPBudget(partition_budget.value, 0)
