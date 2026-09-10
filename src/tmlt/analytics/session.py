@@ -7,11 +7,11 @@ from operator import xor
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from warnings import warn
 
-import pandas as pd  # needed for doctests
+import pandas as pd  # noqa: F401 # needed for doctests
 import sympy as sp
 from pyspark.sql import (
     DataFrame,
-    SparkSession,  # needed for doctests
+    SparkSession,  # noqa: F401 # needed for doctests
 )
 from tabulate import tabulate
 from tmlt.core.domains.collections import DictDomain
@@ -91,10 +91,10 @@ from tmlt.analytics.privacy_budget import (
     RhoZCDPBudget,
     _get_adjusted_budget,
 )
-from tmlt.analytics.protected_change import (  # AddOneRow needed for doctests
+from tmlt.analytics.protected_change import (
     AddMaxRows,
     AddMaxRowsInMaxGroups,
-    AddOneRow,
+    AddOneRow,  # noqa: F401 # needed for doctests
     AddRowsWithID,
     ProtectedChange,
 )

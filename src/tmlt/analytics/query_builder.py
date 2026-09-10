@@ -22,7 +22,6 @@ from typing import (
 )
 
 from pyspark.sql import DataFrame
-from typeguard import check_type
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
