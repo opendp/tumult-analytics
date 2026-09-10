@@ -158,7 +158,6 @@ ignore = [
     #     either fix/individually disable each instance, or choose to permanently
     #     ignore each one.
     "PLW1641", # eq-without-hash
-    "PLC0206", # dict-index-missing-items
     "RUF005",  # collection-literal-concatenation
     "RUF015",  # unnecessary-iterable-allocation-for-first-element
     "RUF043",  # pytest-raises-ambiguous-pattern
