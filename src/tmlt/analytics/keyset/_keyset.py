@@ -131,8 +131,7 @@ class KeySet:
                 column_types[col].add(type(t[i]))
 
         schema = {}
-        for col in column_types:
-            types = column_types[col]
+        for col, types in column_types.items():
             if types == set():
                 raise ValueError(
                     "Unable to infer column types for an empty collection of values."

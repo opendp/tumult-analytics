@@ -4,7 +4,7 @@ import difflib
 from typing import Any, Callable, Dict, List, Tuple
 
 import pytest
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     DoubleType,
     LongType,

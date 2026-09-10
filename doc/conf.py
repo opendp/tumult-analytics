@@ -4,7 +4,6 @@
 import datetime
 import logging
 import os
-import sys
 from pathlib import Path
 
 _logger = logging.getLogger(__name__)
