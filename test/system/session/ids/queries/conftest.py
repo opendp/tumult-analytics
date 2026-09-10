@@ -18,8 +18,7 @@ def make_session(
     """Shorthand for building a Session with a budget and a collection of tables."""
     id_spaces = set()
     builder = Session.Builder().with_privacy_budget(budget)
-    for t in private_tables:
-        df, pc = private_tables[t]
+    for t, (df, pc) in private_tables.items():
         builder = builder.with_private_dataframe(t, df, pc)
         if isinstance(pc, AddRowsWithID):
             id_spaces.add(pc.id_space)

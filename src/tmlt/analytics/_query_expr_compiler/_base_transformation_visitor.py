@@ -1052,9 +1052,9 @@ class BaseTransformationVisitor(QueryExprVisitor):
                         " the schema"
                     )
             # Make sure all DECIMAL replacement values are floats
-            for col in replace_with.keys():
+            for col, value in replace_with.items():
                 if analytics_schema[col].column_type == ColumnType.DECIMAL:
-                    replace_with[col] = float(replace_with[col])
+                    replace_with[col] = float(value)
 
         return replace_with
 
