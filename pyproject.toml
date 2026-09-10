@@ -184,8 +184,8 @@ ignore = [
 allowed-confusables = ['α', 'ρ', '𝝆']
 
 [tool.ruff.lint.per-file-ignores]
-# __init__.py files re-export names from private submodules; ruff cannot tell
-# those apart from genuinely unused imports without __all__ or `X as X` aliases.
+# __init__.py files re-export names from private submodules on purpose.
+# ruff wants all of these to be in __all__ (or in `X as X` aliases).
 "__init__.py" = ["F401"]
 
 [tool.ruff.lint.isort]
