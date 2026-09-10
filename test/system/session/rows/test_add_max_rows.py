@@ -612,7 +612,7 @@ class TestSession:
     def test_create_view_with_stability(
         self, privacy_budget: PrivacyBudget, expected: pd.DataFrame
     ):
-        """Smoke test for querying on views with stability changes"""
+        """Smoke test for querying on views with stability changes."""
         session = Session.from_dataframe(
             privacy_budget=privacy_budget,
             source_id="private",
@@ -765,9 +765,7 @@ class TestSession:
         partition_budget: PrivacyBudget,
         remaining_budget: PrivacyBudget,
     ):
-        """Tests using :func:`partition_and_create` to create a new ApproxDP session
-        that supports PureDP partitions.
-        """
+        """:func:`partition_and_create` can split ApproxDP into ApproxDP or PureDP."""
         is_approxDP_starting_budget = isinstance(starting_budget, ApproxDPBudget)
         if is_approxDP_starting_budget and isinstance(partition_budget, PureDPBudget):
             partition_budget = ApproxDPBudget(partition_budget.value, 0)

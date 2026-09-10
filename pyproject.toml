@@ -160,18 +160,14 @@ ignore = [
     "PLW1641", # eq-without-hash
     "RUF005",  # collection-literal-concatenation
     "RUF015",  # unnecessary-iterable-allocation-for-first-element
-    "D415",    # missing-terminal-punctuation
     "RUF043",  # pytest-raises-ambiguous-pattern
-    "D205",    # missing-blank-line-after-summary
     "D210",    # surrounding-whitespace
-    "D102",    # undocumented-public-method
     "E501",    # line-too-long
     "E731",    # lambda-assignment
     "E741",    # ambiguous-variable-name
     "SLF001",  # private-member-access
     "RUF009",  # function-call-in-dataclass-default-argument
     "E721",    # type-comparison
-    "D103",    # undocumented-public-function
     "PLR0124", # comparison-with-itself
 ]
 
@@ -185,6 +181,8 @@ allowed-confusables = ['α', 'ρ', '𝝆']
 # __init__.py files re-export names from private submodules on purpose.
 # ruff wants all of these to be in __all__ (or in `X as X` aliases).
 "__init__.py" = ["F401"]
+# It's fine if tests aren't perfectly documented
+"test/**" = ["D102", "D103"]
 
 [tool.ruff.lint.isort]
 forced-separate = ["test"]

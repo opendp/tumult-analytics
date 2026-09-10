@@ -99,7 +99,7 @@ class TestAddRows(TestTransformationVisitor):
 
     @pytest.mark.parametrize("source_id", ["rows1", "rows2"])
     def test_visit_private_source(self, source_id: str) -> None:
-        """Test visit_private_source"""
+        """Test visit_private_source."""
         query = PrivateSource(source_id=source_id)
         transformation, reference, constraints = query.accept(self.visitor)
         assert isinstance(transformation, IdentityTransformation)

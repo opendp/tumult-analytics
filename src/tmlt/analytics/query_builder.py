@@ -288,7 +288,7 @@ class QueryBuilder:
         self._source_id: str = source_id
         self._query_expr: QueryExpr = PrivateSource(source_id)
 
-    def clone(self) -> QueryBuilder:
+    def clone(self) -> QueryBuilder:  # noqa: D102
         # Returns a new QueryBuilder with the same partial query as the current one.
         # No docstring to prevent this from showing in docs.
         builder = QueryBuilder(self._source_id)

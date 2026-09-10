@@ -452,9 +452,7 @@ class TestSession:
         expected_metric: DictMetric,
         expected_output_measure: Union[PureDP, RhoZCDP],
     ):
-        """Tests that :func:`Session._from_neighboring_relation` works as expected
-        with a single relation.
-        """
+        """Tests _from_neighboring_relation` with a single relation."""
         sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
@@ -492,9 +490,7 @@ class TestSession:
         expected_metric: DictMetric,
         expected_output_measure: Union[PureDP, RhoZCDP],
     ):
-        """Tests that :func:`Session._from_neighboring_relation` works as expected
-        with a single AddRemoveKeys relation.
-        """
+        """Tests _from_neighboring_relation with a single AddRemoveKeys relation."""
         sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf},
@@ -542,9 +538,7 @@ class TestSession:
         expected_metric: DictMetric,
         expected_output_measure: Union[PureDP, RhoZCDP],
     ):
-        """Tests that :func:`Session._from_neighboring_relation` works as expected
-        when passed a conjunction.
-        """
+        """Tests that _from_neighboring_relation works with a conjunction."""
         sess = Session._from_neighboring_relation(
             privacy_budget=budget,
             private_sources={"private": self.sdf, "join_private": self.join_df},
@@ -584,9 +578,7 @@ class TestSession:
 
     @pytest.mark.parametrize("d_in", [(sp.Integer(1)), (sp.sqrt(sp.Integer(2)))])
     def test_evaluate_puredp_session_approxdp_query(self, spark, d_in):
-        """Confirm that using an approxdp query on a puredp accountant raises an
-        error.
-        """
+        """Checks that a PureDP session raises the right error on an ApproxDP query."""
         with (
             patch.object(QueryExprCompiler, "__call__", autospec=True) as mock_compiler,
             patch(
@@ -1556,7 +1548,7 @@ Public table 'public1':\n"""
         session.evaluate(sum_a_query, privacy_budget=PureDPBudget(1))
 
     def test_stop(self):
-        """Test that after session.stop(), session returns the right error"""
+        """Test that after session.stop(), session returns the right error."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1669,7 +1661,7 @@ class TestInvalidSession:
         mock_accountant.d_in = {NamedTable("private"): sp.Integer(1)}
 
     def test_invalid_dataframe_initialization(self):
-        """Session raises error on invalid dataframe type"""
+        """Session raises error on invalid dataframe type."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -1695,7 +1687,7 @@ class TestInvalidSession:
                 session.add_public_dataframe(source_id="public", dataframe=self.pdf)
 
     def test_invalid_data_properties(self, spark):
-        """Session raises error on invalid data properties"""
+        """Session raises error on invalid data properties."""
         with patch(
             "tmlt.core.measurements.interactive_measurements.PrivacyAccountant"
         ) as mock_accountant:
@@ -2153,9 +2145,7 @@ class TestSessionBuilder:
             )
 
     def test_build_invalid_identifier(self):
-        """Tests that build fails if protected change does
-        not have associated ID space.
-        """
+        """Tests that build fails if the protected change doesn't have an ID space."""
         builder = (
             Session.Builder()
             .with_private_dataframe(
@@ -2354,9 +2344,7 @@ class TestSessionBuilder:
         builder.with_privacy_budget(PureDPBudget(1)).build()
 
     def test_build_multiple_ids(self):
-        """Tests that build succeeds and initializes the right Core metric & measure
-        with multiple ID spaces.
-        """
+        """Check that the right Core metric & measure is built with multiple ID spaces."""
         builder = (
             Session.Builder()
             .with_private_dataframe(
@@ -2694,8 +2682,10 @@ def test_automatic_partition_selection_invalid_budget(
     ),
 )
 def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: List):
-    """Tests that automatic partition selection with null keyset raises a warning and
-    completes with an output dataframe with len(0) but the correct schema.
+    """Tests the behavior of automatic partition selection with null keyset.
+
+    (It should raise a warning and complete with an output dataframe with len(0) but
+    the correct schema.)
     """
     with config.features.auto_partition_selection.enabled():
         spark = SparkSession.builder.getOrCreate()
