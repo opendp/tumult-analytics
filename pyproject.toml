@@ -170,7 +170,6 @@ ignore = [
     "E731",    # lambda-assignment
     "E741",    # ambiguous-variable-name
     "SLF001",  # private-member-access
-    "RET504",  # unnecessary-assign
     "F401",    # unused-import
     "RUF009",  # function-call-in-dataclass-default-argument
     "E721",    # type-comparison
