@@ -7,7 +7,7 @@ import warnings
 from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
 
 import sympy as sp
 from pyspark.sql import DataFrame, SparkSession

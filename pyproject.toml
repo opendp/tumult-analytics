@@ -171,7 +171,6 @@ ignore = [
     "E741",    # ambiguous-variable-name
     "SLF001",  # private-member-access
     "RET504",  # unnecessary-assign
-    "F401",    # unused-import
     "RUF009",  # function-call-in-dataclass-default-argument
     "E721",    # type-comparison
     "D103",    # undocumented-public-function
@@ -183,6 +182,11 @@ ignore = [
 # of our docstrings use Greek letters that fall into that category. This allows
 # those characters.
 allowed-confusables = ['α', 'ρ', '𝝆']
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py files re-export names from private submodules; ruff cannot tell
+# those apart from genuinely unused imports without __all__ or `X as X` aliases.
+"__init__.py" = ["F401"]
 
 [tool.ruff.lint.isort]
 forced-separate = ["test"]
