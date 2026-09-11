@@ -330,6 +330,7 @@ class Session:
         self._table_constraints: Dict[Identifier, List[Constraint]] = {
             NamedTable(t): [] for t in self.private_sources
         }
+        self._base_private_sources: List[str] = list(self.private_sources)
 
     @classmethod
     @typechecked
@@ -1252,6 +1253,12 @@ class Session:
             source_id: The name of the view.
         """
         self._activate_accountant()
+
+        if source_id in self._base_private_sources:
+            raise ValueError(
+                f"Cannot delete private table '{source_id}'. "
+                "Only views can be deleted."
+            )
 
         ref = find_reference(source_id, self._input_domain)
         if ref is None:

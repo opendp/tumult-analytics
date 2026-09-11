@@ -1640,6 +1640,15 @@ def setup_invalid_session_data(spark, request) -> None:
     request.cls.schema = schema
 
 
+    def test_delete_view_base_private_table_fails(self, session: Session):
+        """Tests that attempting to delete a base private table raises ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="Cannot delete private table 'private'. Only views can be deleted.",
+        ):
+            session.delete_view("private")
+
+
 @pytest.mark.usefixtures("test_data_invalid")
 class TestInvalidSession:
     """Unit tests for invalid session."""
