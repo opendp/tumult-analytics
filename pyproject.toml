@@ -142,7 +142,7 @@ select = [
     "RUF", "I", "PL", "D", "F", "E", "W",
     # Also enable a subset of flake8 rules, for similar reasons to pyflakes/pycodestyle.
     "ISC", "SLF",
-    # Mechanical logging conventions for library code (see src/tmlt/analytics/_logging.py).
+    # Mechanical logging conventions for library code.
     "LOG",  # flake8-logging
     "G",    # flake8-logging-format
     "TID",  # flake8-tidy-imports (banned-api)

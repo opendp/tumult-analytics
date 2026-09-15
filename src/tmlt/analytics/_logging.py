@@ -1,55 +1,10 @@
-"""Logging helpers and contributor guidance for Tumult Analytics.
+"""Spark logging helper for Tumult Analytics.
 
-Tumult Analytics uses the standard-library :mod:`logging` module. Library code
-should follow this pattern:
-
-.. code-block:: python
-
-    import logging
-
-    logger = logging.getLogger(__name__)
-    logger.info("...")
-
-The library does **not** configure the root logger, handlers, formatters, or
-levels. Applications and notebooks that want to see Analytics log messages
-should configure logging themselves (for example with
-``logging.basicConfig(level=logging.INFO)`` or a logger-specific handler on
-``tmlt.analytics``).
-
-Contributor guidelines for levels, channels, and log-once behavior live in
-``CONTRIBUTING.md`` (Logging section). This module documents the same channel
-rules briefly for discoverability next to the helpers.
-
-Output channels
----------------
-
-Use the right channel for the job:
-
-* ``print`` — intentional interactive UX (for example ``Session.describe`` and
-  ``check_installation``).
-* ``warnings.warn`` — advisories that must be visible without configuring
-  logging (the package ``NullHandler`` prevents stdlib lastResort from
-  emitting library WARNING to stderr).
-* ``logging`` — diagnostic / lifecycle messages (DEBUG / INFO / WARNING).
-
-Never log row data, query ASTs, or PII. Coarseness is operator hygiene, not a
-privacy control. Budget *values* may appear at DEBUG; Session INFO stays
-budget *type* only.
-
-Lint vs review
---------------
-
-Ruff enforces *mechanical* conventions in CI (``LOG``, ``G``, and ``TID251``
-banned-api for ``logging.basicConfig`` / ``dictConfig`` / ``fileConfig``, plus
-``loguru`` / ``structlog``). A unit test bans ``logger.error`` /
-``logger.exception`` under ``src/tmlt/analytics`` so failure stays raise-only.
-Other judgment calls — which of DEBUG/INFO/WARNING to use, channel choice
-(``print`` / ``warnings`` / ``logging``), and message coarseness — are
-documented in ``CONTRIBUTING.md`` and reviewed in PRs.
+Contributor logging guidelines live in ``CONTRIBUTING.md`` (Logging and
+Exceptions).
 """
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
 
 from __future__ import annotations
 
