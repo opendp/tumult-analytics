@@ -1241,18 +1241,6 @@ class TestQueryExprCompiler:
                     max_rows=2,
                 )
             ),
-            (  # Query's child has to be transformation QueryExpr
-                GroupByBoundedSum(
-                    child=GroupByCount(
-                        child=PrivateSource("private"),
-                        groupby_keys=KeySet.from_dict({"A": ["0", "1"], "B": [0, 1]}),
-                    ),
-                    groupby_keys=KeySet.from_dict({}),
-                    measure_column="B",
-                    low=0,
-                    high=3,
-                )
-            ),
         ],
     )
     def test_invalid_queries(self, query_expr: QueryExpr):

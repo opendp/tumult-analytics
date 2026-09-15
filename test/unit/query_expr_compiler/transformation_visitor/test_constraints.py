@@ -45,9 +45,7 @@ class TestConstraints(TestTransformationVisitor):
         """Test truncation with MaxRowsPerID."""
         constraint = MaxRowsPerID(constraint_max)
         query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
-        transformation, ref, constraints = query.accept(self.visitor)
-        assert len(constraints) == 1
-        assert constraints[0] == constraint
+        transformation, ref = query.accept(self.visitor)
 
         input_df: pd.DataFrame = self.dataframes["ids_duplicates"].toPandas()
         result_df = self._get_result(transformation, ref)
@@ -67,9 +65,7 @@ class TestConstraints(TestTransformationVisitor):
         """Test truncation with MaxGroupsPerID."""
         constraint = MaxGroupsPerID(grouping_col, constraint_max)
         query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
-        transformation, ref, constraints = query.accept(self.visitor)
-        assert len(constraints) == 1
-        assert constraints[0] == constraint
+        transformation, ref = query.accept(self.visitor)
 
         input_df: pd.DataFrame = self.dataframes["ids_duplicates"].toPandas()
         result_df = self._get_result(transformation, ref)
@@ -90,9 +86,7 @@ class TestConstraints(TestTransformationVisitor):
         """Test truncation with MaxRowsPerGroupPerID."""
         constraint = MaxRowsPerGroupPerID(grouping_col, constraint_max)
         query = EnforceConstraint(PrivateSource("ids_duplicates"), constraint)
-        transformation, ref, constraints = query.accept(self.visitor)
-        assert len(constraints) == 1
-        assert constraints[0] == constraint
+        transformation, ref = query.accept(self.visitor)
 
         input_df: pd.DataFrame = self.dataframes["ids_duplicates"].toPandas()
         result_df = self._get_result(transformation, ref)

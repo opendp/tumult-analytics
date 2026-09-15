@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2025
 
-from typing import Any, List, Tuple, Union
+from typing import Any, FrozenSet, Tuple, Union
 
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism as CoreNoiseMechanism
@@ -183,7 +183,7 @@ class QueryExprCompiler:
         input_domain: DictDomain,
         input_metric: DictMetric,
         catalog: Catalog,
-    ) -> Tuple[Transformation, TableReference, List[Constraint]]:
+    ) -> Tuple[Transformation, TableReference, FrozenSet[Constraint]]:
         r"""Returns a transformation and reference for the query.
 
         Supported
@@ -215,7 +215,7 @@ class QueryExprCompiler:
             mechanism=self.mechanism,
             catalog=catalog,
         )
-        transformation, reference, constraints = query.accept(transformation_visitor)
+        transformation, reference = query.accept(transformation_visitor)
         if not isinstance(transformation, Transformation):
             raise AnalyticsInternalError(
                 "Unable to create transformation for this query."
@@ -223,4 +223,4 @@ class QueryExprCompiler:
         transformation_visitor.validate_transformation(
             query, transformation, reference, catalog
         )
-        return transformation, reference, constraints
+        return transformation, reference, query.constraints(catalog)

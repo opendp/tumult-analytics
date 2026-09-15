@@ -17,20 +17,25 @@ from typeguard import TypeCheckError
 from tmlt.analytics import (
     AnalyticsInternalError,
     KeySet,
+    MaxRowsPerID,
     QueryBuilder,
     TruncationStrategy,
 )
 from tmlt.analytics._query_expr import (
     DropInfinity,
     DropNullAndNan,
+    EnforceConstraint,
     Filter,
     FlatMap,
     FlatMapByID,
+    GetBounds,
+    GetGroups,
     GroupByBoundedAverage,
     GroupByBoundedStdev,
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
+    GroupByCountDistinct,
     GroupByQuantile,
     JoinPrivate,
     JoinPublic,
@@ -457,6 +462,97 @@ def test_invalid_groupbyquantile(
 def test_valid_private_source(source_id: str):
     """Tests valid private source does not error."""
     PrivateSource(source_id)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        *NON_GROUPBY_AGGREGATION_QUERIES,
+        *(
+            aggregation(QueryBuilder("private_data"))
+            for aggregation in GROUPBY_AGGREGATION_QUERIES
+        ),
+    ],
+)
+def test_measurement_query_exprs(query: QueryBuilder) -> None:
+    """Test that measurement query expressions are identified as measurements."""
+    assert query._query_expr.is_measurement()
+
+
+@pytest.mark.parametrize("query", SIMPLE_TRANSFORMATION_QUERIES)
+def test_transformation_query_exprs(query: QueryBuilder) -> None:
+    """Test that transformation query expressions are not identified as measurements."""
+    assert not query._query_expr.is_measurement()
+
+
+@pytest.mark.parametrize(
+    "query_constructor",
+    [
+        lambda child: GetGroups(child, ("A",)),
+        lambda child: GetBounds(child, KeySet.from_dict({}), "A", "lower", "upper"),
+        lambda child: Rename(child, FrozenDict.from_dict({"A": "B"})),
+        lambda child: Filter(child, "A > 0"),
+        lambda child: Select(child, ("A",)),
+        lambda child: Map(
+            child, lambda row: {"B": row["A"]}, Schema({"B": "INTEGER"}), True
+        ),
+        lambda child: FlatMap(
+            child, lambda row: [{"B": row["A"]}], Schema({"B": "INTEGER"}), True
+        ),
+        lambda child: FlatMapByID(
+            child, lambda rows: [{"A": len(rows)}], Schema({"A": "INTEGER"})
+        ),
+        lambda child: JoinPublic(child, "public"),
+        lambda child: ReplaceNullAndNan(child),  # noqa: PLW0108
+        lambda child: ReplaceInfinity(child),  # noqa: PLW0108
+        lambda child: DropNullAndNan(child),  # noqa: PLW0108
+        lambda child: DropInfinity(child),  # noqa: PLW0108
+        lambda child: EnforceConstraint(child, MaxRowsPerID(1)),
+        lambda child: GroupByCount(child, KeySet.from_dict({})),
+        lambda child: GroupByCountDistinct(child, KeySet.from_dict({})),
+        lambda child: GroupByQuantile(child, KeySet.from_dict({}), "A", 0.5, 0.0, 1.0),
+        lambda child: GroupByBoundedSum(child, KeySet.from_dict({}), "A", 0.0, 1.0),
+        lambda child: GroupByBoundedAverage(child, KeySet.from_dict({}), "A", 0.0, 1.0),
+        lambda child: GroupByBoundedVariance(
+            child, KeySet.from_dict({}), "A", 0.0, 1.0
+        ),
+        lambda child: GroupByBoundedStdev(child, KeySet.from_dict({}), "A", 0.0, 1.0),
+    ],
+)
+def test_measurement_child_rejected(
+    query_constructor: Callable[[QueryExpr], QueryExpr],
+):
+    """Test that queries cannot have measurements as children."""
+    measurement_child = GroupByCount(PrivateSource("private"), KeySet.from_dict({}))
+    with pytest.raises(
+        AnalyticsInternalError,
+        match="Measurement used as query expression child where only transformations are allowed",
+    ):
+        query_constructor(measurement_child)
+
+
+@pytest.mark.parametrize(
+    "left_child,right_child",
+    [
+        (
+            GroupByCount(PrivateSource("private"), KeySet.from_dict({})),
+            PrivateSource("private2"),
+        ),
+        (
+            PrivateSource("private"),
+            GroupByCount(PrivateSource("private2"), KeySet.from_dict({})),
+        ),
+    ],
+)
+def test_join_private_measurement_children_rejected(
+    left_child: QueryExpr, right_child: QueryExpr
+):
+    """Test that private joins cannot have measurement children."""
+    with pytest.raises(
+        AnalyticsInternalError,
+        match="Measurement used as query expression child where only transformations are allowed",
+    ):
+        JoinPrivate(left_child, right_child)
 
 
 @pytest.mark.parametrize("low,high", [(8.0, 10.0), (1, 10), (1.0, 10)])

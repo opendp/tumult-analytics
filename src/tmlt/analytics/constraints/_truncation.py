@@ -9,7 +9,7 @@ column.
 # Copyright Tumult Labs 2025
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Iterable, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.metrics import (
@@ -47,14 +47,16 @@ from tmlt.analytics._transformation_utils import (
 from ._base import Constraint
 
 
-def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Constraint]:
-    """Remove redundant truncation constraints from a list of constraints."""
-    max_rows_per_id, other_constraints = [], []
+def simplify_truncation_constraints(
+    constraints: Iterable[Constraint],
+) -> frozenset[Constraint]:
+    """Remove redundant truncation constraints from a set of constraints."""
+    max_rows_per_id, other_constraints = set(), set()
     max_groups_per_id: Dict[str, int] = {}
     max_rows_per_group_per_id: Dict[str, int] = {}
     for c in constraints:
         if isinstance(c, MaxRowsPerID):
-            max_rows_per_id.append(c)
+            max_rows_per_id.add(c)
         elif isinstance(c, MaxGroupsPerID):
             if max_groups_per_id.get(c.grouping_column) is None:
                 max_groups_per_id[c.grouping_column] = c.max
@@ -66,18 +68,18 @@ def simplify_truncation_constraints(constraints: List[Constraint]) -> List[Const
             elif max_rows_per_group_per_id[c.grouping_column] > c.max:
                 max_rows_per_group_per_id[c.grouping_column] = c.max
         else:
-            other_constraints.append(c)
+            other_constraints.add(c)
 
     if max_rows_per_id:
-        other_constraints.append(MaxRowsPerID(min(c.max for c in max_rows_per_id)))
+        other_constraints.add(MaxRowsPerID(min(c.max for c in max_rows_per_id)))
     if max_groups_per_id:
         for grouping_column, max_groups in max_groups_per_id.items():
-            other_constraints.append(MaxGroupsPerID(grouping_column, max_groups))
+            other_constraints.add(MaxGroupsPerID(grouping_column, max_groups))
     if max_rows_per_group_per_id:
         for grouping_column, max_groups in max_rows_per_group_per_id.items():
-            other_constraints.append(MaxRowsPerGroupPerID(grouping_column, max_groups))
+            other_constraints.add(MaxRowsPerGroupPerID(grouping_column, max_groups))
 
-    return other_constraints
+    return frozenset(other_constraints)
 
 
 @dataclass(frozen=True)
