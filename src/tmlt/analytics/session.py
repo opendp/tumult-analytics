@@ -1255,8 +1255,7 @@ class Session:
 
         if source_id in self._base_private_sources:
             raise ValueError(
-                f"Cannot delete private table '{source_id}'. "
-                "Only views can be deleted."
+                f"Cannot delete private table '{source_id}'. Only views can be deleted."
             )
 
         ref = find_reference(source_id, self._input_domain)
