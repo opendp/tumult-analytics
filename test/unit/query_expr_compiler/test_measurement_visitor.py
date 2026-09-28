@@ -68,10 +68,10 @@ from tmlt.analytics._query_expr import (
     SuppressAggregates,
     VarianceMechanism,
 )
-from tmlt.analytics._query_expr_compiler._base_measurement_visitor import (
+from tmlt.analytics._query_expr_compiler._measurement_visitor import (
+    MeasurementVisitor,
     _get_query_bounds,
 )
-from tmlt.analytics._query_expr_compiler._measurement_visitor import MeasurementVisitor
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
