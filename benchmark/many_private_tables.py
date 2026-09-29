@@ -35,7 +35,7 @@ import pstats
 import statistics
 import sys
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -181,14 +181,22 @@ def run_config(
     return row
 
 
-def fit(rows: List[Dict[str, Any]], column: str) -> Dict[str, float]:
-    """Least-squares fit of ``column = intercept + slope * tables``."""
+def fit(rows: List[Dict[str, Any]], column: str) -> Dict[str, Optional[float]]:
+    """Least-squares fit of ``column = intercept + slope * tables``.
+
+    The slope and intercept are None if there are fewer than two points.
+    """
     points = [(r["tables"], r[column]) for r in rows if r[column] is not None]
     if len(points) < 2:
-        return {"slope": float("nan"), "intercept": float("nan")}
+        return {"slope": None, "intercept": None}
     x, y = zip(*points)
     slope, intercept = np.polyfit(x, y, 1)
     return {"slope": float(slope), "intercept": float(intercept)}
+
+
+def fmt(value: Optional[float], spec: str) -> str:
+    """Format a fitted value, or ``n/a`` if there is none."""
+    return "n/a" if value is None else format(value, spec)
 
 
 def parse_args() -> argparse.Namespace:
@@ -237,6 +245,10 @@ def parse_args() -> argparse.Namespace:
     for v in args.variants:
         if v not in VARIANTS:
             parser.error(f"Unknown variant {v!r}; expected one of {VARIANTS}")
+    if args.queries < 1:
+        parser.error("--queries must be at least 1")
+    if args.warmup < 0 or args.profile_queries < 0:
+        parser.error("--warmup and --profile-queries must be non-negative")
     return args
 
 
@@ -286,11 +298,12 @@ def main() -> None:
         evaluate = fits[variant]["median_eval_ms"]
         calls = fits[variant]["calls_per_query"]
         print(
-            f"Fit [{variant}]: per-query total = {total['intercept']:.1f} ms"
-            f" + {total['slope']:.4f} ms/table * N;"
-            f" evaluate only = {evaluate['intercept']:.1f} ms"
-            f" + {evaluate['slope']:.4f} ms/table * N;"
-            f" calls/query = {calls['intercept']:.0f} + {calls['slope']:.1f} * N"
+            f"Fit [{variant}]: per-query total = {fmt(total['intercept'], '.1f')} ms"
+            f" + {fmt(total['slope'], '.4f')} ms/table * N;"
+            f" evaluate only = {fmt(evaluate['intercept'], '.1f')} ms"
+            f" + {fmt(evaluate['slope'], '.4f')} ms/table * N;"
+            f" calls/query = {fmt(calls['intercept'], '.0f')}"
+            f" + {fmt(calls['slope'], '.1f')} * N"
         )
 
     benchmark_result = pd.DataFrame(
