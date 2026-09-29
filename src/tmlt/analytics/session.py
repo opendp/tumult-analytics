@@ -28,6 +28,7 @@ from tmlt.core.measures import ApproxDP, InsufficientBudgetError, PureDP, RhoZCD
 from tmlt.core.metrics import (
     DictMetric,
     IfGroupedBy,
+    Metric,
     RootSumOfSquared,
     SumOf,
     SymmetricDifference,
@@ -69,6 +70,7 @@ from tmlt.analytics._table_identifier import Identifier, NamedTable, TableCollec
 from tmlt.analytics._table_reference import (
     TableReference,
     find_named_tables,
+    find_named_tables_with_domains_and_metrics,
     find_reference,
     lookup_domain,
     lookup_metric,
@@ -336,6 +338,14 @@ class Session:
             NamedTable(t): frozenset() for t in self.private_sources
         }
         self._base_private_sources: List[str] = list(self.private_sources)
+        # Cached result of self._catalog, along with the input domain and input
+        # metric it was built from. Domains and metrics are immutable, and the
+        # accountant replaces them whenever the session's tables change, so the
+        # cache is only reused if both are still the very same objects (they are
+        # held here by reference, so their identities cannot be reused). Changes
+        # to table constraints must call _invalidate_catalog(); changes to the
+        # public sources are detected when the cache is read.
+        self._catalog_cache: Optional[Tuple[DictDomain, DictMetric, Catalog]] = None
 
     @classmethod
     @typechecked
@@ -828,12 +838,7 @@ class Session:
                 f"Private table '{source_id}' does not exist. "
                 f"Available private tables are: {', '.join(self.private_sources)}"
             )
-        metric = lookup_metric(self._input_metric, ref)
-        if isinstance(metric, IfGroupedBy) and isinstance(
-            metric.inner_metric, (SumOf, RootSumOfSquared)
-        ):
-            return list(metric.columns)[0]
-        return None
+        return _grouping_column_from_metric(lookup_metric(self._input_metric, ref))
 
     @typechecked
     def get_id_column(self, source_id: str) -> Optional[str]:
@@ -853,12 +858,7 @@ class Session:
                 f"Private table '{source_id}' does not exist. "
                 f"Available private tables are: {', '.join(self.private_sources)}"
             )
-        metric = lookup_metric(self._input_metric, ref)
-        if isinstance(metric, IfGroupedBy) and isinstance(
-            metric.inner_metric, SymmetricDifference
-        ):
-            return list(metric.columns)[0]
-        return None
+        return _id_column_from_metric(lookup_metric(self._input_metric, ref))
 
     @typechecked
     def get_id_space(self, source_id: str) -> Optional[str]:
@@ -879,36 +879,56 @@ class Session:
                 f"Private table '{source_id}' does not exist. "
                 f"Available private tables are: {', '.join(self.private_sources)}"
             )
-        # Tables not in an ID space will have a parent of ([])
-        if ref.parent == TableReference([]):
-            return None
-        # Otherwise, the parent should be a TableCollection("id_space")
-        parent_identifier = ref.parent.identifier
-        if not isinstance(parent_identifier, TableCollection):
-            raise AnalyticsInternalError(
-                "Expected parent to be a table collection but got"
-                f" {parent_identifier} instead."
-            )
-        return parent_identifier.name
+        return _id_space_from_ref(ref)
 
     @property
     def _catalog(self) -> Catalog:
-        """Returns a Catalog of tables in the Session."""
+        """Returns a Catalog of tables in the Session.
+
+        The catalog is cached, and only rebuilt when the session's tables change.
+        """
+        input_domain = self._input_domain
+        input_metric = self._input_metric
+        if self._catalog_cache is not None:
+            cached_domain, cached_metric, catalog = self._catalog_cache
+            if (
+                cached_domain is input_domain
+                and cached_metric is input_metric
+                and _public_tables_match(catalog, self._public_sources)
+            ):
+                return catalog
+        catalog = self._build_catalog(input_domain, input_metric)
+        self._catalog_cache = (input_domain, input_metric, catalog)
+        return catalog
+
+    def _invalidate_catalog(self) -> None:
+        """Discards the cached catalog, so that the next access rebuilds it."""
+        self._catalog_cache = None
+
+    def _build_catalog(
+        self, input_domain: DictDomain, input_metric: DictMetric
+    ) -> Catalog:
+        """Builds a Catalog of the tables in the given domain and public sources.
+
+        This walks the input domain and metric only once, so it takes time
+        linear in the number of tables.
+        """
         catalog = Catalog()
-        for table in self.private_sources:
+        for ref, domain, metric in find_named_tables_with_domains_and_metrics(
+            input_domain, input_metric
+        ):
+            identifier = cast(NamedTable, ref.identifier)
             catalog.add_private_table(
-                table,
-                self.get_schema(table),
-                constraints=self._table_constraints[NamedTable(table)],
-                grouping_column=self.get_grouping_column(table),
-                id_column=self.get_id_column(table),
-                id_space=self.get_id_space(table),
+                identifier.name,
+                spark_dataframe_domain_to_analytics_columns(domain),
+                constraints=self._table_constraints[identifier],
+                grouping_column=_grouping_column_from_metric(metric),
+                id_column=_id_column_from_metric(metric),
+                id_space=_id_space_from_ref(ref),
             )
-        for table in self.public_sources:
+        for table, dataframe in self._public_sources.items():
             catalog.add_public_table(
-                table,
-                spark_schema_to_analytics_columns(self._public_sources[table].schema),
-                self._public_sources[table],
+                table, spark_schema_to_analytics_columns(dataframe.schema), dataframe
             )
         return catalog
 
@@ -966,6 +986,7 @@ class Session:
             raise ValueError(f"This session already has a table named '{source_id}'.")
         dataframe = coerce_spark_schema_or_fail(dataframe)
         self._public_sources[source_id] = dataframe
+        self._invalidate_catalog()
 
     def _compile_and_get_info(
         self,
@@ -1244,6 +1265,7 @@ class Session:
         )
         self._accountant.transform_in_place(transformation)
         self._table_constraints[NamedTable(source_id)] = constraints
+        self._invalidate_catalog()
 
     def delete_view(self, source_id: str):
         """Deletes a view and decaches it if it was cached.
@@ -1285,6 +1307,7 @@ class Session:
         )
         self._accountant.transform_in_place(transformation)
         self._table_constraints.pop(ref.identifier, None)
+        self._invalidate_catalog()
 
     def _create_partition_constraint(
         self,
@@ -1758,6 +1781,57 @@ class Session:
     def stop(self) -> None:
         """Closes out this Session, allowing other Sessions to become active."""
         self._accountant.retire()
+
+
+def _grouping_column_from_metric(metric: Metric) -> Optional[str]:
+    """Returns the grouping column required by a table's metric, if any."""
+    if isinstance(metric, IfGroupedBy) and isinstance(
+        metric.inner_metric, (SumOf, RootSumOfSquared)
+    ):
+        return list(metric.columns)[0]
+    return None
+
+
+def _id_column_from_metric(metric: Metric) -> Optional[str]:
+    """Returns the ID column of a table given its metric, if it has one."""
+    if isinstance(metric, IfGroupedBy) and isinstance(
+        metric.inner_metric, SymmetricDifference
+    ):
+        return list(metric.columns)[0]
+    return None
+
+
+def _id_space_from_ref(ref: TableReference) -> Optional[str]:
+    """Returns the ID space of the table with the given reference, if any."""
+    # Tables not in an ID space will have a parent of ([])
+    if ref.parent == TableReference([]):
+        return None
+    # Otherwise, the parent should be a TableCollection("id_space")
+    parent_identifier = ref.parent.identifier
+    if not isinstance(parent_identifier, TableCollection):
+        raise AnalyticsInternalError(
+            "Expected parent to be a table collection but got"
+            f" {parent_identifier} instead."
+        )
+    return parent_identifier.name
+
+
+def _public_tables_match(
+    catalog: Catalog, public_sources: Dict[str, DataFrame]
+) -> bool:
+    """Returns whether a catalog's public tables are exactly the given sources.
+
+    The public sources dictionary may be shared with other sessions (e.g. those
+    created by :meth:`Session.partition_and_create`), so it can change without
+    this session knowing about it.
+    """
+    public_tables = catalog.public_tables
+    return len(public_tables) == len(public_sources) and all(
+        name == table_name and dataframe is table.dataframe
+        for (name, dataframe), (table_name, table) in zip(
+            public_sources.items(), public_tables.items()
+        )
+    )
 
 
 def _describe_schema(schema: Schema) -> str:
