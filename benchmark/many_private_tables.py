@@ -29,9 +29,11 @@ import argparse
 import cProfile
 import gc
 import json
+import os
 import platform
 import pstats
 import statistics
+import sys
 import time
 from typing import Any, Dict, List
 
@@ -243,6 +245,9 @@ def main() -> None:
     args = parse_args()
     print("Benchmark per-query cost vs. number of private tables")
     print(f"Configuration: {vars(args)}")
+    # Make Spark's Python workers use this interpreter (and so the same tmlt
+    # packages) even when this venv is not first on the PATH.
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     spark = (
         SparkSession.builder.config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "4g")
