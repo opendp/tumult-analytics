@@ -136,13 +136,9 @@ class AverageMechanism(Enum):
     might change over time as additional optimizations are added to the library.
     """
     LAPLACE = auto()
-    """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
-    """
+    """Laplace noise is used."""
     GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
-    """
+    """Gaussian noise is used. Not compatible with pure DP."""
 
 
 class VarianceMechanism(Enum):
@@ -158,13 +154,9 @@ class VarianceMechanism(Enum):
     might change over time as additional optimizations are added to the library.
     """
     LAPLACE = auto()
-    """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
-    """
+    """Laplace noise is used."""
     GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
-    """
+    """Gaussian noise is used. Not compatible with pure DP."""
 
 
 class StdevMechanism(Enum):
@@ -180,13 +172,9 @@ class StdevMechanism(Enum):
     might change over time as additional optimizations are added to the library.
     """
     LAPLACE = auto()
-    """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
-    """
+    """Laplace noise is used."""
     GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
-    """
+    """Gaussian noise is used. Not compatible with pure DP."""
 
 
 class QueryExpr(ABC):

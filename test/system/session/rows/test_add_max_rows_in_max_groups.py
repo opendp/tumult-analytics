@@ -121,7 +121,7 @@ class TestSession:
                 [
                     # Noise for the sum query (which uses half the budget)
                     {
-                        "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                        "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                         # the upper and lower bounds of the sum aggregation
                         # are -173 and 172;
                         # this is (lower - midpoint) and (upper-midpoint) respectively
@@ -134,7 +134,7 @@ class TestSession:
                     },
                     # Noise for the count query (which uses half the budget)
                     {
-                        "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                        "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                         "noise_parameter": (
                             calculate_noise_scale(
                                 1, ExactNumber(11) / ExactNumber(2), RhoZCDP()

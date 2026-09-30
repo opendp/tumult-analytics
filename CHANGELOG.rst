@@ -11,6 +11,11 @@ Changelog
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+
+- :meth:`~.average`, :meth:`~.variance`, and :meth:`~.stdev` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+
 Fixed
 ~~~~~
 

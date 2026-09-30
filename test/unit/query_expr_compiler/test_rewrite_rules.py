@@ -180,15 +180,47 @@ def test_noise_selection_counts(
         )
     ],
 )
+def test_noise_selection_sum(
+    catalog: Catalog,
+    query_mechanism: str,
+    measure_column: str,
+    output_measure: Union[PureDP, ApproxDP, RhoZCDP],
+    expected_mechanism: str,
+) -> None:
+    """Test noise selection for GroupByBoundedSum query exprs."""
+    (AggExpr, AggMech) = AGG_CLASSES["sum"]
+    expr = AggExpr(
+        child=BASE_EXPR,
+        measure_column=measure_column,
+        low=0,
+        high=1,
+        mechanism=AggMech[query_mechanism],
+        groupby_keys=KeySet.from_dict({}),
+    )
+    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
+    got_expr = select_noise_mechanism(info)(expr)
+    assert got_expr == replace(expr, core_mechanism=NoiseMechanism[expected_mechanism])
+
+
 @parametrize(
     [
-        Case()(agg="sum"),
-        Case()(agg="average"),
-        Case()(agg="stdev"),
-        Case()(agg="variance"),
+        Case()(query_mechanism=mech, output_measure=meas, expected_mechanism="LAPLACE")
+        for mech in ["DEFAULT", "LAPLACE"]
+        for meas in [PureDP(), ApproxDP(), RhoZCDP()]
+        if not (mech == "DEFAULT" and meas == RhoZCDP())
+    ]
+    + [
+        Case()(
+            query_mechanism=mech,
+            output_measure=RhoZCDP(),
+            expected_mechanism="GAUSSIAN",
+        )
+        for mech in ["DEFAULT", "GAUSSIAN"]
     ]
 )
-def test_noise_selection_numeric_aggregations(
+@parametrize([Case()(measure_column="int_col"), Case()(measure_column="float_col")])
+@parametrize([Case()(agg="average"), Case()(agg="stdev"), Case()(agg="variance")])
+def test_noise_selection_average_variance_stdev(
     catalog: Catalog,
     agg: str,
     query_mechanism: str,
@@ -196,7 +228,7 @@ def test_noise_selection_numeric_aggregations(
     output_measure: Union[PureDP, ApproxDP, RhoZCDP],
     expected_mechanism: str,
 ) -> None:
-    """Test noise selection for GroupByBoundedAverage query exprs."""
+    """Average, variance, and stdev always use continuous noise."""
     (AggExpr, AggMech) = AGG_CLASSES[agg]
     expr = AggExpr(
         child=BASE_EXPR,
@@ -394,7 +426,7 @@ def test_recursive_noise_selection(catalog: Catalog) -> None:
                 low=0,
                 high=1,
                 mechanism=AverageMechanism.DEFAULT,
-                core_mechanism=NoiseMechanism.GEOMETRIC,
+                core_mechanism=NoiseMechanism.LAPLACE,
             ),
             field=42,
         ),
