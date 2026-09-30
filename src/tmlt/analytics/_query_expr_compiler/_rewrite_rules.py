@@ -168,10 +168,14 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
                 " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
             )
 
-        # If the measure column type is integer, use integer noise distributions
+        # Sums of integer columns use integer noise; average, variance, and stdev
+        # always use continuous noise.
         schema = expr.child.schema(info.catalog)
         measure_column_type = schema[expr.measure_column].column_type
-        if measure_column_type == ColumnType.INTEGER:
+        if (
+            isinstance(expr, GroupByBoundedSum)
+            and measure_column_type == ColumnType.INTEGER
+        ):
             core_mechanism = (
                 NoiseMechanism.GEOMETRIC
                 if core_mechanism == NoiseMechanism.LAPLACE
