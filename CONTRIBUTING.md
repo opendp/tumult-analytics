@@ -35,6 +35,33 @@ Note that some operating systems, including macOS, include versions of `make` th
 
 Behind the scenes, these commands use the `uv` environment, and rely on [nox](https://nox.thea.codes/en/stable/index.html) for test automation. You can get a bit more fine-grained control and access additional tools by running nox commands directly (see [this tutorial](https://nox.thea.codes/en/stable/tutorial.html)). You can find a list of available nox sessions using `uv run nox --list`, then run one of these sessions using e.g. `uv run nox -s test-fast`.
 
+### Logging
+
+To add a log statement, use `logging.getLogger(__name__)`:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+```
+
+Never log row data, PII, or full query ASTs (volume plus keys/filters/bounds in shared logs). Prefer query class names and mechanism names; budget *values* are OK at DEBUG, Session INFO stays budget *type*. Coarseness is operator hygiene, not a privacy control — logs are not covered outputs (see the [privacy promise](./doc/topic-guides/privacy-promise.rst), Subtlety 1). Adding logging coverage is a work-in-progress; these guidelines apply to new statements.
+
+Consider logging when the library picks a non-user-specified default, at major milestones (Session creation, evaluate), or around expensive work (compile / Spark plan execution).
+
+| Level | Use for |
+|-------|---------|
+| **DEBUG** | High-volume diagnostic detail (query compile/evaluate steps, noise mechanism summary). |
+| **INFO** | Rare, high-signal lifecycle events (e.g. Session created; log budget *type* only). |
+| **WARNING** | Recoverable or suboptimal situations that still continue (e.g. noisy Spark log level). Library WARNING is silent by default: a `NullHandler` on `tmlt.analytics` blocks stdlib lastResort. |
+| **ERROR** / **CRITICAL** | Do not use at library call sites. Raise an exception (see Exceptions). |
+
+Only `print` for explicit interactive UX (`Session.describe`, `check_installation`). Use `warnings.warn` for advisories that must be visible without configuring logging (e.g. deprecations). The Spark noisy-check dual-emits `warnings.warn` and `logger.warning` because NullHandler blocks lastResort — scoped to that setup advisory only. Do not mass-migrate existing `warnings.warn` call sites.
+
+### Exceptions
+
+Failures should not log; raise. Wrap with `raise ... from e` when translating errors. Prefer [standard Python exceptions](https://docs.python.org/3/library/exceptions.html#concrete-exceptions) when appropriate; for states that should never happen, raise `AnalyticsInternalError`. A unit test bans `logger.error` / `logger.exception` under `src/tmlt/analytics`.
+
 ### Testing
 
 Our unit tests are run with [pytest](https://docs.pytest.org/en/stable/getting-started.html). You can run smaller subsets of tests by using pytest directly. For example, to check tests in a particular test file, run:
