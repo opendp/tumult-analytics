@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.metrics import (
-    AddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     IfGroupedBy,
     Metric,
@@ -71,10 +71,8 @@ def lookup_metric(metric: Metric, ref: TableReference) -> Metric:
     for i, table in enumerate(path):
         if isinstance(metric, DictMetric):
             metric = metric.key_to_metric[table]
-        elif isinstance(metric, AddRemoveKeys):
-            metric = IfGroupedBy(
-                [metric.df_to_key_column[table]], SymmetricDifference()
-            )
+        elif isinstance(metric, AddRemoveIDs):
+            metric = IfGroupedBy([metric.df_to_id_column[table]], SymmetricDifference())
         else:
             raise ValueError(
                 f"Metric at {path[:i]} is a {type(metric)}, cannot reference into it."

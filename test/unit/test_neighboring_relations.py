@@ -14,7 +14,7 @@ from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import PureDP, RhoZCDP
 from tmlt.core.metrics import (
-    AddRemoveKeys as CoreAddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     IfGroupedBy,
     RootSumOfSquared,
@@ -226,7 +226,7 @@ class TestNeighboringRelations:
                     ),
                 }
             ),
-            CoreAddRemoveKeys({NamedTable("table1"): "B", NamedTable("table2"): "X"}),
+            AddRemoveIDs({NamedTable("table1"): "B", NamedTable("table2"): "X"}),
             ExactNumber(3),
             {NamedTable("table1"): self.table1, NamedTable("table2"): self.table2},
         )
