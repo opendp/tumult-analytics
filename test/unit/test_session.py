@@ -37,7 +37,7 @@ from tmlt.core.measurements.interactive_measurements import (
 )
 from tmlt.core.measures import ApproxDP, Measure, PureDP, RhoZCDP
 from tmlt.core.metrics import (
-    AddRemoveKeys as CoreAddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     IfGroupedBy,
     Metric,
@@ -329,7 +329,7 @@ class TestSession:
                 PureDP(),
                 DictMetric(
                     {
-                        TableCollection("default_id_space"): CoreAddRemoveKeys(
+                        TableCollection("default_id_space"): AddRemoveIDs(
                             {NamedTable("private"): "A"}
                         )
                     }
@@ -473,7 +473,7 @@ class TestSession:
                 AddRemoveKeys("private", {"private": "A"}, max_keys=5),
                 DictMetric(
                     {
-                        TableCollection("private"): CoreAddRemoveKeys(
+                        TableCollection("private"): AddRemoveIDs(
                             {NamedTable("private"): "A"}
                         )
                     }
@@ -727,8 +727,8 @@ class TestSession:
         mock_accountant.output_measure = PureDP()
         mock_accountant.input_metric = DictMetric(
             key_to_metric={
-                TableCollection(name="identifier_A"): CoreAddRemoveKeys(
-                    df_to_key_column={NamedTable(name="private"): "A"}
+                TableCollection(name="identifier_A"): AddRemoveIDs(
+                    df_to_id_column={NamedTable(name="private"): "A"}
                 )
             }
         )
@@ -2423,13 +2423,13 @@ class TestSessionBuilder:
 
         assert session._input_metric == DictMetric(
             {
-                TableCollection("id_space_1"): CoreAddRemoveKeys(
+                TableCollection("id_space_1"): AddRemoveIDs(
                     {
                         NamedTable("private1"): "A",
                         NamedTable("private3"): "Y",
                     }
                 ),
-                TableCollection("id_space_2"): CoreAddRemoveKeys(
+                TableCollection("id_space_2"): AddRemoveIDs(
                     {NamedTable("private2"): "C"}
                 ),
             }
@@ -2494,9 +2494,7 @@ class TestSessionBuilder:
             {
                 NamedTable("rows"): SymmetricDifference(),
                 NamedTable("groups"): expected_group_metric,
-                TableCollection("id_space_1"): CoreAddRemoveKeys(
-                    {NamedTable("ids"): "A"}
-                ),
+                TableCollection("id_space_1"): AddRemoveIDs({NamedTable("ids"): "A"}),
             }
         )
         assert session._accountant.d_in == {
