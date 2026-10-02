@@ -133,6 +133,9 @@ BENCHMARK_TO_TIMEOUT = {
     "keyset_projection": 14 * 60,
     "keyset_cross_product_per_size": 45 * 60,
     "keyset_cross_product_per_factors": 37 * 60,
+    # Not calibrated on the GitHub runners; the default sweep takes about 6
+    # minutes locally, so this leaves plenty of headroom.
+    "many_private_tables": 30 * 60,
 }
 
 sm = SessionManager(
