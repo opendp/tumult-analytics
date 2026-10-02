@@ -56,16 +56,16 @@ from tmlt.analytics import (
     Session,
 )
 
-DEFAULT_TABLES = [1, 10, 100, 250, 500]
-FULL_TABLES = [1, 10, 100, 250, 500, 1000, 2000]
+DEFAULT_TABLE_COUNTS = [1, 10, 100, 250, 500]
+FULL_TABLE_COUNTS = [1, 10, 100, 250, 500, 1000, 2000]
 VARIANTS = ["rows", "ids"]
 ID_SPACE = "ids"
 GROUP_VALUES = [f"g{i}" for i in range(5)]
 SCHEMA = StructType(
     [
         StructField("id", IntegerType(), False),
-        StructField("A", StringType(), False),
-        StructField("X", IntegerType(), False),
+        StructField("group", StringType(), False),
+        StructField("value", IntegerType(), False),
     ]
 )
 
@@ -82,15 +82,21 @@ def make_tables(spark: SparkSession, n_tables: int, n_rows: int) -> List[DataFra
     return tables
 
 
-def build_session(variant: str, tables: List[DataFrame], total_budget: int) -> Session:
-    """Build a Session with one private source per table."""
+def build_session(
+    tables: List[DataFrame], total_budget: int, id_space: Optional[str] = None
+) -> Session:
+    """Build a Session with one private source per table.
+
+    If ``id_space`` is given, every table uses ``AddRowsWithID`` in that ID space;
+    otherwise every table uses ``AddOneRow``.
+    """
     builder = Session.Builder().with_privacy_budget(PureDPBudget(total_budget))
-    if variant == "ids":
-        builder = builder.with_id_space(ID_SPACE)
+    if id_space is not None:
+        builder = builder.with_id_space(id_space)
     for t, df in enumerate(tables):
         protected_change = (
-            AddRowsWithID(id_column="id", id_space=ID_SPACE)
-            if variant == "ids"
+            AddRowsWithID(id_column="id", id_space=id_space)
+            if id_space is not None
             else AddOneRow()
         )
         builder = builder.with_private_dataframe(f"t{t}", df, protected_change)
@@ -124,7 +130,9 @@ def run_config(
     data_s = time.perf_counter() - start
 
     start = time.perf_counter()
-    session = build_session(variant, tables, total_budget=n_total)
+    session = build_session(
+        tables, total_budget=n_total, id_space=ID_SPACE if variant == "ids" else None
+    )
     build_s = time.perf_counter() - start
 
     # Each query gets an equal share (epsilon=1) of the total budget
@@ -206,12 +214,12 @@ def parse_args() -> argparse.Namespace:
         "--tables",
         type=lambda s: [int(x) for x in s.split(",")],
         default=None,
-        help=f"Comma-separated table counts (default: {DEFAULT_TABLES}).",
+        help=f"Comma-separated table counts (default: {DEFAULT_TABLE_COUNTS}).",
     )
     parser.add_argument(
         "--full",
         action="store_true",
-        help=f"Bigger sweep: tables={FULL_TABLES} (overridden by --tables).",
+        help=f"Bigger sweep: tables={FULL_TABLE_COUNTS} (overridden by --tables).",
     )
     parser.add_argument(
         "--variants",
@@ -241,7 +249,7 @@ def parse_args() -> argparse.Namespace:
     )
     args = parser.parse_args()
     if args.tables is None:
-        args.tables = FULL_TABLES if args.full else DEFAULT_TABLES
+        args.tables = FULL_TABLE_COUNTS if args.full else DEFAULT_TABLE_COUNTS
     for v in args.variants:
         if v not in VARIANTS:
             parser.error(f"Unknown variant {v!r}; expected one of {VARIANTS}")
@@ -269,7 +277,7 @@ def main() -> None:
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("ERROR")
-    keyset = KeySet.from_dict({"A": GROUP_VALUES})
+    keyset = KeySet.from_dict({"group": GROUP_VALUES})
 
     # Warm up Spark and the Python code paths before any timed run.
     warmup_args = argparse.Namespace(**{**vars(args), "queries": 3, "rows": 10})
