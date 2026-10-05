@@ -5,7 +5,8 @@ Reads the table produced by ``copyright_dates.py``. For each file:
 
 * If it was first written in or before June 2025, every notice becomes
   "Copyright Tumult Labs <year> - 2025, and the Tumult Analytics Contributors
-  2025-present", where <year> is the year the file was first written.
+  2025-present", where <year> is the year the file was first written. If
+  <year> is 2025, the range "<year> - 2025" is just "2025".
 * Otherwise, every notice becomes "Copyright the Tumult Analytics
   Contributors".
 
@@ -39,8 +40,9 @@ def new_notice(first_added: str) -> str:
     """Return the notice for a file first written in the given YYYY-MM."""
     if first_added <= CUTOFF:
         year = first_added[:4]
+        years = "2025" if year == "2025" else f"{year}-2025"
         return (
-            f"Copyright Tumult Labs {year}-2025, "
+            f"Copyright Tumult Labs {years}, "
             "and the Tumult Analytics Contributors 2025-present"
         )
     return "Copyright the Tumult Analytics Contributors"
