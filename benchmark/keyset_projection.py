@@ -1,7 +1,7 @@
 """Benchmarking script for taking the cross-product and projection of large keysets."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2024-2025, and the Tumult Analytics Contributors 2025-present
 
 import time
 from functools import reduce

@@ -1,7 +1,7 @@
 """Unit tests for KeySet.union."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright the Tumult Analytics Contributors
 
 from typing import Any, Callable, ContextManager, Union
 

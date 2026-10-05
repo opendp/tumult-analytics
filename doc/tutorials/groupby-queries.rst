@@ -5,7 +5,7 @@ Group-by queries
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2025
+    Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 In all previous tutorials, all aggregations we saw were global aggregations,
 returning a single statistic for all the data. But many common data analysis

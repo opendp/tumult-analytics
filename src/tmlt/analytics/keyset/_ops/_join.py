@@ -1,7 +1,7 @@
 """Operation for constructing a KeySet by joining two factors."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2025, and the Tumult Analytics Contributors 2025-present
 
 import textwrap
 from dataclasses import dataclass

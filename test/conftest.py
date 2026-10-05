@@ -1,7 +1,7 @@
 """Creates a Spark Context to use for each testing session."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 # TODO(#2206): Import these fixtures from core once it is rewritten
 
