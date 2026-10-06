@@ -5,7 +5,7 @@ Working with privacy budgets
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2025
+    Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 
 In our :ref:`first steps tutorial<first-steps>`, we saw how to run a simple aggregation

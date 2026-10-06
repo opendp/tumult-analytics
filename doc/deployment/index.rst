@@ -5,7 +5,7 @@ Deployment
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2025
+    Copyright Tumult Labs 2025, and the Tumult Analytics Contributors 2025-present
 
 Tumult Analytics is a Python library. It can be installed either
 :ref:`locally <installation>`, on a server (including in tightly controlled or

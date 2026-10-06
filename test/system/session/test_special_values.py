@@ -1,7 +1,7 @@
 """System tests for tables with special values (nulls, nans, infinities)."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright the Tumult Analytics Contributors
 
 import datetime
 from typing import Dict, List, Optional, Tuple, Union

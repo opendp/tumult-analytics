@@ -1,7 +1,7 @@
 """Tests for KeySet _decompose method."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2025, and the Tumult Analytics Contributors 2025-present
 
 from functools import reduce
 from typing import Collection, Optional, Sequence

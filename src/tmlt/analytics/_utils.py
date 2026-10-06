@@ -1,7 +1,7 @@
 """Private utility functions."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 from collections.abc import Iterable
 from typing import Type

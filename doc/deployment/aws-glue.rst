@@ -5,7 +5,7 @@ Using Tumult Analytics on AWS Glue
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2025
+    Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
 This guide covers using Tumult Analytics as part of an `AWS Glue <https://aws.amazon.com/glue/>`__ data pipeline.
 The instructions use `AWS Glue Studio <https://docs.aws.amazon.com/glue/latest/ug/what-is-glue-studio.html>`__, Glue's visual job editor and management interface, but the general steps apply to other ways of configuring Glue jobs as well.

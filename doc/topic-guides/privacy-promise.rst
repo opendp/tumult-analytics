@@ -5,7 +5,7 @@ Tumult Analytics' privacy promise
 
 ..
     SPDX-License-Identifier: CC-BY-SA-4.0
-    Copyright Tumult Labs 2025
+    Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 This topic guide outlines the "privacy promise" provided by Tumult Analytics,
 along with its caveats. This guarantee is based on one of the core abstractions

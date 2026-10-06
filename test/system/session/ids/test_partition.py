@@ -1,7 +1,7 @@
 """Integration tests for partition_and_create for IDs tables."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
 import pandas as pd
 import pytest

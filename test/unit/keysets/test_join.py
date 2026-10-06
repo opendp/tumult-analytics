@@ -1,7 +1,7 @@
 """Unit tests for KeySet.join."""
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright Tumult Labs 2025, and the Tumult Analytics Contributors 2025-present
 
 import datetime
 from typing import Any, Callable, ContextManager, Union

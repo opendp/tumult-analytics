@@ -42,7 +42,7 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Sch
 from tmlt.analytics.constraints import Constraint
 
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Tumult Labs 2025
+# Copyright the Tumult Analytics Contributors
 
 
 @pytest.fixture(scope="module", name="catalog")
