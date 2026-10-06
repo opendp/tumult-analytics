@@ -11,8 +11,8 @@ _logger = logging.getLogger(__name__)
 ### Project information
 
 project = "Tumult Analytics"
-author = "Tumult Labs"
-copyright = "2025"
+author = "Tumult Labs and the Tumult Analytics Contributors"
+copyright = "2022-2025 Tumult Labs, and the Tumult Analytics Contributors 2025-present"
 # Note that this is the name of the module provided by the package, not
 # necessarily the name of the package as pip understands it.
 package_name = "tmlt"
