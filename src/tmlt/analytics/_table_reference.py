@@ -4,7 +4,7 @@
 # Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
@@ -94,16 +94,67 @@ def find_children(
 
 def find_named_tables(domain: Domain) -> List[TableReference]:
     """Get a list of the names of all named tables in a domain."""
+    # Carry each node's domain along with its reference so that the domain is
+    # walked only once, rather than looked up from the root for every table.
     tables: List[TableReference] = []
-    pending = [TableReference([])]
+    pending: List[Tuple[TableReference, Domain]] = [(TableReference([]), domain)]
     while pending:
-        ref = pending.pop()
-        children = find_children(domain, ref)
-        if children is None:
-            tables.append(ref)
+        ref, ref_domain = pending.pop()
+        if isinstance(ref_domain, DictDomain):
+            pending.extend(
+                (ref / table, table_domain)
+                for table, table_domain in ref_domain.key_to_domain.items()
+            )
         else:
-            pending.extend(children)
+            tables.append(ref)
     return [t for t in tables if isinstance(t.path[-1], NamedTable)]
+
+
+def find_named_tables_with_domains_and_metrics(
+    domain: Domain, metric: Metric
+) -> List[Tuple[TableReference, Domain, Metric]]:
+    """Get all named tables in a domain, along with their domains and metrics.
+
+    The result contains, for each reference ``ref`` returned by
+    :func:`find_named_tables` (in the same order), the tuple ``(ref,
+    lookup_domain(domain, ref), lookup_metric(metric, ref))``. Unlike
+    performing those lookups separately for each table, this walks the domain
+    and metric only once, so it takes time linear in the number of tables.
+    """
+    tables: List[Tuple[TableReference, Domain, Metric]] = []
+    pending: List[Tuple[TableReference, Domain, Metric]] = [
+        (TableReference([]), domain, metric)
+    ]
+    while pending:
+        ref, ref_domain, ref_metric = pending.pop()
+        if not isinstance(ref_domain, DictDomain):
+            if isinstance(ref.path[-1], NamedTable):
+                tables.append((ref, ref_domain, ref_metric))
+            continue
+        key_to_domain = ref_domain.key_to_domain
+        # These mirror the single steps taken by lookup_metric.
+        if isinstance(ref_metric, DictMetric):
+            key_to_metric = ref_metric.key_to_metric
+            pending.extend(
+                (ref / table, table_domain, key_to_metric[table])
+                for table, table_domain in key_to_domain.items()
+            )
+        elif isinstance(ref_metric, AddRemoveKeys):
+            df_to_key_column = ref_metric.df_to_key_column
+            pending.extend(
+                (
+                    ref / table,
+                    table_domain,
+                    IfGroupedBy([df_to_key_column[table]], SymmetricDifference()),
+                )
+                for table, table_domain in key_to_domain.items()
+            )
+        else:
+            raise ValueError(
+                f"Metric at {ref.path} is a {type(ref_metric)}, cannot reference "
+                "into it."
+            )
+    return tables
 
 
 def find_reference(table_name: str, domain: Domain) -> Optional[TableReference]:

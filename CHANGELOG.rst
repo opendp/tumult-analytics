@@ -15,6 +15,7 @@ Changed
 ~~~~~~~
 
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+- Improved the performance of Sessions with many tables: the Session's table catalog is now built in time linear in the number of tables, and is no longer rebuilt for every query.
 
 Fixed
 ~~~~~
