@@ -13,7 +13,7 @@ from tmlt.core.domains.collections import DictDomain, ListDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain, SparkRowDomain
 from tmlt.core.measurements.aggregations import NoiseMechanism
 from tmlt.core.metrics import (
-    AddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     HammingDistance,
     IfGroupedBy,
@@ -31,12 +31,12 @@ from tmlt.core.transformations.dictionary import (
     create_copy_and_transform_value,
 )
 from tmlt.core.transformations.identity import Identity as IdentityTransformation
-from tmlt.core.transformations.spark_transformations.add_remove_keys import (
+from tmlt.core.transformations.spark_transformations.add_remove_ids import (
     DropInfsValue as DropInfsValueTransformation,
     DropNaNsValue as DropNaNsValueTransformation,
     DropNullsValue as DropNullsValueTransformation,
     FilterValue as FilterValueTransformation,
-    FlatMapByKeyValue as FlatMapByKeyValueTransformation,
+    FlatMapByIDValue as FlatMapByIDValueTransformation,
     FlatMapValue as FlatMapValueTransformation,
     MapValue as MapValueTransformation,
     PublicJoinValue as PublicJoinValueTransformation,
@@ -51,7 +51,7 @@ from tmlt.core.transformations.spark_transformations.filter import (
 )
 from tmlt.core.transformations.spark_transformations.join import (
     PrivateJoin as PrivateJoinTransformation,
-    PrivateJoinOnKey as PrivateJoinOnKeyTransformation,
+    PrivateJoinOnIDs as PrivateJoinOnIDsTransformation,
     PublicJoin as PublicJoinTransformation,
     TruncationStrategy as CoreTruncationStrategy,
 )
@@ -371,7 +371,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -415,7 +415,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -467,7 +467,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -549,7 +549,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -691,7 +691,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -731,7 +731,7 @@ class TransformationVisitor(QueryExprVisitor):
                 output_domain=output_domain,
                 trusted_f=getattr(expr, "f"),
             )
-            return FlatMapByKeyValueTransformation(
+            return FlatMapByIDValueTransformation(
                 parent_domain,
                 parent_metric,
                 child_ref.identifier,
@@ -740,7 +740,7 @@ class TransformationVisitor(QueryExprVisitor):
             )
 
         transformation_generators: Dict[Type[Metric], Callable] = {
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
         return self.Output(
             *generate_nested_transformation(
@@ -861,7 +861,7 @@ class TransformationVisitor(QueryExprVisitor):
                     "When joining with IDs, truncation strategies are not required."
                     " Provided truncation parameters will be ignored."
                 )
-            return PrivateJoinOnKeyTransformation(
+            return PrivateJoinOnIDsTransformation(
                 parent_domain,
                 parent_metric,
                 left_ref.identifier,
@@ -873,7 +873,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
         return self.Output(
             *generate_nested_transformation(
@@ -951,7 +951,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
         return self.Output(
             *generate_nested_transformation(
@@ -1134,9 +1134,9 @@ class TransformationVisitor(QueryExprVisitor):
                         f"Expected output domain {DictDomain}, got"
                         f" {type(transformation.output_domain)} instead."
                     )
-                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                if not isinstance(transformation.output_metric, AddRemoveIDs):
                     raise AnalyticsInternalError(
-                        f"Expected output metric {AddRemoveKeys}, got"
+                        f"Expected output metric {AddRemoveIDs}, got"
                         f" {type(transformation.output_metric)} instead."
                     )
                 transformation |= ReplaceNaNsValueTransformation(
@@ -1154,9 +1154,9 @@ class TransformationVisitor(QueryExprVisitor):
                         f"Expected output domain {DictDomain}, got"
                         f" {type(transformation.output_domain)} instead."
                     )
-                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                if not isinstance(transformation.output_metric, AddRemoveIDs):
                     raise AnalyticsInternalError(
-                        f"Expected output metric {AddRemoveKeys}, got"
+                        f"Expected output metric {AddRemoveIDs}, got"
                         f" {type(transformation.output_metric)} instead."
                     )
                 transformation |= RenameValueTransformation(
@@ -1170,7 +1170,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -1231,7 +1231,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -1299,7 +1299,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(
@@ -1413,9 +1413,9 @@ class TransformationVisitor(QueryExprVisitor):
                         f"Expected output domain {DictDomain}, got"
                         f" {type(transformation.output_domain)} instead."
                     )
-                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                if not isinstance(transformation.output_metric, AddRemoveIDs):
                     raise AnalyticsInternalError(
-                        f"Expected output metric {AddRemoveKeys}, got"
+                        f"Expected output metric {AddRemoveIDs}, got"
                         f" {type(transformation.output_metric)} instead."
                     )
                 transformation |= DropNaNsValueTransformation(
@@ -1433,9 +1433,9 @@ class TransformationVisitor(QueryExprVisitor):
                         f"Expected output domain {DictDomain}, got"
                         f" {type(transformation.output_domain)} instead."
                     )
-                if not isinstance(transformation.output_metric, AddRemoveKeys):
+                if not isinstance(transformation.output_metric, AddRemoveIDs):
                     raise AnalyticsInternalError(
-                        f"Expected output metric {AddRemoveKeys}, got"
+                        f"Expected output metric {AddRemoveIDs}, got"
                         f" {type(transformation.output_metric)} instead."
                     )
                 transformation |= RenameValueTransformation(
@@ -1449,7 +1449,7 @@ class TransformationVisitor(QueryExprVisitor):
 
         transformation_generators: Dict[Type[Metric], Callable] = {
             DictMetric: gen_transformation_dictmetric,
-            AddRemoveKeys: gen_transformation_ark,
+            AddRemoveIDs: gen_transformation_ark,
         }
 
         return self.Output(

@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 import sympy as sp
 from tmlt.core.metrics import (
-    AddRemoveKeys as CoreAddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     SymmetricDifference,
 )
@@ -188,10 +188,10 @@ def test_partition_and_create_with_MaxGroupsPerID(session, table_stability):
     assert_dataframe_equal(answer_session3, pd.DataFrame({"count": [1]}))
 
     assert session2._input_metric == DictMetric(
-        {TableCollection("a"): CoreAddRemoveKeys({NamedTable("part0"): "id"})}
+        {TableCollection("a"): AddRemoveIDs({NamedTable("part0"): "id"})}
     )
     assert session3._input_metric == DictMetric(
-        {TableCollection("a"): CoreAddRemoveKeys({NamedTable("part1"): "id"})}
+        {TableCollection("a"): AddRemoveIDs({NamedTable("part1"): "id"})}
     )
     assert session2._accountant.d_in == {TableCollection("a"): table_stability}
     assert session3._accountant.d_in == {TableCollection("a"): table_stability}

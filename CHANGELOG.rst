@@ -15,6 +15,7 @@ Changed
 ~~~~~~~
 
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+- Updated to Tumult Core 0.20, which renamed several components to refer to IDs rather than groups or keys (for example, ``AddRemoveKeys`` is now ``AddRemoveIDs``). Tumult Analytics now requires ``tmlt.core >=0.20.0rc1,<0.21``.
 
 Fixed
 ~~~~~

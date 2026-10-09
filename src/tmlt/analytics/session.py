@@ -1638,7 +1638,7 @@ class Session:
                     input_domain=accountant.input_domain,
                     input_metric=accountant.input_metric,
                     key=NamedTable(source),
-                    use_add_remove_keys=True,
+                    use_add_remove_ids=True,
                 )
                 # Create the outer dictionary for the id space
                 nested_dict_transformation |= CreateDictFromValue(
