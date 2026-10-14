@@ -2454,6 +2454,12 @@ class QueryBuilder:
         """Returns a sum query ready to be evaluated.
 
         .. note::
+            If ``column`` has integer type and ``low`` or ``high`` is larger
+            than ``2**23`` in absolute value, the sum is computed on floating-point
+            values, and the output column has floating-point type, to avoid integer
+            overflows.
+
+        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -3300,6 +3306,12 @@ class GroupedQueryBuilder:
         ] = "default",
     ) -> Query:
         """Returns a Query with a sum query.
+
+        .. note::
+            If ``column`` has integer type and ``low`` or ``high`` is larger
+            than ``2**23`` in absolute value, the sum is computed on floating-point
+            values, and the output column has floating-point type, to avoid integer
+            overflows.
 
         .. note::
             If the column being measured contains NaN or null values, a

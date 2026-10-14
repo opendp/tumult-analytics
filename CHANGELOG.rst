@@ -15,6 +15,7 @@ Changed
 ~~~~~~~
 
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+- :meth:`~tmlt.analytics.QueryBuilder.sum` on an integer column with clamping bounds larger than ``2**23`` in absolute value is now computed on floating-point values, and returns a floating-point column, to avoid integer overflows.
 
 Fixed
 ~~~~~

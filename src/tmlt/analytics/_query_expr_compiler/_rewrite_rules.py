@@ -32,16 +32,19 @@ from tmlt.analytics._query_expr import (
     GroupByCountDistinct,
     GroupByQuantile,
     JoinPrivate,
+    Map,
     PrivateSource,
     QueryExpr,
     ReplaceInfinity,
+    Row,
     SingleChildQueryExpr,
     StdevMechanism,
     SumMechanism,
     SuppressAggregates,
     VarianceMechanism,
+    sums_as_float,
 )
-from tmlt.analytics._schema import ColumnType
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 
 
 @dataclass(frozen=True)
@@ -203,6 +206,53 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
     return select_noise
 
 
+def _to_float(column: str, new_column: str) -> Callable[[Row], Row]:
+    """Returns a map function copying ``column`` into ``new_column`` as a float."""
+
+    def f(row: Row) -> Row:
+        value = row[column]
+        return {new_column: None if value is None else float(value)}
+
+    return f
+
+
+def cast_large_integer_sums_to_float(
+    info: CompilationInfo,
+) -> Callable[[QueryExpr], QueryExpr]:
+    """Rewrites integer sums with large clamping bounds to sum floats instead.
+
+    Summing such values as 64-bit integers could overflow, so the measure column is
+    copied into a new floating-point column, which the sum is computed on.
+    """
+
+    @depth_first
+    def cast_large_integer_sums(expr: QueryExpr) -> QueryExpr:
+        if not isinstance(expr, GroupByBoundedSum):
+            return expr
+        schema = expr.child.schema(info.catalog)
+        if schema[expr.measure_column].column_type != ColumnType.INTEGER or (
+            not sums_as_float(expr, schema)
+        ):
+            return expr
+        float_column = f"{expr.measure_column}_as_float"
+        while float_column in schema:
+            float_column = f"_{float_column}"
+        return replace(
+            expr,
+            child=Map(
+                child=expr.child,
+                f=_to_float(expr.measure_column, float_column),
+                schema_new_columns=Schema(
+                    {float_column: ColumnDescriptor(ColumnType.DECIMAL)}
+                ),
+                augment=True,
+            ),
+            measure_column=float_column,
+        )
+
+    return cast_large_integer_sums
+
+
 def add_special_value_handling(
     info: CompilationInfo,
 ) -> Callable[[QueryExpr], QueryExpr]:
@@ -264,6 +314,7 @@ def add_special_value_handling(
 def rewrite(info: CompilationInfo, expr: QueryExpr) -> QueryExpr:
     """Rewrites the given QueryExpr into a QueryExpr that can be compiled."""
     rewrite_rules = [
+        cast_large_integer_sums_to_float(info),
         add_special_value_handling(info),
         select_noise_mechanism(info),
     ]

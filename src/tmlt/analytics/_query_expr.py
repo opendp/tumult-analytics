@@ -115,11 +115,11 @@ class SumMechanism(Enum):
     """
     LAPLACE = auto()
     """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
+    column type and clamping bounds.
     """
     GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type
+    and clamping bounds. Not compatible with pure DP.
     """
 
 
@@ -1899,6 +1899,18 @@ def _validate_groupby(
             )
 
 
+MAX_INTEGER_SUM_BOUND = 2**23
+"""Integer sums with clamping bounds beyond this value (in absolute value) are
+computed on floating-point values, so the sum cannot overflow."""
+
+
+def sums_as_float(query: "GroupByBoundedSum", input_schema: Schema) -> bool:
+    """Returns whether a sum query is computed on floating-point values."""
+    return input_schema[query.measure_column].column_type == ColumnType.DECIMAL or (
+        max(abs(query.low), abs(query.high)) > MAX_INTEGER_SUM_BOUND
+    )
+
+
 def _schema_for_groupby(
     query: Union[
         "GetBounds",
@@ -1922,13 +1934,14 @@ def _schema_for_groupby(
     # Determining the output column types & names
     if isinstance(query, (GroupByCount, GroupByCountDistinct)):
         output_column_type = ColumnType.INTEGER
+    elif isinstance(query, GroupByBoundedSum) and sums_as_float(query, input_schema):
+        output_column_type = ColumnType.DECIMAL
     elif isinstance(query, (GetBounds, GroupByBoundedSum)):
         output_column_type = input_schema[query.measure_column].column_type
     elif isinstance(
         query,
         (
             GroupByQuantile,
-            GroupByBoundedSum,
             GroupByBoundedStdev,
             GroupByBoundedAverage,
             GroupByBoundedVariance,

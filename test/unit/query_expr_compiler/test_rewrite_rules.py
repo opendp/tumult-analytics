@@ -23,6 +23,7 @@ from tmlt.analytics._query_expr import (
     GroupByBoundedVariance,
     GroupByCount,
     GroupByCountDistinct,
+    Map,
     PrivateSource,
     QueryExpr,
     QueryExprVisitor,
@@ -35,7 +36,10 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._query_expr_compiler._rewrite_rules import (
     CompilationInfo,
+    _to_float,
     add_special_value_handling,
+    cast_large_integer_sums_to_float,
+    rewrite,
     select_noise_mechanism,
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
@@ -672,4 +676,139 @@ def test_special_value_handling_get_bounds(
     assert got_expr == replace(
         expr,
         child=new_child,
+    )
+
+
+@parametrize(
+    [
+        Case()(low=0, high=2**23 + 1),
+        Case()(low=-(2**23) - 1, high=0),
+        Case()(low=-(2**40), high=2**40),
+    ]
+)
+def test_cast_large_integer_sums(catalog: Catalog, low: int, high: int) -> None:
+    """Integer sums with large clamping bounds are computed on a float column."""
+    expr = GroupByBoundedSum(
+        child=BASE_EXPR,
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="int_col",
+        low=low,
+        high=high,
+    )
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    got_expr = cast_large_integer_sums_to_float(info)(expr)
+    assert got_expr == replace(
+        expr,
+        child=Map(
+            child=BASE_EXPR,
+            f=_to_float("int_col", "int_col_as_float"),
+            schema_new_columns=Schema(
+                {"int_col_as_float": ColumnDescriptor(ColumnType.DECIMAL)}
+            ),
+            augment=True,
+        ),
+        measure_column="int_col_as_float",
+    )
+
+
+@parametrize(
+    [
+        Case()(agg="sum", measure_column="int_col", low=-(2**23), high=2**23),
+        Case()(agg="sum", measure_column="float_col", low=-(2**40), high=2**40),
+        Case()(agg="average", measure_column="int_col", low=-(2**40), high=2**40),
+        Case()(agg="stdev", measure_column="int_col", low=-(2**40), high=2**40),
+        Case()(agg="variance", measure_column="int_col", low=-(2**40), high=2**40),
+    ]
+)
+def test_cast_large_integer_sums_unaffected(
+    catalog: Catalog, agg: str, measure_column: str, low: int, high: int
+) -> None:
+    """Other aggregations, and sums with small bounds or on floats, are unchanged."""
+    (AggExpr, AggMech) = AGG_CLASSES[agg]
+    expr = AggExpr(
+        child=BASE_EXPR,
+        groupby_keys=KeySet.from_dict({}),
+        measure_column=measure_column,
+        low=low,
+        high=high,
+        mechanism=AggMech["DEFAULT"],
+    )
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    assert cast_large_integer_sums_to_float(info)(expr) == expr
+
+
+def test_cast_large_integer_sums_avoids_existing_columns() -> None:
+    """The float column gets a name that is not already in the table."""
+    catalog = Catalog()
+    catalog.add_private_table(
+        "private",
+        {
+            "int_col": ColumnDescriptor(ColumnType.INTEGER),
+            "int_col_as_float": ColumnDescriptor(ColumnType.INTEGER),
+            "_int_col_as_float": ColumnDescriptor(ColumnType.INTEGER),
+        },
+        constraints=[],
+    )
+    expr = GroupByBoundedSum(
+        child=BASE_EXPR,
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="int_col",
+        low=0,
+        high=2**40,
+    )
+    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    got_expr = cast_large_integer_sums_to_float(info)(expr)
+    assert isinstance(got_expr, GroupByBoundedSum)
+    assert got_expr.measure_column == "__int_col_as_float"
+
+
+@parametrize(
+    [
+        Case()(value=3, expected=3.0),
+        Case()(value=2**60 + 1, expected=float(2**60)),
+        Case()(value=None, expected=None),
+    ]
+)
+def test_to_float(value: Any, expected: Any) -> None:
+    """The map function copies the measure column as a float."""
+    got = _to_float("int_col", "int_col_as_float")({"int_col": value, "other": "a"})
+    assert got == {"int_col_as_float": expected}
+    assert type(got["int_col_as_float"]) is type(expected)
+
+
+@parametrize(
+    [
+        Case()(output_measure=PureDP(), expected_mechanism=NoiseMechanism.LAPLACE),
+        Case()(output_measure=RhoZCDP(), expected_mechanism=NoiseMechanism.GAUSSIAN),
+    ]
+)
+def test_rewrite_large_integer_sum(
+    catalog: Catalog,
+    output_measure: Union[PureDP, RhoZCDP],
+    expected_mechanism: NoiseMechanism,
+) -> None:
+    """Large integer sums drop nulls from the float column and use float noise."""
+    expr = GroupByBoundedSum(
+        child=BASE_EXPR,
+        groupby_keys=KeySet.from_dict({}),
+        measure_column="int_col",
+        low=0,
+        high=2**40,
+    )
+    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
+    assert rewrite(info, expr) == replace(
+        expr,
+        child=DropNullAndNan(
+            child=Map(
+                child=BASE_EXPR,
+                f=_to_float("int_col", "int_col_as_float"),
+                schema_new_columns=Schema(
+                    {"int_col_as_float": ColumnDescriptor(ColumnType.DECIMAL)}
+                ),
+                augment=True,
+            ),
+            columns=("int_col_as_float",),
+        ),
+        measure_column="int_col_as_float",
+        core_mechanism=expected_mechanism,
     )
