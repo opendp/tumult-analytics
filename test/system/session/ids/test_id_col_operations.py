@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pytest
 from tmlt.core.domains.collections import DictDomain
-from tmlt.core.metrics import AddRemoveKeys
+from tmlt.core.metrics import AddRemoveIDs
 
 from tmlt.analytics import (
     AddRowsWithID,
@@ -241,7 +241,7 @@ def test_various_session_builds(
 
     for table_collection, ark_metric in sess._input_metric.key_to_metric.items():
         dict_domain = sess._input_domain.key_to_domain[table_collection]
-        assert isinstance(ark_metric, AddRemoveKeys)
+        assert isinstance(ark_metric, AddRemoveIDs)
         assert isinstance(dict_domain, DictDomain)
         sparkdf_domain_dict: Dict[Any, Any]
         sparkdf_domain_dict = dict_domain.key_to_domain
@@ -255,12 +255,12 @@ def test_various_session_builds(
                 sparkdf_domain_dict[table_id]  # type: ignore
                 .schema[key_column]
                 .allow_null
-                for table_id, key_column in ark_metric.df_to_key_column.items()
+                for table_id, key_column in ark_metric.df_to_id_column.items()
             )
         else:
             assert not any(
                 sparkdf_domain_dict[table_id]  # type: ignore
                 .schema[key_column]
                 .allow_null
-                for table_id, key_column in ark_metric.df_to_key_column.items()
+                for table_id, key_column in ark_metric.df_to_id_column.items()
             )

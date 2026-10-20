@@ -8,7 +8,7 @@ from typing import Callable, Dict, Optional, Tuple, Type, cast
 from tmlt.core.domains.base import Domain
 from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
-from tmlt.core.metrics import AddRemoveKeys, DictMetric, Metric
+from tmlt.core.metrics import AddRemoveIDs, DictMetric, Metric
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.dictionary import (
     GetValue as GetValueTransformation,
@@ -17,7 +17,7 @@ from tmlt.core.transformations.dictionary import (
     create_transform_value,
 )
 from tmlt.core.transformations.identity import Identity
-from tmlt.core.transformations.spark_transformations.add_remove_keys import (
+from tmlt.core.transformations.spark_transformations.add_remove_ids import (
     PersistValue as PersistValueTransformation,
     RenameValue as RenameValueTransformation,
     UnpersistValue as UnpersistValueTransformation,
@@ -132,9 +132,9 @@ def rename_table(
             raise AnalyticsInternalError(
                 f"Expected DictDomain but got {type(pd).__name__}."
             )
-        if not isinstance(pm, AddRemoveKeys):
+        if not isinstance(pm, AddRemoveIDs):
             raise AnalyticsInternalError(
-                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+                f"Expected AddRemoveIDs but got {type(pm).__name__}."
             )
         # Note: No dataframe column is getting renamed here;
         # RenameValueTransformation is used to rename tables
@@ -142,7 +142,7 @@ def rename_table(
 
     transformation_generators: Dict[Type[Metric], Callable] = {
         DictMetric: gen_transformation_dictmetric,
-        AddRemoveKeys: gen_transformation_ark,
+        AddRemoveIDs: gen_transformation_ark,
     }
     new_transformation, new_ref = generate_nested_transformation(
         base_transformation, base_ref.parent, transformation_generators, new_table_id
@@ -160,9 +160,9 @@ def delete_table(
             raise AnalyticsInternalError(
                 f"Expected DictDomain but got {type(pd).__name__}."
             )
-        if not isinstance(pm, (DictMetric, AddRemoveKeys)):
+        if not isinstance(pm, (DictMetric, AddRemoveIDs)):
             raise AnalyticsInternalError(
-                f"Expected DictMetric or AddRemoveKeys but got {type(pm).__name__}."
+                f"Expected DictMetric or AddRemoveIDs but got {type(pm).__name__}."
             )
 
         # having temp tables around can cause problems,
@@ -185,7 +185,7 @@ def delete_table(
 
     transformation_generators: Dict[Type[Metric], Callable] = {
         DictMetric: gen_transformation,
-        AddRemoveKeys: gen_transformation,
+        AddRemoveIDs: gen_transformation,
     }
     new_transformation, _ = generate_nested_transformation(
         base_transformation,
@@ -231,15 +231,15 @@ def persist_table(
             raise AnalyticsInternalError(
                 f"Expected DictDomain but got {type(pd).__name__}."
             )
-        if not isinstance(pm, AddRemoveKeys):
+        if not isinstance(pm, AddRemoveIDs):
             raise AnalyticsInternalError(
-                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+                f"Expected AddRemoveIDs but got {type(pm).__name__}."
             )
         return PersistValueTransformation(pd, pm, base_ref.identifier, tgt)
 
     transformation_generators: Dict[Type[Metric], Callable] = {
         DictMetric: gen_transformation_dictmetric,
-        AddRemoveKeys: gen_transformation_ark,
+        AddRemoveIDs: gen_transformation_ark,
     }
     new_transformation, new_ref = generate_nested_transformation(
         base_transformation, base_ref.parent, transformation_generators, new_table_id
@@ -280,15 +280,15 @@ def unpersist_table(
             raise AnalyticsInternalError(
                 f"Expected DictDomain but got {type(pd).__name__}."
             )
-        if not isinstance(pm, AddRemoveKeys):
+        if not isinstance(pm, AddRemoveIDs):
             raise AnalyticsInternalError(
-                f"Expected AddRemoveKeys but got {type(pm).__name__}."
+                f"Expected AddRemoveIDs but got {type(pm).__name__}."
             )
         return UnpersistValueTransformation(pd, pm, base_ref.identifier, tgt)
 
     transformation_generators: Dict[Type[Metric], Callable] = {
         DictMetric: gen_transformation_dictmetric,
-        AddRemoveKeys: gen_transformation_ark,
+        AddRemoveIDs: gen_transformation_ark,
     }
     new_transformation, _ = generate_nested_transformation(
         base_transformation, base_ref.parent, transformation_generators
@@ -307,9 +307,9 @@ def get_table_from_ref(
             raise AnalyticsInternalError(
                 f"Expected DictDomain but got {type(domain).__name__}."
             )
-        if not isinstance(metric, (DictMetric, AddRemoveKeys)):
+        if not isinstance(metric, (DictMetric, AddRemoveIDs)):
             raise AnalyticsInternalError(
-                f"Expected DictMetric or AddRemoveKeys but got {type(metric).__name__}."
+                f"Expected DictMetric or AddRemoveIDs but got {type(metric).__name__}."
             )
 
         transformation = transformation | GetValueTransformation(domain, metric, p)

@@ -715,7 +715,7 @@ class TestQueryExprCompiler:
                     mechanism=AverageMechanism.LAPLACE,
                 ),
                 PureDP(),
-                pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]}),
+                pd.DataFrame({"A": ["0", "1"], "average": [1 / 3, 0.0]}),
             ),
             (  # BoundedAverage with integer valued measure column with GAUSSIAN
                 GroupByBoundedAverage(
@@ -727,7 +727,7 @@ class TestQueryExprCompiler:
                     mechanism=AverageMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
-                pd.DataFrame({"A": ["0", "1"], "average": [0.33333, 0.0]}),
+                pd.DataFrame({"A": ["0", "1"], "average": [1 / 3, 0.0]}),
             ),
             (  # BoundedSTDEV on floating-point valued measure column with LAPLACE
                 GroupByBoundedStdev(

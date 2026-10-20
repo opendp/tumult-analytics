@@ -13,7 +13,7 @@ from typing import Dict, Iterable, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.metrics import (
-    AddRemoveKeys,
+    AddRemoveIDs,
     IfGroupedBy,
     RootSumOfSquared,
     SumOf,
@@ -24,15 +24,15 @@ from tmlt.core.transformations.dictionary import (
     AugmentDictTransformation,
     CreateDictFromValue,
 )
-from tmlt.core.transformations.spark_transformations.add_remove_keys import (
-    LimitKeysPerGroupValue,
-    LimitRowsPerGroupValue,
-    LimitRowsPerKeyPerGroupValue,
+from tmlt.core.transformations.spark_transformations.add_remove_ids import (
+    LimitGroupsPerIDValue,
+    LimitRowsPerGroupPerIDValue,
+    LimitRowsPerIDValue,
 )
 from tmlt.core.transformations.spark_transformations.truncation import (
-    LimitKeysPerGroup,
-    LimitRowsPerGroup,
-    LimitRowsPerKeyPerGroup,
+    LimitGroupsPerID,
+    LimitRowsPerGroupPerID,
+    LimitRowsPerID,
 )
 from typeguard import check_type
 
@@ -111,7 +111,7 @@ class MaxRowsPerID(Constraint):
         parent_metric = lookup_metric(
             child_transformation.output_metric, child_ref.parent
         )
-        if not isinstance(parent_metric, AddRemoveKeys):
+        if not isinstance(parent_metric, AddRemoveIDs):
             raise ValueError(
                 "The MaxRowsPerID constraint can only be applied to tables with "
                 "the AddRowsWithID protected change."
@@ -130,7 +130,7 @@ class MaxRowsPerID(Constraint):
                     "Expected MaxRowsPerID to return an IfGroupedBy metric, but got "
                     f"{transformation.output_metric} instead."
                 )
-            transformation |= LimitRowsPerGroup(
+            transformation |= LimitRowsPerID(
                 transformation.output_domain,
                 SymmetricDifference(),
                 transformation.output_metric.columns,
@@ -149,14 +149,14 @@ class MaxRowsPerID(Constraint):
         else:
 
             def gen_transformation_ark(parent_domain, parent_metric, target):
-                return LimitRowsPerGroupValue(
+                return LimitRowsPerIDValue(
                     parent_domain, parent_metric, child_ref.identifier, target, self.max
                 )
 
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_transformation_ark},
+                {AddRemoveIDs: gen_transformation_ark},
             )
 
 
@@ -196,7 +196,7 @@ class MaxGroupsPerID(Constraint):
             parent_metric = lookup_metric(
                 child_transformation.output_metric, child_ref.parent
             )
-            if not isinstance(parent_metric, AddRemoveKeys):
+            if not isinstance(parent_metric, AddRemoveIDs):
                 raise ValueError(
                     "The MaxGroupsPerID constraint can only be applied to tables with "
                     "the AddRowsWithID protected change."
@@ -237,11 +237,11 @@ class MaxGroupsPerID(Constraint):
                     )
                 )
 
-            transformation |= LimitKeysPerGroup(
+            transformation |= LimitGroupsPerID(
                 transformation.output_domain,
                 IfGroupedBy([self.grouping_column], inner_metric),
                 transformation.output_metric.columns,
-                self.grouping_column,
+                [self.grouping_column],
                 self.max,
             )
             transformation = AugmentDictTransformation(
@@ -257,19 +257,19 @@ class MaxGroupsPerID(Constraint):
         else:
 
             def gen_transformation_ark(parent_domain, parent_metric, target):
-                return LimitKeysPerGroupValue(
+                return LimitGroupsPerIDValue(
                     parent_domain,
                     parent_metric,
                     child_ref.identifier,
                     target,
-                    self.grouping_column,
+                    [self.grouping_column],
                     self.max,
                 )
 
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_transformation_ark},
+                {AddRemoveIDs: gen_transformation_ark},
             )
 
 
@@ -332,11 +332,11 @@ class MaxRowsPerGroupPerID(Constraint):
                     "metric, but got a(n) "
                     f"{transformation.output_metric.inner_metric.inner_metric} instead."
                 )
-            transformation |= LimitRowsPerKeyPerGroup(
+            transformation |= LimitRowsPerGroupPerID(
                 transformation.output_domain,
                 transformation.output_metric,
                 transformation.output_metric.inner_metric.inner_metric.columns,
-                self.grouping_column,
+                [self.grouping_column],
                 self.max,
             )
 
@@ -354,24 +354,24 @@ class MaxRowsPerGroupPerID(Constraint):
             parent_metric = lookup_metric(
                 child_transformation.output_metric, child_ref.parent
             )
-            if not isinstance(parent_metric, AddRemoveKeys):
+            if not isinstance(parent_metric, AddRemoveIDs):
                 raise ValueError(
                     "The MaxRowsPerGroupPerID constraint can only be applied to tables"
                     " with the AddRowsWithID protected change."
                 )
 
             def gen_transformation_ark(parent_domain, parent_metric, target):
-                return LimitRowsPerKeyPerGroupValue(
+                return LimitRowsPerGroupPerIDValue(
                     parent_domain,
                     parent_metric,
                     child_ref.identifier,
                     target,
-                    self.grouping_column,
+                    [self.grouping_column],
                     self.max,
                 )
 
             return generate_nested_transformation(
                 child_transformation,
                 child_ref.parent,
-                {AddRemoveKeys: gen_transformation_ark},
+                {AddRemoveIDs: gen_transformation_ark},
             )

@@ -30,7 +30,7 @@ from tmlt.core.domains.spark_domains import (
     SparkTimestampColumnDescriptor,
 )
 from tmlt.core.measurements.aggregations import NoiseMechanism
-from tmlt.core.metrics import AddRemoveKeys, DictMetric, SymmetricDifference
+from tmlt.core.metrics import AddRemoveIDs, DictMetric, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.utils.testing import assert_dataframe_equal
@@ -357,7 +357,7 @@ def _visitor(request, _catalog):
             NamedTable("rows1"): SymmetricDifference(),
             NamedTable("rows2"): SymmetricDifference(),
             NamedTable("rows_infs_nans"): SymmetricDifference(),
-            TableCollection("ids"): AddRemoveKeys(
+            TableCollection("ids"): AddRemoveIDs(
                 {
                     NamedTable("ids1"): "id",
                     NamedTable("ids2"): "id",
@@ -392,7 +392,7 @@ class TestTransformationVisitor:
         self, t: Transformation, ref: TableReference, transformed_df: DataFrame
     ) -> None:
         assert isinstance(t.output_domain, DictDomain)
-        assert isinstance(t.output_metric, (DictMetric, AddRemoveKeys))
+        assert isinstance(t.output_metric, (DictMetric, AddRemoveIDs))
         result_df = self._get_result(t, ref)
         assert_dataframe_equal(result_df, transformed_df)
 
@@ -461,7 +461,7 @@ def _nulls_visitor(request, _nulls_catalog):
     input_metric = DictMetric(
         {
             NamedTable("rows"): SymmetricDifference(),
-            TableCollection("ids"): AddRemoveKeys({NamedTable("ids"): "id"}),
+            TableCollection("ids"): AddRemoveIDs({NamedTable("ids"): "id"}),
         }
     )
     visitor = TransformationVisitor(

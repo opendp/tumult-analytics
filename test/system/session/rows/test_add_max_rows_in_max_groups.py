@@ -123,11 +123,13 @@ class TestSession:
                     {
                         "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                         # the upper and lower bounds of the sum aggregation
-                        # are -173 and 172;
+                        # are -172.5 and 172.5;
                         # this is (lower - midpoint) and (upper-midpoint) respectively
                         "noise_parameter": (
                             calculate_noise_scale(
-                                173, ExactNumber(11) / ExactNumber(2), RhoZCDP()
+                                ExactNumber("172.5"),
+                                ExactNumber(11) / ExactNumber(2),
+                                RhoZCDP(),
                             )
                             ** 2
                         ).to_float(round_up=False),
