@@ -17,6 +17,7 @@ from tmlt.core.domains.spark_domains import (
     SparkTimestampColumnDescriptor,
 )
 
+from tmlt.analytics._coerce_spark_schema import TYPE_COERCION_MAP
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -212,15 +213,21 @@ class TestSchemaConversions:
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
         assert expected == analytics_columns_1
 
-        # Now test the domain --> columns conversion. Core domains only support
-        # 64-bit numeric types, so the IntegerType and FloatType columns are left out.
+        # Now test the domain --> columns conversion. Analytics casts 32-bit numeric
+        # columns to 64-bit before building Core domains.
         domain = SparkDataFrameDomain.from_spark_schema(
             spark_types.StructType(
-                [field for field in spark_schema if field.name not in ("B", "D")]
+                [
+                    spark_types.StructField(
+                        field.name,
+                        TYPE_COERCION_MAP.get(field.dataType, field.dataType),
+                        field.nullable,
+                    )
+                    for field in spark_schema
+                ]
             )
         )
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
-        del expected["B"], expected["D"]
         assert expected == analytics_columns_2
 
     def test_spark_conversions_with_null(self) -> None:
@@ -255,15 +262,21 @@ class TestSchemaConversions:
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
         assert expected == analytics_columns_1
 
-        # Now test the domain --> columns conversion. Core domains only support
-        # 64-bit numeric types, so the IntegerType and FloatType columns are left out.
+        # Now test the domain --> columns conversion. Analytics casts 32-bit numeric
+        # columns to 64-bit before building Core domains.
         domain = SparkDataFrameDomain.from_spark_schema(
             spark_types.StructType(
-                [field for field in spark_schema if field.name not in ("B", "D")]
+                [
+                    spark_types.StructField(
+                        field.name,
+                        TYPE_COERCION_MAP.get(field.dataType, field.dataType),
+                        field.nullable,
+                    )
+                    for field in spark_schema
+                ]
             )
         )
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
-        del expected["B"], expected["D"]
         assert expected == analytics_columns_2
 
     def test_domain_conversion(self) -> None:
