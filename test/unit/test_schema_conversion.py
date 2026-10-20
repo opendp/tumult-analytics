@@ -17,7 +17,6 @@ from tmlt.core.domains.spark_domains import (
     SparkTimestampColumnDescriptor,
 )
 
-from tmlt.analytics._coerce_spark_schema import TYPE_COERCION_MAP
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -36,38 +35,46 @@ class TestSchemaConversions:
     def test_analytics_to_py_types(self) -> None:
         """Make sure SQL92 types are mapped to the right python types."""
         columns = {
-            "1": "INTEGER",
-            "2": "DECIMAL",
-            "3": "VARCHAR",
-            "4": "DATE",
-            "5": "TIMESTAMP",
+            "int_col": "INTEGER",
+            "float_col": "DECIMAL",
+            "str_col": "VARCHAR",
+            "date_col": "DATE",
+            "timestamp_col": "TIMESTAMP",
         }
         py_columns = analytics_to_py_types(Schema(columns))
-        assert py_columns["1"] == int
-        assert py_columns["2"] == float
-        assert py_columns["3"] == str
-        assert py_columns["4"] == datetime.date
-        assert py_columns["5"] == datetime.datetime
+        assert py_columns["int_col"] == int
+        assert py_columns["float_col"] == float
+        assert py_columns["str_col"] == str
+        assert py_columns["date_col"] == datetime.date
+        assert py_columns["timestamp_col"] == datetime.datetime
 
     def test_analytics_to_spark_schema(self):
         """Make sure conversion to Spark schema works properly."""
         analytics_schema = Schema(
             {
-                "1": "INTEGER",
-                "2": "DECIMAL",
-                "3": "VARCHAR",
-                "4": "DATE",
-                "5": "TIMESTAMP",
+                "int_col": "INTEGER",
+                "float_col": "DECIMAL",
+                "str_col": "VARCHAR",
+                "date_col": "DATE",
+                "timestamp_col": "TIMESTAMP",
             }
         )
         expected_spark_schema = spark_types.StructType(
             [
-                spark_types.StructField("1", spark_types.LongType(), nullable=False),
-                spark_types.StructField("2", spark_types.DoubleType(), nullable=False),
-                spark_types.StructField("3", spark_types.StringType(), nullable=False),
-                spark_types.StructField("4", spark_types.DateType(), nullable=False),
                 spark_types.StructField(
-                    "5", spark_types.TimestampType(), nullable=False
+                    "int_col", spark_types.LongType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "float_col", spark_types.DoubleType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "str_col", spark_types.StringType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "date_col", spark_types.DateType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "timestamp_col", spark_types.TimestampType(), nullable=False
                 ),
             ]
         )
@@ -78,21 +85,31 @@ class TestSchemaConversions:
         """Test conversion to Spark schema with allow_null=True."""
         analytics_schema = Schema(
             {
-                "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-                "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+                "int_col": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                "float_col": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
+                "str_col": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+                "date_col": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "timestamp_col": ColumnDescriptor(
+                    ColumnType.TIMESTAMP, allow_null=True
+                ),
             }
         )
         expected_spark_schema = spark_types.StructType(
             [
-                spark_types.StructField("1", spark_types.LongType(), nullable=True),
-                spark_types.StructField("2", spark_types.DoubleType(), nullable=True),
-                spark_types.StructField("3", spark_types.StringType(), nullable=True),
-                spark_types.StructField("4", spark_types.DateType(), nullable=True),
                 spark_types.StructField(
-                    "5", spark_types.TimestampType(), nullable=True
+                    "int_col", spark_types.LongType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "float_col", spark_types.DoubleType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "str_col", spark_types.StringType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "date_col", spark_types.DateType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "timestamp_col", spark_types.TimestampType(), nullable=True
                 ),
             ]
         )
@@ -105,65 +122,77 @@ class TestSchemaConversions:
             (
                 Schema(
                     {
-                        "1": "INTEGER",
-                        "2": "DECIMAL",
-                        "3": "VARCHAR",
-                        "4": "DATE",
-                        "5": "TIMESTAMP",
+                        "int_col": "INTEGER",
+                        "float_col": "DECIMAL",
+                        "str_col": "VARCHAR",
+                        "date_col": "DATE",
+                        "timestamp_col": "TIMESTAMP",
                     }
                 ),
                 {
-                    "1": SparkIntegerColumnDescriptor(),
-                    "2": SparkFloatColumnDescriptor(),
-                    "3": SparkStringColumnDescriptor(),
-                    "4": SparkDateColumnDescriptor(),
-                    "5": SparkTimestampColumnDescriptor(),
+                    "int_col": SparkIntegerColumnDescriptor(),
+                    "float_col": SparkFloatColumnDescriptor(),
+                    "str_col": SparkStringColumnDescriptor(),
+                    "date_col": SparkDateColumnDescriptor(),
+                    "timestamp_col": SparkTimestampColumnDescriptor(),
                 },
             ),
             (
                 Schema(
                     {
-                        "1": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "2": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                        "3": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                        "4": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-                        "5": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+                        "int_col": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=True
+                        ),
+                        "float_col": ColumnDescriptor(
+                            ColumnType.DECIMAL, allow_null=True
+                        ),
+                        "str_col": ColumnDescriptor(
+                            ColumnType.VARCHAR, allow_null=True
+                        ),
+                        "date_col": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                        "timestamp_col": ColumnDescriptor(
+                            ColumnType.TIMESTAMP, allow_null=True
+                        ),
                     }
                 ),
                 {
-                    "1": SparkIntegerColumnDescriptor(allow_null=True),
-                    "2": SparkFloatColumnDescriptor(allow_null=True),
-                    "3": SparkStringColumnDescriptor(allow_null=True),
-                    "4": SparkDateColumnDescriptor(allow_null=True),
-                    "5": SparkTimestampColumnDescriptor(allow_null=True),
+                    "int_col": SparkIntegerColumnDescriptor(allow_null=True),
+                    "float_col": SparkFloatColumnDescriptor(allow_null=True),
+                    "str_col": SparkStringColumnDescriptor(allow_null=True),
+                    "date_col": SparkDateColumnDescriptor(allow_null=True),
+                    "timestamp_col": SparkTimestampColumnDescriptor(allow_null=True),
                 },
             ),
             (
                 Schema(
                     {
-                        "i": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                        "i2": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
-                        "d1": ColumnDescriptor(
+                        "nullable_int_col": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=True
+                        ),
+                        "int_col": ColumnDescriptor(
+                            ColumnType.INTEGER, allow_null=False
+                        ),
+                        "nullable_float_col": ColumnDescriptor(
                             ColumnType.DECIMAL, allow_null=True, allow_nan=False
                         ),
-                        "d2": ColumnDescriptor(
+                        "nullable_nan_float_col": ColumnDescriptor(
                             ColumnType.DECIMAL, allow_null=True, allow_nan=True
                         ),
-                        "d3": ColumnDescriptor(
+                        "nan_float_col": ColumnDescriptor(
                             ColumnType.DECIMAL, allow_null=False, allow_nan=True
                         ),
                     }
                 ),
                 {
-                    "i": SparkIntegerColumnDescriptor(allow_null=True),
-                    "i2": SparkIntegerColumnDescriptor(allow_null=False),
-                    "d1": SparkFloatColumnDescriptor(
+                    "nullable_int_col": SparkIntegerColumnDescriptor(allow_null=True),
+                    "int_col": SparkIntegerColumnDescriptor(allow_null=False),
+                    "nullable_float_col": SparkFloatColumnDescriptor(
                         allow_null=True, allow_nan=False, allow_inf=False
                     ),
-                    "d2": SparkFloatColumnDescriptor(
+                    "nullable_nan_float_col": SparkFloatColumnDescriptor(
                         allow_null=True, allow_nan=True, allow_inf=False
                     ),
-                    "d3": SparkFloatColumnDescriptor(
+                    "nan_float_col": SparkFloatColumnDescriptor(
                         allow_null=False, allow_nan=True, allow_inf=False
                     ),
                 },
@@ -188,45 +217,39 @@ class TestSchemaConversions:
         """Make sure conversion from Spark schema/domain to Analytics works."""
         spark_schema = spark_types.StructType(
             [
-                spark_types.StructField("A", spark_types.StringType(), nullable=False),
-                spark_types.StructField("B", spark_types.IntegerType(), nullable=False),
-                spark_types.StructField("C", spark_types.LongType(), nullable=False),
-                spark_types.StructField("D", spark_types.FloatType(), nullable=False),
-                spark_types.StructField("E", spark_types.DoubleType(), nullable=False),
-                spark_types.StructField("F", spark_types.DateType(), nullable=False),
                 spark_types.StructField(
-                    "G", spark_types.TimestampType(), nullable=False
+                    "str_col", spark_types.StringType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "int_col", spark_types.LongType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "float_col", spark_types.DoubleType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "date_col", spark_types.DateType(), nullable=False
+                ),
+                spark_types.StructField(
+                    "timestamp_col", spark_types.TimestampType(), nullable=False
                 ),
             ]
         )
         expected = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR),
-            "B": ColumnDescriptor(ColumnType.INTEGER),
-            "C": ColumnDescriptor(ColumnType.INTEGER),
-            "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True, allow_inf=True),
-            "E": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True, allow_inf=True),
-            "F": ColumnDescriptor(ColumnType.DATE),
-            "G": ColumnDescriptor(ColumnType.TIMESTAMP),
+            "str_col": ColumnDescriptor(ColumnType.VARCHAR),
+            "int_col": ColumnDescriptor(ColumnType.INTEGER),
+            "float_col": ColumnDescriptor(
+                ColumnType.DECIMAL, allow_nan=True, allow_inf=True
+            ),
+            "date_col": ColumnDescriptor(ColumnType.DATE),
+            "timestamp_col": ColumnDescriptor(ColumnType.TIMESTAMP),
         }
 
         # First test the schema --> columns conversion
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
         assert expected == analytics_columns_1
 
-        # Now test the domain --> columns conversion. Analytics casts 32-bit numeric
-        # columns to 64-bit before building Core domains.
-        domain = SparkDataFrameDomain.from_spark_schema(
-            spark_types.StructType(
-                [
-                    spark_types.StructField(
-                        field.name,
-                        TYPE_COERCION_MAP.get(field.dataType, field.dataType),
-                        field.nullable,
-                    )
-                    for field in spark_schema
-                ]
-            )
-        )
+        # Now test the domain --> columns conversion
+        domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
         assert expected == analytics_columns_2
 
@@ -234,48 +257,38 @@ class TestSchemaConversions:
         """Test that conversion from Spark to Analytics works with allow_null=True."""
         spark_schema = spark_types.StructType(
             [
-                spark_types.StructField("A", spark_types.StringType(), nullable=True),
-                spark_types.StructField("B", spark_types.IntegerType(), nullable=True),
-                spark_types.StructField("C", spark_types.LongType(), nullable=True),
-                spark_types.StructField("D", spark_types.FloatType(), nullable=True),
-                spark_types.StructField("E", spark_types.DoubleType(), nullable=True),
-                spark_types.StructField("F", spark_types.DateType(), nullable=True),
                 spark_types.StructField(
-                    "G", spark_types.TimestampType(), nullable=True
+                    "str_col", spark_types.StringType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "int_col", spark_types.LongType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "float_col", spark_types.DoubleType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "date_col", spark_types.DateType(), nullable=True
+                ),
+                spark_types.StructField(
+                    "timestamp_col", spark_types.TimestampType(), nullable=True
                 ),
             ]
         )
         expected = {
-            "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-            "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "C": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-            "D": ColumnDescriptor(
+            "str_col": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
+            "int_col": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+            "float_col": ColumnDescriptor(
                 ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
             ),
-            "E": ColumnDescriptor(
-                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
-            ),
-            "F": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-            "G": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+            "date_col": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+            "timestamp_col": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
         }
         # First test the schema --> columns conversion
         analytics_columns_1 = spark_schema_to_analytics_columns(spark_schema)
         assert expected == analytics_columns_1
 
-        # Now test the domain --> columns conversion. Analytics casts 32-bit numeric
-        # columns to 64-bit before building Core domains.
-        domain = SparkDataFrameDomain.from_spark_schema(
-            spark_types.StructType(
-                [
-                    spark_types.StructField(
-                        field.name,
-                        TYPE_COERCION_MAP.get(field.dataType, field.dataType),
-                        field.nullable,
-                    )
-                    for field in spark_schema
-                ]
-            )
-        )
+        # Now test the domain --> columns conversion
+        domain = SparkDataFrameDomain.from_spark_schema(spark_schema)
         analytics_columns_2 = spark_dataframe_domain_to_analytics_columns(domain)
         assert expected == analytics_columns_2
 
@@ -283,37 +296,45 @@ class TestSchemaConversions:
         """Test conversion to and from a SparkDataFrameDomain."""
         analytics_columns_1 = Schema(
             {
-                "A": ColumnDescriptor(ColumnType.VARCHAR),
-                "A2": ColumnDescriptor(ColumnType.VARCHAR, allow_null=True),
-                "B": ColumnDescriptor(ColumnType.INTEGER),
-                "B2": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
-                "C": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
-                "D": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
-                "E": ColumnDescriptor(ColumnType.DECIMAL, allow_null=True),
-                "F": ColumnDescriptor(
+                "str_col": ColumnDescriptor(ColumnType.VARCHAR),
+                "nullable_str_col": ColumnDescriptor(
+                    ColumnType.VARCHAR, allow_null=True
+                ),
+                "int_col": ColumnDescriptor(ColumnType.INTEGER),
+                "nullable_int_col": ColumnDescriptor(
+                    ColumnType.INTEGER, allow_null=True
+                ),
+                "inf_float_col": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
+                "nan_float_col": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True),
+                "nullable_float_col": ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=True
+                ),
+                "nullable_nan_inf_float_col": ColumnDescriptor(
                     ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
                 ),
-                "G": ColumnDescriptor(ColumnType.DATE),
-                "G2": ColumnDescriptor(ColumnType.DATE, allow_null=True),
-                "H": ColumnDescriptor(ColumnType.TIMESTAMP),
-                "H2": ColumnDescriptor(ColumnType.TIMESTAMP, allow_null=True),
+                "date_col": ColumnDescriptor(ColumnType.DATE),
+                "nullable_date_col": ColumnDescriptor(ColumnType.DATE, allow_null=True),
+                "timestamp_col": ColumnDescriptor(ColumnType.TIMESTAMP),
+                "nullable_timestamp_col": ColumnDescriptor(
+                    ColumnType.TIMESTAMP, allow_null=True
+                ),
             }
         )
         expected = {
-            "A": SparkStringColumnDescriptor(),
-            "A2": SparkStringColumnDescriptor(allow_null=True),
-            "B": SparkIntegerColumnDescriptor(),
-            "B2": SparkIntegerColumnDescriptor(allow_null=True),
-            "C": SparkFloatColumnDescriptor(allow_inf=True),
-            "D": SparkFloatColumnDescriptor(allow_nan=True),
-            "E": SparkFloatColumnDescriptor(allow_null=True),
-            "F": SparkFloatColumnDescriptor(
+            "str_col": SparkStringColumnDescriptor(),
+            "nullable_str_col": SparkStringColumnDescriptor(allow_null=True),
+            "int_col": SparkIntegerColumnDescriptor(),
+            "nullable_int_col": SparkIntegerColumnDescriptor(allow_null=True),
+            "inf_float_col": SparkFloatColumnDescriptor(allow_inf=True),
+            "nan_float_col": SparkFloatColumnDescriptor(allow_nan=True),
+            "nullable_float_col": SparkFloatColumnDescriptor(allow_null=True),
+            "nullable_nan_inf_float_col": SparkFloatColumnDescriptor(
                 allow_null=True, allow_nan=True, allow_inf=True
             ),
-            "G": SparkDateColumnDescriptor(),
-            "G2": SparkDateColumnDescriptor(allow_null=True),
-            "H": SparkTimestampColumnDescriptor(),
-            "H2": SparkTimestampColumnDescriptor(allow_null=True),
+            "date_col": SparkDateColumnDescriptor(),
+            "nullable_date_col": SparkDateColumnDescriptor(allow_null=True),
+            "timestamp_col": SparkTimestampColumnDescriptor(),
+            "nullable_timestamp_col": SparkTimestampColumnDescriptor(allow_null=True),
         }
         # First test the schema -> SparkColumnsDescriptor conversion
         got = analytics_to_spark_columns_descriptor(analytics_columns_1)
