@@ -353,7 +353,7 @@ def test_equivalence_different_schemas():
     ),
 )
 def test_plan_equivalence(
-    ks1: KeySetPlan, ks2: KeySetPlan, equivalent: Union[None, bool, set[Optional[bool]]]
+    ks1: KeySetPlan, ks2: KeySetPlan, equivalent: Union[bool, set[Optional[bool]], None]
 ):
     """Equality and equivalence of KeySetPlans work as expected."""
     assert ks1 == ks1

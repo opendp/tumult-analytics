@@ -258,8 +258,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=PrivateSource("private"),
             replace_with=FrozenDict.from_dict({"A": (-1, 1)}),
         ),
-        r"Column 'A' has a replacement value provided.*of type VARCHAR \(not DECIMAL\) "
-        "and so cannot contain infinite values",
+        (
+            r"Column 'A' has a replacement value provided.*of type VARCHAR \(not DECIMAL\) "
+            "and so cannot contain infinite values"
+        ),
     ),
     (
         # DropNullAndNan with column that doesn't exist
