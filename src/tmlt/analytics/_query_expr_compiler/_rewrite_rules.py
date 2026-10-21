@@ -40,6 +40,7 @@ from tmlt.analytics._query_expr import (
     SumMechanism,
     SuppressAggregates,
     VarianceMechanism,
+    sums_as_float,
 )
 from tmlt.analytics._schema import ColumnType
 
@@ -168,13 +169,10 @@ def select_noise_mechanism(info: CompilationInfo) -> Callable[[QueryExpr], Query
                 " Supported mechanisms are DEFAULT, LAPLACE, and GAUSSIAN."
             )
 
-        # Sums of integer columns use integer noise; average, variance, and stdev
-        # always use continuous noise.
-        schema = expr.child.schema(info.catalog)
-        measure_column_type = schema[expr.measure_column].column_type
-        if (
-            isinstance(expr, GroupByBoundedSum)
-            and measure_column_type == ColumnType.INTEGER
+        # Sums of integer columns with small enough clamping bounds use integer
+        # noise; other sums, average, variance, and stdev use continuous noise.
+        if isinstance(expr, GroupByBoundedSum) and not sums_as_float(
+            expr, expr.child.schema(info.catalog)
         ):
             core_mechanism = (
                 NoiseMechanism.GEOMETRIC
