@@ -1474,8 +1474,10 @@ Public table 'public1':\n"""
             (frozenset({MaxRowsPerID(5)}), "\t\t- MaxRowsPerID(max=5)"),
             (
                 frozenset({MaxRowsPerGroupPerID("B", 1), MaxGroupsPerID("X", 5)}),
-                "\t\t- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
-                "- MaxGroupsPerID(grouping_column='X', max=5)",
+                (
+                    "\t\t- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
+                    "- MaxGroupsPerID(grouping_column='X', max=5)"
+                ),
             ),
             (
                 frozenset(
@@ -1486,10 +1488,12 @@ Public table 'public1':\n"""
                         MaxGroupsPerID("B", 4),
                     }
                 ),
-                "\t\t- MaxRowsPerID(max=3)\n\t\t"
-                "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
-                "- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
-                "- MaxGroupsPerID(grouping_column='X', max=5)",
+                (
+                    "\t\t- MaxRowsPerID(max=3)\n\t\t"
+                    "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
+                    "- MaxRowsPerGroupPerID(grouping_column='B', max=1)\n\t\t"
+                    "- MaxGroupsPerID(grouping_column='X', max=5)"
+                ),
             ),
         ],
     )
@@ -1834,9 +1838,11 @@ class TestInvalidSession:
             (
                 "@str",
                 ValueError,
-                "Names must be valid Python identifiers: they can only contain "
-                "alphanumeric characters and underscores, and cannot begin with a "
-                "number.",
+                (
+                    "Names must be valid Python identifiers: they can only contain "
+                    "alphanumeric characters and underscores, and cannot begin with a "
+                    "number."
+                ),
             ),
         ],
     )
@@ -2679,13 +2685,17 @@ def test_automatic_partitions_with_ids(
     [
         (
             ApproxDPBudget(0, 0.1),
-            "Automatic partition selection requires a positive "
-            f"epsilon. The budget provided was {ApproxDPBudget(0, 0.1)}.",
+            (
+                "Automatic partition selection requires a positive "
+                f"epsilon. The budget provided was {ApproxDPBudget(0, 0.1)}."
+            ),
         ),
         (
             ApproxDPBudget(1, 0),
-            "Automatic partition selection requires a positive "
-            f"delta. The budget provided was {ApproxDPBudget(1, 0)}.",
+            (
+                "Automatic partition selection requires a positive "
+                f"delta. The budget provided was {ApproxDPBudget(1, 0)}."
+            ),
         ),
     ],
 )
@@ -2805,9 +2815,11 @@ def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: Li
             .enforce(MaxRowsPerGroupPerID("B", 1))
             .enforce(MaxGroupsPerID("B", 4))
             .enforce(MaxRowsPerID(3)),
-            "\t\t- MaxRowsPerID(max=3)\n\t\t"
-            "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
-            "- MaxRowsPerGroupPerID(grouping_column='B', max=1)",
+            (
+                "\t\t- MaxRowsPerID(max=3)\n\t\t"
+                "- MaxGroupsPerID(grouping_column='B', max=4)\n\t\t"
+                "- MaxRowsPerGroupPerID(grouping_column='B', max=1)"
+            ),
             pd.DataFrame({"A": ["A", "B", "C"], "B": [1, 2, 3]}),
             True,
         ),

@@ -79,29 +79,37 @@ class TestInvalidSession:
                 (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
                 (ExactNumber(2), ExactNumber.from_float(0.4, round_up=True)),
                 ApproxDPBudget(2, 0.4),
-                "\nRequested: ε=3.000, δ=0.500\nRemaining:"
-                " ε=2.000, δ=0.400\nDifference: ε=1.000, δ=0.100",
+                (
+                    "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+                    " ε=2.000, δ=0.400\nDifference: ε=1.000, δ=0.100"
+                ),
             ),
             (
                 (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
                 (ExactNumber(2), ExactNumber.from_float(0.5, round_up=True)),
                 ApproxDPBudget(2, 0.5),
-                "\nRequested: ε=3.000, δ=0.500\nRemaining:"
-                " ε=2.000, δ=0.500\nDifference: ε=1.000",
+                (
+                    "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+                    " ε=2.000, δ=0.500\nDifference: ε=1.000"
+                ),
             ),
             (
                 (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
                 (ExactNumber(3), ExactNumber.from_float(0.4, round_up=True)),
                 ApproxDPBudget(3, 0.4),
-                "\nRequested: ε=3.000, δ=0.500\nRemaining:"
-                " ε=3.000, δ=0.400\nDifference: δ=0.100",
+                (
+                    "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+                    " ε=3.000, δ=0.400\nDifference: δ=0.100"
+                ),
             ),
             (
                 (ExactNumber(3), ExactNumber.from_float(0.5, round_up=True)),
                 (ExactNumber(3), ExactNumber.from_float(0.41, round_up=True)),
                 ApproxDPBudget(3, 0.41),
-                "\nRequested: ε=3.000, δ=0.500\nRemaining:"
-                " ε=3.000, δ=0.410\nDifference: δ=9.000e-02",
+                (
+                    "\nRequested: ε=3.000, δ=0.500\nRemaining:"
+                    " ε=3.000, δ=0.410\nDifference: δ=9.000e-02"
+                ),
             ),
             (
                 ExactNumber(3),
