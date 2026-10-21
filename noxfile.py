@@ -43,7 +43,7 @@ DEPENDENCY_MATRIX = [
             "pyspark[sql]": "==3.3.1" if not is_mac() else "==3.5.0",
             "sympy": "==1.8",
             "pandas": "==1.4.0",
-            "tmlt.core": "==0.19.1",
+            "tmlt.core": "==0.20.0",
         },
     ),
     DependencyConfiguration(
@@ -53,7 +53,7 @@ DEPENDENCY_MATRIX = [
             "pyspark[sql]": "==3.5.8",
             "sympy": "==1.9",
             "pandas": "==1.5.3",
-            "tmlt.core": ">=0.19.1",
+            "tmlt.core": ">=0.20.0",
         },
     ),
     DependencyConfiguration(
@@ -63,7 +63,7 @@ DEPENDENCY_MATRIX = [
             "pyspark[sql]": "==3.4.0" if not is_mac() else "==3.5.0",
             "sympy": "==1.8",
             "pandas": "==1.5.0",
-            "tmlt.core": "==0.19.1",
+            "tmlt.core": "==0.20.0",
         },
     ),
     DependencyConfiguration(
@@ -73,7 +73,7 @@ DEPENDENCY_MATRIX = [
             "pyspark[sql]": "==3.5.8",
             "sympy": "==1.12",
             "pandas": "==1.5.3",
-            "tmlt.core": ">=0.19.1",
+            "tmlt.core": ">=0.20.0",
         },
     ),
     DependencyConfiguration(
@@ -86,8 +86,8 @@ DEPENDENCY_MATRIX = [
              "numpy": "==1.26.0",
              "scipy": "==1.11.2",
              "randomgen": "==1.26.0",
-             "pyarrow": "==18.0.0",
-             "tmlt.core": ">=0.19.1",
+             "pyarrow": "==23.0.1",
+             "tmlt.core": ">=0.20.0",
         },
     ),
     DependencyConfiguration(
@@ -100,8 +100,8 @@ DEPENDENCY_MATRIX = [
              "numpy": "==1.26.4",
              "scipy": "==1.17.1",
              "randomgen": "==2.3.0",
-             "pyarrow": "==18.1.0",
-             "tmlt.core": ">=0.19.1",
+             "pyarrow": "==23.0.1",
+             "tmlt.core": ">=0.20.0",
         },
     ),
 ]

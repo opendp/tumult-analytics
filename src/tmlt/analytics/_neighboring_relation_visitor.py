@@ -13,7 +13,7 @@ from tmlt.core.domains.collections import DictDomain
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.metrics import (
-    AddRemoveKeys as CoreAddRemoveKeys,
+    AddRemoveIDs,
     DictMetric,
     IfGroupedBy,
     Metric,
@@ -153,7 +153,7 @@ class NeighboringRelationCoreVisitor(NeighboringRelationVisitor):
             data_dict[table_id] = data
         domain_dict = _ensure_valid_schema_ark(metric_dict, domain_dict)
         return self.Output(
-            DictDomain(domain_dict), CoreAddRemoveKeys(metric_dict), distance, data_dict
+            DictDomain(domain_dict), AddRemoveIDs(metric_dict), distance, data_dict
         )
 
     def visit_conjunction(self, relation: Conjunction) -> Output:

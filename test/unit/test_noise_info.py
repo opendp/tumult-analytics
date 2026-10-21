@@ -31,7 +31,7 @@ from tmlt.analytics._noise_info import (
     "measurement,expected",
     [
         (
-            AddLaplaceNoise(NumpyIntegerDomain(), scale=sp.Rational(2.5)),
+            AddLaplaceNoise(NumpyFloatDomain(), scale=sp.Rational(2.5)),
             NoiseInfo(
                 [{"noise_mechanism": _NoiseMechanism.LAPLACE, "noise_parameter": 2.5}]
             ),

@@ -1361,7 +1361,7 @@ class Session:
             >>> transformation.input_metric == sess._input_metric
             True
             >>> transformation.output_domain
-            ListDomain(element_domain=SparkDataFrameDomain(schema={'A': SparkStringColumnDescriptor(allow_null=True), 'B': SparkIntegerColumnDescriptor(allow_null=True, size=64), 'X': SparkIntegerColumnDescriptor(allow_null=True, size=64)}), length=2)
+            ListDomain(element_domain=SparkDataFrameDomain(schema={'A': SparkStringColumnDescriptor(allow_null=True), 'B': SparkIntegerColumnDescriptor(allow_null=True), 'X': SparkIntegerColumnDescriptor(allow_null=True)}), length=2)
             >>> transformation.output_metric
             SumOf(inner_metric=SymmetricDifference())
 
@@ -1638,7 +1638,7 @@ class Session:
                     input_domain=accountant.input_domain,
                     input_metric=accountant.input_metric,
                     key=NamedTable(source),
-                    use_add_remove_keys=True,
+                    use_add_remove_ids=True,
                 )
                 # Create the outer dictionary for the id space
                 nested_dict_transformation |= CreateDictFromValue(

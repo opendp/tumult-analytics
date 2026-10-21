@@ -701,17 +701,17 @@ class TestMeasurementVisitor:
                     mechanism=AverageMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
-                    core_mechanism=NoiseMechanism.GEOMETRIC,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 60,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 0.6,
                         },
                     ]
@@ -775,17 +775,17 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
-                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
+                    core_mechanism=NoiseMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                            "noise_parameter": 0.899999999999999,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 0.224999999999999,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                             "noise_parameter": 0.899999999999999,
                         },
                     ]
@@ -913,21 +913,21 @@ class TestMeasurementVisitor:
                     mechanism=VarianceMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
-                    core_mechanism=NoiseMechanism.GEOMETRIC,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 90,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 4500,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 0.899999999999999,
                         },
                     ]
@@ -999,21 +999,21 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
-                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
+                    core_mechanism=NoiseMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                            "noise_parameter": 1.349999999999999,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 0.337499999999999,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                            "noise_parameter": 1.349999999999999,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 0.337499999999999,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                             "noise_parameter": 1.349999999999999,
                         },
                     ]
@@ -1043,21 +1043,21 @@ class TestMeasurementVisitor:
                     mechanism=StdevMechanism.DEFAULT,
                     output_column="custom_output_column",
                     measure_column="B",
-                    core_mechanism=NoiseMechanism.GEOMETRIC,
+                    core_mechanism=NoiseMechanism.LAPLACE,
                 ),
                 PureDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 90,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 4500,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.GEOMETRIC,
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
                             "noise_parameter": 0.899999999999999,
                         },
                     ]
@@ -1129,21 +1129,21 @@ class TestMeasurementVisitor:
                     measure_column="B",
                     low=0,
                     high=1,
-                    core_mechanism=NoiseMechanism.DISCRETE_GAUSSIAN,
+                    core_mechanism=NoiseMechanism.GAUSSIAN,
                 ),
                 RhoZCDP(),
                 NoiseInfo(
                     [
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                            "noise_parameter": 1.349999999999999,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 0.337499999999999,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
-                            "noise_parameter": 1.349999999999999,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 0.337499999999999,
                         },
                         {
-                            "noise_mechanism": _NoiseMechanism.DISCRETE_GAUSSIAN,
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
                             "noise_parameter": 1.349999999999999,
                         },
                     ]
