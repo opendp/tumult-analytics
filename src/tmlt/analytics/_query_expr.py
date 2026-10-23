@@ -14,7 +14,6 @@ import datetime
 import math
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Collection
 from dataclasses import dataclass, replace
 from enum import Enum, auto
 from typing import (
@@ -241,6 +240,20 @@ class MeasurementQueryExpr(SingleChildQueryExpr):
         )
 
 
+class GroupedMeasurementQueryExpr(MeasurementQueryExpr):
+    """A measurement query expression with group-by keys."""
+
+    groupby_keys: Union[KeySet, Tuple[str, ...]]
+    """The keys, or columns list to collect keys from, to be grouped on."""
+
+    @property
+    def groupby_columns(self) -> Tuple[str, ...]:
+        """The names of the columns to group by, in output order."""
+        if isinstance(self.groupby_keys, KeySet):
+            return tuple(self.groupby_keys.schema().keys())
+        return self.groupby_keys
+
+
 @dataclass(frozen=True)
 class PrivateSource(QueryExpr):
     """Loads the private source."""
@@ -329,7 +342,7 @@ class GetGroups(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GetBounds(MeasurementQueryExpr):
+class GetBounds(GroupedMeasurementQueryExpr):
     """Returns approximate upper and lower bounds of a column."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -355,7 +368,20 @@ class GetBounds(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        output_type = input_schema[self.measure_column].column_type
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.lower_bound_column: ColumnDescriptor(
+                    output_type, allow_null=False
+                ),
+                self.upper_bound_column: ColumnDescriptor(
+                    output_type, allow_null=False
+                ),
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1804,16 +1830,7 @@ class EnforceConstraint(SingleChildQueryExpr):
 
 
 def _validate_groupby(
-    query: Union[
-        "GetBounds",
-        "GroupByBoundedAverage",
-        "GroupByBoundedStdev",
-        "GroupByBoundedSum",
-        "GroupByBoundedVariance",
-        "GroupByCount",
-        "GroupByCountDistinct",
-        "GroupByQuantile",
-    ],
+    query: GroupedMeasurementQueryExpr,
     input_schema: Schema,
 ):
     """Validates the arguments of a group-by QueryExpr."""
@@ -1821,8 +1838,6 @@ def _validate_groupby(
     if isinstance(query.groupby_keys, KeySet):
         # Checks that the KeySet is valid
         schema = query.groupby_keys.schema()
-        groupby_columns: Collection[str] = schema.keys()
-
         for column_name, column_desc in schema.items():
             try:
                 input_column_desc = input_schema[column_name]
@@ -1839,121 +1854,74 @@ def _validate_groupby(
                 )
     elif isinstance(query.groupby_keys, tuple):
         # Checks that the listed groupby columns exist in the schema
-        for col in query.groupby_keys:
+        for col in query.groupby_columns:
             if col not in input_schema:
                 raise ValueError(f"Groupby column '{col}' is not in the input schema.")
-        groupby_columns = query.groupby_keys
     else:
         raise AnalyticsInternalError(
             f"Unexpected groupby_keys type: {type(query.groupby_keys)}."
         )
 
     # Validating compatibility between grouping columns and group-by columns
+    groupby_columns = query.groupby_columns
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:
         raise ValueError(
             f"Column '{grouping_column}' produced by grouping transformation "
             f"is not in groupby columns {list(groupby_columns)}."
         )
-    if (
-        not isinstance(query, (GroupByCount, GroupByCountDistinct))
-        and query.measure_column in groupby_columns
-    ):
-        raise ValueError(
-            "Column to aggregate must be a non-grouped column, not "
-            f"'{query.measure_column}'."
-        )
-
-    # Validating the measure column
-    if isinstance(
-        query,
-        (
-            GetBounds,
-            GroupByQuantile,
-            GroupByBoundedSum,
-            GroupByBoundedStdev,
-            GroupByBoundedAverage,
-            GroupByBoundedVariance,
-        ),
-    ):
-        if query.measure_column not in input_schema:
-            raise ValueError(
-                f"{type(query).__name__} query's measure column "
-                f"'{query.measure_column}' does not exist in the table."
-            )
-        if input_schema[query.measure_column].column_type not in [
-            ColumnType.INTEGER,
-            ColumnType.DECIMAL,
-        ]:
-            raise ValueError(
-                f"{type(query).__name__} query's measure column "
-                f"'{query.measure_column}' has invalid type "
-                f"'{input_schema[query.measure_column].column_type.name}'. "
-                "Expected types: 'INTEGER' or 'DECIMAL'."
-            )
-        if input_schema.id_column and (input_schema.id_column == query.measure_column):
-            raise ValueError(
-                f"{type(query).__name__} query's measure column is the same as the "
-                f"privacy ID column({input_schema.id_column}) on a table with the "
-                "AddRowsWithID protected change."
-            )
 
 
-def _schema_for_groupby(
+def _validate_measure_column(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
         "GroupByBoundedStdev",
         "GroupByBoundedSum",
         "GroupByBoundedVariance",
-        "GroupByCount",
-        "GroupByCountDistinct",
         "GroupByQuantile",
     ],
     input_schema: Schema,
+):
+    """Validates the measure column of a group-by QueryExpr."""
+    if query.measure_column in query.groupby_columns:
+        raise ValueError(
+            "Column to aggregate must be a non-grouped column, not "
+            f"'{query.measure_column}'."
+        )
+
+    if query.measure_column not in input_schema:
+        raise ValueError(
+            f"{type(query).__name__} query's measure column "
+            f"'{query.measure_column}' does not exist in the table."
+        )
+    if input_schema[query.measure_column].column_type not in [
+        ColumnType.INTEGER,
+        ColumnType.DECIMAL,
+    ]:
+        raise ValueError(
+            f"{type(query).__name__} query's measure column "
+            f"'{query.measure_column}' has invalid type "
+            f"'{input_schema[query.measure_column].column_type.name}'. "
+            "Expected types: 'INTEGER' or 'DECIMAL'."
+        )
+    if input_schema.id_column and (input_schema.id_column == query.measure_column):
+        raise ValueError(
+            f"{type(query).__name__} query's measure column is the same as the "
+            f"privacy ID column({input_schema.id_column}) on a table with the "
+            "AddRowsWithID protected change."
+        )
+
+
+def _schema_for_groupby(
+    query: GroupedMeasurementQueryExpr,
+    input_schema: Schema,
+    output_columns: Dict[str, ColumnDescriptor],
 ) -> Schema:
-    """Returns the schema of a group-by QueryExpr."""
-    groupby_columns = (
-        query.groupby_keys.schema().keys()
-        if isinstance(query.groupby_keys, KeySet)
-        else query.groupby_keys
-    )
-
-    # Determining the output column types & names
-    if isinstance(query, (GroupByCount, GroupByCountDistinct)):
-        output_column_type = ColumnType.INTEGER
-    elif isinstance(query, (GetBounds, GroupByBoundedSum)):
-        output_column_type = input_schema[query.measure_column].column_type
-    elif isinstance(
-        query,
-        (
-            GroupByQuantile,
-            GroupByBoundedSum,
-            GroupByBoundedStdev,
-            GroupByBoundedAverage,
-            GroupByBoundedVariance,
-        ),
-    ):
-        output_column_type = ColumnType.DECIMAL
-    else:
-        raise AnalyticsInternalError(f"Unexpected QueryExpr type: {type(query)}.")
-    if isinstance(query, GetBounds):
-        output_columns = {
-            query.lower_bound_column: ColumnDescriptor(
-                output_column_type, allow_null=False
-            ),
-            query.upper_bound_column: ColumnDescriptor(
-                output_column_type, allow_null=False
-            ),
-        }
-    else:
-        output_columns = {
-            query.output_column: ColumnDescriptor(output_column_type, allow_null=False),
-        }
-
+    """Combines group-by columns with the given aggregate output columns."""
     return Schema(
         {
-            **{column: input_schema[column] for column in groupby_columns},
+            **{column: input_schema[column] for column in query.groupby_columns},
             **output_columns,
         },
         grouping_column=None,
@@ -1962,7 +1930,7 @@ def _schema_for_groupby(
 
 
 @dataclass(frozen=True)
-class GroupByCount(MeasurementQueryExpr):
+class GroupByCount(GroupedMeasurementQueryExpr):
     """Returns the count of each combination of the groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -1991,7 +1959,15 @@ class GroupByCount(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.INTEGER, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -1999,7 +1975,7 @@ class GroupByCount(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByCountDistinct(MeasurementQueryExpr):
+class GroupByCountDistinct(GroupedMeasurementQueryExpr):
     """Returns the count of distinct rows in each groupby domain value."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2033,7 +2009,15 @@ class GroupByCountDistinct(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.INTEGER, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2041,7 +2025,7 @@ class GroupByCountDistinct(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByQuantile(MeasurementQueryExpr):
+class GroupByQuantile(GroupedMeasurementQueryExpr):
     """Returns the quantile of a column for each combination of the groupby domains.
 
     If the column to be measured contains null, NaN, or positive or negative infinity,
@@ -2098,7 +2082,16 @@ class GroupByQuantile(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2106,7 +2099,7 @@ class GroupByQuantile(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedSum(MeasurementQueryExpr):
+class GroupByBoundedSum(GroupedMeasurementQueryExpr):
     """Returns the bounded sum of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2159,7 +2152,16 @@ class GroupByBoundedSum(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    input_schema[self.measure_column].column_type, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2167,7 +2169,7 @@ class GroupByBoundedSum(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedAverage(MeasurementQueryExpr):
+class GroupByBoundedAverage(GroupedMeasurementQueryExpr):
     """Returns bounded average of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2220,7 +2222,16 @@ class GroupByBoundedAverage(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2228,7 +2239,7 @@ class GroupByBoundedAverage(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedVariance(MeasurementQueryExpr):
+class GroupByBoundedVariance(GroupedMeasurementQueryExpr):
     """Returns bounded variance of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2281,7 +2292,16 @@ class GroupByBoundedVariance(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
@@ -2289,7 +2309,7 @@ class GroupByBoundedVariance(MeasurementQueryExpr):
 
 
 @dataclass(frozen=True)
-class GroupByBoundedStdev(MeasurementQueryExpr):
+class GroupByBoundedStdev(GroupedMeasurementQueryExpr):
     """Returns bounded stdev of a column for each combination of groupby domains."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
@@ -2343,7 +2363,16 @@ class GroupByBoundedStdev(MeasurementQueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
         _validate_groupby(self, input_schema)
-        return _schema_for_groupby(self, input_schema)
+        _validate_measure_column(self, input_schema)
+        return _schema_for_groupby(
+            self,
+            input_schema,
+            {
+                self.output_column: ColumnDescriptor(
+                    ColumnType.DECIMAL, allow_null=False
+                )
+            },
+        )
 
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
