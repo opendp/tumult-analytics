@@ -421,7 +421,7 @@ As a reminder:
 * :class:`~tmlt.analytics.MaxRowsPerID` limits the number of rows
   associated with each privacy ID in a table.
 * :class:`~tmlt.analytics.MaxGroupsPerID` limits the number of distinct
-  values of the grouping column (or  columns) that may appear for each 
+  values of the grouping column (or columns) that may appear for each 
   privacy ID in a table.
 * :class:`~tmlt.analytics.MaxRowsPerGroupPerID` limits the number of rows
   associated with each (privacy ID, group) pair in a table.
