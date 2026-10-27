@@ -25,7 +25,7 @@ Changed
 Deprecated
 ~~~~~~~~~~
 
-- The ``grouping_column`` attribute of :class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID` is deprecated and will be removed in a future release; use ``grouping_columns`` instead.
+- The ``grouping_column`` argument and attribute of :class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID` are deprecated and will be removed in a future release; use ``grouping_columns`` instead.
 
 Fixed
 ~~~~~
