@@ -11,11 +11,21 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+
+- Grouped truncations (:class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID`) now allow groups defined by multiple columns.
+
 Changed
 ~~~~~~~
 
 - Tumult Analytics now requires Tumult Core 0.20.
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+
+Deprecated
+~~~~~~~~~~
+
+- The ``grouping_column`` attribute of :class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID` is deprecated and will be removed in a future release; use ``grouping_columns`` instead.
 
 Fixed
 ~~~~~
