@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import pandas as pd
 import pytest
@@ -691,3 +691,74 @@ def test_drop_infinity(
         query = query.enforce(c)
     query = query.drop_infinity(["float_n"])
     _test_propagation(query, expected_constraints, session)
+
+
+_MULTI_COLUMN_CONSTRAINTS = [
+    MaxGroupsPerID(["group", "group2"], 3),
+    MaxRowsPerGroupPerID(["group", "group2"], 2),
+]
+
+
+@pytest.mark.parametrize(
+    "session", [INF_BUDGET, INF_BUDGET_ZCDP], indirect=True, ids=["puredp", "zcdp"]
+)
+@pytest.mark.parametrize(
+    "transform,expected_constraints",
+    [
+        (
+            lambda q: q.rename({"group2": "g2"}),
+            [
+                MaxGroupsPerID(["group", "g2"], 3),
+                MaxRowsPerGroupPerID(["group", "g2"], 2),
+            ],
+        ),
+        (lambda q: q.filter("n > 6"), _MULTI_COLUMN_CONSTRAINTS),
+        (lambda q: q.select(["id", "group", "group2"]), _MULTI_COLUMN_CONSTRAINTS),
+        # Dropping any one of the grouping columns drops the constraints.
+        (lambda q: q.select(["id", "group", "n"]), []),
+        # Replacing values in one of the grouping columns can merge groups.
+        (
+            lambda q: q.replace_null_and_nan({"group2": "Replacement"}),
+            [MaxGroupsPerID(["group", "group2"], 3)],
+        ),
+        (
+            lambda q: q.replace_infinity({"float_n": (0.0, 0.0)}),
+            _MULTI_COLUMN_CONSTRAINTS,
+        ),
+        # Only some of the grouping columns are join columns, so the
+        # MaxRowsPerGroupPerID constraint does not bound the join stability.
+        (
+            lambda q: q.join_private(
+                QueryBuilder("id_a1").enforce(MaxRowsPerID(3)),
+                join_columns=["id", "group"],
+            ),
+            [
+                MaxGroupsPerID(["group", "group2_left"], 3),
+                MaxRowsPerGroupPerID(["group", "group2_left"], 6),
+            ],
+        ),
+        # All of the grouping columns are join columns, so the
+        # MaxRowsPerGroupPerID constraint bounds the join stability.
+        (
+            lambda q: q.join_private(
+                QueryBuilder("id_a1").enforce(MaxRowsPerID(3)),
+                join_columns=["id", "group", "group2"],
+            ),
+            [
+                MaxGroupsPerID(["group", "group2"], 3),
+                MaxRowsPerGroupPerID(["group", "group2"], 6),
+                MaxRowsPerID(6),
+            ],
+        ),
+    ],
+)
+def test_multi_column(
+    transform: Callable[[QueryBuilder], QueryBuilder],
+    expected_constraints: List[Constraint],
+    session,
+):
+    """Constraints with multiple grouping columns propagate as expected."""
+    query = QueryBuilder("id_a1")
+    for c in _MULTI_COLUMN_CONSTRAINTS:
+        query = query.enforce(c)
+    _test_propagation(transform(query), expected_constraints, session)

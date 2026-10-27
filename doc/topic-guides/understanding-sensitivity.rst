@@ -205,6 +205,9 @@ added to the data. There are three cases:
     the ``max`` for ``MaxGroupsPerID``:
     :math:`sensitivity = (MaxRowsPerGroupPerID.max)  *  \sqrt{(MaxGroupsPerID.max)}`
 
+The two constraints must use the same grouping column or columns to be used together for truncation. 
+The smaller sensitivity under Gaussian noise only works if the query groups by the same columns.
+
 
 For this last case, combining ``MaxGroupsPerID`` and ``MaxRowsPerGroupPerID``, we
 visualize the sensitivity in the diagram below.
