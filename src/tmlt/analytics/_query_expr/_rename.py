@@ -97,14 +97,14 @@ class Rename(SingleChildQueryExpr):
             elif isinstance(c, MaxGroupsPerID):
                 result.append(
                     MaxGroupsPerID(
-                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
                         c.max,
                     )
                 )
             elif isinstance(c, MaxRowsPerGroupPerID):
                 result.append(
                     MaxRowsPerGroupPerID(
-                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
                         c.max,
                     )
                 )

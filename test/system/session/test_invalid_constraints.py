@@ -57,6 +57,26 @@ def test_constraint_non_ids(constraint: Constraint, session):
             QueryBuilder("id_a1").enforce(MaxRowsPerGroupPerID("none", 1)).count(),
             "The grouping column of constraint MaxRowsPer.* does not exist in.*",
         ),
+        (
+            QueryBuilder("id_a1").enforce(MaxGroupsPerID(["group", "id"], 1)).count(),
+            "The grouping column of constraint MaxGroups.* cannot be the ID column.*",
+        ),
+        (
+            QueryBuilder("id_a1")
+            .enforce(MaxRowsPerGroupPerID(["group", "id"], 1))
+            .count(),
+            "The grouping column of constraint MaxRowsPer.* cannot be the ID column.*",
+        ),
+        (
+            QueryBuilder("id_a1").enforce(MaxGroupsPerID(["group", "none"], 1)).count(),
+            "The grouping column of constraint MaxGroups.* does not exist in.*'none'",
+        ),
+        (
+            QueryBuilder("id_a1")
+            .enforce(MaxRowsPerGroupPerID(["group", "none"], 1))
+            .count(),
+            "The grouping column of constraint MaxRowsPer.* does not exist in.*'none'",
+        ),
     ],
 )
 def test_invalid_grouping_column(query: QueryExpr, expected_message: str, session):

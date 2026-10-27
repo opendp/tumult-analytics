@@ -44,18 +44,19 @@ class EnforceConstraint(SingleChildQueryExpr):
                 " with the AddRowsWithID protected change"
             )
         if isinstance(self.constraint, (MaxGroupsPerID, MaxRowsPerGroupPerID)):
-            grouping_column = self.constraint.grouping_column
-            if grouping_column not in input_schema:
-                raise ValueError(
-                    f"The grouping column of constraint {self.constraint}"
-                    " does not exist in this table; available columns"
-                    f" are: {', '.join(input_schema.keys())}"
-                )
-            if grouping_column == input_schema.id_column:
-                raise ValueError(
-                    f"The grouping column of constraint {self.constraint} cannot be"
-                    " the ID column of the table it is applied to"
-                )
+            for grouping_column in sorted(self.constraint.grouping_columns):
+                if grouping_column not in input_schema:
+                    raise ValueError(
+                        f"The grouping column of constraint {self.constraint}"
+                        f" does not exist in this table (missing column"
+                        f" '{grouping_column}'); available columns"
+                        f" are: {', '.join(input_schema.keys())}"
+                    )
+                if grouping_column == input_schema.id_column:
+                    raise ValueError(
+                        f"The grouping column of constraint {self.constraint}"
+                        " cannot be the ID column of the table it is applied to"
+                    )
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""

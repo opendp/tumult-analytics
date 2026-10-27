@@ -141,7 +141,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
             if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
             or (
                 isinstance(c, MaxRowsPerGroupPerID)
-                and c.grouping_column not in self.replace_with
+                and not any(g in self.replace_with for g in c.grouping_columns)
             )
         )
 
