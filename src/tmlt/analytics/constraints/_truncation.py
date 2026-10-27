@@ -368,7 +368,7 @@ class MaxGroupsPerID(Constraint):
                 transformation.output_domain,
                 IfGroupedBy(self.grouping_columns, inner_metric),
                 transformation.output_metric.columns,
-                sorted(self.grouping_columns),
+                self.grouping_columns,
                 self.max,
             )
             transformation = AugmentDictTransformation(
@@ -417,10 +417,17 @@ class MaxRowsPerGroupPerID(Constraint):
     """The names of the columns defining the groups to truncate.
 
     When constructing the constraint, this may be given as a single column name
-    or as a list of column names; either way, it is stored as a frozenset."""
+    or as a list of column names; either way, it is stored as a frozenset.
+
+    Required unless the deprecated ``grouping_column`` parameter is provided
+    instead. Providing both this and ``grouping_column`` is invalid.
+    """
 
     max: int
-    """The maximum number of times each distinct value may appear in the column."""
+    """The maximum number of times each distinct value may appear in the column.
+
+    Required.
+    """
 
     def __init__(
         self,
@@ -429,19 +436,6 @@ class MaxRowsPerGroupPerID(Constraint):
         *,
         grouping_column: Optional[Union[str, Collection[str]]] = None,
     ):
-        """Constructor.
-
-        Args:
-            grouping_columns: The name of the column defining the groups to
-                truncate, or a list of names if the groups are defined by
-                multiple columns. Required unless the deprecated
-                ``grouping_column`` is given instead.
-            max: The maximum number of rows for each (ID, group) pair. Required.
-            grouping_column: Deprecated alias of ``grouping_columns``.
-
-                .. deprecated:: 0.22.0
-                    Use ``grouping_columns`` instead.
-        """
         object.__setattr__(self, "max", _require_max("MaxRowsPerGroupPerID", max))
         object.__setattr__(
             self,
