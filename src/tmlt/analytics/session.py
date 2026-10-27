@@ -1401,7 +1401,7 @@ class Session:
                     for c in self._table_constraints.get(
                         table_ref.identifier, frozenset()
                     )
-                    if isinstance(c, MaxGroupsPerID) and c.grouping_column == column
+                    if isinstance(c, MaxGroupsPerID) and c.grouping_columns == {column}
                 ),
                 None,
             )
@@ -1834,9 +1834,11 @@ def _ordered_constraints(
         if isinstance(constraint, MaxRowsPerID):
             return (0, 0, 0)
         if isinstance(constraint, MaxGroupsPerID):
-            return (1, column_positions[constraint.grouping_column], 0)
+            position = min(column_positions[c] for c in constraint.grouping_columns)
+            return (1, position, 0)
         if isinstance(constraint, MaxRowsPerGroupPerID):
-            return (1, column_positions[constraint.grouping_column], 1)
+            position = min(column_positions[c] for c in constraint.grouping_columns)
+            return (1, position, 1)
         return (2, 0, 0)
 
     return sorted(constraints, key=sort_key)

@@ -172,20 +172,22 @@ def _get_truncatable_constraints(
     """Get sets of constraints that produce a finite aggregation stability."""
     # Because of constraint simplification, there should be at most one
     # MaxRowsPerID constraint, and at most one MaxGroupsPerID and
-    # MaxRowsPerGroupPerID each per column.
+    # MaxRowsPerGroupPerID each per set of grouping columns.
     max_rows_per_id = next(
         (c for c in constraints if isinstance(c, MaxRowsPerID)), None
     )
     max_groups_per_id = {
-        c.grouping_column: c for c in constraints if isinstance(c, MaxGroupsPerID)
+        c.grouping_columns: c for c in constraints if isinstance(c, MaxGroupsPerID)
     }
     max_rows_per_group_per_id = {
-        c.grouping_column: c for c in constraints if isinstance(c, MaxRowsPerGroupPerID)
+        c.grouping_columns: c
+        for c in constraints
+        if isinstance(c, MaxRowsPerGroupPerID)
     }
 
     ret: List[Tuple[Constraint, ...]] = [
-        (max_groups_per_id[col], max_rows_per_group_per_id[col])
-        for col in set(max_groups_per_id) & set(max_rows_per_group_per_id)
+        (max_groups_per_id[cols], max_rows_per_group_per_id[cols])
+        for cols in set(max_groups_per_id) & set(max_rows_per_group_per_id)
     ]
     if max_rows_per_id:
         ret.append((max_rows_per_id,))
@@ -213,7 +215,7 @@ def _constraint_stability(
         if (
             output_measure == PureDP()
             or output_measure == ApproxDP()
-            or constraints[0].grouping_column not in grouping_columns
+            or not constraints[0].grouping_columns.issubset(grouping_columns)
         ):
             return constraints[0].max * constraints[1].max
         elif output_measure == RhoZCDP():
@@ -240,10 +242,10 @@ def _generate_constrained_count_distinct(
       this happens, each ID can contribute at most once to the resulting count,
       equivalent to a ``MaxRowsPerID(1)`` constraint.
 
-    - Only the ID column is being counted, and the result is grouped on exactly
-      one column which has a MaxGroupsPerID constraint on it. In this case, each
-      ID can contribute at most once to the count of each group, equivalent to a
-      ``MaxRowsPerGroupPerID(other_column, 1)`` constraint.
+    - Only the ID column is being counted, and the result is grouped on
+      exactly the grouping columns of a MaxGroupsPerID constraint. In this case,
+      each ID can contribute at most once to the count of each group, equivalent
+      to a ``MaxRowsPerGroupPerID(grouping_columns, 1)`` constraint.
 
     In both of these cases, a performance optimization is also possible: because
     enforcing the constraints drops all but one of the rows per ID in the first
@@ -284,24 +286,23 @@ def _generate_constrained_count_distinct(
             mechanism=mechanism,
             core_mechanism=query.core_mechanism,
         )
-    elif len(groupby_columns) == 1:
-        # A groupby on exactly one column is performed; if that column has a
+    else:
+        # If the groupby columns are exactly the grouping columns of a
         # MaxGroupsPerID constraint, then this is equivalent to a
-        # MaxRowsPerGroupPerID(grouping_column, 1) constraint.
-        grouping_column = groupby_columns[0]
+        # MaxRowsPerGroupPerID(grouping_columns, 1) constraint.
         constraint = next(
             (
                 c
                 for c in constraints
                 if isinstance(c, MaxGroupsPerID)
-                and c.grouping_column == grouping_column
+                and c.grouping_columns == set(groupby_columns)
             ),
             None,
         )
         if constraint is not None:
             return GroupByCount(
                 EnforceConstraint(
-                    query.child, MaxRowsPerGroupPerID(constraint.grouping_column, 1)
+                    query.child, MaxRowsPerGroupPerID(constraint.grouping_columns, 1)
                 ),
                 groupby_keys=query.groupby_keys,
                 output_column=query.output_column,
@@ -573,12 +574,11 @@ class MeasurementVisitor(QueryExprVisitor):
                 if isinstance(c, MaxGroupsPerID):
                     # Taking advantage of the L2 noise behavior only works for
                     # Sessions initialized with a RhoZCDP privacy budget,
-                    # and then only when the grouping column
-                    # of the constraints is being grouped on.
-                    use_l2 = (
-                        isinstance(self.output_measure, RhoZCDP)
-                        and c.grouping_column in grouping_columns
-                    )
+                    # and then only when all of the grouping columns
+                    # of the constraints are being grouped on.
+                    use_l2 = isinstance(
+                        self.output_measure, RhoZCDP
+                    ) and c.grouping_columns.issubset(grouping_columns)
                     transformation, reference = c._enforce(
                         transformation, reference, update_metric=True, use_l2=use_l2
                     )

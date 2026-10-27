@@ -31,7 +31,9 @@ def test_max_groups_per_id():
     """Test initialization of MaxGroupsPerID constraints."""
     assert MaxGroupsPerID("grouping_column", 1).max == 1
     assert MaxGroupsPerID("grouping_column", 5).max == 5
-    assert MaxGroupsPerID("grouping_column", 1).grouping_column == "grouping_column"
+    assert MaxGroupsPerID("grouping_column", 1).grouping_columns == frozenset(
+        {"grouping_column"}
+    )
     with pytest.raises(ValueError):
         MaxGroupsPerID("", 1)
     with pytest.raises(ValueError):
@@ -50,6 +52,65 @@ def test_max_rows_per_group_per_id():
         MaxRowsPerGroupPerID("group_col", -5)
     with pytest.raises(TypeCheckError):
         MaxRowsPerGroupPerID(5, 10)  # type: ignore
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+def test_multiple_grouping_columns(constraint_type):
+    """Test initialization of constraints with multiple grouping columns."""
+    c = constraint_type(["a", "b"], 2)
+    assert c.max == 2
+    assert c.grouping_columns == frozenset({"a", "b"})
+    assert c == constraint_type(("a", "b"), 2)
+    assert c == constraint_type(frozenset({"a", "b"}), 2)
+    # The order in which the columns are given does not matter.
+    assert c == constraint_type(["b", "a"], 2)
+    assert hash(c) == hash(constraint_type(["b", "a"], 2))
+    assert repr(constraint_type(["b", "a"], 2)) == (
+        f"{constraint_type.__name__}(grouping_columns=frozenset({{'a', 'b'}}), max=2)"
+    )
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+def test_single_grouping_column(constraint_type):
+    """A single grouping column is stored as a one-element frozenset."""
+    c = constraint_type("a", 2)
+    assert c.grouping_columns == frozenset({"a"})
+    assert c == constraint_type(["a"], 2)
+    assert c == constraint_type(grouping_columns="a", max=2)
+    assert repr(c) == (
+        f"{constraint_type.__name__}(grouping_columns=frozenset({{'a'}}), max=2)"
+    )
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+def test_deprecated_grouping_column(constraint_type):
+    """The deprecated grouping_column property returns a single column name."""
+    with pytest.warns(DeprecationWarning, match="grouping_column is deprecated"):
+        assert constraint_type("a", 2).grouping_column == "a"
+    with pytest.warns(DeprecationWarning, match="grouping_column is deprecated"):
+        assert constraint_type(["a"], 2).grouping_column == "a"
+    with pytest.warns(DeprecationWarning, match="grouping_column is deprecated"):
+        with pytest.raises(ValueError, match="cannot be used with multiple grouping"):
+            _ = constraint_type(["a", "b"], 2).grouping_column
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+@pytest.mark.parametrize(
+    "grouping_columns,error_type,message",
+    [
+        ([], ValueError, "grouping_columns cannot be empty"),
+        (["a", ""], ValueError, "grouping column names cannot be empty strings"),
+        (["a", "a"], ValueError, "grouping_columns cannot contain duplicate columns"),
+        (["a", 5], TypeCheckError, None),
+        ([["a"], ["b"]], TypeCheckError, None),
+    ],
+)
+def test_invalid_grouping_columns(
+    constraint_type, grouping_columns, error_type, message
+):
+    """Invalid lists of grouping columns raise an error."""
+    with pytest.raises(error_type, match=message):
+        constraint_type(grouping_columns, 1)
 
 
 @pytest.mark.parametrize(
@@ -138,6 +199,31 @@ def test_max_rows_per_group_per_id():
                 MaxRowsPerGroupPerID("group_col1", 1),
                 MaxGroupsPerID("group_col1", 1),
                 MaxRowsPerID(1),
+            ],
+        ),
+        (
+            [
+                MaxGroupsPerID(["a", "b"], 3),
+                MaxGroupsPerID(["b", "a"], 2),
+                MaxGroupsPerID("a", 1),
+                MaxGroupsPerID(["a", "b", "c"], 4),
+            ],
+            [
+                MaxGroupsPerID(["b", "a"], 2),
+                MaxGroupsPerID("a", 1),
+                MaxGroupsPerID(["a", "b", "c"], 4),
+            ],
+        ),
+        (
+            [
+                MaxRowsPerGroupPerID(["a", "b"], 1),
+                MaxRowsPerGroupPerID(["b", "a"], 2),
+                MaxRowsPerGroupPerID(["a"], 3),
+                MaxRowsPerGroupPerID("a", 5),
+            ],
+            [
+                MaxRowsPerGroupPerID(["a", "b"], 1),
+                MaxRowsPerGroupPerID("a", 3),
             ],
         ),
         (

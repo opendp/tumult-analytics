@@ -434,14 +434,14 @@ class Rename(SingleChildQueryExpr):
             elif isinstance(c, MaxGroupsPerID):
                 result.append(
                     MaxGroupsPerID(
-                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
                         c.max,
                     )
                 )
             elif isinstance(c, MaxRowsPerGroupPerID):
                 result.append(
                     MaxRowsPerGroupPerID(
-                        self.column_mapper.get(c.grouping_column, c.grouping_column),
+                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
                         c.max,
                     )
                 )
@@ -552,7 +552,7 @@ class Select(SingleChildQueryExpr):
             for c in child_constraints
             if not (
                 isinstance(c, (MaxGroupsPerID, MaxRowsPerGroupPerID))
-                and c.grouping_column not in self.columns
+                and not c.grouping_columns.issubset(self.columns)
             )
         )
 
@@ -991,11 +991,11 @@ def _propagate_join_by_stability(
         else:
             return None
     elif isinstance(c, MaxGroupsPerID):
-        return MaxGroupsPerID(col_name(c.grouping_column), c.max)
+        return MaxGroupsPerID([col_name(g) for g in c.grouping_columns], c.max)
     elif isinstance(c, MaxRowsPerGroupPerID):
         if join_stability:
             return MaxRowsPerGroupPerID(
-                col_name(c.grouping_column), c.max * join_stability
+                [col_name(g) for g in c.grouping_columns], c.max * join_stability
             )
         else:
             return None
@@ -1110,12 +1110,12 @@ class JoinPrivate(QueryExpr):
             max_rows_per_id = next((c for c in cs if isinstance(c, MaxRowsPerID)), None)
             if max_rows_per_id:
                 stabilities.append(max_rows_per_id.max)
-            # When a MaxRowsPerGroupPerID constraint has a grouping column in
-            # the join columns, that also limits the duplication factor because
-            # each (ID, grouping column) value pair can only appear a limited
-            # number of times.
+            # When all of a MaxRowsPerGroupPerID constraint's grouping columns
+            # are in the join columns, that also limits the duplication factor
+            # because each (ID, grouping column(s)) value combination can only
+            # appear a limited number of times.
             for c in (c for c in cs if isinstance(c, MaxRowsPerGroupPerID)):
-                if c.grouping_column in join_cols:
+                if c.grouping_columns.issubset(join_cols):
                     stabilities.append(c.max)
             if not stabilities:
                 return None
@@ -1442,7 +1442,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
             if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
             or (
                 isinstance(c, MaxRowsPerGroupPerID)
-                and c.grouping_column not in self.replace_with
+                and not any(g in self.replace_with for g in c.grouping_columns)
             )
         )
 
@@ -1566,7 +1566,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
             if isinstance(c, (MaxRowsPerID, MaxGroupsPerID))
             or (
                 isinstance(c, MaxRowsPerGroupPerID)
-                and c.grouping_column not in self.replace_with
+                and not any(g in self.replace_with for g in c.grouping_columns)
             )
         )
 
@@ -1774,18 +1774,19 @@ class EnforceConstraint(SingleChildQueryExpr):
                 " with the AddRowsWithID protected change"
             )
         if isinstance(self.constraint, (MaxGroupsPerID, MaxRowsPerGroupPerID)):
-            grouping_column = self.constraint.grouping_column
-            if grouping_column not in input_schema:
-                raise ValueError(
-                    f"The grouping column of constraint {self.constraint}"
-                    " does not exist in this table; available columns"
-                    f" are: {', '.join(input_schema.keys())}"
-                )
-            if grouping_column == input_schema.id_column:
-                raise ValueError(
-                    f"The grouping column of constraint {self.constraint} cannot be"
-                    " the ID column of the table it is applied to"
-                )
+            for grouping_column in sorted(self.constraint.grouping_columns):
+                if grouping_column not in input_schema:
+                    raise ValueError(
+                        f"The grouping column of constraint {self.constraint}"
+                        f" does not exist in this table (missing column"
+                        f" '{grouping_column}'); available columns"
+                        f" are: {', '.join(input_schema.keys())}"
+                    )
+                if grouping_column == input_schema.id_column:
+                    raise ValueError(
+                        f"The grouping column of constraint {self.constraint}"
+                        " cannot be the ID column of the table it is applied to"
+                    )
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
