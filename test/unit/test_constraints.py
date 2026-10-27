@@ -95,6 +95,45 @@ def test_deprecated_grouping_column(constraint_type):
 
 
 @pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+def test_keyword_arguments(constraint_type):
+    """Constraints can be constructed with keyword arguments."""
+    expected = constraint_type(["a", "b"], 2)
+    assert constraint_type(grouping_columns=["a", "b"], max=2) == expected
+    assert constraint_type(max=2, grouping_columns=["a", "b"]) == expected
+    assert constraint_type(["a", "b"], max=2) == expected
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+def test_deprecated_grouping_column_argument(constraint_type):
+    """The deprecated grouping_column argument is an alias of grouping_columns."""
+    with pytest.warns(DeprecationWarning, match="grouping_column argument"):
+        c = constraint_type(grouping_column="a", max=2)
+    assert c == constraint_type("a", 2)
+    with pytest.warns(DeprecationWarning, match="grouping_column argument"):
+        c = constraint_type(grouping_column=["a", "b"], max=2)
+    assert c == constraint_type(["a", "b"], 2)
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
+@pytest.mark.parametrize(
+    "kwargs,message",
+    [
+        ({"max": 2}, "missing required argument grouping_columns"),
+        ({"grouping_columns": "a"}, "missing required argument max"),
+        ({}, "missing required argument"),
+        (
+            {"grouping_columns": "a", "grouping_column": "a", "max": 2},
+            "got both grouping_columns and grouping_column",
+        ),
+    ],
+)
+def test_invalid_arguments(constraint_type, kwargs, message):
+    """Missing or conflicting constructor arguments raise an error."""
+    with pytest.raises(TypeError, match=message):
+        constraint_type(**kwargs)
+
+
+@pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
 @pytest.mark.parametrize(
     "grouping_columns,error_type,message",
     [
