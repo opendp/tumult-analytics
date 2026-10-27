@@ -36,6 +36,7 @@ We import Python packages...
     from pyspark.sql import SparkSession
     from tmlt.analytics import (
         AddRowsWithID,
+        ColumnType,
         MaxGroupsPerID,
         MaxRowsPerGroupPerID,
         MaxRowsPerID,
@@ -348,6 +349,58 @@ We can then display the results as a graph:
    :alt: A bar chart plotting the number of unique library members who have checked out each book. The most popular book (The Alchemist) has been checked out by about 750 people; each book after that has been checked out by fewer people, with the last book (Comfort Me With...) having been checked out by just under 500 people.
    :align: center
 
+Grouping on multiple columns
+----------------------------
+
+The groups used by :class:`~tmlt.analytics.MaxGroupsPerID` and
+:class:`~tmlt.analytics.MaxRowsPerGroupPerID` can also be defined by a
+combination of several columns. For example, suppose we want to know how many 
+patrons checked out each of our top five books, separately for each year. A 
+patron who borrowed the same book in two different years counts once for each 
+year, so the groups are (ISBN, year) pairs.
+
+We first add a column containing the year of each checkout, and then limit each
+patron to 10 distinct (ISBN, year) pairs, and to one row in each pair. Since our
+data covers checkouts from 2020 to 2022, we use these years to build the
+:class:`~tmlt.analytics.KeySet`.
+
+.. testcode::
+
+    isbn_year_keyset = KeySet.from_dataframe(
+        top_five.select("isbn")
+    ) * KeySet.from_dict({"year": [2020, 2021, 2022]})
+    count_by_year_query = (
+        QueryBuilder("checkouts")
+        .map(
+            lambda row: {
+                "year": row["checkout_date"].year if row["checkout_date"] else None
+            },
+            new_column_types={"year": ColumnType.INTEGER},
+            augment=True,
+        )
+        .enforce(MaxGroupsPerID(["isbn", "year"], 10))
+        .enforce(MaxRowsPerGroupPerID(["isbn", "year"], 1))
+        .groupby(isbn_year_keyset)
+        .count()
+    )
+    result = session.evaluate(count_by_year_query, PureDPBudget(1))
+    result.sort("isbn", "year").show()
+
+.. testoutput::
+   :hide:
+   :options: +NORMALIZE_WHITESPACE
+
+    +----------+----+-----+
+    |      isbn|year|count|
+    +----------+----+-----+
+    ...
+    +----------+----+-----+
+
+Truncation is performed on each distinct combination of values of
+the grouping columns: here, a patron can contribute to at most 10 different
+(ISBN, year) pairs, regardless of how many distinct ISBNs or years those pairs
+contain.
+
 .. _flow-chart-truncation:
 
 Summary
@@ -368,9 +421,10 @@ As a reminder:
 * :class:`~tmlt.analytics.MaxRowsPerID` limits the number of rows
   associated with each privacy ID in a table.
 * :class:`~tmlt.analytics.MaxGroupsPerID` limits the number of distinct
-  values of the grouping column that may appear for each privacy ID in a table.
+  values of the grouping column (or  columns) that may appear for each 
+  privacy ID in a table.
 * :class:`~tmlt.analytics.MaxRowsPerGroupPerID` limits the number of rows
-  associated with each (privacy ID, grouping column value) pair in a table.
+  associated with each (privacy ID, group) pair in a table.
 
 To understand the impact of the various constraints in more detail,
 you can consult our :ref:`topic guide about sensitivity<understanding-sensitivity>`.
