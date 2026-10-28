@@ -267,11 +267,15 @@ def _generate_constrained_count_distinct(
     mechanism = (
         CountMechanism.DEFAULT
         if query.mechanism == CountDistinctMechanism.DEFAULT
-        else CountMechanism.LAPLACE
-        if query.mechanism == CountDistinctMechanism.LAPLACE
-        else CountMechanism.GAUSSIAN
-        if query.mechanism == CountDistinctMechanism.GAUSSIAN
-        else None
+        else (
+            CountMechanism.LAPLACE
+            if query.mechanism == CountDistinctMechanism.LAPLACE
+            else (
+                CountMechanism.GAUSSIAN
+                if query.mechanism == CountDistinctMechanism.GAUSSIAN
+                else None
+            )
+        )
     )
     if mechanism is None:
         raise AnalyticsInternalError(f"Unknown mechanism {query.mechanism}.")
@@ -286,29 +290,29 @@ def _generate_constrained_count_distinct(
             mechanism=mechanism,
             core_mechanism=query.core_mechanism,
         )
-    else:
-        # If the groupby columns are exactly the grouping columns of a
-        # MaxGroupsPerID constraint, then this is equivalent to a
-        # MaxRowsPerGroupPerID(grouping_columns, 1) constraint.
-        constraint = next(
-            (
-                c
-                for c in constraints
-                if isinstance(c, MaxGroupsPerID)
-                and c.grouping_columns == set(groupby_columns)
+
+    # If the groupby columns are exactly the grouping columns of a
+    # MaxGroupsPerID constraint, then this is equivalent to a
+    # MaxRowsPerGroupPerID(grouping_columns, 1) constraint.
+    constraint = next(
+        (
+            c
+            for c in constraints
+            if isinstance(c, MaxGroupsPerID)
+            and c.grouping_columns == set(groupby_columns)
+        ),
+        None,
+    )
+    if constraint is not None:
+        return GroupByCount(
+            EnforceConstraint(
+                query.child, MaxRowsPerGroupPerID(constraint.grouping_columns, 1)
             ),
-            None,
+            groupby_keys=query.groupby_keys,
+            output_column=query.output_column,
+            mechanism=mechanism,
+            core_mechanism=query.core_mechanism,
         )
-        if constraint is not None:
-            return GroupByCount(
-                EnforceConstraint(
-                    query.child, MaxRowsPerGroupPerID(constraint.grouping_columns, 1)
-                ),
-                groupby_keys=query.groupby_keys,
-                output_column=query.output_column,
-                mechanism=mechanism,
-                core_mechanism=query.core_mechanism,
-            )
 
     # If none of the above cases are true, no optimization is possible.
     return None

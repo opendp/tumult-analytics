@@ -1777,15 +1777,16 @@ class EnforceConstraint(SingleChildQueryExpr):
             for grouping_column in sorted(self.constraint.grouping_columns):
                 if grouping_column not in input_schema:
                     raise ValueError(
-                        f"The grouping column of constraint {self.constraint}"
-                        f" does not exist in this table (missing column"
-                        f" '{grouping_column}'); available columns"
+                        f'The grouping column "{grouping_column}" of constraint'
+                        f" {self.constraint} does not exist in this table (missing"
+                        f" column '{grouping_column}'); available columns"
                         f" are: {', '.join(input_schema.keys())}"
                     )
                 if grouping_column == input_schema.id_column:
                     raise ValueError(
-                        f"The grouping column of constraint {self.constraint}"
-                        " cannot be the ID column of the table it is applied to"
+                        f'The grouping column "{grouping_column}" of constraint'
+                        f" {self.constraint} cannot be the ID column of the table it"
+                        " is applied to"
                     )
 
     def schema(self, catalog: Catalog) -> Schema:
