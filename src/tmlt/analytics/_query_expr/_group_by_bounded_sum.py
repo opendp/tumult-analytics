@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any, Optional, Tuple, Union
 
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -17,12 +18,33 @@ from tmlt.analytics.keyset import KeySet
 from ._base import (
     GroupedMeasurementQueryExpr,
     QueryExprVisitor,
-    SumMechanism,
     _schema_for_groupby,
     _validate_child_is_transformation,
     _validate_groupby,
     _validate_measure_column,
 )
+
+
+class SumMechanism(Enum):
+    """Possible mechanisms for the sum() aggregation.
+
+    Currently, the
+    :meth:`~.tmlt.analytics.GroupedQueryBuilder.sum`
+    aggregation uses an additive noise mechanism to achieve differential privacy.
+    """
+
+    DEFAULT = auto()
+    """The framework automatically selects an appropriate mechanism. This choice
+    might change over time as additional optimizations are added to the library.
+    """
+    LAPLACE = auto()
+    """Laplace and/or double-sided geometric noise is used, depending on the
+    column type.
+    """
+    GAUSSIAN = auto()
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
+    Not compatible with pure DP.
+    """
 
 
 @dataclass(frozen=True)

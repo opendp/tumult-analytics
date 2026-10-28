@@ -7,7 +7,6 @@ import datetime
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -60,118 +59,6 @@ if TYPE_CHECKING:
 
 Row = Dict[str, Any]
 """Type alias for dictionary with string keys."""
-
-
-class CountMechanism(Enum):
-    """Possible mechanisms for the count() aggregation.
-
-    Currently, the
-    :meth:`~tmlt.analytics.GroupedQueryBuilder.count` aggregation
-    uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Double-sided geometric noise is used."""
-    GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used. Not compatible with pure DP."""
-
-
-class CountDistinctMechanism(Enum):
-    """Enumerating the possible mechanisms used for the count_distinct aggregation.
-
-    Currently, the
-    :meth:`~tmlt.analytics.GroupedQueryBuilder.count_distinct`
-    aggregation uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Double-sided geometric noise is used."""
-    GAUSSIAN = auto()
-    """The discrete Gaussian mechanism is used. Not compatible with pure DP."""
-
-
-class SumMechanism(Enum):
-    """Possible mechanisms for the sum() aggregation.
-
-    Currently, the
-    :meth:`~.tmlt.analytics.GroupedQueryBuilder.sum`
-    aggregation uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
-    """
-    GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
-    """
-
-
-class AverageMechanism(Enum):
-    """Possible mechanisms for the average() aggregation.
-
-    Currently, the
-    :meth:`~tmlt.analytics.GroupedQueryBuilder.average`
-    aggregation uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Laplace noise is used."""
-    GAUSSIAN = auto()
-    """Gaussian noise is used. Not compatible with pure DP."""
-
-
-class VarianceMechanism(Enum):
-    """Possible mechanisms for the variance() aggregation.
-
-    Currently, the
-    :meth:`~tmlt.analytics.GroupedQueryBuilder.variance`
-    aggregation uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Laplace noise is used."""
-    GAUSSIAN = auto()
-    """Gaussian noise is used. Not compatible with pure DP."""
-
-
-class StdevMechanism(Enum):
-    """Possible mechanisms for the stdev() aggregation.
-
-    Currently, the
-    :meth:`~tmlt.analytics.GroupedQueryBuilder.stdev`
-    aggregation uses an additive noise mechanism to achieve differential privacy.
-    """
-
-    DEFAULT = auto()
-    """The framework automatically selects an appropriate mechanism. This choice
-    might change over time as additional optimizations are added to the library.
-    """
-    LAPLACE = auto()
-    """Laplace noise is used."""
-    GAUSSIAN = auto()
-    """Gaussian noise is used. Not compatible with pure DP."""
 
 
 class QueryExpr(ABC):

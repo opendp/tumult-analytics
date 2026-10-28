@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any, Optional, Tuple, Union
 
 from tmlt.core.measurements.aggregations import NoiseMechanism
@@ -15,13 +16,30 @@ from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet
 
 from ._base import (
-    CountMechanism,
     GroupedMeasurementQueryExpr,
     QueryExprVisitor,
     _schema_for_groupby,
     _validate_child_is_transformation,
     _validate_groupby,
 )
+
+
+class CountMechanism(Enum):
+    """Possible mechanisms for the count() aggregation.
+
+    Currently, the
+    :meth:`~tmlt.analytics.GroupedQueryBuilder.count` aggregation
+    uses an additive noise mechanism to achieve differential privacy.
+    """
+
+    DEFAULT = auto()
+    """The framework automatically selects an appropriate mechanism. This choice
+    might change over time as additional optimizations are added to the library.
+    """
+    LAPLACE = auto()
+    """Double-sided geometric noise is used."""
+    GAUSSIAN = auto()
+    """The discrete Gaussian mechanism is used. Not compatible with pure DP."""
 
 
 @dataclass(frozen=True)
