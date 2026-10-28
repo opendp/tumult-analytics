@@ -21,6 +21,7 @@ Fixed
 ~~~~~
 
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
+- :meth:`~tmlt.analytics.QueryBuilder.drop_infinity` and :meth:`~tmlt.analytics.QueryBuilder.replace_infinity` no longer raise an error when called without columns on a table with no DECIMAL columns they could change. They now warn that there is nothing to do and leave the table unchanged.
 
 
 .. _v0.21.0:
