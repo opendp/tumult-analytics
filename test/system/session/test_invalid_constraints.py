@@ -1,4 +1,5 @@
 """Tests for invalid constraint enforcement."""
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
@@ -43,39 +44,39 @@ def test_constraint_non_ids(constraint: Constraint, session):
     [
         (
             QueryBuilder("id_a1").enforce(MaxGroupsPerID("id", 1)).count(),
-            "The grouping column of constraint MaxGroups.* cannot be the ID column.*",
+            'The grouping column "id" of constraint MaxGroups.* cannot be the ID column.*',
         ),
         (
             QueryBuilder("id_a1").enforce(MaxRowsPerGroupPerID("id", 1)).count(),
-            "The grouping column of constraint MaxRowsPer.* cannot be the ID column.*",
+            'The grouping column "id" of constraint MaxRowsPer.* cannot be the ID column.*',
         ),
         (
             QueryBuilder("id_a1").enforce(MaxGroupsPerID("none", 1)).count(),
-            "The grouping column of constraint MaxGroups.* does not exist in.*",
+            'The grouping column "none" of constraint MaxGroups.* does not exist in.*',
         ),
         (
             QueryBuilder("id_a1").enforce(MaxRowsPerGroupPerID("none", 1)).count(),
-            "The grouping column of constraint MaxRowsPer.* does not exist in.*",
+            'The grouping column "none" of constraint MaxRowsPer.* does not exist in.*',
         ),
         (
             QueryBuilder("id_a1").enforce(MaxGroupsPerID(["group", "id"], 1)).count(),
-            "The grouping column of constraint MaxGroups.* cannot be the ID column.*",
+            'The grouping column "id" of constraint MaxGroups.* cannot be the ID column.*',
         ),
         (
             QueryBuilder("id_a1")
             .enforce(MaxRowsPerGroupPerID(["group", "id"], 1))
             .count(),
-            "The grouping column of constraint MaxRowsPer.* cannot be the ID column.*",
+            'The grouping column "id" of constraint MaxRowsPer.* cannot be the ID column.*',
         ),
         (
             QueryBuilder("id_a1").enforce(MaxGroupsPerID(["group", "none"], 1)).count(),
-            "The grouping column of constraint MaxGroups.* does not exist in.*'none'",
+            "The grouping column \"none\" of constraint MaxGroups.* does not exist in.*'none'",
         ),
         (
             QueryBuilder("id_a1")
             .enforce(MaxRowsPerGroupPerID(["group", "none"], 1))
             .count(),
-            "The grouping column of constraint MaxRowsPer.* does not exist in.*'none'",
+            "The grouping column \"none\" of constraint MaxRowsPer.* does not exist in.*'none'",
         ),
     ],
 )
