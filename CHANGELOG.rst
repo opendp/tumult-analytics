@@ -21,6 +21,7 @@ Fixed
 ~~~~~
 
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
+- :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table. Sessions it creates now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
 
 
 .. _v0.21.0:
