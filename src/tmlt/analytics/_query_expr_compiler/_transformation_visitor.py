@@ -1197,7 +1197,7 @@ class TransformationVisitor(QueryExprVisitor):
             }
             if len(replace_with) == 0:
                 warnings.warn(
-                    "No columns were given to replace infinite values in, and the"
+                    "replace_infinity() was called with no columns specified, and the"
                     " table has no DECIMAL columns, so there is nothing to replace."
                 )
 
@@ -1276,7 +1276,7 @@ class TransformationVisitor(QueryExprVisitor):
             )
             if len(columns) == 0:
                 warnings.warn(
-                    "No columns were given to drop infinite values from, and the"
+                    "drop_infinity() was called with no columns specified, and the"
                     " table has no DECIMAL columns that can contain infinite values,"
                     " so there is nothing to drop."
                 )
