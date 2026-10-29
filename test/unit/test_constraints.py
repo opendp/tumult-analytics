@@ -109,9 +109,11 @@ def test_deprecated_grouping_column_argument(constraint_type):
     with pytest.warns(DeprecationWarning, match="grouping_column argument"):
         c = constraint_type(grouping_column="a", max=2)
     assert c == constraint_type("a", 2)
-    with pytest.warns(DeprecationWarning, match="grouping_column argument"):
-        c = constraint_type(grouping_column=["a", "b"], max=2)
-    assert c == constraint_type(["a", "b"], 2)
+    # Like the grouping_column property, the argument only supports one column.
+    for grouping_column in (["a", "b"], ["a"]):
+        with pytest.warns(DeprecationWarning, match="grouping_column argument"):
+            with pytest.raises(TypeError, match="must be a single column name"):
+                constraint_type(grouping_column=grouping_column, max=2)
 
 
 @pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])
