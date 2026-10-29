@@ -1550,6 +1550,54 @@ class TestValidationWithNulls:
                 ),
             ),
             (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=-(2**23),
+                    high=2**23,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                    }
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=0,
+                    high=2**23 + 1,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                    }
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=-(2**23) - 1,
+                    high=0,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                    }
+                ),
+            ),
+            (
                 GroupByBoundedAverage(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
