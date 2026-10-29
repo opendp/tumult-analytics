@@ -1905,7 +1905,7 @@ computed on floating-point values, so the sum cannot overflow."""
 
 
 def sums_as_float(query: "GroupByBoundedSum", input_schema: Schema) -> bool:
-    """Returns whether a sum query is computed on floating-point values."""
+    """Returns whether a integer sum must be computed in floating-point space."""
     return input_schema[query.measure_column].column_type == ColumnType.DECIMAL or (
         max(abs(query.low), abs(query.high)) > MAX_INTEGER_SUM_BOUND
     )
