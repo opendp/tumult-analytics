@@ -73,12 +73,12 @@ def _normalize_grouping_columns(
 def _resolve_grouping_columns(
     constraint_name: str,
     grouping_columns: Optional[Union[str, Collection[str]]],
-    grouping_column: Optional[Union[str, Collection[str]]],
+    grouping_column: Optional[str],
 ) -> FrozenSet[str]:
     """Get the grouping columns from a constructor's arguments.
 
-    ``grouping_column`` is a deprecated alias of ``grouping_columns``; exactly one
-    of the two must be given.
+    ``grouping_column`` is a deprecated alias of ``grouping_columns`` that only
+    accepts a single column name; exactly one of the two must be given.
     """
     if grouping_columns is not None and grouping_column is not None:
         raise TypeError(
@@ -91,6 +91,12 @@ def _resolve_grouping_columns(
             " will be removed in a future release; use grouping_columns instead.",
             DeprecationWarning,
         )
+        if not isinstance(grouping_column, str):
+            raise TypeError(
+                f"The grouping_column argument to {constraint_name} must be a single"
+                f" column name, not {grouping_column!r}; use grouping_columns to"
+                " specify multiple grouping columns."
+            )
         grouping_columns = grouping_column
     if grouping_columns is None:
         raise TypeError(
@@ -271,7 +277,7 @@ class MaxGroupsPerID(Constraint):
         grouping_columns: Optional[Union[str, Collection[str]]] = None,
         max: Optional[int] = None,
         *,
-        grouping_column: Optional[Union[str, Collection[str]]] = None,
+        grouping_column: Optional[str] = None,
     ):
         """Constructor.
 
@@ -281,7 +287,8 @@ class MaxGroupsPerID(Constraint):
                 the deprecated ``grouping_column`` is given instead.
             max: The maximum number of distinct values in the grouping column(s)
                 for each distinct value in the ID column. Required.
-            grouping_column: Deprecated alias of ``grouping_columns``.
+            grouping_column: Deprecated alias of ``grouping_columns``, which only
+                accepts a single column name.
 
                 .. deprecated:: 0.22.0
                     Use ``grouping_columns`` instead.
@@ -434,7 +441,7 @@ class MaxRowsPerGroupPerID(Constraint):
         grouping_columns: Optional[Union[str, Collection[str]]] = None,
         max: Optional[int] = None,
         *,
-        grouping_column: Optional[Union[str, Collection[str]]] = None,
+        grouping_column: Optional[str] = None,
     ):
         object.__setattr__(self, "max", _require_max("MaxRowsPerGroupPerID", max))
         object.__setattr__(
