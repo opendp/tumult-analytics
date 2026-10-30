@@ -157,24 +157,6 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             "but column 'A' does not"
         ),
     ),
-    (  # JoinPublic on floating-point column
-        JoinPublic(
-            child=PrivateSource("private"),
-            public_table="float_public",
-            join_columns=tuple(["X"]),
-        ),
-        "Cannot join on floating-point column 'X'",
-    ),
-    (  # JoinPrivate on floating-point column
-        JoinPrivate(
-            PrivateSource("private"),
-            PrivateSource("private"),
-            TruncationStrategy.DropExcess(1),
-            TruncationStrategy.DropExcess(1),
-            join_columns=tuple(["X"]),
-        ),
-        "Cannot join on floating-point column 'X'",
-    ),
     (  # Filter on invalid column
         Filter(child=PrivateSource("private"), condition="NONEXISTENT>1"),
         "Invalid filter condition 'NONEXISTENT>1'.*",
@@ -388,12 +370,6 @@ def setup_validation(request):
         spark_schema_to_analytics_columns(GET_GROUPBY_COLUMN_WRONG_TYPE().schema),
         GET_GROUPBY_COLUMN_WRONG_TYPE(),
     )
-    float_public_schema = {"X": ColumnDescriptor(ColumnType.DECIMAL)}
-    catalog.add_public_table(
-        "float_public",
-        float_public_schema,
-        _empty_public_dataframe(float_public_schema),
-    )
     catalog.add_private_table(
         "groupby_one_column_private",
         {"A": ColumnDescriptor(ColumnType.VARCHAR)},
@@ -577,11 +553,6 @@ def setup_catalog_with_nulls(request) -> None:
         },
         "groupby_nonexistent_column": {"yay": ColumnDescriptor(ColumnType.INTEGER)},
         "groupby_column_wrong_type": {"A": ColumnDescriptor(ColumnType.INTEGER)},
-        "float_public": {
-            "X": ColumnDescriptor(
-                ColumnType.DECIMAL, allow_null=True, allow_nan=True, allow_inf=True
-            )
-        },
     }
     for source_id, schema in public_schemas.items():
         catalog.add_public_table(source_id, schema, _empty_public_dataframe(schema))
@@ -1575,6 +1546,54 @@ class TestValidationWithNulls:
                     {
                         "D": ColumnDescriptor(ColumnType.DATE, allow_null=True),
                         "sum": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                    }
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=-(2**23),
+                    high=2**23,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+                    }
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=0,
+                    high=2**23 + 1,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
+                    }
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"B": [1, 2, 3]}),
+                    measure_column="NOTNULL",
+                    low=-(2**23) - 1,
+                    high=0,
+                    output_column="sum",
+                ),
+                Schema(
+                    {
+                        "B": ColumnDescriptor(ColumnType.INTEGER, allow_null=True),
+                        "sum": ColumnDescriptor(ColumnType.DECIMAL, allow_null=False),
                     }
                 ),
             ),

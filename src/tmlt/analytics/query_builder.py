@@ -327,9 +327,7 @@ class QueryBuilder:
             Columns must share both names and data types for them to be used in
             joining. If this condition is not met, one of the data sources must be
             transformed to be eligible for joining (e.g., by using :func:`rename`
-            or :func:`map`). Joining on floating-point columns is not supported:
-            if the tables have common floating-point columns, ``join_columns``
-            must be specified.
+            or :func:`map`).
 
         Every row within a join group (i.e., every row that shares values in the join
         columns) from the private table will be joined with every row from that same
@@ -2456,6 +2454,11 @@ class QueryBuilder:
         """Returns a sum query ready to be evaluated.
 
         .. note::
+            If ``column`` has integer type and ``low`` or ``high`` is larger
+            than ``2**23`` in absolute value, the sum is computed on floating-point
+            values, and the output column has floating-point type.
+
+        .. note::
             Regarding the clamping bounds:
 
             #. The values for ``low`` and ``high`` are a choice the caller must make.
@@ -3302,6 +3305,11 @@ class GroupedQueryBuilder:
         ] = "default",
     ) -> Query:
         """Returns a Query with a sum query.
+
+        .. note::
+            If ``column`` has integer type and ``low`` or ``high`` is larger
+            than ``2**23`` in absolute value, the sum is computed on floating-point
+            values, and the output column has floating-point type.
 
         .. note::
             If the column being measured contains NaN or null values, a

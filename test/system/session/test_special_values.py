@@ -698,15 +698,15 @@ def dataframe_for_join(spark):
 @parametrize(
     [
         Case("public_join_inner_all_match")(
-            # Joining with the first two columns, all columns of the right table
+            # Joining with the first three columns, all columns of the right table
             # should match exactly one row, without duplicates. This checks that tables
-            # are joined on null values.
+            # are joined on all three kinds of special values.
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
                 .join_public(
                     "public",
-                    ["string_nulls", "int_nulls"],
+                    ["string_nulls", "int_nulls", "float_all_special"],
                     "inner",
                 )
                 .sum("new_int", 0, 1)
@@ -752,7 +752,7 @@ def dataframe_for_join(spark):
                 QueryBuilder("private")
                 .join_private(
                     "private_2",
-                    join_columns=["string_nulls", "int_nulls"],
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
                     truncation_strategy_left=TruncationStrategy.DropNonUnique(),
                     truncation_strategy_right=TruncationStrategy.DropNonUnique(),
                 )
@@ -767,7 +767,7 @@ def dataframe_for_join(spark):
                 QueryBuilder("private")
                 .join_private(
                     "private_2",
-                    join_columns=["string_nulls", "int_nulls"],
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
                 )
                 .enforce(MaxRowsPerID(1))
                 .count()
@@ -781,10 +781,9 @@ def dataframe_for_join(spark):
             protected_change=AddRowsWithID("string_nulls"),
             query=(
                 QueryBuilder("private")
-                .select(["string_nulls", "int_nulls"])
                 .join_private(
                     "private_2",
-                    join_columns=["string_nulls", "int_nulls"],
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
                 )
                 .enforce(MaxRowsPerID(1))
                 .drop_infinity(["float_all_special"])
@@ -800,10 +799,9 @@ def dataframe_for_join(spark):
             protected_change=AddOneRow(),
             query=(
                 QueryBuilder("private")
-                .select(["string_nulls", "int_nulls"])
                 .join_public(
                     "public",
-                    join_columns=["string_nulls", "int_nulls"],
+                    join_columns=["string_nulls", "int_nulls", "float_all_special"],
                 )
                 .drop_infinity(["float_all_special"])
                 .replace_null_and_nan({"float_all_special": 100.0})
@@ -854,6 +852,29 @@ def test_joins(
             expected_col=(
                 "int_joined",
                 ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
+            ),
+        ),
+        Case("private_float_remove_both")(
+            # All special joined with only nulls & nan = only nulls & nan
+            protected_change=AddOneRow(),
+            query=(
+                QueryBuilder("private")
+                .drop_null_and_nan(["float_all_special"])
+                .join_private(
+                    QueryBuilder("private").drop_infinity(["float_all_special"]),
+                    join_columns=["float_all_special"],
+                    truncation_strategy_left=TruncationStrategy.DropExcess(30),
+                    truncation_strategy_right=TruncationStrategy.DropExcess(30),
+                )
+            ),
+            expected_col=(
+                "float_all_special",
+                ColumnDescriptor(
+                    ColumnType.DECIMAL,
+                    allow_null=False,
+                    allow_nan=False,
+                    allow_inf=False,
+                ),
             ),
         ),
         Case("public_int_remove_nulls_from_right")(
