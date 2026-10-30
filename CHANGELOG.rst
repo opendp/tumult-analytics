@@ -17,6 +17,11 @@ Changed
 - Tumult Analytics now requires Tumult Core 0.20.
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
 
+Removed
+~~~~~~~
+
+- :meth:`~tmlt.analytics.QueryBuilder.join_public` and :meth:`~tmlt.analytics.QueryBuilder.join_private` no longer support joining on floating-point columns.
+
 Fixed
 ~~~~~
 
