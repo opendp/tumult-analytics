@@ -1110,7 +1110,7 @@ class JoinPrivate(QueryExpr):
             max_rows_per_id = next((c for c in cs if isinstance(c, MaxRowsPerID)), None)
             if max_rows_per_id:
                 stabilities.append(max_rows_per_id.max)
-            # When all of a MaxRowsPerGroupPerID constraint's grouping columns
+            # When all the grouping columns of a MaxRowsPerGroupPerID constraint
             # are in the join columns, that also limits the duplication factor
             # because each (ID, grouping column(s)) value combination can only
             # appear a limited number of times.
