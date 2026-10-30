@@ -677,14 +677,62 @@ def test_special_value_handling_get_bounds(
 
 @parametrize(
     [
-        Case()(low=-(2**23), high=2**23, expected_mechanism="GEOMETRIC"),
-        Case()(low=0, high=2**23 + 1, expected_mechanism="LAPLACE"),
-        Case()(low=-(2**23) - 1, high=0, expected_mechanism="LAPLACE"),
-        Case()(low=-(2**40), high=2**40, expected_mechanism="LAPLACE"),
+        Case()(
+            output_measure=PureDP(),
+            low=-(2**23),
+            high=2**23,
+            expected_mechanism="GEOMETRIC",
+        ),
+        Case()(
+            output_measure=PureDP(),
+            low=0,
+            high=2**23 + 1,
+            expected_mechanism="LAPLACE",
+        ),
+        Case()(
+            output_measure=PureDP(),
+            low=-(2**23) - 1,
+            high=0,
+            expected_mechanism="LAPLACE",
+        ),
+        Case()(
+            output_measure=PureDP(),
+            low=-(2**40),
+            high=2**40,
+            expected_mechanism="LAPLACE",
+        ),
+        Case()(
+            output_measure=RhoZCDP(),
+            low=-(2**23),
+            high=2**23,
+            expected_mechanism="DISCRETE_GAUSSIAN",
+        ),
+        Case()(
+            output_measure=RhoZCDP(),
+            low=0,
+            high=2**23 + 1,
+            expected_mechanism="GAUSSIAN",
+        ),
+        Case()(
+            output_measure=RhoZCDP(),
+            low=-(2**23) - 1,
+            high=0,
+            expected_mechanism="GAUSSIAN",
+        ),
+        Case()(
+            output_measure=RhoZCDP(),
+            low=-(2**40),
+            high=2**40,
+            expected_mechanism="GAUSSIAN",
+        ),
     ]
 )
 def test_noise_selection_large_integer_sum(
-    catalog: Catalog, low: int, high: int, expected_mechanism: str
+    catalog: Catalog,
+    output_measure: Union[PureDP, RhoZCDP],
+    low: int,
+    high: int,
+    expected_mechanism: str,
 ) -> None:
     """Integer sums with clamping bounds larger than 2**23 use continuous noise."""
     expr = GroupByBoundedSum(
@@ -694,6 +742,6 @@ def test_noise_selection_large_integer_sum(
         low=low,
         high=high,
     )
-    info = CompilationInfo(output_measure=PureDP(), catalog=catalog)
+    info = CompilationInfo(output_measure=output_measure, catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
     assert got_expr == replace(expr, core_mechanism=NoiseMechanism[expected_mechanism])
