@@ -1475,8 +1475,8 @@ Public table 'public1':\n"""
             (
                 frozenset({MaxRowsPerGroupPerID("B", 1), MaxGroupsPerID("X", 5)}),
                 (
-                    "\t\t- MaxRowsPerGroupPerID(grouping_columns=frozenset({'B'}), max=1)\n\t\t"
-                    "- MaxGroupsPerID(grouping_columns=frozenset({'X'}), max=5)"
+                    "\t\t- MaxRowsPerGroupPerID(grouping_columns={'B'}, max=1)\n\t\t"
+                    "- MaxGroupsPerID(grouping_columns={'X'}, max=5)"
                 ),
             ),
             (
@@ -1490,9 +1490,9 @@ Public table 'public1':\n"""
                 ),
                 (
                     "\t\t- MaxRowsPerID(max=3)\n\t\t"
-                    "- MaxGroupsPerID(grouping_columns=frozenset({'B'}), max=4)\n\t\t"
-                    "- MaxRowsPerGroupPerID(grouping_columns=frozenset({'B'}), max=1)\n\t\t"
-                    "- MaxGroupsPerID(grouping_columns=frozenset({'X'}), max=5)"
+                    "- MaxGroupsPerID(grouping_columns={'B'}, max=4)\n\t\t"
+                    "- MaxRowsPerGroupPerID(grouping_columns={'B'}, max=1)\n\t\t"
+                    "- MaxGroupsPerID(grouping_columns={'X'}, max=5)"
                 ),
             ),
         ],
@@ -2817,8 +2817,8 @@ def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: Li
             .enforce(MaxRowsPerID(3)),
             (
                 "\t\t- MaxRowsPerID(max=3)\n\t\t"
-                "- MaxGroupsPerID(grouping_columns=frozenset({'B'}), max=4)\n\t\t"
-                "- MaxRowsPerGroupPerID(grouping_columns=frozenset({'B'}), max=1)"
+                "- MaxGroupsPerID(grouping_columns={'B'}, max=4)\n\t\t"
+                "- MaxRowsPerGroupPerID(grouping_columns={'B'}, max=1)"
             ),
             pd.DataFrame({"A": ["A", "B", "C"], "B": [1, 2, 3]}),
             True,
