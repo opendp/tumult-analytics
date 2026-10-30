@@ -178,6 +178,8 @@ def _validate_join(
                 f"but column '{column}' does not: {left_schema[column]} and "
                 f"{right_schema[column]} are incompatible"
             )
+        # TODO: remove once this check is part of domain_after_join so all the
+        # validation happens in a single place 
         if left_schema[column].column_type == ColumnType.DECIMAL:
             raise ValueError(f"Cannot join on floating-point column '{column}'")
 
