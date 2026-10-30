@@ -1827,10 +1827,30 @@ def _describe_schema(schema: Schema) -> str:
 def _ordered_constraints(
     constraints: frozenset[Constraint], schema: Schema
 ) -> list[Constraint]:
-    """Order constraints for display."""
+    """Order constraints for display.
+
+    The intended order is:
+        - All MaxRowsPerID constraints first.
+        - For each distinct set of grouping columns:
+            - All the MaxGroupsPerID
+            - Followed by all the MaxRowsPerGroupsPerID
+        - Any other constraints last.
+    """
     column_positions = {column: index for index, column in enumerate(schema.columns)}
 
     def sort_key(constraint: Constraint) -> Tuple[int, Tuple[int, ...], int]:
+        """We order constraints using a three-element tuple.
+
+        The first element indicates the constraint type:
+            - 0 for MaxRowsPerID
+            - 1 for MaxGroupsPerID or MaxRowsPerGroupPerID
+            - 2 for anything else
+
+        The second element is a tuple that represents the grouping columns.
+
+        The third element indicates whether the constraint is MaxGroupsPerID or
+        MaxRowsPerGroupPerID (and is always 0 for other types).
+        """
         if isinstance(constraint, MaxRowsPerID):
             return (0, (0,), 0)
         if isinstance(constraint, MaxGroupsPerID):

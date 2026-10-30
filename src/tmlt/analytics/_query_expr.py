@@ -1774,7 +1774,7 @@ class EnforceConstraint(SingleChildQueryExpr):
                 " with the AddRowsWithID protected change"
             )
         if isinstance(self.constraint, (MaxGroupsPerID, MaxRowsPerGroupPerID)):
-            for grouping_column in sorted(self.constraint.grouping_columns):
+            for grouping_column in self.constraint.grouping_columns:
                 if grouping_column not in input_schema:
                     raise ValueError(
                         f'The grouping column "{grouping_column}" of constraint'

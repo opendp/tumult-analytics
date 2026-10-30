@@ -66,7 +66,7 @@ def test_multiple_grouping_columns(constraint_type):
     assert c == constraint_type(["b", "a"], 2)
     assert hash(c) == hash(constraint_type(["b", "a"], 2))
     assert repr(constraint_type(["b", "a"], 2)) == (
-        f"{constraint_type.__name__}(grouping_columns=frozenset({{'a', 'b'}}), max=2)"
+        f"{constraint_type.__name__}(grouping_columns={{'a', 'b'}}, max=2)"
     )
 
 
@@ -77,9 +77,7 @@ def test_single_grouping_column(constraint_type):
     assert c.grouping_columns == frozenset({"a"})
     assert c == constraint_type(["a"], 2)
     assert c == constraint_type(grouping_columns="a", max=2)
-    assert repr(c) == (
-        f"{constraint_type.__name__}(grouping_columns=frozenset({{'a'}}), max=2)"
-    )
+    assert repr(c) == f"{constraint_type.__name__}(grouping_columns={{'a'}}, max=2)"
 
 
 @pytest.mark.parametrize("constraint_type", [MaxGroupsPerID, MaxRowsPerGroupPerID])

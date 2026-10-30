@@ -10,7 +10,7 @@ column.
 
 import warnings
 from dataclasses import dataclass
-from typing import Collection, Dict, FrozenSet, Iterable, Optional, Tuple, Union
+from typing import Collection, Dict, FrozenSet, Iterable, Optional, Set, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.metrics import (
@@ -105,7 +105,7 @@ def _resolve_grouping_columns(
     return _normalize_grouping_columns(grouping_columns)
 
 
-def _require_max(constraint_name: str, max: Optional[int]) -> int:
+def _check_max(constraint_name: str, max: Optional[int]) -> int:
     """Check that a constructor's max argument was given and is valid."""
     if max is None:
         raise TypeError(f"{constraint_name} is missing required argument max")
@@ -136,14 +136,15 @@ def _deprecated_grouping_column(
 
 def _format_grouping_columns(grouping_columns: FrozenSet[str]) -> str:
     """Format grouping columns for display, in a deterministic order."""
-    return "frozenset({" + ", ".join(repr(c) for c in sorted(grouping_columns)) + "})"
+    return "{" + ", ".join(repr(c) for c in sorted(grouping_columns)) + "}"
 
 
 def simplify_truncation_constraints(
     constraints: Iterable[Constraint],
 ) -> frozenset[Constraint]:
     """Remove redundant truncation constraints from a set of constraints."""
-    max_rows_per_id, other_constraints = set(), set()
+    max_rows_per_id: Set[MaxRowsPerID] = set()
+    other_constraints: Set[Constraint] = set()
     max_groups_per_id: Dict[FrozenSet[str], MaxGroupsPerID] = {}
     max_rows_per_group_per_id: Dict[FrozenSet[str], MaxRowsPerGroupPerID] = {}
     for c in constraints:
@@ -267,11 +268,18 @@ class MaxGroupsPerID(Constraint):
     """The names of the grouping columns.
 
     When constructing the constraint, this may be given as a single column name
-    or as a list of column names; either way, it is stored as a frozenset."""
+    or as a list of column names. When multiple columns are provided order
+    doesn't matter.
+
+    Required unless the deprecated ``grouping_column`` is given instead."""
     max: int
     """The maximum number of distinct values in the grouping column(s)
-    for each distinct value in the ID column."""
+    for each distinct value in the ID column.
 
+    Required."""
+
+    # TODO: Remove this __init__ once we remove the deprecated
+    # grouping_columns parameter.
     def __init__(
         self,
         grouping_columns: Optional[Union[str, Collection[str]]] = None,
@@ -279,20 +287,6 @@ class MaxGroupsPerID(Constraint):
         *,
         grouping_column: Optional[str] = None,
     ):
-        """Constructor.
-
-        Args:
-            grouping_columns: The name of the grouping column, or a list of names
-                if the groups are defined by multiple columns. Required unless
-                the deprecated ``grouping_column`` is given instead.
-            max: The maximum number of distinct values in the grouping column(s)
-                for each distinct value in the ID column. Required.
-            grouping_column: Deprecated alias of ``grouping_columns``, which only
-                accepts a single column name.
-
-                .. deprecated:: 0.22.0
-                    Use ``grouping_columns`` instead.
-        """
         object.__setattr__(
             self,
             "grouping_columns",
@@ -300,7 +294,7 @@ class MaxGroupsPerID(Constraint):
                 "MaxGroupsPerID", grouping_columns, grouping_column
             ),
         )
-        object.__setattr__(self, "max", _require_max("MaxGroupsPerID", max))
+        object.__setattr__(self, "max", _check_max("MaxGroupsPerID", max))
 
     @property
     def grouping_column(self) -> str:
@@ -424,7 +418,8 @@ class MaxRowsPerGroupPerID(Constraint):
     """The names of the columns defining the groups to truncate.
 
     When constructing the constraint, this may be given as a single column name
-    or as a list of column names; either way, it is stored as a frozenset.
+    or as a list of column names. When multiple columns are provided order doesn't
+    matter.
 
     Required unless the deprecated ``grouping_column`` parameter is provided
     instead. Providing both this and ``grouping_column`` is invalid.
@@ -436,6 +431,8 @@ class MaxRowsPerGroupPerID(Constraint):
     Required.
     """
 
+    # TODO: Remove this __init__ once we remove the deprecated
+    # grouping_columns parameter.
     def __init__(
         self,
         grouping_columns: Optional[Union[str, Collection[str]]] = None,
@@ -443,7 +440,7 @@ class MaxRowsPerGroupPerID(Constraint):
         *,
         grouping_column: Optional[str] = None,
     ):
-        object.__setattr__(self, "max", _require_max("MaxRowsPerGroupPerID", max))
+        object.__setattr__(self, "max", _check_max("MaxRowsPerGroupPerID", max))
         object.__setattr__(
             self,
             "grouping_columns",
