@@ -9,7 +9,7 @@ column.
 # Copyright Tumult Labs 2023-2025, and the Tumult Analytics Contributors 2025-present
 
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Collection, Dict, FrozenSet, Iterable, Optional, Set, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
@@ -50,8 +50,11 @@ from ._base import Constraint
 
 def _normalize_grouping_columns(
     grouping_columns: Union[str, Collection[str]],
-) -> FrozenSet[str]:
-    """Validate a grouping column specification and convert it to a frozenset."""
+) -> Tuple[str, ...]:
+    """Validate a grouping column specification and convert it to a tuple.
+
+    The tuple preserves the order in which the columns were given.
+    """
     check_type(grouping_columns, Union[str, Collection[str]])
     if isinstance(grouping_columns, str):
         columns: Collection[str] = [grouping_columns]
@@ -67,15 +70,15 @@ def _normalize_grouping_columns(
         raise ValueError(
             f"grouping_columns cannot contain duplicate columns, got {columns}"
         )
-    return frozenset(columns)
+    return tuple(columns)
 
 
 def _resolve_grouping_columns(
     constraint_name: str,
     grouping_columns: Optional[Union[str, Collection[str]]],
     grouping_column: Optional[str],
-) -> FrozenSet[str]:
-    """Get the grouping columns from a constructor's arguments.
+) -> Tuple[str, ...]:
+    """Get the grouping columns, in the given order, from a constructor's arguments.
 
     ``grouping_column`` is a deprecated alias of ``grouping_columns`` that only
     accepts a single column name; exactly one of the two must be given.
@@ -134,9 +137,9 @@ def _deprecated_grouping_column(
     return column
 
 
-def _format_grouping_columns(grouping_columns: FrozenSet[str]) -> str:
-    """Format grouping columns for display, in a deterministic order."""
-    return "{" + ", ".join(repr(c) for c in sorted(grouping_columns)) + "}"
+def _format_grouping_columns(grouping_columns: Tuple[str, ...]) -> str:
+    """Format grouping columns for display, in the order they were given."""
+    return "{" + ", ".join(repr(c) for c in grouping_columns) + "}"
 
 
 def simplify_truncation_constraints(
@@ -278,6 +281,11 @@ class MaxGroupsPerID(Constraint):
 
     Required."""
 
+    _ordered_grouping_columns: Tuple[str, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    """The grouping columns, in the order they were given (for display only)."""
+
     # TODO: Remove this __init__ once we remove the deprecated
     # grouping_columns parameter.
     def __init__(
@@ -287,13 +295,11 @@ class MaxGroupsPerID(Constraint):
         *,
         grouping_column: Optional[str] = None,
     ):
-        object.__setattr__(
-            self,
-            "grouping_columns",
-            _resolve_grouping_columns(
-                "MaxGroupsPerID", grouping_columns, grouping_column
-            ),
+        ordered_columns = _resolve_grouping_columns(
+            "MaxGroupsPerID", grouping_columns, grouping_column
         )
+        object.__setattr__(self, "grouping_columns", frozenset(ordered_columns))
+        object.__setattr__(self, "_ordered_grouping_columns", ordered_columns)
         object.__setattr__(self, "max", _check_max("MaxGroupsPerID", max))
 
     @property
@@ -310,7 +316,8 @@ class MaxGroupsPerID(Constraint):
         """Return a string representation of this constraint."""
         return (
             "MaxGroupsPerID(grouping_columns="
-            f"{_format_grouping_columns(self.grouping_columns)}, max={self.max})"
+            f"{_format_grouping_columns(self._ordered_grouping_columns)}"
+            f", max={self.max})"
         )
 
     def _enforce(
@@ -431,6 +438,11 @@ class MaxRowsPerGroupPerID(Constraint):
     Required.
     """
 
+    _ordered_grouping_columns: Tuple[str, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    """The grouping columns, in the order they were given (for display only)."""
+
     # TODO: Remove this __init__ once we remove the deprecated
     # grouping_columns parameter.
     def __init__(
@@ -441,13 +453,11 @@ class MaxRowsPerGroupPerID(Constraint):
         grouping_column: Optional[str] = None,
     ):
         object.__setattr__(self, "max", _check_max("MaxRowsPerGroupPerID", max))
-        object.__setattr__(
-            self,
-            "grouping_columns",
-            _resolve_grouping_columns(
-                "MaxRowsPerGroupPerID", grouping_columns, grouping_column
-            ),
+        ordered_columns = _resolve_grouping_columns(
+            "MaxRowsPerGroupPerID", grouping_columns, grouping_column
         )
+        object.__setattr__(self, "grouping_columns", frozenset(ordered_columns))
+        object.__setattr__(self, "_ordered_grouping_columns", ordered_columns)
 
     @property
     def grouping_column(self) -> str:
@@ -465,7 +475,8 @@ class MaxRowsPerGroupPerID(Constraint):
         """Return a string representation of this constraint."""
         return (
             "MaxRowsPerGroupPerID(grouping_columns="
-            f"{_format_grouping_columns(self.grouping_columns)}, max={self.max})"
+            f"{_format_grouping_columns(self._ordered_grouping_columns)}"
+            f", max={self.max})"
         )
 
     def _enforce(

@@ -434,14 +434,20 @@ class Rename(SingleChildQueryExpr):
             elif isinstance(c, MaxGroupsPerID):
                 result.append(
                     MaxGroupsPerID(
-                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
+                        [
+                            self.column_mapper.get(g, g)
+                            for g in c._ordered_grouping_columns
+                        ],
                         c.max,
                     )
                 )
             elif isinstance(c, MaxRowsPerGroupPerID):
                 result.append(
                     MaxRowsPerGroupPerID(
-                        [self.column_mapper.get(g, g) for g in c.grouping_columns],
+                        [
+                            self.column_mapper.get(g, g)
+                            for g in c._ordered_grouping_columns
+                        ],
                         c.max,
                     )
                 )
@@ -991,11 +997,12 @@ def _propagate_join_by_stability(
         else:
             return None
     elif isinstance(c, MaxGroupsPerID):
-        return MaxGroupsPerID([col_name(g) for g in c.grouping_columns], c.max)
+        return MaxGroupsPerID([col_name(g) for g in c._ordered_grouping_columns], c.max)
     elif isinstance(c, MaxRowsPerGroupPerID):
         if join_stability:
             return MaxRowsPerGroupPerID(
-                [col_name(g) for g in c.grouping_columns], c.max * join_stability
+                [col_name(g) for g in c._ordered_grouping_columns],
+                c.max * join_stability,
             )
         else:
             return None

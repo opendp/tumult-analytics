@@ -762,3 +762,19 @@ def test_multi_column(
     for c in _MULTI_COLUMN_CONSTRAINTS:
         query = query.enforce(c)
     _test_propagation(transform(query), expected_constraints, session)
+
+
+@pytest.mark.parametrize("session", [INF_BUDGET], indirect=True, ids=["puredp"])
+def test_rename_preserves_column_order(session):
+    """Renaming grouping columns keeps the order they were given in for display."""
+    query = (
+        QueryBuilder("id_a1")
+        .enforce(MaxGroupsPerID(["group2", "group"], 3))
+        .enforce(MaxRowsPerGroupPerID(["group2", "group"], 2))
+        .rename({"group2": "z2"})
+    )
+    session.create_view(query, "view", cache=False)
+    assert {repr(c) for c in session._table_constraints[NamedTable("view")]} == {
+        "MaxGroupsPerID(grouping_columns={'z2', 'group'}, max=3)",
+        "MaxRowsPerGroupPerID(grouping_columns={'z2', 'group'}, max=2)",
+    }

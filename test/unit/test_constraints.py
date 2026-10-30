@@ -34,6 +34,7 @@ def test_max_groups_per_id():
     assert MaxGroupsPerID("grouping_column", 1).grouping_columns == frozenset(
         {"grouping_column"}
     )
+    assert isinstance(MaxGroupsPerID("grouping_column", 1).grouping_columns, frozenset)
     with pytest.raises(ValueError):
         MaxGroupsPerID("", 1)
     with pytest.raises(ValueError):
@@ -60,13 +61,18 @@ def test_multiple_grouping_columns(constraint_type):
     c = constraint_type(["a", "b"], 2)
     assert c.max == 2
     assert c.grouping_columns == frozenset({"a", "b"})
+    assert isinstance(c.grouping_columns, frozenset)
     assert c == constraint_type(("a", "b"), 2)
     assert c == constraint_type(frozenset({"a", "b"}), 2)
-    # The order in which the columns are given does not matter.
+    # The order in which the columns are given does not matter for equality...
     assert c == constraint_type(["b", "a"], 2)
     assert hash(c) == hash(constraint_type(["b", "a"], 2))
-    assert repr(constraint_type(["b", "a"], 2)) == (
+    # ... but it is preserved for display.
+    assert repr(c) == (
         f"{constraint_type.__name__}(grouping_columns={{'a', 'b'}}, max=2)"
+    )
+    assert repr(constraint_type(["b", "a"], 2)) == (
+        f"{constraint_type.__name__}(grouping_columns={{'b', 'a'}}, max=2)"
     )
 
 
@@ -75,6 +81,7 @@ def test_single_grouping_column(constraint_type):
     """A single grouping column is stored as a one-element frozenset."""
     c = constraint_type("a", 2)
     assert c.grouping_columns == frozenset({"a"})
+    assert isinstance(c.grouping_columns, frozenset)
     assert c == constraint_type(["a"], 2)
     assert c == constraint_type(grouping_columns="a", max=2)
     assert repr(c) == f"{constraint_type.__name__}(grouping_columns={{'a'}}, max=2)"
