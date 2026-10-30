@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
+import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -21,6 +22,7 @@ from tmlt.analytics import (
     AddRowsWithID,
     ApproxDPBudget,
     AverageMechanism,
+    BinningSpec,
     ColumnDescriptor,
     ColumnType,
     CountMechanism,
@@ -564,6 +566,64 @@ class TestSession:
 
         with pytest.raises(error_type, match=message):
             session.evaluate(bad_query, session.remaining_privacy_budget)
+
+    @pytest.mark.parametrize(
+        "column,spec,message",
+        [
+            (
+                "ts",
+                BinningSpec([datetime.date(2024, 1, 1), datetime.date(2025, 1, 1)]),
+                "Column 'ts' has type TIMESTAMP, but this query expects DATE",
+            ),
+            (
+                "A",
+                BinningSpec([0, 10, 20]),
+                (
+                    "Column 'A' has type VARCHAR, but this query expects INTEGER or "
+                    "DECIMAL"
+                ),
+            ),
+            (
+                "Z",
+                BinningSpec([0, 10, 20]),
+                "Column 'Z' does not exist in this table",
+            ),
+        ],
+    )
+    def test_bin_column_invalid(
+        self, spark, column: str, spec: BinningSpec, message: str
+    ):
+        """bin_column fails before spending budget if the column can't be binned."""
+        sdf = spark.createDataFrame(
+            [("a", 1, datetime.datetime(2024, 3, 1))], "A string, B long, ts timestamp"
+        )
+        session = Session.from_dataframe(
+            PureDPBudget(1), "private", sdf, protected_change=AddOneRow()
+        )
+        query = (
+            QueryBuilder("private")
+            .bin_column(column, spec)
+            .groupby(KeySet.from_dict({f"{column}_binned": spec.bins()}))
+            .count()
+        )
+        with pytest.raises(ValueError, match=message):
+            session.evaluate(query, PureDPBudget(1))
+        assert session.remaining_privacy_budget == PureDPBudget(1)
+
+    @pytest.mark.parametrize(
+        "column,spec",
+        [("B", BinningSpec([0.0, 2.0, 4.0])), ("X", BinningSpec([0, 2, 4]))],
+    )
+    def test_bin_column_numeric_edges(self, spark, column: str, spec: BinningSpec):
+        """Integer and decimal bin edges both work on integer and decimal columns."""
+        sdf = spark.createDataFrame([(1, 1.5), (3, 3.5)], "B long, X double")
+        session = Session.from_dataframe(
+            PureDPBudget(float("inf")), "private", sdf, protected_change=AddOneRow()
+        )
+        result = session.evaluate(
+            QueryBuilder("private").histogram(column, spec), PureDPBudget(float("inf"))
+        )
+        assert result.sort(f"{column}_binned").toPandas()["count"].tolist() == [1, 1]
 
     @pytest.mark.parametrize(
         "budget",
