@@ -11,7 +11,7 @@ from tmlt.core.measurements.aggregations import NoiseMechanism
 from typeguard import check_type
 
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._schema import ColumnDescriptor, Schema
+from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet
 
@@ -39,11 +39,11 @@ class SumMechanism(Enum):
     """
     LAPLACE = auto()
     """Laplace and/or double-sided geometric noise is used, depending on the
-    column type.
+    column type and clamping bounds.
     """
     GAUSSIAN = auto()
-    """Discrete and/or continuous Gaussian noise is used, depending on the column type.
-    Not compatible with pure DP.
+    """Discrete and/or continuous Gaussian noise is used, depending on the column type
+    and clamping bounds. Not compatible with pure DP.
     """
 
 
@@ -107,7 +107,12 @@ class GroupByBoundedSum(GroupedMeasurementQueryExpr):
             input_schema,
             {
                 self.output_column: ColumnDescriptor(
-                    input_schema[self.measure_column].column_type, allow_null=False
+                    (
+                        ColumnType.DECIMAL
+                        if sums_as_float(self, input_schema)
+                        else input_schema[self.measure_column].column_type
+                    ),
+                    allow_null=False,
                 )
             },
         )
@@ -115,3 +120,16 @@ class GroupByBoundedSum(GroupedMeasurementQueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_bounded_sum(self)
+
+
+# Integer sums with clamping bounds beyond this value (in absolute value) are
+# computed on floating-point values. Assuming fewer than 2**40 summed records, sums
+# with smaller bounds are below 2**63 in absolute value, so they cannot overflow.
+MAX_INTEGER_SUM_BOUND = 2**23
+
+
+def sums_as_float(query: GroupByBoundedSum, input_schema: Schema) -> bool:
+    """Returns whether a sum query is computed on floating-point values."""
+    return input_schema[query.measure_column].column_type == ColumnType.DECIMAL or (
+        max(abs(query.low), abs(query.high)) > MAX_INTEGER_SUM_BOUND
+    )

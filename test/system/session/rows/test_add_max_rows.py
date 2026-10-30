@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
+from pyspark.sql.types import DataType, DoubleType, LongType
 from tmlt.core.measurements.interactive_measurements import PrivacyAccountantState
 from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.core.utils.exact_number import ExactNumber
@@ -43,6 +44,7 @@ from tmlt.analytics._query_expr import (
     QueryExpr,
 )
 from tmlt.analytics._table_identifier import NamedTable
+from tmlt.analytics.constraints import MaxRowsPerID
 
 from .conftest import EVALUATE_TESTS
 
@@ -1278,3 +1280,75 @@ class TestSession:
             ),
         )
         session.evaluate(query, RhoZCDPBudget(1))
+
+
+@parametrize(
+    [
+        Case()(budget=PureDPBudget(float("inf"))),
+        Case()(budget=RhoZCDPBudget(float("inf"))),
+    ]
+)
+@parametrize(
+    [
+        Case()(low=0, high=2**23, expected_type=LongType(), expected=[1, 2**23]),
+        Case()(
+            low=0, high=2**23 + 1, expected_type=DoubleType(), expected=[1, 2**23 + 1]
+        ),
+        Case()(low=-(2**23) - 1, high=1, expected_type=DoubleType(), expected=[1, 1]),
+        Case()(low=0, high=2**50, expected_type=DoubleType(), expected=[1, 2**40]),
+    ]
+)
+def test_integer_sum_with_large_bounds(
+    spark,
+    budget: PrivacyBudget,
+    low: int,
+    high: int,
+    expected_type: DataType,
+    expected: List[int],
+) -> None:
+    """Integer sums with bounds beyond 2^23 are computed on floats."""
+    sdf = spark.createDataFrame(
+        pd.DataFrame({"group": ["0", "1", "1"], "int_value": [1, 0, 2**40]})
+    )
+    session = Session.from_dataframe(
+        privacy_budget=budget,
+        source_id="private",
+        dataframe=sdf,
+        protected_change=AddOneRow(),
+    )
+    query = (
+        QueryBuilder("private")
+        .groupby(KeySet.from_dict({"group": ["0", "1"]}))
+        .sum(column="int_value", low=low, high=high, name="sum")
+    )
+    actual_sdf = session.evaluate(query, budget)
+    assert actual_sdf.schema["sum"].dataType == expected_type
+    assert_dataframe_equal(
+        actual_sdf, pd.DataFrame({"group": ["0", "1"], "sum": expected})
+    )
+
+
+def test_integer_sum_with_large_bounds_and_ids(spark) -> None:
+    """Integer sums with large bounds also work on tables with privacy IDs."""
+    sdf = spark.createDataFrame(
+        pd.DataFrame(
+            {"id": [1, 2, 2], "group": ["0", "1", "1"], "int_value": [1, 0, 2**40]}
+        )
+    )
+    session = Session.from_dataframe(
+        privacy_budget=PureDPBudget(float("inf")),
+        source_id="private",
+        dataframe=sdf,
+        protected_change=AddRowsWithID("id"),
+    )
+    query = (
+        QueryBuilder("private")
+        .enforce(MaxRowsPerID(2))
+        .groupby(KeySet.from_dict({"group": ["0", "1"]}))
+        .sum(column="int_value", low=0, high=2**50, name="sum")
+    )
+    actual_sdf = session.evaluate(query, PureDPBudget(float("inf")))
+    assert actual_sdf.schema["sum"].dataType == DoubleType()
+    assert_dataframe_equal(
+        actual_sdf, pd.DataFrame({"group": ["0", "1"], "sum": [1, 2**40]})
+    )
