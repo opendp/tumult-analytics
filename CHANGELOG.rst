@@ -16,11 +16,14 @@ Changed
 
 - Tumult Analytics now requires Tumult Core 0.20.
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
+- :meth:`~tmlt.analytics.QueryBuilder.sum` on an integer column with clamping bounds larger than ``2**23`` in absolute value is now computed on floating-point values, and returns a floating-point column, to avoid integer overflows.
 
 Fixed
 ~~~~~
 
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
+- :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table.
+- Sessions created by :meth:`~tmlt.analytics.Session.partition_and_create` now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
 - :meth:`~tmlt.analytics.QueryBuilder.drop_infinity` and :meth:`~tmlt.analytics.QueryBuilder.replace_infinity` no longer raise an error when called without columns on a table with no DECIMAL columns they could change. They now warn that there is nothing to do and leave the table unchanged.
 
 
