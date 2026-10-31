@@ -31,7 +31,7 @@ from ._get_bounds import GetBounds
 from ._get_groups import GetGroups
 from ._group_by_bounded_average import AverageMechanism, GroupByBoundedAverage
 from ._group_by_bounded_stdev import GroupByBoundedStdev, StdevMechanism
-from ._group_by_bounded_sum import GroupByBoundedSum, SumMechanism
+from ._group_by_bounded_sum import GroupByBoundedSum, SumMechanism, sums_as_float
 from ._group_by_bounded_variance import GroupByBoundedVariance, VarianceMechanism
 from ._group_by_count import CountMechanism, GroupByCount
 from ._group_by_count_distinct import CountDistinctMechanism, GroupByCountDistinct

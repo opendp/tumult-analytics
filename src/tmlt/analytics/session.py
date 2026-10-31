@@ -1591,6 +1591,11 @@ class Session:
                     " underscores (_), and it cannot start with a number, or contain"
                     " any spaces."
                 )
+            if split_name in self.public_sources:
+                raise ValueError(
+                    f"This session already has a public table named '{split_name}',"
+                    " so it cannot be used as a split name."
+                )
             new_sources.append(split_name)
 
         adjusted_budget = self._process_requested_budget(privacy_budget)
@@ -1658,7 +1663,11 @@ class Session:
                     key=NamedTable(source),
                 )
             accountant.queue_transformation(nested_dict_transformation)
-            new_sessions[source] = self.__class__(accountant, self._public_sources)
+            # Each new session gets its own copy of the public sources, so adding a
+            # public table to one session doesn't affect the others.
+            new_sessions[source] = self.__class__(
+                accountant, dict(self._public_sources)
+            )
         return new_sessions
 
     def _process_requested_budget(self, privacy_budget: PrivacyBudget) -> PrivacyBudget:

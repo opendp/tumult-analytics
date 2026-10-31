@@ -35,7 +35,10 @@ from pyspark.sql.types import (
     TimestampType,
 )
 from tmlt.core.domains.collections import DictDomain
-from tmlt.core.domains.spark_domains import SparkDataFrameDomain
+from tmlt.core.domains.spark_domains import (
+    SparkDataFrameDomain,
+    SparkIntegerColumnDescriptor,
+)
 from tmlt.core.measurements.aggregations import (
     NoiseMechanism,
     create_average_measurement,
@@ -65,6 +68,7 @@ from tmlt.core.metrics import (
 )
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.converters import UnwrapIfGroupedBy
+from tmlt.core.transformations.spark_transformations.cast import CastToFloat
 from tmlt.core.transformations.spark_transformations.groupby import GroupBy
 from tmlt.core.transformations.spark_transformations.select import (
     Select as SelectTransformation,
@@ -1311,6 +1315,18 @@ class MeasurementVisitor(QueryExprVisitor):
             Union[IfGroupedBy, HammingDistance, SymmetricDifference],
             transformation.output_metric,
         )
+        # Integer sums with large clamping bounds use continuous noise, and are
+        # computed on floats to avoid overflows.
+        if mechanism in (
+            NoiseMechanism.LAPLACE,
+            NoiseMechanism.GAUSSIAN,
+        ) and isinstance(mid_domain[expr.measure_column], SparkIntegerColumnDescriptor):
+            transformation = transformation | CastToFloat(
+                input_domain=mid_domain,
+                metric=mid_metric,
+                columns=[expr.measure_column],
+            )
+            mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
         mid_stability = transformation.stability_function(self.stability)
 
         def _build_groupby_agg_from_groupby(

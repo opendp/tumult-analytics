@@ -889,6 +889,46 @@ class TestMeasurementVisitor:
                     ]
                 ),
             ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({}),
+                    mechanism=SumMechanism.DEFAULT,
+                    measure_column="B",
+                    low=0,
+                    high=2**40,
+                    core_mechanism=NoiseMechanism.LAPLACE,
+                ),
+                PureDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.LAPLACE,
+                            "noise_parameter": 329853488332.8,
+                        }
+                    ]
+                ),
+            ),
+            (
+                GroupByBoundedSum(
+                    child=PrivateSource("private"),
+                    groupby_keys=KeySet.from_dict({"A": ["zero"]}),
+                    mechanism=SumMechanism.DEFAULT,
+                    measure_column="B",
+                    low=-(2**40),
+                    high=2**40,
+                    core_mechanism=NoiseMechanism.GAUSSIAN,
+                ),
+                RhoZCDP(),
+                NoiseInfo(
+                    [
+                        {
+                            "noise_mechanism": _NoiseMechanism.GAUSSIAN,
+                            "noise_parameter": 5.440166188265831e23,
+                        }
+                    ]
+                ),
+            ),
         ],
     )
     def test_visit_groupby_bounded_sum(
