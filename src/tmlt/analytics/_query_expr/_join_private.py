@@ -92,13 +92,9 @@ class JoinPrivate(QueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
 
-        The ordering of output columns are:
-
-        1. The join columns
-        2. Columns that are only in the left table
-        3. Columns that are only in the right table
-        4. Columns that are in both tables, but not included in the join columns. These
-           columns are included with _left and _right suffixes.
+        Columns that are in both tables but not in the join columns are included
+        twice, with _left and _right suffixes. The order of the output columns is not
+        guaranteed.
         """
         left_schema = self.left_child.schema(catalog)
         right_schema = self.right_child.schema(catalog)
