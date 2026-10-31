@@ -4,13 +4,13 @@
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 from dataclasses import dataclass, replace
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Tuple
 
 from typeguard import check_type
 
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
-from tmlt.analytics._schema import Schema
+from tmlt.analytics._schema import ColumnType, FrozenDict, Schema
 from tmlt.analytics.constraints import Constraint
 
 from ._base import (
@@ -35,6 +35,13 @@ class Map(SingleChildQueryExpr):
     If True, schema = old schema + schema_new_columns, otherwise only keeps the new
     columns (schema = schema_new_columns).
     """
+    input_column_types: FrozenDict = FrozenDict.from_dict({})
+    """The column types that ``f`` accepts, for the input columns it reads.
+
+    Maps column names to tuples of accepted column types. The query fails
+    validation if one of these columns is missing or has another type. Columns
+    that are not listed are not checked.
+    """
 
     def __post_init__(self):
         """Checks arguments to constructor."""
@@ -42,11 +49,25 @@ class Map(SingleChildQueryExpr):
         check_type(self.f, Callable[[Row], Row])
         check_type(self.schema_new_columns, Schema)
         check_type(self.augment, bool)
+        check_type(self.input_column_types, FrozenDict)
+        check_type(dict(self.input_column_types), Dict[str, Tuple[ColumnType, ...]])
         if self.schema_new_columns.grouping_column is not None:
             raise ValueError("Map cannot be be used to create grouping columns")
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
+        for name, accepted_types in self.input_column_types.items():
+            if name not in input_schema.keys():
+                raise ValueError(
+                    f"Column '{name}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}"
+                )
+            column_type = input_schema[name].column_type
+            if column_type not in accepted_types:
+                raise ValueError(
+                    f"Column '{name}' has type {column_type.name}, but this query "
+                    f"expects {' or '.join(t.name for t in accepted_types)}"
+                )
         new_columns = self.schema_new_columns.column_descs
         if self.augment:
             overlapping_columns = set(input_schema.keys()) & set(new_columns.keys())
@@ -115,5 +136,6 @@ class Map(SingleChildQueryExpr):
         return (
             self.schema_new_columns == other.schema_new_columns
             and self.augment == other.augment
+            and self.input_column_types == other.input_column_types
             and self.child == other.child
         )
