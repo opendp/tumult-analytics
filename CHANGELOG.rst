@@ -24,6 +24,7 @@ Fixed
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
 - :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table.
 - Sessions created by :meth:`~tmlt.analytics.Session.partition_and_create` now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
+- Clamping bounds of aggregations are now validated when the query is created: they must be finite, and at most :math:`2^{970}` in absolute value for :meth:`~tmlt.analytics.QueryBuilder.sum` and :meth:`~tmlt.analytics.QueryBuilder.average`, or :math:`2^{485}` for :meth:`~tmlt.analytics.QueryBuilder.variance` and :meth:`~tmlt.analytics.QueryBuilder.stdev`. Previously, invalid bounds caused internal errors during evaluation.
 
 
 .. _v0.21.0:
