@@ -2524,7 +2524,8 @@ class QueryBuilder:
             column: The column to compute the sum over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{970}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -2612,7 +2613,8 @@ class QueryBuilder:
             column: The column to compute the average over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{970}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -2700,7 +2702,8 @@ class QueryBuilder:
             column: The column to compute the variance over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{485}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -2788,7 +2791,8 @@ class QueryBuilder:
             column: The column to compute the stdev over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{485}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -3062,8 +3066,6 @@ class GroupedQueryBuilder:
         """
         if name is None:
             name = f"{column}_quantile({quantile})"
-        low = low if isinstance(low, float) else float(low)
-        high = high if isinstance(high, float) else float(high)
         query_expr = GroupByQuantile(
             child=self._query_expr,
             groupby_keys=self._groupby_keys,
@@ -3379,7 +3381,8 @@ class GroupedQueryBuilder:
             column: The column to compute the sum over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{970}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_sum"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -3486,7 +3489,8 @@ class GroupedQueryBuilder:
             column: The column to compute the average over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{970}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_average"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -3594,7 +3598,8 @@ class GroupedQueryBuilder:
             column: The column to compute the variance over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{485}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_variance"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
@@ -3701,7 +3706,8 @@ class GroupedQueryBuilder:
             column: The column to compute the stdev over.
             low: The lower bound for clamping.
             high: The upper bound for clamping. Must be such that ``low``
-                is less than ``high``.
+                is less than ``high``. Both bounds must be at most
+                :math:`2^{485}` in absolute value.
             name: The name to give the resulting aggregation column. Defaults to
                 ``f"{column}_stdev"``.
             mechanism: Choice of noise mechanism (case-insensitive). By default, the

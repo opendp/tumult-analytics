@@ -20,6 +20,7 @@ from ._base import (
     QueryExprVisitor,
     _schema_for_groupby,
     _validate_child_is_transformation,
+    _validate_clamping_bounds,
     _validate_groupby,
     _validate_measure_column,
 )
@@ -82,17 +83,13 @@ class GroupByBoundedStdev(GroupedMeasurementQueryExpr):
         check_type(self.output_column, str)
         check_type(self.mechanism, StdevMechanism)
 
+        # Squared values are summed, and sums only support bounds up to 2^970.
+        _validate_clamping_bounds(self.low, self.high, 485)
         if type(self.low) != type(self.high):
             # If one is int and other is float; silently cast to float
             # We use __setattr__ here to bypass the dataclass being frozen
             object.__setattr__(self, "low", float(self.low))
             object.__setattr__(self, "high", float(self.high))
-
-        if self.low >= self.high:
-            raise ValueError(
-                f"Lower bound '{self.low}' must be less than "
-                f"the upper bound '{self.high}'."
-            )
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""

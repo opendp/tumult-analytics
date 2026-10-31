@@ -333,6 +333,27 @@ def _validate_groupby(
         )
 
 
+def _validate_clamping_bounds(low: float, high: float, max_exponent: int):
+    """Validates the clamping bounds of an aggregation.
+
+    Bounds must be finite, ``low`` must be less than ``high``, and both must be at
+    most ``2**max_exponent`` in absolute value.
+    """
+    for name, bound in [("Lower", low), ("Upper", high)]:
+        if isinstance(bound, float) and math.isnan(bound):
+            raise ValueError(f"{name} bound must not be NaN.")
+        if isinstance(bound, float) and math.isinf(bound):
+            raise ValueError(f"{name} bound must be finite, not '{bound}'.")
+    if low >= high:
+        raise ValueError(
+            f"Lower bound '{low}' must be less than the upper bound '{high}'."
+        )
+    if high > 2**max_exponent:
+        raise ValueError(f"Upper bound '{high}' must be at most 2^{max_exponent}.")
+    if low < -(2**max_exponent):
+        raise ValueError(f"Lower bound '{low}' must be at least -2^{max_exponent}.")
+
+
 def _validate_measure_column(
     query: Union[
         "GetBounds",

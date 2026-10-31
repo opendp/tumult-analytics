@@ -362,7 +362,7 @@ def test_invalid_groupbycount(child: QueryExpr, keys: KeySet, output_column: str
             "B",
             10.0,
             1,
-            "Lower bound '10.0' must be less than the upper bound '1.0'.",
+            "Lower bound '10.0' must be less than the upper bound '1'.",
         ),
         (
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -370,6 +370,34 @@ def test_invalid_groupbycount(child: QueryExpr, keys: KeySet, output_column: str
             1.0,
             1.0,
             "Lower bound '1.0' must be less than the upper bound '1.0'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            float("nan"),
+            1.0,
+            "Lower bound must not be NaN.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.0,
+            float("nan"),
+            "Upper bound must not be NaN.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            float("-inf"),
+            1.0,
+            "Lower bound must be finite, not '-inf'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.0,
+            float("inf"),
+            "Upper bound must be finite, not 'inf'.",
         ),
     ],
 )
@@ -385,6 +413,119 @@ def test_invalid_groupbyagg(
     ]:
         with pytest.raises((TypeCheckError, ValueError), match=expected_error_msg):
             DataClass(PrivateSource("private"), keys, measure_column, low, high)
+
+
+@pytest.mark.parametrize(
+    "DataClass,low,high,expected_error_msg",
+    [
+        (
+            GroupByBoundedSum,
+            0.0,
+            2.0**971,
+            f"Upper bound '{2.0**971}' must be at most 2^970.",
+        ),
+        (
+            GroupByBoundedSum,
+            -(2.0**971),
+            0.0,
+            f"Lower bound '{-(2.0**971)}' must be at least -2^970.",
+        ),
+        (
+            GroupByBoundedAverage,
+            0.0,
+            2.0**971,
+            f"Upper bound '{2.0**971}' must be at most 2^970.",
+        ),
+        (
+            GroupByBoundedAverage,
+            -(2.0**971),
+            0.0,
+            f"Lower bound '{-(2.0**971)}' must be at least -2^970.",
+        ),
+        (
+            GroupByBoundedVariance,
+            0.0,
+            2.0**486,
+            f"Upper bound '{2.0**486}' must be at most 2^485.",
+        ),
+        (
+            GroupByBoundedVariance,
+            -(2.0**486),
+            0.0,
+            f"Lower bound '{-(2.0**486)}' must be at least -2^485.",
+        ),
+        (
+            GroupByBoundedStdev,
+            0.0,
+            2.0**486,
+            f"Upper bound '{2.0**486}' must be at most 2^485.",
+        ),
+        (
+            GroupByBoundedStdev,
+            -(2.0**486),
+            0.0,
+            f"Lower bound '{-(2.0**486)}' must be at least -2^485.",
+        ),
+        (
+            GroupByBoundedSum,
+            0.0,
+            10**400,
+            f"Upper bound '{10**400}' must be at most 2^970.",
+        ),
+        (
+            GroupByBoundedAverage,
+            -(10**400),
+            0.0,
+            f"Lower bound '{-(10**400)}' must be at least -2^970.",
+        ),
+        (
+            GroupByBoundedVariance,
+            0.0,
+            10**400,
+            f"Upper bound '{10**400}' must be at most 2^485.",
+        ),
+        (
+            GroupByBoundedStdev,
+            -(10**400),
+            0.0,
+            f"Lower bound '{-(10**400)}' must be at least -2^485.",
+        ),
+    ],
+)
+def test_groupbyagg_bounds_too_large(
+    DataClass: Type, low: float, high: float, expected_error_msg: str
+):
+    """GroupBy aggregates reject clamping bounds that are too large."""
+    with pytest.raises(ValueError, match=re.escape(expected_error_msg)):
+        DataClass(PrivateSource("private"), KeySet.from_dict({}), "B", low, high)
+
+
+@pytest.mark.parametrize(
+    "DataClass,max_bound",
+    [
+        (GroupByBoundedSum, 2.0**970),
+        (GroupByBoundedAverage, 2.0**970),
+        (GroupByBoundedVariance, 2.0**485),
+        (GroupByBoundedStdev, 2.0**485),
+    ],
+)
+def test_groupbyagg_largest_bounds(DataClass: Type, max_bound: float):
+    """GroupBy aggregates accept clamping bounds up to their limit."""
+    DataClass(
+        PrivateSource("private"), KeySet.from_dict({}), "B", -max_bound, max_bound
+    )
+
+
+def test_groupbyquantile_largest_bounds():
+    """GroupByQuantile accepts the largest floating-point clamping bounds."""
+    GroupByQuantile(
+        PrivateSource("private"),
+        KeySet.from_dict({}),
+        "B",
+        0.5,
+        -(2.0**1023),
+        2.0**1023,
+    )
 
 
 @pytest.mark.parametrize(
@@ -437,6 +578,54 @@ def test_invalid_groupbyagg(
             1.0,
             1.0,
             "Lower bound '1.0' must be less than the upper bound '1.0'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            float("nan"),
+            1.0,
+            "Lower bound must not be NaN.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            0.0,
+            float("nan"),
+            "Upper bound must not be NaN.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            float("-inf"),
+            1.0,
+            "Lower bound must be finite, not '-inf'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            0.0,
+            float("inf"),
+            "Upper bound must be finite, not 'inf'.",
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            0.0,
+            10**400,
+            re.escape(f"Upper bound '{10**400}' must be at most 2^1023."),
+        ),
+        (
+            KeySet.from_dict({"A": ["0", "1"]}),
+            "B",
+            0.5,
+            -(10**400),
+            0.0,
+            re.escape(f"Lower bound '{-(10**400)}' must be at least -2^1023."),
         ),
     ],
 )
