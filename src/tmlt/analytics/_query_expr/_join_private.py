@@ -93,7 +93,7 @@ class JoinPrivate(QueryExpr):
         """Returns the schema resulting from evaluating this QueryExpr.
 
         Columns that are in both tables but not in the join columns are included
-        twice, with _left and _right suffixes. The order of the output columns is not
+        with ``_left`` and ``_right`` suffixes. The order of the output columns is not
         guaranteed.
         """
         left_schema = self.left_child.schema(catalog)
