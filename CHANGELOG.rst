@@ -24,6 +24,7 @@ Fixed
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
 - :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table.
 - Sessions created by :meth:`~tmlt.analytics.Session.partition_and_create` now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
+- :meth:`~tmlt.analytics.QueryBuilder.drop_infinity` and :meth:`~tmlt.analytics.QueryBuilder.replace_infinity` no longer raise an error when called without columns on a table with no DECIMAL columns they could change. They now warn that there is nothing to do and leave the table unchanged.
 
 
 .. _v0.21.0:

@@ -4,7 +4,7 @@
 # Copyright the Tumult Analytics Contributors
 
 import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -533,6 +533,54 @@ def test_drop_infinity(
     result = sess.evaluate(query, inf_budget)
     expected_df = pd.DataFrame([[expected_sum]], columns=["float_infs_sum"])
     assert_dataframe_equal(result, expected_df)
+
+
+@parametrize(
+    # All these tests count the rows of a table where replace_infinity or
+    # drop_infinity, called without arguments, has nothing to do.
+    [
+        Case("replace_no_decimal_columns")(
+            columns=["string_nulls", "int_no_null"],
+            transform=lambda query: query.replace_infinity(),
+            match="nothing to replace",
+        ),
+        Case("drop_no_decimal_columns")(
+            columns=["string_nulls", "int_no_null"],
+            transform=lambda query: query.drop_infinity(),
+            match="nothing to drop",
+        ),
+        Case("drop_after_replace")(
+            # replace_infinity leaves no column that can contain infinite values.
+            columns=["string_nulls", "float_infs"],
+            transform=lambda query: query.replace_infinity().drop_infinity(),
+            match="nothing to drop",
+        ),
+    ]
+)
+@pytest.mark.parametrize(
+    "protected_change", [AddOneRow(), AddRowsWithID("string_nulls")]
+)
+def test_infinity_with_nothing_to_do(
+    sdf_special_values: DataFrame,
+    columns: List[str],
+    transform: Callable[[QueryBuilder], QueryBuilder],
+    match: str,
+    protected_change: ProtectedChange,
+):
+    """Replacing/dropping infinities with nothing to do warns and keeps all rows."""
+    inf_budget = PureDPBudget(float("inf"))
+    sess = Session.from_dataframe(
+        inf_budget,
+        "private",
+        sdf_special_values.select(*columns),
+        protected_change,
+    )
+    query = transform(QueryBuilder("private"))
+    if isinstance(protected_change, AddRowsWithID):
+        query = query.enforce(MaxRowsPerID(1))
+    with pytest.warns(UserWarning, match=match):
+        result = sess.evaluate(query.count(), inf_budget)
+    assert_dataframe_equal(result, pd.DataFrame([[30]], columns=["count"]))
 
 
 @parametrize(

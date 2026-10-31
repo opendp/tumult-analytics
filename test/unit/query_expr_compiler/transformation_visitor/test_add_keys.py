@@ -525,6 +525,23 @@ class TestAddKeys(TestTransformationVisitor):
             == expected_output_domain
         )
 
+    @pytest.mark.parametrize(
+        "query,match",
+        [
+            (ReplaceInfinity(PrivateSource("ids2")), "nothing to replace"),
+            (DropInfinity(PrivateSource("ids2")), "nothing to drop"),
+        ],
+    )
+    def test_visit_infinity_with_nothing_to_do(
+        self, query: QueryExpr, match: str
+    ) -> None:
+        """Test that replacing/dropping infinities warns and keeps the table as is."""
+        with pytest.warns(UserWarning, match=match):
+            transformation, reference = query.accept(self.visitor)
+        self._validate_transform_basics(transformation, reference, query)
+        expected_df = pd.DataFrame([[1, 0, "a"]], columns=["id", "I", "field"])
+        self._validate_result(transformation, reference, expected_df)
+
 
 class TestAddKeysNulls(TestTransformationVisitorNulls):
     """Test the TransformationVisitor with nulls, NaNs, and infs."""
