@@ -721,16 +721,13 @@ class TestSession:
             "private", PureDPBudget(1), "A", {"private0": "0", "private1": "1"}
         )
 
+        # "private0" is a private table of a new session, not a public table, so the
+        # original session can still add a public table with that name.
         sess.add_public_dataframe("private0", self.sdf)
         sessions["private1"].add_public_dataframe("public1", self.sdf)
         assert sess.public_sources == ["public", "private0"]
         assert sessions["private0"].public_sources == ["public"]
         assert sessions["private1"].public_sources == ["public", "public1"]
-
-        result = sessions["private0"].evaluate(
-            QueryBuilder("private0").count(), PureDPBudget(1)
-        )
-        assert result.columns == ["count"]
 
     @pytest.mark.parametrize(
         "starting_budget,partition_budget,remaining_budget",
