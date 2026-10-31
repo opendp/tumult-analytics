@@ -698,6 +698,39 @@ class TestSession:
         with pytest.raises(ValueError, match="Table '.*' is a public table"):
             sess.partition_and_create("public", PureDPBudget(1), "A", {"private0": "0"})
 
+    def test_partition_split_name_is_public_table(self):
+        """Partitioning with a public table's name as split name fails early."""
+        sess = Session.from_dataframe(
+            PureDPBudget(1), "private", self.sdf, protected_change=AddOneRow()
+        )
+        sess.add_public_dataframe("public", self.sdf)
+
+        with pytest.raises(
+            ValueError, match="already has a public table named 'public'"
+        ):
+            sess.partition_and_create(
+                "private", PureDPBudget(1), "A", {"private0": "0", "public": "1"}
+            )
+        assert sess.remaining_privacy_budget == PureDPBudget(1)
+
+    def test_partition_public_sources_not_shared(self):
+        """Adding a public table after partitioning only affects that session."""
+        sess = Session.from_dataframe(
+            PureDPBudget(1), "private", self.sdf, protected_change=AddOneRow()
+        )
+        sess.add_public_dataframe("public", self.sdf)
+        sessions = sess.partition_and_create(
+            "private", PureDPBudget(1), "A", {"private0": "0", "private1": "1"}
+        )
+
+        # "private0" is a private table of a new session, not a public table, so the
+        # original session can still add a public table with that name.
+        sess.add_public_dataframe("private0", self.sdf)
+        sessions["private1"].add_public_dataframe("public1", self.sdf)
+        assert sess.public_sources == ["public", "private0"]
+        assert sessions["private0"].public_sources == ["public"]
+        assert sessions["private1"].public_sources == ["public", "public1"]
+
     @pytest.mark.parametrize(
         "starting_budget,partition_budget,remaining_budget",
         [
