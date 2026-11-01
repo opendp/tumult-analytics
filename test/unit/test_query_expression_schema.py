@@ -45,7 +45,6 @@ from tmlt.analytics._schema import (
     analytics_to_spark_schema,
     spark_schema_to_analytics_columns,
 )
-from tmlt.analytics.config import config
 
 # Convenience lambda functions to create dataframes for KeySets
 GET_PUBLIC = lambda: SparkSession.builder.getOrCreate().createDataFrame(
@@ -1692,16 +1691,15 @@ class TestValidationWithNulls:
                 "upper_bound": ColumnDescriptor(ColumnType.INTEGER, allow_null=False),
             }
         )
-        with config.features.auto_partition_selection.enabled():
-            query = GetBounds(
-                child=PrivateSource("private"),
-                groupby_keys=tuple("A"),
-                measure_column="NOTNULL",
-                lower_bound_column="lower_bound",
-                upper_bound_column="upper_bound",
-            )
-            schema = query.schema(self.catalog)
-            assert schema == expected_schema
+        query = GetBounds(
+            child=PrivateSource("private"),
+            groupby_keys=tuple("A"),
+            measure_column="NOTNULL",
+            lower_bound_column="lower_bound",
+            upper_bound_column="upper_bound",
+        )
+        schema = query.schema(self.catalog)
+        assert schema == expected_schema
 
     @pytest.mark.parametrize(
         "query",
