@@ -1195,6 +1195,11 @@ class TransformationVisitor(QueryExprVisitor):
                 for col in analytics_schema.column_descs
                 if analytics_schema[col].column_type == ColumnType.DECIMAL
             }
+            if len(replace_with) == 0:
+                warnings.warn(
+                    "replace_infinity() was called with no columns specified, and the"
+                    " table has no DECIMAL columns, so there is nothing to replace."
+                )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
@@ -1207,20 +1212,31 @@ class TransformationVisitor(QueryExprVisitor):
                 raise AnalyticsInternalError(
                     f"Unrecognized input metric {type(input_metric)}."
                 )
+            transformation: Transformation
+            if replace_with:
+                transformation = ReplaceInfsTransformation(
+                    input_domain=input_domain,
+                    metric=input_metric,
+                    replace_map=replace_with,
+                )
+            else:
+                # Nothing to replace, so the table is passed through unchanged.
+                transformation = IdentityTransformation(input_metric, input_domain)
             return create_copy_and_transform_value(
                 parent_domain,
                 parent_metric,
                 child_ref.identifier,
                 target,
-                ReplaceInfsTransformation(
-                    input_domain=input_domain,
-                    metric=input_metric,
-                    replace_map=replace_with,
-                ),
+                transformation,
                 lambda *args: None,
             )
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
+            if not replace_with:
+                # Nothing to replace, so the table is copied unchanged.
+                return RenameValueTransformation(
+                    parent_domain, parent_metric, child_ref.identifier, target, {}
+                )
             return ReplaceInfsValueTransformation(
                 parent_domain,
                 parent_metric,
@@ -1258,6 +1274,12 @@ class TransformationVisitor(QueryExprVisitor):
                 for col, cd in analytics_schema.column_descs.items()
                 if (cd.column_type == ColumnType.DECIMAL and cd.allow_inf)
             )
+            if len(columns) == 0:
+                warnings.warn(
+                    "drop_infinity() was called with no columns specified, and the"
+                    " table has no DECIMAL columns that can contain infinite values,"
+                    " so there is nothing to drop."
+                )
         else:
             for col in columns:
                 if analytics_schema.column_descs[col].column_type != ColumnType.DECIMAL:
@@ -1275,20 +1297,31 @@ class TransformationVisitor(QueryExprVisitor):
                 raise AnalyticsInternalError(
                     f"Unrecognized input metric {type(input_metric)}."
                 )
+            transformation: Transformation
+            if columns:
+                transformation = DropInfTransformation(
+                    input_domain=input_domain,
+                    metric=input_metric,
+                    columns=list(columns),
+                )
+            else:
+                # Nothing to drop, so the table is passed through unchanged.
+                transformation = IdentityTransformation(input_metric, input_domain)
             return create_copy_and_transform_value(
                 parent_domain,
                 parent_metric,
                 child_ref.identifier,
                 target,
-                DropInfTransformation(
-                    input_domain=input_domain,
-                    metric=input_metric,
-                    columns=list(columns),
-                ),
+                transformation,
                 lambda *args: None,
             )
 
         def gen_transformation_ark(parent_domain, parent_metric, target):
+            if not columns:
+                # Nothing to drop, so the table is copied unchanged.
+                return RenameValueTransformation(
+                    parent_domain, parent_metric, child_ref.identifier, target, {}
+                )
             return DropInfsValueTransformation(
                 parent_domain,
                 parent_metric,
