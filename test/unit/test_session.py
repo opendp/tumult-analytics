@@ -2709,6 +2709,29 @@ def test_automatic_partition_selection_invalid_budget(
 
 
 @pytest.mark.parametrize(
+    "columns,expected_error",
+    [
+        ([], "No groupby columns were given."),
+        (["id", "A", "id"], "Groupby column 'id' appears more than once."),
+    ],
+)
+def test_automatic_partition_selection_invalid_columns(
+    columns: List[str], expected_error: str
+):
+    """Invalid groupby columns are rejected before any budget is spent."""
+    session = Session.from_dataframe(
+        privacy_budget=ApproxDPBudget(10, 1e-5),
+        source_id="testdf",
+        dataframe=TEST_DATA_SPARK,
+        protected_change=AddOneRow(),
+    )
+    query = QueryBuilder(source_id="testdf").groupby(columns).count()
+    with pytest.raises(ValueError, match=re.escape(expected_error)):
+        session.evaluate(query, privacy_budget=ApproxDPBudget(1, 1e-6))
+    assert session.remaining_privacy_budget == ApproxDPBudget(10, 1e-5)
+
+
+@pytest.mark.parametrize(
     "query_expr,expected_columns",
     list(
         zip(
