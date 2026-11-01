@@ -577,9 +577,10 @@ suppose that we want to find out what first names are the most common among libr
 members. We don't know all possible first names a priori, so building the KeySet with prior knowledge is not possible.
 
 We can solve this problem by using *approximate differential
-privacy* (Approx DP) in our Session, and using
-:meth:`~tmlt.analytics.QueryBuilder.get_groups` to collect a list of
-names from the private data using Approx DP. Once we collect the names, we can use them as the KeySet for subsequent queries.
+privacy* (Approx DP) in our Session, and passing the column to group by to
+:meth:`~tmlt.analytics.QueryBuilder.groupby` instead of a KeySet. The group-by
+keys are then selected from the private data using Approx DP, before computing
+the aggregation.
 
 For more information on Approx DP, you can consult our topic guide on :ref:`Privacy budget fundamentals <privacy-budget-fundamentals>`.
 
@@ -588,11 +589,31 @@ For more information on Approx DP, you can consult our topic guide on :ref:`Priv
    from tmlt.analytics import ApproxDPBudget
 
    session = Session.from_dataframe(
-      privacy_budget=ApproxDPBudget(epsilon=3, delta=1e-10),
+      privacy_budget=ApproxDPBudget(epsilon=4, delta=2e-10),
       source_id="members",
       dataframe=members_df,
       protected_change=AddOneRow(),
    )
+
+   names_count_query = (
+      QueryBuilder("members")
+      .groupby("name")
+      .count()
+   )
+   name_counts_df = session.evaluate(
+      names_count_query,
+      privacy_budget=ApproxDPBudget(epsilon=1, delta=1e-10),
+   )
+
+Half of the epsilon and all of the delta are used to select the names, and the
+other half of the epsilon is used to compute the counts.
+
+If you want to use the same group-by keys in several queries, you can instead
+use :meth:`~tmlt.analytics.QueryBuilder.get_groups` to collect a list of names
+from the private data once, and use them as the KeySet for subsequent queries.
+This way, the budget used to select the keys is only spent once.
+
+.. testcode::
 
    names_query = (
       QueryBuilder("members")
