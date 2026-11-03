@@ -166,7 +166,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             child=PrivateSource("private"),
             column_mapper=FrozenDict.from_dict({"NONEXISTENT": "Z"}),
         ),
-        "Nonexistent columns in rename query: {'NONEXISTENT'}",
+        (
+            r"Columns \['NONEXISTENT'\] passed to rename\(\) are not in the table. "
+            r"Available columns are \['A', 'B', 'X', 'D', 'T'.*\]"
+        ),
     ),
     (  # Rename when column exists
         Rename(
@@ -177,7 +180,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
     ),
     (  # Select non-existent column
         Select(child=PrivateSource("private"), columns=tuple(["NONEXISTENT"])),
-        "Nonexistent columns in select query: {'NONEXISTENT'}",
+        (
+            r"Columns \['NONEXISTENT'\] passed to select\(\) are not in the table. "
+            r"Available columns are \['A', 'B', 'X', 'D', 'T'.*\]"
+        ),
     ),
     (  # Nested grouping FlatMap
         FlatMap(
@@ -212,7 +218,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             augment=False,
             max_rows=2,
         ),
-        "Flat map must set augment=True to ensure that grouping column 'i' is not lost",
+        (
+            r"The flat_map\(\) that creates columns \['j'\] must set augment=True, "
+            "otherwise it would drop the grouping column 'i'"
+        ),
     ),
     (  # Map with inner grouping FlatMap but outer augment=False
         Map(
@@ -227,7 +236,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             schema_new_columns=Schema({"C": "VARCHAR"}),
             augment=False,
         ),
-        "Map must set augment=True to ensure that grouping column 'i' is not lost",
+        (
+            r"The map\(\) that creates columns \['C'\] must set augment=True, "
+            "otherwise it would drop the grouping column 'i'"
+        ),
     ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
@@ -393,6 +405,53 @@ class TestValidation:
         """Check that appropriate exceptions are raised on invalid queries."""
         with pytest.raises(ValueError, match=expected_error_msg):
             query_expr.schema(self.catalog)
+
+    @pytest.mark.parametrize(
+        "query_expr,expected_error_msg",
+        [
+            (
+                Map(
+                    child=PrivateSource("private_with_id"),
+                    f=lambda row: {"C": row["B"]},
+                    schema_new_columns=Schema({"C": "INTEGER"}),
+                    augment=False,
+                ),
+                (
+                    r"The map\(\) that creates columns \['C'\] "
+                    "must set augment=True, otherwise it would drop the ID column 'id'"
+                ),
+            ),
+            (
+                FlatMap(
+                    child=PrivateSource("private_with_id"),
+                    f=lambda row: [{"C": row["B"]}],
+                    schema_new_columns=Schema({"C": "INTEGER"}),
+                    augment=False,
+                ),
+                (
+                    r"The flat_map\(\) that creates columns \['C'\] "
+                    "must set augment=True, otherwise it would drop the ID column 'id'"
+                ),
+            ),
+        ],
+    )
+    def test_map_without_augment_on_id_table(
+        self, query_expr: QueryExpr, expected_error_msg: str
+    ) -> None:
+        """Map and FlatMap without augment=True name the ID column they would drop."""
+        catalog = Catalog()
+        catalog.add_private_table(
+            "private_with_id",
+            {
+                "id": ColumnDescriptor(ColumnType.INTEGER),
+                "B": ColumnDescriptor(ColumnType.INTEGER),
+            },
+            constraints=[],
+            id_column="id",
+            id_space="default_id_space",
+        )
+        with pytest.raises(ValueError, match=expected_error_msg):
+            query_expr.schema(catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
