@@ -51,10 +51,11 @@ class Rename(SingleChildQueryExpr):
 
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
-        nonexistent_columns = set(self.column_mapper) - set(input_schema)
-        if nonexistent_columns:
+        missing_columns = [c for c in self.column_mapper if c not in input_schema]
+        if missing_columns:
             raise ValueError(
-                f"Nonexistent columns in rename query: {nonexistent_columns}"
+                f"Columns {missing_columns} passed to rename() are not in the "
+                f"table. Available columns are {list(input_schema.keys())}."
             )
         for old, new in self.column_mapper.items():
             if new in input_schema and new != old:

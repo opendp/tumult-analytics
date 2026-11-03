@@ -349,7 +349,10 @@ class TestSession:
             protected_change=AddOneRow(),
         )
         query = QueryBuilder("private").get_groups(columns)
-        with pytest.raises(ValueError, match="Nonexistent columns in get_groups query"):
+        with pytest.raises(
+            ValueError,
+            match=r"Columns \['count'\] passed to get_groups\(\) are not in the table",
+        ):
             session.evaluate(query, session.remaining_privacy_budget)
 
     @pytest.mark.parametrize(
