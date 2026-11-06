@@ -344,10 +344,13 @@ class TransformationVisitor(QueryExprVisitor):
                 raise AnalyticsInternalError(
                     f"Unrecognized input metric {type(input_metric)}."
                 )
-            nonexistent_columns = set(expr.column_mapper) - set(input_domain.schema)
-            if nonexistent_columns:
+            missing_columns = [
+                c for c in expr.column_mapper if c not in input_domain.schema
+            ]
+            if missing_columns:
                 raise ValueError(
-                    f"Nonexistent columns in rename query: {nonexistent_columns}"
+                    f"Columns {missing_columns} passed to rename() are not in the "
+                    f"table. Available columns are {list(input_domain.schema)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
@@ -442,10 +445,11 @@ class TransformationVisitor(QueryExprVisitor):
                 raise AnalyticsInternalError(
                     f"Unrecognized input metric {type(input_metric)}."
                 )
-            nonexistent_columns = set(expr.columns) - set(input_domain.schema)
-            if nonexistent_columns:
+            missing_columns = [c for c in expr.columns if c not in input_domain.schema]
+            if missing_columns:
                 raise ValueError(
-                    f"Nonexistent columns in select query: {nonexistent_columns}"
+                    f"Columns {missing_columns} passed to select() are not in the "
+                    f"table. Available columns are {list(input_domain.schema)}."
                 )
             return create_copy_and_transform_value(
                 parent_domain,
