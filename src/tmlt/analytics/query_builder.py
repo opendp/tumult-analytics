@@ -327,7 +327,9 @@ class QueryBuilder:
             Columns must share both names and data types for them to be used in
             joining. If this condition is not met, one of the data sources must be
             transformed to be eligible for joining (e.g., by using :func:`rename`
-            or :func:`map`).
+            or :func:`map`). Joining on floating-point columns is not supported:
+            if the tables have common floating-point columns, ``join_columns``
+            must be specified.
 
         Every row within a join group (i.e., every row that shares values in the join
         columns) from the private table will be joined with every row from that same

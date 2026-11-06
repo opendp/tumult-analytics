@@ -28,6 +28,11 @@ Deprecated
 
 - The ``grouping_column`` argument and attribute of :class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID` are deprecated and will be removed in a future release; use ``grouping_columns`` instead.
 
+Removed
+~~~~~~~
+
+- :meth:`~tmlt.analytics.QueryBuilder.join_public` and :meth:`~tmlt.analytics.QueryBuilder.join_private` no longer support joining on floating-point columns.
+
 Fixed
 ~~~~~
 
