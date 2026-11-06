@@ -1871,6 +1871,11 @@ class QueryBuilder:
         .. warning::
             A KeySet containing null values for a column cannot be used on a table where
             that column has had null values dropped or replaced.
+
+        .. note::
+            Only columns of type ``INTEGER``, ``DATE`` or ``VARCHAR`` can be grouped
+            on. To group by a ``DECIMAL`` or ``TIMESTAMP`` column, first assign its
+            values to bins with :meth:`bin_column`, and group by the binned column.
         ..
             >>> from tmlt.analytics import (
             ...     AddOneRow,
