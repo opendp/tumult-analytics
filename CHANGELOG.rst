@@ -22,6 +22,7 @@ Changed
 - Tumult Analytics now requires Tumult Core 0.20.
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
 - :meth:`~tmlt.analytics.QueryBuilder.sum` on an integer column with clamping bounds larger than ``2**23`` in absolute value is now computed on floating-point values, and returns a floating-point column, to avoid integer overflows.
+- :meth:`~tmlt.analytics.QueryBuilder.groupby` now accepts a list of column names (or a single column name) without enabling a feature flag. The group-by keys are then selected from the private data using differentially private partition selection, which requires an :class:`~tmlt.analytics.ApproxDPBudget`. The ``auto_partition_selection`` feature flag has been removed.
 
 Deprecated
 ~~~~~~~~~~
