@@ -35,6 +35,7 @@ Fixed
 - :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table.
 - Sessions created by :meth:`~tmlt.analytics.Session.partition_and_create` now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
 - :meth:`~tmlt.analytics.QueryBuilder.drop_infinity` and :meth:`~tmlt.analytics.QueryBuilder.replace_infinity` no longer raise an error when called without columns on a table with no DECIMAL columns they could change. They now warn that there is nothing to do and leave the table unchanged.
+- :meth:`~tmlt.analytics.QueryBuilder.bin_column` and :meth:`~tmlt.analytics.QueryBuilder.histogram` now raise an error, before spending any budget, when the column does not exist or its type does not match the :class:`~tmlt.analytics.BinningSpec`. Previously the query failed inside Spark after the budget was spent.
 
 
 .. _v0.21.0:

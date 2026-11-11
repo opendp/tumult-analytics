@@ -563,6 +563,34 @@ def test_bin_column():
     assert getattr(map_expr, "f")({"A": 7}) == {"A_binned": "(5, 10]"}
 
 
+@pytest.mark.parametrize(
+    "bin_edges,expected_types",
+    [
+        ([0, 5, 10], (ColumnType.INTEGER, ColumnType.DECIMAL)),
+        ([0.0, 0.5, 1.0], (ColumnType.INTEGER, ColumnType.DECIMAL)),
+        (["a", "m", "z"], (ColumnType.VARCHAR,)),
+        (
+            [datetime.date(2024, 1, 1), datetime.date(2025, 1, 1)],
+            (ColumnType.DATE,),
+        ),
+        (
+            [datetime.datetime(2024, 1, 1), datetime.datetime(2025, 1, 1)],
+            (ColumnType.TIMESTAMP,),
+        ),
+    ],
+)
+def test_bin_column_input_types(
+    bin_edges: List[Any], expected_types: Tuple[ColumnType, ...]
+):
+    """QueryBuilder.bin_column records the column types the spec can bin."""
+    query = root_builder().bin_column("A", BinningSpec(bin_edges)).count()
+    query_expr = query._query_expr
+    assert isinstance(query_expr, GroupByCount)
+    map_expr = query_expr.child
+    assert isinstance(map_expr, Map)
+    assert map_expr.input_column_types == FrozenDict.from_dict({"A": expected_types})
+
+
 def test_bin_column_options():
     """QueryBuilder.bin_column works as expected with options."""
     spec = BinningSpec([0.0, 1.0, 2.0], names=[0, 1])
