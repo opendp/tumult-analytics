@@ -79,7 +79,7 @@ class Select(SingleChildQueryExpr):
             for c in child_constraints
             if not (
                 isinstance(c, (MaxGroupsPerID, MaxRowsPerGroupPerID))
-                and c.grouping_column not in self.columns
+                and not c.grouping_columns.issubset(self.columns)
             )
         )
 
