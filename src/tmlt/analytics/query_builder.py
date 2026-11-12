@@ -60,7 +60,6 @@ from tmlt.analytics._query_expr import (
 )
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, FrozenDict, Schema
 from tmlt.analytics.binning_spec import BinningSpec, BinT
-from tmlt.analytics.config import config
 from tmlt.analytics.constraints import Constraint
 from tmlt.analytics.keyset import KeySet
 from tmlt.analytics.truncation_strategy import TruncationStrategy
@@ -1865,6 +1864,14 @@ class QueryBuilder:
         The aggregation will return one row for each key in the KeySet; other
         values present in the data will be discarded.
 
+        ``by`` can also be a list of column names, or a single column name. In that
+        case, the group-by keys are selected from the private data using
+        differentially private partition selection, and the query must be evaluated
+        with an :class:`~tmlt.analytics.ApproxDPBudget`: half of its epsilon and all
+        of its delta are used to select the keys, and the rest of the budget is used
+        for the aggregation. Keys that appear in few rows are likely to be left out of
+        the output.
+
         More information can be found in the :ref:`Group-by queries<group-by-queries>`
         tutorial.
 
@@ -1988,11 +1995,8 @@ class QueryBuilder:
 
         Args:
             by: A KeySet which defines the columns to group on and the possible values
-                for each column.
+                for each column, or the names of the columns to group on.
         """
-        if not (isinstance(by, KeySet) or config.features.auto_partition_selection):
-            raise ValueError("A groupby must group on a KeySet. Set `by` to a KeySet")
-
         if isinstance(by, str):
             # If a string was passed we'll treat it similarly to a list of cols.
             grouped_on: Union[KeySet, Tuple[str, ...]] = tuple([by])

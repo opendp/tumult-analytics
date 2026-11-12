@@ -315,6 +315,16 @@ def _validate_groupby(
                     f"'{input_column_desc.column_type.name}' instead."
                 )
     elif isinstance(query.groupby_keys, tuple):
+        if not query.groupby_keys:
+            raise ValueError(
+                "No groupby columns were given. To aggregate over the whole table, "
+                "call the aggregation without groupby."
+            )
+        seen: set[str] = set()
+        for col in query.groupby_keys:
+            if col in seen:
+                raise ValueError(f"Groupby column '{col}' appears more than once.")
+            seen.add(col)
         # Checks that the listed groupby columns exist in the schema
         for col in query.groupby_columns:
             if col not in input_schema:

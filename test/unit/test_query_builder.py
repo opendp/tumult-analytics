@@ -897,6 +897,19 @@ class TestAggregations:
         query_expr = query._query_expr
         self.assert_count_query_correct(query_expr, keys, expected_name)
 
+    @pytest.mark.parametrize(
+        "by,expected_columns",
+        [("A", ("A",)), (["A"], ("A",)), (["A", "B"], ("A", "B"))],
+    )
+    def test_count_columns(self, by: Union[str, List[str]], expected_columns):
+        """Groupby on column names, without a KeySet, gives a count query."""
+        query = root_builder().groupby(by).count()
+        query_expr = query._query_expr
+        assert isinstance(query_expr, GroupByCount)
+        assert query_expr.groupby_keys == expected_columns
+        assert query_expr.output_column == "count"
+        self.assert_root_expr(query_expr.child)
+
     def assert_count_distinct_query_correct(
         self,
         query: QueryExpr,
