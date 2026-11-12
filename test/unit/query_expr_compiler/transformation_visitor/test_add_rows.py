@@ -158,7 +158,10 @@ class TestAddRows(TestTransformationVisitor):
             column_mapper=FrozenDict.from_dict({"column_that_does_not_exist": "asdf"}),
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError, match="Nonexistent columns in rename query"):
+        with pytest.raises(
+            ValueError,
+            match=r"Columns \['column_that_does_not_exist'\] passed to rename\(\)",
+        ):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
@@ -213,7 +216,10 @@ class TestAddRows(TestTransformationVisitor):
             columns=tuple(["column_that_does_not_exist"]),
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError, match="Nonexistent columns in select query"):
+        with pytest.raises(
+            ValueError,
+            match=r"Columns \['column_that_does_not_exist'\] passed to select\(\)",
+        ):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
