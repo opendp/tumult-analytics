@@ -51,10 +51,11 @@ class Select(SingleChildQueryExpr):
             raise ValueError(
                 f"ID column '{id_column}' may not be dropped by select query"
             )
-        nonexistent_columns = set(self.columns) - set(input_schema)
-        if nonexistent_columns:
+        missing_columns = [c for c in self.columns if c not in input_schema]
+        if missing_columns:
             raise ValueError(
-                f"Nonexistent columns in select query: {nonexistent_columns}"
+                f"Columns {missing_columns} passed to select() are not in the "
+                f"table. Available columns are {list(input_schema.keys())}."
             )
 
     def schema(self, catalog: Catalog) -> Schema:

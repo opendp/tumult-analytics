@@ -59,13 +59,15 @@ class Map(SingleChildQueryExpr):
             return
         if input_schema.grouping_column:
             raise ValueError(
-                "Map must set augment=True to ensure that "
-                f"grouping column '{input_schema.grouping_column}' is not lost."
+                f"The map() that creates columns {list(new_columns)} must set "
+                "augment=True, otherwise it would drop the grouping column "
+                f"'{input_schema.grouping_column}'."
             )
         if input_schema.id_column:
             raise ValueError(
-                "Map must set augment=True to ensure that "
-                f"ID column '{input_schema.id_column}' is not lost."
+                f"The map() that creates columns {list(new_columns)} must set "
+                "augment=True, otherwise it would drop the ID column "
+                f"'{input_schema.id_column}'."
             )
 
     def schema(self, catalog: Catalog) -> Schema:
