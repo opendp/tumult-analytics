@@ -104,13 +104,7 @@ class QueryExprCompiler:
     @staticmethod
     def query_schema(query: QueryExpr, catalog: Catalog) -> Schema:
         """Return the schema created by a given query."""
-        schema = query.schema(catalog)
-        if not isinstance(schema, Schema):
-            raise AnalyticsInternalError(
-                "Schema for this query is not a Schema but is instead a(n) "
-                f"{type(schema)}."
-            )
-        return schema
+        return query.schema(catalog)
 
     def __call__(
         self,

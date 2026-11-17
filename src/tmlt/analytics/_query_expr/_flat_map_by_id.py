@@ -69,6 +69,10 @@ class FlatMapByID(SingleChildQueryExpr):
 
         id_column = input_schema.id_column
         new_columns = self.schema_new_columns.column_descs
+        if id_column is None:
+            raise AnalyticsInternalError(
+                "Validating FlatMapByID failed to require an ID column."
+            )
 
         for name in list(new_columns.keys()):
             new_columns[name] = replace(new_columns[name], allow_null=True)

@@ -71,7 +71,7 @@ class QueryExpr(ABC):
     """
 
     @abstractmethod
-    def schema(self, catalog: Catalog) -> Any:
+    def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         raise NotImplementedError()
 
