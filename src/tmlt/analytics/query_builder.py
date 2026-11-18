@@ -1580,11 +1580,29 @@ class QueryBuilder:
         if name is None:
             name = f"{column}_binned"
         binning_fn = lambda row: {name: spec(row[column])}
-        return self.map(
-            binning_fn,
-            new_column_types={name: spec.column_descriptor},
+        # Integer and decimal values can be compared with each other, so numeric
+        # bin edges work on both numeric column types.
+        accepted_types: Tuple[ColumnType, ...]
+        if spec.input_type in (ColumnType.INTEGER, ColumnType.DECIMAL):
+            accepted_types = (ColumnType.INTEGER, ColumnType.DECIMAL)
+        else:
+            accepted_types = (spec.input_type,)
+        # Passing the accepted types lets the column type be checked before the
+        # query runs, instead of binning_fn failing inside Spark.
+        self._query_expr = Map(
+            child=self._query_expr,
+            f=binning_fn,
+            schema_new_columns=Schema(
+                {name: spec.column_descriptor},
+                grouping_column=None,
+                default_allow_nan=True,
+                default_allow_null=True,
+                default_allow_inf=True,
+            ),
             augment=True,
+            input_column_types=FrozenDict.from_dict({column: accepted_types}),
         )
+        return self
 
     def histogram(
         self,
