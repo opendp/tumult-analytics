@@ -17,7 +17,7 @@ from ._base import (
     QueryExprVisitor,
     Row,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -35,7 +35,7 @@ class FlatMapByID(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.f, Callable[[List[Row]], List[Row]])
         check_type(self.schema_new_columns, Schema)
         if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:

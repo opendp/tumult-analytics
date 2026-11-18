@@ -18,9 +18,9 @@ from tmlt.analytics.keyset import KeySet
 from ._base import (
     GroupedMeasurementQueryExpr,
     QueryExprVisitor,
-    _schema_for_groupby,
-    _validate_child_is_transformation,
-    _validate_groupby,
+    schema_for_groupby,
+    validate_child_is_transformation,
+    validate_groupby,
 )
 
 
@@ -67,7 +67,7 @@ class GroupByCountDistinct(GroupedMeasurementQueryExpr):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.columns_to_count, Tuple[str, ...])
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
@@ -76,8 +76,8 @@ class GroupByCountDistinct(GroupedMeasurementQueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
-        _validate_groupby(self, input_schema)
-        return _schema_for_groupby(
+        validate_groupby(self, input_schema)
+        return schema_for_groupby(
             self,
             input_schema,
             {

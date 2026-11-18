@@ -90,7 +90,7 @@ class QueryExpr(ABC):
         raise NotImplementedError()
 
 
-def _validate_child_is_transformation(child: QueryExpr):
+def validate_child_is_transformation(child: QueryExpr):
     """Validate that an object is a non-measurement query expression."""
     check_type(child, QueryExpr)
     if child.is_measurement():
@@ -139,7 +139,7 @@ class GroupedMeasurementQueryExpr(MeasurementQueryExpr):
         return self.groupby_keys
 
 
-def _validate_join(
+def validate_join(
     left_schema: Schema,
     right_schema: Schema,
     join_columns: Optional[Tuple[str, ...]],
@@ -184,7 +184,7 @@ def _validate_join(
             )
 
 
-def _schema_for_join(
+def schema_for_join(
     left_schema: Schema,
     right_schema: Schema,
     join_columns: Optional[Tuple[str, ...]],
@@ -231,7 +231,7 @@ def _schema_for_join(
     )
 
 
-def _propagate_join_by_stability(
+def propagate_join_by_stability(
     c: Constraint,
     join_stability: Optional[int],
     overlapping_cols: Set[str],
@@ -288,14 +288,14 @@ class AnalyticsDefault:
     """
 
 
-def _valid_replacement_value(val: Any):
+def valid_replacement_value(val: Any):
     """Determine if a value is a valid replacement, independent of schema matching."""
     return val is not None and not (
         isinstance(val, float) and (math.isnan(val) or math.isinf(val))
     )
 
 
-def _validate_groupby(
+def validate_groupby(
     query: GroupedMeasurementQueryExpr,
     input_schema: Schema,
 ):
@@ -347,7 +347,7 @@ def _validate_groupby(
         )
 
 
-def _validate_measure_column(
+def validate_measure_column(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
@@ -386,7 +386,7 @@ def _validate_measure_column(
         )
 
 
-def _schema_for_groupby(
+def schema_for_groupby(
     query: GroupedMeasurementQueryExpr,
     input_schema: Schema,
     output_columns: Dict[str, ColumnDescriptor],

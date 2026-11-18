@@ -21,10 +21,10 @@ from tmlt.analytics.truncation_strategy import TruncationStrategy
 from ._base import (
     QueryExpr,
     QueryExprVisitor,
-    _propagate_join_by_stability,
-    _schema_for_join,
-    _validate_child_is_transformation,
-    _validate_join,
+    propagate_join_by_stability,
+    schema_for_join,
+    validate_child_is_transformation,
+    validate_join,
 )
 
 
@@ -51,8 +51,8 @@ class JoinPrivate(QueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.left_child)
-        _validate_child_is_transformation(self.right_child)
+        validate_child_is_transformation(self.left_child)
+        validate_child_is_transformation(self.right_child)
         check_type(
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
@@ -87,7 +87,7 @@ class JoinPrivate(QueryExpr):
                 "Private joins between tables with the AddRowsWithID protected change"
                 " are only possible when both tables are in the same ID space"
             )
-        _validate_join(left_schema, right_schema, self.join_columns)
+        validate_join(left_schema, right_schema, self.join_columns)
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
@@ -99,7 +99,7 @@ class JoinPrivate(QueryExpr):
         left_schema = self.left_child.schema(catalog)
         right_schema = self.right_child.schema(catalog)
         self._validate(left_schema, right_schema)
-        return _schema_for_join(
+        return schema_for_join(
             left_schema=left_schema,
             right_schema=right_schema,
             join_columns=self.join_columns,
@@ -147,13 +147,13 @@ class JoinPrivate(QueryExpr):
         right_stability = max_join_stability(right_constraints)
 
         left_propagated = [
-            _propagate_join_by_stability(
+            propagate_join_by_stability(
                 c, right_stability, overlapping_cols, suffix="_left"
             )
             for c in left_constraints
         ]
         right_propagated = [
-            _propagate_join_by_stability(
+            propagate_join_by_stability(
                 c, left_stability, overlapping_cols, suffix="_right"
             )
             for c in right_constraints

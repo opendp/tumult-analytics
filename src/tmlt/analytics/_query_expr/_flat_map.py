@@ -17,7 +17,7 @@ from ._base import (
     QueryExprVisitor,
     Row,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -45,7 +45,7 @@ class FlatMap(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.f, Callable[[Row], List[Row]])
         check_type(self.max_rows, Optional[int])
         check_type(self.schema_new_columns, Schema)

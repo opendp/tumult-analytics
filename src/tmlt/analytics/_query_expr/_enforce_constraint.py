@@ -20,7 +20,7 @@ from tmlt.analytics.constraints import (
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -33,7 +33,7 @@ class EnforceConstraint(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.constraint, Constraint)
 
     def _validate(self, input_schema: Schema):

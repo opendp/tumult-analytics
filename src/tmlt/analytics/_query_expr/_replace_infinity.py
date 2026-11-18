@@ -21,8 +21,8 @@ from tmlt.analytics.constraints import (
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _valid_replacement_value,
-    _validate_child_is_transformation,
+    valid_replacement_value,
+    validate_child_is_transformation,
 )
 
 
@@ -42,7 +42,7 @@ class ReplaceInfinity(SingleChildQueryExpr):
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.replace_with, FrozenDict)
         # Allow passing None as a replacement for the purposes of this check,
         # even though we disallow it later -- better consistency of error
@@ -52,11 +52,11 @@ class ReplaceInfinity(SingleChildQueryExpr):
         )
 
         for col, (lower, upper) in self.replace_with.items():
-            if not _valid_replacement_value(lower):
+            if not valid_replacement_value(lower):
                 raise ValueError(
                     f"Invalid lower replacement value {lower} for column '{col}'"
                 )
-            if not _valid_replacement_value(upper):
+            if not valid_replacement_value(upper):
                 raise ValueError(
                     f"Invalid upper replacement value {upper} for column '{col}'"
                 )

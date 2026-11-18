@@ -27,8 +27,8 @@ from tmlt.analytics.constraints import (
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _valid_replacement_value,
-    _validate_child_is_transformation,
+    valid_replacement_value,
+    validate_child_is_transformation,
 )
 
 
@@ -53,13 +53,13 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(
             self.replace_with,
             FrozenDict,
         )
         for col, val in self.replace_with.items():
-            if not _valid_replacement_value(val):
+            if not valid_replacement_value(val):
                 raise ValueError(f"Invalid replacement value {val} for column '{col}'")
 
     def _validate(self, input_schema: Schema):

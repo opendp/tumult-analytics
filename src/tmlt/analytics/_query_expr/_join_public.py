@@ -18,10 +18,10 @@ from tmlt.analytics.constraints import Constraint, simplify_constraints
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _propagate_join_by_stability,
-    _schema_for_join,
-    _validate_child_is_transformation,
-    _validate_join,
+    propagate_join_by_stability,
+    schema_for_join,
+    validate_child_is_transformation,
+    validate_join,
 )
 
 
@@ -38,7 +38,7 @@ class JoinPublic(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.public_table, Union[DataFrame, str])
         check_type(self.join_columns, Optional[Tuple[str, ...]])
 
@@ -61,7 +61,7 @@ class JoinPublic(SingleChildQueryExpr):
 
     def _validate(self, catalog: Catalog, left_schema: Schema, right_schema: Schema):
         """Validation checks for this QueryExpr."""
-        _validate_join(left_schema, right_schema, self.join_columns)
+        validate_join(left_schema, right_schema, self.join_columns)
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
@@ -82,7 +82,7 @@ class JoinPublic(SingleChildQueryExpr):
                 spark_schema_to_analytics_columns(self.public_table.schema)
             )
         self._validate(catalog, input_schema, right_schema)
-        return _schema_for_join(
+        return schema_for_join(
             left_schema=input_schema,
             right_schema=right_schema,
             join_columns=self.join_columns,
@@ -126,7 +126,7 @@ class JoinPublic(SingleChildQueryExpr):
         join_stability = max(count_df["count"].to_list(), default=0)
 
         propagated = [
-            _propagate_join_by_stability(
+            propagate_join_by_stability(
                 c, join_stability, overlapping_cols, suffix="_left"
             )
             for c in child_constraints
