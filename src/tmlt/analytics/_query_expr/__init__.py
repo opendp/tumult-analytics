@@ -14,6 +14,7 @@ from tmlt.analytics._schema import FrozenDict
 
 from ._base import (
     AnalyticsDefault,
+    AutoColumnQueryExpr,
     GroupedMeasurementQueryExpr,
     MeasurementQueryExpr,
     QueryExpr,
@@ -42,6 +43,6 @@ from ._map import Map
 from ._private_source import PrivateSource
 from ._rename import Rename
 from ._replace_infinity import ReplaceInfinity
-from ._replace_null_and_nan import ReplaceNullAndNan
+from ._replace_null_and_nan import AutoReplaceNullAndNan, ReplaceNullAndNan
 from ._select import Select
 from ._suppress_aggregates import SuppressAggregates

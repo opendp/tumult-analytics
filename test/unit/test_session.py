@@ -2896,11 +2896,24 @@ def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: Li
         )
         + "\n\tConstraints:\n\t\t- MaxRowsPerID(max=5)",
     ),
+    Case("replace_nulls_with_automatic_columns")(
+        df=pd.DataFrame({"id": [1, 2], "value": pd.Series([None, 2], dtype=object)}),
+        protected_change=AddRowsWithID(id_column="id"),
+        query=QueryBuilder("private").enforce(MaxRowsPerID(5)).replace_null_and_nan(),
+        expected_output=tabulate(
+            [
+                ["id", "INTEGER", "True", "default_id_space", "True"],
+                ["value", "INTEGER", "False", "", "False"],
+            ],
+            headers=["Column Name", "Column Type", "ID Col", "ID Space", "Nullable"],
+        )
+        + "\n\tConstraints:\n\t\t- MaxRowsPerID(max=5)",
+    ),
 )
 def test_describe_query_obj(
     df: pd.DataFrame,
     protected_change: ProtectedChange,
-    query: Query,
+    query: Query | QueryBuilder,
     expected_output: str,
     spark: SparkSession,
 ):

@@ -424,7 +424,7 @@ class TestAddKeys(TestTransformationVisitor):
         "replace_with,expected_df",
         [
             (
-                {},
+                {"null": "", "nan": 0.0},
                 pd.DataFrame(
                     [[1, float("inf"), "string", 0.0], [1, float("-inf"), "", 1.5]],
                     columns=["id", "inf", "null", "nan"],
@@ -484,6 +484,23 @@ class TestAddKeys(TestTransformationVisitor):
         )
         assert expected_output_domain == lookup_domain(
             transformation.output_domain, reference
+        )
+
+    def test_visit_replace_null_and_nan_empty(self):
+        """An explicitly empty replacement map leaves ID-protected data unchanged."""
+        query = ReplaceNullAndNan(PrivateSource("ids_infs_nans"))
+        transformation, reference = query.accept(self.visitor)
+        self._validate_transform_basics(transformation, reference, query)
+        self._validate_result(
+            transformation,
+            reference,
+            pd.DataFrame(
+                [
+                    [1, float("inf"), "string", float("nan")],
+                    [1, float("-inf"), None, 1.5],
+                ],
+                columns=["id", "inf", "null", "nan"],
+            ),
         )
 
     @pytest.mark.parametrize(

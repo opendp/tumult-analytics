@@ -35,6 +35,7 @@ from tmlt.core.utils.testing import assert_dataframe_equal
 from tmlt.analytics import KeySet, PureDPBudget, RhoZCDPBudget, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoReplaceNullAndNan,
     AverageMechanism,
     CountMechanism,
     Filter,
@@ -52,7 +53,6 @@ from tmlt.analytics._query_expr import (
     PrivateSource,
     QueryExpr,
     Rename,
-    ReplaceNullAndNan,
     Select,
     StdevMechanism,
     SumMechanism,
@@ -177,8 +177,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # FlatMap
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=PrivateSource("private"),
                     f=lambda row: [{}, {}],
@@ -196,8 +195,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Multiple flat maps
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -221,8 +219,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Grouping flat map
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -272,8 +269,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # Map
         GroupByCount(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
@@ -356,8 +352,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (
         GroupByBoundedSum(
-            ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            AutoReplaceNullAndNan(
                 child=Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"day": row["date"].day},
@@ -374,8 +369,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (
         GroupByBoundedSum(
-            ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            AutoReplaceNullAndNan(
                 child=Map(
                     JoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"minute": row["timestamp"].minute},
@@ -845,8 +839,7 @@ class TestQueryExprCompiler:
             ),
             (  # Grouping flat map with LAPLACE
                 GroupByBoundedSum(
-                    child=ReplaceNullAndNan(
-                        replace_with=FrozenDict.from_dict({}),
+                    child=AutoReplaceNullAndNan(
                         child=FlatMap(
                             child=FlatMap(
                                 child=PrivateSource("private"),
@@ -935,8 +928,7 @@ class TestQueryExprCompiler:
             (  # Grouping flat map with GAUSSIAN
                 [
                     GroupByBoundedSum(
-                        child=ReplaceNullAndNan(
-                            replace_with=FrozenDict.from_dict({}),
+                        child=AutoReplaceNullAndNan(
                             child=FlatMap(
                                 child=FlatMap(
                                     child=PrivateSource("private"),

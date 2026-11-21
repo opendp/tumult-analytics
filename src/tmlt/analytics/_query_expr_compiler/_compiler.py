@@ -101,10 +101,19 @@ class QueryExprCompiler:
         """Return the distance measure for the measurement's output."""
         return self._output_measure
 
-    @staticmethod
-    def query_schema(query: QueryExpr, catalog: Catalog) -> Schema:
-        """Return the schema created by a given query."""
-        return query.schema(catalog)
+    def _rewrite(self, query: QueryExpr, catalog: Catalog) -> QueryExpr:
+        """Rewrite the query using this compiler's output measure."""
+        return rewrite(CompilationInfo(self._output_measure, catalog), query)
+
+    def query_schema(self, query: QueryExpr, catalog: Catalog) -> Schema:
+        """Return the schema of the rewritten query."""
+        return self._rewrite(query, catalog).schema(catalog)
+
+    def query_constraints(
+        self, query: QueryExpr, catalog: Catalog
+    ) -> frozenset[Constraint]:
+        """Return the constraints on the rewritten query's output."""
+        return self._rewrite(query, catalog).constraints(catalog)
 
     def __call__(
         self,
@@ -125,17 +134,8 @@ class QueryExprCompiler:
             input_metric: The input metric of the compiled query.
             catalog: The catalog, used only for query validation.
         """
-        # Computing the schema validates that the query is well-formed.
-        query.schema(catalog)
+        query = self._rewrite(query, catalog)
 
-        # Compilation happens in two stages: first, we apply rewrite rules...
-        compilation_info = CompilationInfo(
-            output_measure=self._output_measure,
-            catalog=catalog,
-        )
-        query = rewrite(compilation_info, query)
-
-        # ... then we visit the query.
         visitor = MeasurementVisitor(
             privacy_budget=privacy_budget,
             stability=stability,
@@ -198,10 +198,7 @@ class QueryExprCompiler:
             input_metric: The input metric of the compiled query.
             catalog: The catalog, used only for query validation.
         """
-        # Computing the schema validates that the query is well-formed. It's useful to
-        # perform this check here in addition to __call__ so validation errors can be
-        # raised at view creation, not just query evaluation.
-        query.schema(catalog)
+        query = self._rewrite(query, catalog)
 
         transformation_visitor = TransformationVisitor(
             input_domain=input_domain,

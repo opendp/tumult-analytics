@@ -23,9 +23,9 @@ from typing import (
 
 from pyspark.sql import DataFrame
 
-from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._query_expr import (
     AnalyticsDefault,
+    AutoReplaceNullAndNan,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -670,15 +670,18 @@ class QueryBuilder:
                 If None (or empty), all columns will have null and NaN
                 values replaced with Analytics defaults; see :class:`AnalyticsDefault`.
         """
-        if replace_with is None:
-            replace_with = {}
-        # this assert is for mypy
-        if replace_with is None:
-            raise AnalyticsInternalError("replace_with parameter is None.")
-        self._query_expr = ReplaceNullAndNan(
-            child=self._query_expr,
-            replace_with=FrozenDict.from_dict(replace_with),
-        )
+        if replace_with is not None and not isinstance(replace_with, Mapping):
+            raise TypeError(
+                "replace_with must be a mapping or None, "
+                f"not {type(replace_with).__qualname__}."
+            )
+        if replace_with is None or len(replace_with) == 0:
+            self._query_expr = AutoReplaceNullAndNan(child=self._query_expr)
+        else:
+            self._query_expr = ReplaceNullAndNan(
+                child=self._query_expr,
+                replace_with=FrozenDict.from_dict(replace_with),
+            )
         return self
 
     def replace_infinity(

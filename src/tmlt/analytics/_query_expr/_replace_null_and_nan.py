@@ -12,6 +12,7 @@ from typeguard import check_type
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._schema import (
     ColumnDescriptor,
+    ColumnType,
     FrozenDict,
     Schema,
     analytics_to_py_types,
@@ -25,6 +26,8 @@ from tmlt.analytics.constraints import (
 )
 
 from ._base import (
+    AnalyticsDefault,
+    AutoColumnQueryExpr,
     QueryExprVisitor,
     SingleChildQueryExpr,
     valid_replacement_value,
@@ -46,9 +49,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
     replace_with: FrozenDict = FrozenDict.from_dict({})
     """New values to replace with, by column.
 
-    If this dictionary is empty, *all* columns will be changed, with values
-    replaced by a default value for each column's type (see the
-    :class:`~.AnalyticsDefault` class variables).
+    An empty dictionary leaves the input unchanged.
     """
 
     def __post_init__(self):
@@ -77,13 +78,6 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
                 f"Cannot replace null values in column '{input_schema.id_column}', "
                 "as it is an ID column."
             )
-        if input_schema.id_column and (len(self.replace_with) == 0):
-            warnings.warn(
-                f"Replacing null values in the ID column '{input_schema.id_column}' "
-                "is not allowed, so the ID column may still contain null values.",
-                RuntimeWarning,
-            )
-
         pytypes = analytics_to_py_types(input_schema)
         for col, val in self.replace_with.items():
             if col not in input_schema.keys():
@@ -106,13 +100,6 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
         self._validate(input_schema)
 
         columns_to_change = list(dict(self.replace_with).keys())
-        if len(columns_to_change) == 0:
-            columns_to_change = [
-                name
-                for name, cd in input_schema.column_descs.items()
-                if (cd.allow_null or cd.allow_nan)
-                and name not in [input_schema.grouping_column, input_schema.id_column]
-            ]
         return Schema(
             {
                 name: ColumnDescriptor(
@@ -148,3 +135,54 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_replace_null_and_nan(self)
+
+
+@dataclass(frozen=True)
+class AutoReplaceNullAndNan(AutoColumnQueryExpr, SingleChildQueryExpr):
+    """Replace nulls and NaNs in eligible columns with type-specific defaults."""
+
+    def __post_init__(self):
+        """Check the child expression."""
+        validate_child_is_transformation(self.child)
+
+    def resolve_columns(self, catalog: Catalog) -> ReplaceNullAndNan:
+        """Select eligible columns and their default replacement values.
+
+        Columns that allow null or NaN values are included, replacing nulls and
+        nans with the default values from ``AnalyticsDefault`` based on column
+        type. If the table has an ID column or a grouping column, that column is
+        never included.
+        """
+        input_schema = self.child.schema(catalog)
+        if input_schema.id_column:
+            warnings.warn(
+                f"Replacing null values in the ID column '{input_schema.id_column}' "
+                "is not allowed, so that column may still contain null values.",
+                RuntimeWarning,
+            )
+        if input_schema.grouping_column:
+            warnings.warn(
+                "Replacing null values in the grouping column "
+                f"'{input_schema.grouping_column}' is not allowed, so that column "
+                "may still contain null values.",
+                RuntimeWarning,
+            )
+        defaults = {
+            ColumnType.INTEGER: AnalyticsDefault.INTEGER,
+            ColumnType.DECIMAL: AnalyticsDefault.DECIMAL,
+            ColumnType.VARCHAR: AnalyticsDefault.VARCHAR,
+            ColumnType.DATE: AnalyticsDefault.DATE,
+            ColumnType.TIMESTAMP: AnalyticsDefault.TIMESTAMP,
+        }
+        return ReplaceNullAndNan(
+            child=self.child,
+            replace_with=FrozenDict.from_dict(
+                {
+                    name: defaults[desc.column_type]
+                    for name, desc in input_schema.column_descs.items()
+                    if (desc.allow_null or desc.allow_nan)
+                    and name
+                    not in (input_schema.grouping_column, input_schema.id_column)
+                }
+            ),
+        )

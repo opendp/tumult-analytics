@@ -4,7 +4,6 @@
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 import dataclasses
-import datetime
 import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
@@ -967,48 +966,19 @@ class TransformationVisitor(QueryExprVisitor):
     def _get_replace_with(
         expr: ReplaceNullAndNan,
         analytics_schema: Dict[str, ColumnDescriptor],
-        grouping_column: Optional[str] = None,
     ) -> Dict[str, Any]:
         replace_with: Dict[str, Any] = dict(expr.replace_with).copy()
-        if len(replace_with) == 0:
-            for col in Schema(analytics_schema).column_descs:
-                if col == grouping_column:
-                    continue
-                if not analytics_schema[col].allow_null and not (
-                    analytics_schema[col].allow_nan
-                ):
-                    continue
-                if analytics_schema[col].column_type == ColumnType.INTEGER:
-                    replace_with[col] = int(AnalyticsDefault.INTEGER)
-                elif analytics_schema[col].column_type == ColumnType.DECIMAL:
-                    replace_with[col] = float(AnalyticsDefault.DECIMAL)
-                elif analytics_schema[col].column_type == ColumnType.VARCHAR:
-                    replace_with[col] = str(AnalyticsDefault.VARCHAR)
-                elif analytics_schema[col].column_type == ColumnType.DATE:
-                    date: datetime.date = AnalyticsDefault.DATE
-                    replace_with[col] = date
-                elif analytics_schema[col].column_type == ColumnType.TIMESTAMP:
-                    dt: datetime.datetime = AnalyticsDefault.TIMESTAMP
-                    replace_with[col] = dt
-                else:
-                    raise RuntimeError(
-                        f"Analytics does not have a default value for column {col} of"
-                        f" type {analytics_schema[col].column_type}, and no default"
-                        " value was provided"
-                    )
-
-        else:
-            # Check that all columns exist
-            for col in replace_with:
-                if col not in analytics_schema:
-                    raise ValueError(
-                        f"Cannot replace values in column {col}, because it is not in"
-                        " the schema"
-                    )
-            # Make sure all DECIMAL replacement values are floats
-            for col, value in replace_with.items():
-                if analytics_schema[col].column_type == ColumnType.DECIMAL:
-                    replace_with[col] = float(value)
+        # Check that all columns exist
+        for col in replace_with:
+            if col not in analytics_schema:
+                raise ValueError(
+                    f"Cannot replace values in column {col}, because it is not in"
+                    " the schema"
+                )
+        # Make sure all DECIMAL replacement values are floats
+        for col, value in replace_with.items():
+            if analytics_schema[col].column_type == ColumnType.DECIMAL:
+                replace_with[col] = float(value)
 
         return replace_with
 
@@ -1042,7 +1012,7 @@ class TransformationVisitor(QueryExprVisitor):
                 )
         analytics_schema = spark_dataframe_domain_to_analytics_columns(input_domain)
 
-        replace_with = self._get_replace_with(expr, analytics_schema, grouping_column)
+        replace_with = self._get_replace_with(expr, analytics_schema)
 
         replace_null = any(analytics_schema[col].allow_null for col in replace_with)
 

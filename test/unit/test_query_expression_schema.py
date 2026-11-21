@@ -14,6 +14,7 @@ from tmlt.core.utils.testing import Case, parametrize
 from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoReplaceNullAndNan,
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -37,6 +38,7 @@ from tmlt.analytics._query_expr import (
     Select,
     SuppressAggregates,
 )
+from tmlt.analytics._query_expr_compiler import QueryExprCompiler
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
@@ -1327,10 +1329,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                ReplaceNullAndNan(
-                    child=PrivateSource("private"),
-                    replace_with=FrozenDict.from_dict({}),
-                ),
+                AutoReplaceNullAndNan(child=PrivateSource("private")),
                 Schema(
                     {
                         "A": ColumnDescriptor(ColumnType.VARCHAR, allow_null=False),
@@ -1406,10 +1405,10 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_replace_null_and_nan(
-        self, query: ReplaceNullAndNan, expected_schema: Schema
+        self, query: QueryExpr, expected_schema: Schema
     ) -> None:
         """Test schema for replace_null_and_nan."""
-        schema = query.schema(self.catalog)
+        schema = QueryExprCompiler().query_schema(query, self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(

@@ -20,6 +20,7 @@ from tmlt.analytics import (
     SumMechanism,
 )
 from tmlt.analytics._query_expr import (
+    AutoReplaceNullAndNan,
     Filter,
     FlatMap,
     GroupByBoundedSum,
@@ -28,14 +29,12 @@ from tmlt.analytics._query_expr import (
     JoinPublic,
     Map,
     PrivateSource,
-    ReplaceNullAndNan,
     Select,
     SuppressAggregates,
 )
 from tmlt.analytics._schema import (
     ColumnDescriptor,
     ColumnType,
-    FrozenDict,
     Schema,
     analytics_to_spark_columns_descriptor,
 )
@@ -229,8 +228,7 @@ EVALUATE_TESTS = [
         .replace_null_and_nan()
         .sum(column="X", low=0, high=3),
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=PrivateSource("private"),
                     f=lambda _: [{}, {}],
@@ -265,8 +263,7 @@ EVALUATE_TESTS = [
         .replace_null_and_nan()
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -310,8 +307,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
         .sum(column="i", low=0, high=3),
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -355,8 +351,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"Repeat": [1, 2]}))
         .sum(column="i", low=0, high=3, mechanism=SumMechanism.LAPLACE),
         GroupByBoundedSum(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=FlatMap(
                     child=FlatMap(
                         child=PrivateSource("private"),
@@ -471,8 +466,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
         .count(),
         GroupByCount(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": 2 * str(row["B"])},
@@ -498,8 +492,7 @@ EVALUATE_TESTS = [
         .groupby(KeySet.from_dict({"A": ["0", "1"], "C": ["00", "11"]}))
         .count_distinct(),
         GroupByCountDistinct(
-            child=ReplaceNullAndNan(
-                replace_with=FrozenDict.from_dict({}),
+            child=AutoReplaceNullAndNan(
                 child=Map(
                     child=PrivateSource("private"),
                     f=lambda row: {"C": 2 * str(row["B"])},

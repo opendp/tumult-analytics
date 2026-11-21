@@ -111,6 +111,39 @@ class SingleChildQueryExpr(QueryExpr):
     """The QueryExpr used to generate the input table to this QueryExpr."""
 
 
+class AutoColumnQueryExpr(QueryExpr):
+    """An expression whose automatically selected columns must be resolved."""
+
+    @abstractmethod
+    def resolve_columns(self, catalog: Catalog) -> QueryExpr:
+        """Return an expression with explicit columns based on a specific catalog."""
+        raise NotImplementedError()
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Reject schema lookups until columns have been resolved."""
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before looking up the schema of "
+            f"{type(self).__qualname__}."
+        )
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Reject constraint lookups until columns have been resolved."""
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before looking up the constraints of "
+            f"{type(self).__qualname__}."
+        )
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Dispatch methods on a visitor based on the QueryExpr type.
+
+        AutoColumnQueryExpr subtypes cannot be used with QueryExprVisitors, they
+        must have their columns resolved first.
+        """
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before visiting {type(self).__qualname__}."
+        )
+
+
 class MeasurementQueryExpr(SingleChildQueryExpr):
     """A QueryExpr that can be evaluated to produce a publishable table."""
 

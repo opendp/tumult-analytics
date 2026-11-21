@@ -538,7 +538,7 @@ class TestAddRows(TestTransformationVisitor):
         "replace_with,expected_df",
         [
             (
-                {},
+                {"null": "", "nan": 0.0},
                 pd.DataFrame(
                     [[float("inf"), "string", 0.0], [float("-inf"), "", 1.5]],
                     columns=["inf", "null", "nan"],
@@ -592,6 +592,20 @@ class TestAddRows(TestTransformationVisitor):
         )
         self._validate_result(transformation, reference, expected_df)
 
+    def test_visit_replace_null_and_nan_empty(self):
+        """An explicitly empty replacement map leaves nulls and NaNs unchanged."""
+        query = ReplaceNullAndNan(PrivateSource("rows_infs_nans"))
+        transformation, reference = query.accept(self.visitor)
+        self._validate_transform_basics(transformation, reference, query)
+        self._validate_result(
+            transformation,
+            reference,
+            pd.DataFrame(
+                [[float("inf"), "string", float("nan")], [float("-inf"), None, 1.5]],
+                columns=["inf", "null", "nan"],
+            ),
+        )
+
     def test_visit_replace_null_and_nan_with_grouping_column(self) -> None:
         """Test behavior of visit_replace_null_and_nan with IfGroupedBy metric."""
         flatmap_query = FlatMap(
@@ -617,7 +631,8 @@ class TestAddRows(TestTransformationVisitor):
             invalid_replace_query.accept(self.visitor)
 
         valid_replace_query = ReplaceNullAndNan(
-            child=flatmap_query, replace_with=FrozenDict.from_dict({})
+            child=flatmap_query,
+            replace_with=FrozenDict.from_dict({"null": "", "nan": 0.0}),
         )
         transformation, reference = valid_replace_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_replace_query)

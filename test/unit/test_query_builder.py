@@ -23,6 +23,7 @@ from tmlt.analytics import (
     TruncationStrategy,
 )
 from tmlt.analytics._query_expr import (
+    AutoReplaceNullAndNan,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -672,7 +673,7 @@ def test_replace_null_and_nan(
     query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
     replace_expr = query_expr.child
-    assert isinstance(replace_expr, ReplaceNullAndNan)
+    assert isinstance(replace_expr, (AutoReplaceNullAndNan, ReplaceNullAndNan))
 
     root_expr = replace_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -685,9 +686,17 @@ def test_replace_null_and_nan(
         expected_replace_with = replace_with
 
     if expected_replace_with:
+        assert isinstance(replace_expr, ReplaceNullAndNan)
         assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
     else:
-        assert replace_expr.replace_with == FrozenDict.from_dict({})
+        assert isinstance(replace_expr, AutoReplaceNullAndNan)
+
+
+@pytest.mark.parametrize("replace_with", [False, ("a", "b"), {"a"}])
+def test_invalid_replace_null_and_nan(replace_with: Any) -> None:
+    """QueryBuilder.replace_null_and_nan rejects invalid parameters."""
+    with pytest.raises(TypeError, match="replace_with must be a mapping or None"):
+        root_builder().replace_null_and_nan(replace_with)
 
 
 @pytest.mark.parametrize(
