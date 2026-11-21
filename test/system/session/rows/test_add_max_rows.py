@@ -527,8 +527,8 @@ class TestSession:
             column="str_column",
             protected_change=AddOneRow(),
             error_type=ValueError,
-            message="GetBounds query's measure column 'str_column' has invalid type"
-            " 'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'",
+            message="Column 'str_column' has type 'VARCHAR', but this aggregation"
+            " needs an 'INTEGER' or 'DECIMAL' column.",
         ),
         Case("missing_column")(
             data=pd.DataFrame(
@@ -538,8 +538,8 @@ class TestSession:
             column="column_does_not_exist",
             protected_change=AddOneRow(),
             error_type=ValueError,
-            message="GetBounds query's measure column 'column_does_not_exist'"
-            " does not exist",
+            message="Column 'column_does_not_exist' does not exist in this table,"
+            r" available columns are \['int_column'\]",
         ),
         Case("id_column")(
             data=pd.DataFrame(
@@ -549,8 +549,8 @@ class TestSession:
             column="id_column",
             protected_change=AddRowsWithID("id_column"),
             error_type=ValueError,
-            message="GetBounds query's measure column is the same as the privacy ID "
-            "column\\(id_column\\)",
+            message="Column 'id_column' is the privacy ID column of a table with"
+            " the AddRowsWithID protected change, so it cannot be aggregated.",
         ),
     )
     def test_get_bounds_invalid_columns(

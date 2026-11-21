@@ -99,7 +99,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             public_table="public",
             join_columns=tuple(["B"]),
         ),
-        "Join columns must be common to both tables",
+        (
+            r"Join columns \['B'\] are not in both tables\. The columns the "
+            r"tables have in common are \[.*\]\."
+        ),
     ),
     (  # JoinPrivate on columns not common to both tables
         JoinPrivate(
@@ -109,7 +112,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             TruncationStrategy.DropExcess(1),
             join_columns=tuple(["B"]),
         ),
-        "Join columns must be common to both tables",
+        (
+            r"Join columns \['B'\] are not in both tables\. The columns the "
+            r"tables have in common are \[.*\]\."
+        ),
     ),
     (  # JoinPublic on tables with no common columns
         JoinPublic(
@@ -296,8 +302,8 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             output_column="out",
         ),
         (
-            "Quantile query's measure column 'A' has invalid type "
-            "'VARCHAR'. Expected types: 'INTEGER' or 'DECIMAL'."
+            "Column 'A' has type 'VARCHAR', but this aggregation needs an "
+            "'INTEGER' or 'DECIMAL' column."
         ),
     ),
     (  # Type mismatch for the measure column of GroupByBoundedAverage
@@ -309,8 +315,8 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             high=1.0,
         ),
         (
-            "measure column 'A' has invalid type 'VARCHAR'. "
-            "Expected types: 'INTEGER' or 'DECIMAL'"
+            "Column 'A' has type 'VARCHAR', but this aggregation needs an "
+            "'INTEGER' or 'DECIMAL' column."
         ),
     ),
     (  # Grouping column is set in a FlatMap but not used in a later GroupBy
@@ -324,7 +330,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             ),
             groupby_keys=KeySet.from_dict({"B": [0, 1, 2]}),
         ),
-        "Column 'i' produced by grouping transformation is not in groupby columns",
+        (
+            r"Column 'i' was created by a flat_map\(\) with grouping=True, so the "
+            r"query must group by it, but it groups by \[.*\]\."
+        ),
     ),
     (  # Grouping column is set but not used in a later groupby_public_source
         GroupByCount(
@@ -337,7 +346,10 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             ),
             groupby_keys=KeySet.from_dataframe(GET_GROUPBY_COLUMN_A()),
         ),
-        "Column 'i' produced by grouping transformation is not in groupby columns",
+        (
+            r"Column 'i' was created by a flat_map\(\) with grouping=True, so the "
+            r"query must group by it, but it groups by \[.*\]\."
+        ),
     ),
 ]
 
@@ -475,12 +487,18 @@ class TestValidation:
             (
                 KeySet.from_dict({"Y": ["0"]}),
                 KeyError,
-                "Groupby column 'Y' is not in the input schema.",
+                (
+                    r"Groupby column 'Y' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
-                "Groupby column 'yay' is not in the input schema.",
+                (
+                    r"Groupby column 'yay' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
@@ -521,7 +539,10 @@ class TestValidation:
             (
                 KeySet.from_dict({"Y": ["0"]}),
                 KeyError,
-                "Groupby column 'Y' is not in the input schema.",
+                (
+                    r"Groupby column 'Y' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_B()),
@@ -531,7 +552,10 @@ class TestValidation:
             (
                 KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
-                "Groupby column 'yay' is not in the input schema.",
+                (
+                    r"Groupby column 'yay' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
@@ -649,12 +673,18 @@ class TestValidationWithNulls:
             (
                 KeySet.from_dict({"Y": ["0"]}),
                 KeyError,
-                "Groupby column 'Y' is not in the input schema.",
+                (
+                    r"Groupby column 'Y' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
-                "Groupby column 'yay' is not in the input schema.",
+                (
+                    r"Groupby column 'yay' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),
@@ -695,7 +725,10 @@ class TestValidationWithNulls:
             (
                 KeySet.from_dict({"Y": ["0"]}),
                 KeyError,
-                "Groupby column 'Y' is not in the input schema.",
+                (
+                    r"Groupby column 'Y' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_B()),
@@ -705,7 +738,10 @@ class TestValidationWithNulls:
             (
                 KeySet.from_dataframe(GET_GROUPBY_NON_EXISTING_COLUMN()),
                 KeyError,
-                "Groupby column 'yay' is not in the input schema.",
+                (
+                    r"Groupby column 'yay' does not exist in this table, "
+                    r"available columns are \[.*\]\."
+                ),
             ),
             (
                 KeySet.from_dataframe(GET_GROUPBY_COLUMN_WRONG_TYPE()),

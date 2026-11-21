@@ -168,8 +168,12 @@ def _validate_join(
     if join_columns is None and not common_columns:
         raise ValueError("Tables have no common columns to join on")
     join_columns = join_columns or tuple(common_columns)
-    if not set(join_columns) <= common_columns:
-        raise ValueError("Join columns must be common to both tables")
+    missing_columns = [c for c in join_columns if c not in common_columns]
+    if missing_columns:
+        raise ValueError(
+            f"Join columns {missing_columns} are not in both tables. The columns "
+            f"the tables have in common are {sorted(common_columns)}."
+        )
 
     for column in join_columns:
         if left_schema[column].column_type != right_schema[column].column_type:
@@ -305,7 +309,8 @@ def _validate_groupby(
                 input_column_desc = input_schema[column_name]
             except KeyError as e:
                 raise KeyError(
-                    f"Groupby column '{column_name}' is not in the input schema."
+                    f"Groupby column '{column_name}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}."
                 ) from e
             if column_desc.column_type != input_column_desc.column_type:
                 raise ValueError(
@@ -318,7 +323,10 @@ def _validate_groupby(
         # Checks that the listed groupby columns exist in the schema
         for col in query.groupby_columns:
             if col not in input_schema:
-                raise ValueError(f"Groupby column '{col}' is not in the input schema.")
+                raise ValueError(
+                    f"Groupby column '{col}' does not exist in this table, "
+                    f"available columns are {list(input_schema.keys())}."
+                )
     else:
         raise AnalyticsInternalError(
             f"Unexpected groupby_keys type: {type(query.groupby_keys)}."
@@ -329,8 +337,9 @@ def _validate_groupby(
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:
         raise ValueError(
-            f"Column '{grouping_column}' produced by grouping transformation "
-            f"is not in groupby columns {list(groupby_columns)}."
+            f"Column '{grouping_column}' was created by a flat_map() with "
+            "grouping=True, so the query must group by it, but it groups by "
+            f"{list(groupby_columns)}."
         )
 
 
@@ -354,24 +363,22 @@ def _validate_measure_column(
 
     if query.measure_column not in input_schema:
         raise ValueError(
-            f"{type(query).__name__} query's measure column "
-            f"'{query.measure_column}' does not exist in the table."
+            f"Column '{query.measure_column}' does not exist in this table, "
+            f"available columns are {list(input_schema.keys())}."
         )
     if input_schema[query.measure_column].column_type not in [
         ColumnType.INTEGER,
         ColumnType.DECIMAL,
     ]:
         raise ValueError(
-            f"{type(query).__name__} query's measure column "
-            f"'{query.measure_column}' has invalid type "
-            f"'{input_schema[query.measure_column].column_type.name}'. "
-            "Expected types: 'INTEGER' or 'DECIMAL'."
+            f"Column '{query.measure_column}' has type "
+            f"'{input_schema[query.measure_column].column_type.name}', but this "
+            "aggregation needs an 'INTEGER' or 'DECIMAL' column."
         )
     if input_schema.id_column and (input_schema.id_column == query.measure_column):
         raise ValueError(
-            f"{type(query).__name__} query's measure column is the same as the "
-            f"privacy ID column({input_schema.id_column}) on a table with the "
-            "AddRowsWithID protected change."
+            f"Column '{query.measure_column}' is the privacy ID column of a table "
+            "with the AddRowsWithID protected change, so it cannot be aggregated."
         )
 
 

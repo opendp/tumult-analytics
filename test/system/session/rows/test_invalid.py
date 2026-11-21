@@ -225,8 +225,8 @@ class TestInvalidSession:
         with pytest.raises(
             ValueError,
             match=(
-                "Column 'repeated' produced by grouping transformation is not in "
-                r"groupby columns \['A'\]"
+                r"Column 'repeated' was created by a flat_map\(\) with grouping=True, "
+                r"so the query must group by it, but it groups by \['A'\]\."
             ),
         ):
             invalid_query = (
