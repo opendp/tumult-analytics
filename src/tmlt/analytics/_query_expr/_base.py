@@ -336,10 +336,14 @@ def _validate_groupby(
     groupby_columns = query.groupby_columns
     grouping_column = input_schema.grouping_column
     if grouping_column is not None and grouping_column not in groupby_columns:
+        grouped_by = (
+            f"it groups by {list(groupby_columns)}"
+            if groupby_columns
+            else "it does not group by any column"
+        )
         raise ValueError(
             f"Column '{grouping_column}' was created by a flat_map() with "
-            "grouping=True, so the query must group by it, but it groups by "
-            f"{list(groupby_columns)}."
+            f"grouping=True, so the query must group by it, but {grouped_by}."
         )
 
 

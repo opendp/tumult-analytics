@@ -335,6 +335,22 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             r"query must group by it, but it groups by \[.*\]\."
         ),
     ),
+    (  # Grouping column is set in a FlatMap but the later count is a total
+        GroupByCount(
+            child=FlatMap(
+                child=PrivateSource("private"),
+                f=lambda row: [{"i": row["B"]} for i in range(row["Repeat"])],
+                schema_new_columns=Schema({"i": "INTEGER"}, grouping_column="i"),
+                augment=True,
+                max_rows=2,
+            ),
+            groupby_keys=KeySet.from_dict({}),
+        ),
+        (
+            r"Column 'i' was created by a flat_map\(\) with grouping=True, so the "
+            r"query must group by it, but it does not group by any column\."
+        ),
+    ),
     (  # Grouping column is set but not used in a later groupby_public_source
         GroupByCount(
             child=FlatMap(
