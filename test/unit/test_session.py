@@ -2711,8 +2711,14 @@ def test_automatic_partition_selection_invalid_budget(
 @pytest.mark.parametrize(
     "columns,expected_error",
     [
-        ([], "No groupby columns were given."),
-        (["id", "A", "id"], "Groupby column 'id' appears more than once."),
+        ([], "groupby columns must contain at least one column"),
+        (
+            ["id", "A", "id"],
+            (
+                "groupby columns cannot contain duplicate column names, but these "
+                "appear multiple times: ['id']"
+            ),
+        ),
     ],
 )
 def test_automatic_partition_selection_invalid_columns(
