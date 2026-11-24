@@ -9,6 +9,8 @@ import pytest
 
 from tmlt.analytics import (
     ApproxDPBudget,
+    CountMechanism,
+    KeySet,
     MaxRowsPerID,
     PrivacyBudget,
     PureDPBudget,
@@ -95,3 +97,33 @@ from tmlt.analytics._query_expr import QueryExpr
 def test_query(query_budget: PrivacyBudget, query: QueryExpr, session):
     """Queries with unusual budget combinations work as expected."""
     session.evaluate(query, query_budget)
+
+
+@pytest.mark.parametrize("session", [ApproxDPBudget(5, 1e-3)], indirect=True)
+@pytest.mark.parametrize(
+    "query",
+    [
+        QueryBuilder("rows_1").count(mechanism=CountMechanism.LAPLACE),
+        QueryBuilder("rows_1").count(),
+        QueryBuilder("rows_1")
+        .groupby(KeySet.from_dict({"A": ["0", "1"]}))
+        .sum("X", 0, 10),
+        QueryBuilder("rows_1").median("X", 0, 10),
+        QueryBuilder("rows_1").quantile("X", 0.25, 0, 10),
+    ],
+)
+def test_approxdp_query_without_delta(query: QueryExpr, session):
+    """Queries that don't use delta only spend epsilon in an ApproxDP Session."""
+    with pytest.warns(UserWarning, match="only epsilon will be spent"):
+        session.evaluate(query, ApproxDPBudget(1, 1e-4))
+    assert session.remaining_privacy_budget == ApproxDPBudget(4, 1e-3)
+
+
+@pytest.mark.parametrize("session", [ApproxDPBudget(5, 1e-3)], indirect=True)
+def test_approxdp_query_with_delta(session):
+    """Queries that use delta still spend it in an ApproxDP Session."""
+    session.evaluate(QueryBuilder("rows_1").get_groups(["A"]), ApproxDPBudget(1, 1e-4))
+    remaining = session.remaining_privacy_budget
+    assert isinstance(remaining, ApproxDPBudget)
+    assert remaining.epsilon == 4
+    assert remaining.delta == pytest.approx(9e-4)

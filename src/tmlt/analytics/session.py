@@ -996,6 +996,12 @@ class Session:
             input_metric=self._input_metric,
             catalog=self._catalog,
         )
+        # Queries that can't use delta are compiled with a delta of zero. Only
+        # spend the delta if the query actually uses it.
+        if isinstance(adjusted_budget, ApproxDPBudget) and adjusted_budget.delta > 0:
+            _, spent_delta = measurement.privacy_function(self._accountant.d_in)
+            if spent_delta == 0:
+                adjusted_budget = ApproxDPBudget(adjusted_budget.epsilon, 0)
         return measurement, adjusted_budget, noise_info
 
     def _noise_info(
