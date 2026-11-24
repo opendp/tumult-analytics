@@ -109,6 +109,7 @@ def test_query(query_budget: PrivacyBudget, query: QueryExpr, session):
         .groupby(KeySet.from_dict({"A": ["0", "1"]}))
         .sum("X", 0, 10),
         QueryBuilder("rows_1").median("X", 0, 10),
+        QueryBuilder("rows_1").quantile("X", 0.25, 0, 10),
     ],
 )
 def test_approxdp_query_without_delta(query: QueryExpr, session):
