@@ -135,19 +135,11 @@ class Config:
 
             Config().features.example_feature.enable()
 
-        The current list of available features is:
-
-        * ``auto_partition_selection``: Automatically performs differentially private
-          partition selection when passing a list of columns to
-          :meth:`~tmlt.analytics.QueryBuilder.groupby`. This requires evaluating the
-          query with an :class:`~tmlt.analytics.ApproxDPBudget`.
+        There are currently no experimental features.
         """
 
         # Add Feature Flags here to list them as experimental:
         # ex. "new_feature = FeatureFlag('Description of new feature', default=False)"
-        auto_partition_selection = FeatureFlag(
-            "Automatic partition selection is experimental", default=False
-        )
 
         def __init__(self):
             """Constructor."""

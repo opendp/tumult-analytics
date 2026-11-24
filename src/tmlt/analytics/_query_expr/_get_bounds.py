@@ -10,7 +10,6 @@ from typeguard import check_type
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._schema import ColumnDescriptor, Schema
-from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet
 
 from ._base import (
@@ -39,8 +38,6 @@ class GetBounds(GroupedMeasurementQueryExpr):
     def __post_init__(self):
         """Checks arguments to constructor."""
         _validate_child_is_transformation(self.child)
-        if isinstance(self.groupby_keys, tuple):
-            config.features.auto_partition_selection.raise_if_disabled()
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.measure_column, str)
         check_type(self.lower_bound_column, str)

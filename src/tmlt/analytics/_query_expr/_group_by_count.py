@@ -12,7 +12,6 @@ from typeguard import check_type
 
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
-from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet
 
 from ._base import (
@@ -61,8 +60,6 @@ class GroupByCount(GroupedMeasurementQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        if isinstance(self.groupby_keys, tuple):
-            config.features.auto_partition_selection.raise_if_disabled()
         _validate_child_is_transformation(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)

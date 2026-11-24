@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Tuple, Union
 
 from tmlt.core.domains.spark_domains import SparkDataFrameDomain
 from tmlt.core.utils.join import domain_after_join
+from tmlt.core.utils.validation import validate_column_set
 from typeguard import check_type
 
 from tmlt.analytics import AnalyticsInternalError
@@ -315,6 +316,7 @@ def _validate_groupby(
                     f"'{input_column_desc.column_type.name}' instead."
                 )
     elif isinstance(query.groupby_keys, tuple):
+        validate_column_set(query.groupby_keys, "groupby columns")
         # Checks that the listed groupby columns exist in the schema
         for col in query.groupby_columns:
             if col not in input_schema:
