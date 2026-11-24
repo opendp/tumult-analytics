@@ -80,7 +80,6 @@ from tmlt.core.transformations.spark_transformations.select import (
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
-    AnalyticsDefault,
     DropInfinity as DropInfExpr,
     DropNullAndNan,
     EnforceConstraint,
@@ -848,7 +847,7 @@ class TransformationVisitor(QueryExprVisitor):
                 right_truncation_strategy=r_trunc_strat,
                 left_truncation_threshold=l_trunc_threshold,
                 right_truncation_threshold=r_trunc_threshold,
-                join_cols=list(expr.join_columns) if expr.join_columns else None,
+                join_cols=list(expr.join_columns),
                 join_on_nulls=True,
             )
             create_dict = CreateDictFromValue(
@@ -870,7 +869,7 @@ class TransformationVisitor(QueryExprVisitor):
                 left_ref.identifier,
                 right_ref.identifier,
                 target,
-                list(expr.join_columns) if expr.join_columns else None,
+                list(expr.join_columns),
                 join_on_nulls=True,
             )
 
@@ -930,7 +929,7 @@ class TransformationVisitor(QueryExprVisitor):
                     public_df_domain=SparkDataFrameDomain(
                         analytics_to_spark_columns_descriptor(public_df_schema)
                     ),
-                    join_cols=list(expr.join_columns) if expr.join_columns else None,
+                    join_cols=list(expr.join_columns),
                     metric=input_metric,
                     join_on_nulls=True,
                     how=expr.how,
@@ -948,7 +947,7 @@ class TransformationVisitor(QueryExprVisitor):
                 SparkDataFrameDomain(
                     analytics_to_spark_columns_descriptor(public_df_schema)
                 ),
-                list(expr.join_columns) if expr.join_columns else None,
+                list(expr.join_columns),
                 join_on_nulls=True,
             )
 
@@ -1159,21 +1158,7 @@ class TransformationVisitor(QueryExprVisitor):
         input_domain = lookup_domain(child_transformation.output_domain, child_ref)
         input_metric = lookup_metric(child_transformation.output_metric, child_ref)
 
-        analytics_schema = Schema(
-            spark_dataframe_domain_to_analytics_columns(input_domain)
-        )
         replace_with = dict(expr.replace_with)
-        if len(replace_with) == 0:
-            replace_with = {
-                col: (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
-                for col in analytics_schema.column_descs
-                if analytics_schema[col].column_type == ColumnType.DECIMAL
-            }
-            if len(replace_with) == 0:
-                warnings.warn(
-                    "replace_infinity() was called with no columns specified, and the"
-                    " table has no DECIMAL columns, so there is nothing to replace."
-                )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
@@ -1242,25 +1227,12 @@ class TransformationVisitor(QueryExprVisitor):
         )
 
         columns = expr.columns
-        if len(columns) == 0:
-            columns = tuple(
-                col
-                for col, cd in analytics_schema.column_descs.items()
-                if (cd.column_type == ColumnType.DECIMAL and cd.allow_inf)
-            )
-            if len(columns) == 0:
-                warnings.warn(
-                    "drop_infinity() was called with no columns specified, and the"
-                    " table has no DECIMAL columns that can contain infinite values,"
-                    " so there is nothing to drop."
+        for col in columns:
+            if analytics_schema.column_descs[col].column_type != ColumnType.DECIMAL:
+                raise ValueError(
+                    f"Cannot drop infinite values from column {col}, because that"
+                    " column's type is not DECIMAL"
                 )
-        else:
-            for col in columns:
-                if analytics_schema.column_descs[col].column_type != ColumnType.DECIMAL:
-                    raise ValueError(
-                        f"Cannot drop infinite values from column {col}, because that"
-                        " column's type is not DECIMAL"
-                    )
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):
@@ -1341,17 +1313,8 @@ class TransformationVisitor(QueryExprVisitor):
                     " grouping column"
                 )
 
-        columns = expr.columns
-        if len(columns) == 0:
-            columns = tuple(
-                col
-                for col, cd in analytics_schema.column_descs.items()
-                if (cd.allow_null or cd.allow_nan) and not (col == grouping_column)
-            )
-
-        null_columns = [col for col in columns if analytics_schema[col].allow_null]
-
-        nan_columns = [col for col in columns if analytics_schema[col].allow_nan]
+        null_columns = [col for col in expr.columns if analytics_schema[col].allow_null]
+        nan_columns = [col for col in expr.columns if analytics_schema[col].allow_nan]
 
         def gen_transformation_dictmetric(parent_domain, parent_metric, target):
             if not isinstance(input_domain, SparkDataFrameDomain):

@@ -15,6 +15,7 @@ from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
     SparkFloatColumnDescriptor,
 )
+from tmlt.core.measures import PureDP
 from tmlt.core.metrics import IfGroupedBy, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
@@ -24,6 +25,10 @@ from tmlt.core.transformations.identity import Identity as IdentityTransformatio
 from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoJoinPublic,
+    AutoReplaceInfinity,
     DropInfinity as DropInfExpr,
     DropNullAndNan,
     Filter,
@@ -44,6 +49,10 @@ from tmlt.analytics._query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+)
+from tmlt.analytics._query_expr_compiler._rewrite_rules import (
+    CompilationInfo,
+    resolve_columns,
 )
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
@@ -364,6 +373,7 @@ class TestAddRows(TestTransformationVisitor):
                     right_child=PrivateSource("rows2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(10),
+                    join_columns=("I",),
                 ),
                 pd.DataFrame(
                     [["0", 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -428,6 +438,7 @@ class TestAddRows(TestTransformationVisitor):
             right_child=PrivateSource("rows2"),
             truncation_strategy_left=InvalidStrategy(),
             truncation_strategy_right=TruncationStrategy.DropExcess(3),
+            join_columns=("I",),
         )
         expected_error_msg = (
             f"Truncation strategy type {InvalidStrategy.__qualname__} is not supported."
@@ -440,6 +451,7 @@ class TestAddRows(TestTransformationVisitor):
             right_child=PrivateSource("rows2"),
             truncation_strategy_left=TruncationStrategy.DropExcess(2),
             truncation_strategy_right=InvalidStrategy(),
+            join_columns=("I",),
         )
         with pytest.raises(ValueError, match=expected_error_msg):
             query2.accept(self.visitor)
@@ -449,6 +461,7 @@ class TestAddRows(TestTransformationVisitor):
             right_child=PrivateSource("rows2"),
             truncation_strategy_left=None,
             truncation_strategy_right=None,
+            join_columns=("I",),
         )
         with pytest.raises(
             ValueError,
@@ -484,7 +497,7 @@ class TestAddRows(TestTransformationVisitor):
         query = JoinPublic(
             child=PrivateSource(source_id="rows1"),
             public_table=source_id,
-            join_columns=tuple(join_columns) if join_columns else None,
+            join_columns=tuple(join_columns) if join_columns else ("S", "I"),
         )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -525,8 +538,8 @@ class TestAddRows(TestTransformationVisitor):
     ) -> None:
         """Test visit_join_public with a dataframe."""
         public_df = spark.createDataFrame(df, schema=df_schema)
-        query = JoinPublic(
-            child=PrivateSource(source_id="rows1"), public_table=public_df
+        query = AutoJoinPublic(PrivateSource("rows1"), public_df).resolve_columns(
+            self.catalog
         )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -670,9 +683,11 @@ class TestAddRows(TestTransformationVisitor):
         self, replace_with: Dict[str, Tuple[float, float]], expected_df: DataFrame
     ):
         """Test visit_replace_infinity."""
-        query = ReplaceInfinity(
-            child=PrivateSource(source_id="rows_infs_nans"),
-            replace_with=FrozenDict.from_dict(replace_with),
+        child = PrivateSource("rows_infs_nans")
+        query = (
+            ReplaceInfinity(child, FrozenDict.from_dict(replace_with))
+            if replace_with
+            else AutoReplaceInfinity(child).resolve_columns(self.catalog)
         )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -713,7 +728,9 @@ class TestAddRows(TestTransformationVisitor):
                 child=flatmap_query, columns=tuple(["group"])
             )
             invalid_drop_query.accept(self.visitor)
-        valid_drop_query = DropNullAndNan(child=flatmap_query, columns=tuple())
+        valid_drop_query = AutoDropNullAndNan(flatmap_query).resolve_columns(
+            self.catalog
+        )
         transformation, reference = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
@@ -749,7 +766,7 @@ class TestAddRows(TestTransformationVisitor):
                 child=flatmap_query, columns=tuple(["group"])
             )
             invalid_drop_query.accept(self.visitor)
-        valid_drop_query = DropInfExpr(child=flatmap_query, columns=tuple())
+        valid_drop_query = AutoDropInfinity(flatmap_query).resolve_columns(self.catalog)
         transformation, reference = valid_drop_query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, valid_drop_query)
         assert isinstance(transformation, ChainTT)
@@ -765,19 +782,19 @@ class TestAddRows(TestTransformationVisitor):
         "query,match,expected_df",
         [
             (
-                ReplaceInfinity(child=PrivateSource("rows2")),
+                AutoReplaceInfinity(child=PrivateSource("rows2")),
                 "nothing to replace",
                 pd.DataFrame([[0, "a"]], columns=["I", "field"]),
             ),
             (
-                DropInfExpr(child=PrivateSource("rows2")),
+                AutoDropInfinity(child=PrivateSource("rows2")),
                 "nothing to drop",
                 pd.DataFrame([[0, "a"]], columns=["I", "field"]),
             ),
             (
                 # After ReplaceInfinity, no column can contain infinite values.
-                DropInfExpr(
-                    child=ReplaceInfinity(child=PrivateSource("rows_infs_nans"))
+                AutoDropInfinity(
+                    child=AutoReplaceInfinity(child=PrivateSource("rows_infs_nans"))
                 ),
                 "nothing to drop",
                 pd.DataFrame(
@@ -792,6 +809,7 @@ class TestAddRows(TestTransformationVisitor):
     ) -> None:
         """Test that replacing/dropping infinities warns and keeps the table as is."""
         with pytest.warns(UserWarning, match=match):
+            query = resolve_columns(CompilationInfo(PureDP(), self.catalog))(query)
             transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(transformation, reference, expected_df)
@@ -799,8 +817,8 @@ class TestAddRows(TestTransformationVisitor):
     @pytest.mark.parametrize(
         "query",
         [
-            ReplaceInfinity(child=PrivateSource("rows_infs_nans")),
-            DropInfExpr(child=PrivateSource("rows_infs_nans")),
+            AutoReplaceInfinity(child=PrivateSource("rows_infs_nans")),
+            AutoDropInfinity(child=PrivateSource("rows_infs_nans")),
         ],
     )
     def test_visit_infinity_with_something_to_do_does_not_warn(
@@ -809,7 +827,8 @@ class TestAddRows(TestTransformationVisitor):
         """Test that replacing/dropping infinities doesn't warn on DECIMAL columns."""
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            query.accept(self.visitor)
+            resolved = resolve_columns(CompilationInfo(PureDP(), self.catalog))(query)
+            resolved.accept(self.visitor)
         assert not [w for w in caught if "nothing to" in str(w.message)]
 
     def test_measurement_visits(self):
@@ -825,6 +844,7 @@ class TestAddRows(TestTransformationVisitor):
         with pytest.raises(NotImplementedError):
             self.visitor.visit_groupby_count_distinct(
                 GroupByCountDistinct(
+                    columns_to_count=("S",),
                     groupby_keys=KeySet.from_dict({}),
                     child=PrivateSource(source_id="rows1"),
                 )
@@ -947,7 +967,12 @@ class TestAddRowsNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("rows"), tuple(query_columns))
+        child = PrivateSource("rows")
+        query = (
+            DropNullAndNan(child, tuple(query_columns))
+            if query_columns
+            else AutoDropNullAndNan(child).resolve_columns(self.catalog)
+        )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
 

@@ -172,10 +172,18 @@ class GroupedMeasurementQueryExpr(MeasurementQueryExpr):
         return self.groupby_keys
 
 
+def common_join_columns(left_schema: Schema, right_schema: Schema) -> Tuple[str, ...]:
+    """Select common join columns in left-schema order."""
+    columns = tuple(column for column in left_schema if column in right_schema)
+    if not columns:
+        raise ValueError("Tables have no common columns to join on.")
+    return columns
+
+
 def validate_join(
     left_schema: Schema,
     right_schema: Schema,
-    join_columns: Optional[Tuple[str, ...]],
+    join_columns: Tuple[str, ...],
 ):
     """Validates that both tables can be joined by comparing their schemas.
 
@@ -192,15 +200,7 @@ def validate_join(
             "if they have the same grouping column"
         )
 
-    if join_columns is not None and not join_columns:
-        # This error case should be caught when constructing the query
-        # expression, so it should never get here.
-        raise AnalyticsInternalError("Empty list of join columns provided.")
-
     common_columns = set(left_schema) & set(right_schema)
-    if join_columns is None and not common_columns:
-        raise ValueError("Tables have no common columns to join on")
-    join_columns = join_columns or tuple(common_columns)
     missing_columns = [c for c in join_columns if c not in common_columns]
     if missing_columns:
         raise ValueError(
@@ -220,7 +220,7 @@ def validate_join(
 def schema_for_join(
     left_schema: Schema,
     right_schema: Schema,
-    join_columns: Optional[Tuple[str, ...]],
+    join_columns: Tuple[str, ...],
     join_id_space: Optional[str],
     how: str,
 ) -> Schema:
@@ -239,10 +239,6 @@ def schema_for_join(
         how: The type of join to perform.
     """
     grouping_column = left_schema.grouping_column or right_schema.grouping_column
-    common_columns = set(left_schema) & set(right_schema)
-    join_columns = join_columns or tuple(
-        sorted(common_columns, key=list(left_schema).index)
-    )
 
     # Get the join schema from the Core convenience method
     output_domain = domain_after_join(

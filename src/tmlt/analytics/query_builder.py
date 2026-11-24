@@ -25,6 +25,13 @@ from pyspark.sql import DataFrame
 
 from tmlt.analytics._query_expr import (
     AnalyticsDefault,
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoGetGroups,
+    AutoGroupByCountDistinct,
+    AutoJoinPrivate,
+    AutoJoinPublic,
+    AutoReplaceInfinity,
     AutoReplaceNullAndNan,
     AverageMechanism,
     CountDistinctMechanism,
@@ -86,6 +93,15 @@ __all__ = [
 
 Row = Dict[str, Any]
 """Type alias for a dictionary with string keys."""
+
+
+def _normalize_columns(columns: Optional[List[str] | str]) -> Tuple[str, ...]:
+    """Convert an optional column selection to a tuple before checking for emptiness."""
+    if columns is None:
+        return ()
+    if isinstance(columns, str):
+        return (columns,)
+    return tuple(columns)
 
 
 def _query_expr_recursive_equivalence(query: QueryExpr, other_query: QueryExpr) -> bool:
@@ -450,12 +466,12 @@ class QueryBuilder:
                           the tables will be joined on all common columns.
             how: The type of join to perform. Must be one of "inner" or "left".
         """
-        self._query_expr = JoinPublic(
-            child=self._query_expr,
-            public_table=public_table,
-            join_columns=tuple(join_columns) if join_columns is not None else None,
-            how=how,
-        )
+        if join_columns is None:
+            self._query_expr = AutoJoinPublic(self._query_expr, public_table, how=how)
+        else:
+            self._query_expr = JoinPublic(
+                self._query_expr, public_table, tuple(join_columns), how=how
+            )
         return self
 
     def join_private(
@@ -582,13 +598,16 @@ class QueryBuilder:
         """
         if isinstance(right_operand, str):
             right_operand = QueryBuilder(right_operand)
-        self._query_expr = JoinPrivate(
+        args = (
             self._query_expr,
             right_operand._query_expr,
             truncation_strategy_left,
             truncation_strategy_right,
-            tuple(join_columns) if join_columns is not None else None,
         )
+        if join_columns is None:
+            self._query_expr = AutoJoinPrivate(*args)
+        else:
+            self._query_expr = JoinPrivate(*args, join_columns=tuple(join_columns))
         return self
 
     def replace_null_and_nan(
@@ -750,12 +769,13 @@ class QueryBuilder:
                 If None (or empty), all columns will have infinite
                 values replaced with Analytics defaults; see :class:`AnalyticsDefault`.
         """
-        if replace_with is None:
-            replace_with = {}
-
-        self._query_expr = ReplaceInfinity(
-            child=self._query_expr,
-            replace_with=FrozenDict.from_dict(replace_with),
+        replacements = FrozenDict.from_dict(
+            {} if replace_with is None else replace_with
+        )
+        self._query_expr = (
+            ReplaceInfinity(self._query_expr, replacements)
+            if replacements
+            else AutoReplaceInfinity(self._query_expr)
         )
         return self
 
@@ -857,12 +877,11 @@ class QueryBuilder:
                 meaning that if *any* column has a null/NaN value then the row it
                 is in will be dropped.
         """
-        if columns is None:
-            columns = []
-        if isinstance(columns, str):
-            columns = [columns]
-        self._query_expr = DropNullAndNan(
-            child=self._query_expr, columns=tuple(columns)
+        column_names = _normalize_columns(columns)
+        self._query_expr = (
+            DropNullAndNan(self._query_expr, column_names)
+            if column_names
+            else AutoDropNullAndNan(self._query_expr)
         )
         return self
 
@@ -949,11 +968,12 @@ class QueryBuilder:
                 be considered, meaning that if *any* column has an infinite value
                 then the row it is in will be dropped.
         """
-        if columns is None:
-            columns = []
-        if isinstance(columns, str):
-            columns = [columns]
-        self._query_expr = DropInfinity(child=self._query_expr, columns=tuple(columns))
+        column_names = _normalize_columns(columns)
+        self._query_expr = (
+            DropInfinity(self._query_expr, column_names)
+            if column_names
+            else AutoDropInfinity(self._query_expr)
+        )
         return self
 
     def rename(self, column_mapper: Dict[str, str]) -> "QueryBuilder":
@@ -1780,12 +1800,12 @@ class QueryBuilder:
                 :class:`~tmlt.analytics.ProtectedChange` of
                 :class:`~tmlt.analytics.AddRowsWithID`.
         """
-        if columns is None:
-            columns = []
-        if isinstance(columns, str):
-            columns = [columns]
-        query_expr = GetGroups(child=self._query_expr, columns=tuple(columns))
-        return Query(query_expr)
+        column_names = _normalize_columns(columns)
+        return Query(
+            GetGroups(self._query_expr, column_names)
+            if column_names
+            else AutoGetGroups(self._query_expr)
+        )
 
     def get_bounds(
         self,
@@ -2970,13 +2990,10 @@ class GroupedQueryBuilder:
             mechanism: Choice of noise mechanism (case-insensitive). By default, the
                 framework automatically selects an appropriate mechanism.
         """
-        if columns is None:
-            columns = []
-        if isinstance(columns, str):
-            columns = [columns]
+        column_names = _normalize_columns(columns)
         if not name:
-            if columns:
-                name = f"count_distinct({', '.join(columns)})"
+            if column_names:
+                name = f"count_distinct({', '.join(column_names)})"
             else:
                 name = "count_distinct"
         if isinstance(mechanism, str):
@@ -2987,14 +3004,24 @@ class GroupedQueryBuilder:
                     f'Unknown mechanism "{mechanism}". Available options are '
                     '"laplace", "gaussian", or "default".'
                 ) from e
-        query_expr = GroupByCountDistinct(
-            child=self._query_expr,
-            columns_to_count=tuple(columns),
-            groupby_keys=self._groupby_keys,
-            output_column=name,
-            mechanism=mechanism,
+        if column_names:
+            return Query(
+                GroupByCountDistinct(
+                    self._query_expr,
+                    self._groupby_keys,
+                    column_names,
+                    output_column=name,
+                    mechanism=mechanism,
+                )
+            )
+        return Query(
+            AutoGroupByCountDistinct(
+                self._query_expr,
+                self._groupby_keys,
+                output_column=name,
+                mechanism=mechanism,
+            )
         )
-        return Query(query_expr)
 
     def quantile(
         self,

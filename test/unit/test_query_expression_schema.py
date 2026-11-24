@@ -14,6 +14,10 @@ from tmlt.core.utils.testing import Case, parametrize
 from tmlt.analytics import KeySet, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoJoinPrivate,
+    AutoJoinPublic,
     AutoReplaceNullAndNan,
     DropInfinity,
     DropNullAndNan,
@@ -86,11 +90,11 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         "Table 'public' is not a private table",
     ),
     (  # JoinPublic has invalid public_id
-        JoinPublic(child=PrivateSource("private"), public_table="private"),
+        AutoJoinPublic(child=PrivateSource("private"), public_table="private"),
         "Attempted public join on table 'private', which is not a public table",
     ),
     (  # JoinPublic references invalid private source
-        JoinPublic(
+        AutoJoinPublic(
             child=PrivateSource("private_source_not_in_catalog"), public_table="public"
         ),
         "Query references nonexistent table 'private_source_not_in_catalog'",
@@ -120,14 +124,14 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
         ),
     ),
     (  # JoinPublic on tables with no common columns
-        JoinPublic(
+        AutoJoinPublic(
             child=Rename(PrivateSource("private"), FrozenDict.from_dict({"A": "Q"})),
             public_table="public",
         ),
         "Tables have no common columns to join on",
     ),
     (  # JoinPrivate on tables with no common columns
-        JoinPrivate(
+        AutoJoinPrivate(
             PrivateSource("private"),
             Rename(
                 Select(PrivateSource("private"), tuple(["A"])),
@@ -434,7 +438,7 @@ class TestValidation:
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
         with pytest.raises(ValueError, match=expected_error_msg):
-            query_expr.schema(self.catalog)
+            QueryExprCompiler().query_schema(query_expr, self.catalog)
 
     @pytest.mark.parametrize(
         "query_expr,expected_error_msg",
@@ -675,7 +679,7 @@ class TestValidationWithNulls:
     ) -> None:
         """Check that appropriate exceptions are raised on invalid queries."""
         with pytest.raises(ValueError, match=expected_error_msg):
-            query_expr.schema(self.catalog)
+            QueryExprCompiler().query_schema(query_expr, self.catalog)
 
     @pytest.mark.parametrize(
         "groupby_keys,exception_type,expected_error_msg",
@@ -1112,7 +1116,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("groupby_one_column_private"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(10),
@@ -1139,17 +1143,17 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_join_private(
-        self, query: JoinPrivate, expected_schema: Schema
+        self, query: AutoJoinPrivate, expected_schema: Schema
     ) -> None:
         """Test schema for join_private."""
-        schema = query.schema(self.catalog)
+        schema = QueryExprCompiler().query_schema(query, self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
         "query,expected_schema",
         [
             (
-                JoinPublic(
+                AutoJoinPublic(
                     child=PrivateSource("private"), public_table="groupby_column_a"
                 ),
                 Schema(
@@ -1171,7 +1175,7 @@ class TestValidationWithNulls:
                 ),
             ),
             (
-                JoinPublic(
+                AutoJoinPublic(
                     child=PrivateSource("private"),
                     public_table="groupby_column_a",
                     how="left",
@@ -1198,10 +1202,10 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_join_public(
-        self, query: JoinPublic, expected_schema: Schema
+        self, query: AutoJoinPublic, expected_schema: Schema
     ) -> None:
         """Test schema for join_public."""
-        schema = query.schema(self.catalog)
+        schema = QueryExprCompiler().query_schema(query, self.catalog)
         assert schema == expected_schema
 
     @parametrize(
@@ -1257,13 +1261,13 @@ class TestValidationWithNulls:
         catalog = Catalog()
         catalog.add_private_table("left", left_schema, constraints=[])
         catalog.add_private_table("right", right_schema, constraints=[])
-        query = JoinPrivate(
+        query = AutoJoinPrivate(
             left_child=PrivateSource("left"),
             right_child=PrivateSource("right"),
             truncation_strategy_left=TruncationStrategy.DropExcess(1),
             truncation_strategy_right=TruncationStrategy.DropExcess(1),
         )
-        result_schema = query.schema(catalog)
+        result_schema = QueryExprCompiler().query_schema(query, catalog)
         assert result_schema == expected_schema
 
     @parametrize(
@@ -1321,8 +1325,8 @@ class TestValidationWithNulls:
         catalog.add_public_table(
             "public", public_schema, _empty_public_dataframe(public_schema)
         )
-        query = JoinPublic(child=PrivateSource("private"), public_table="public")
-        result_schema = query.schema(catalog)
+        query = AutoJoinPublic(child=PrivateSource("private"), public_table="public")
+        result_schema = QueryExprCompiler().query_schema(query, catalog)
         assert result_schema == expected_schema
 
     @pytest.mark.parametrize(
@@ -1415,7 +1419,7 @@ class TestValidationWithNulls:
         "query,expected_schema",
         [
             (
-                DropNullAndNan(child=PrivateSource("private"), columns=tuple()),
+                AutoDropNullAndNan(child=PrivateSource("private")),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1492,17 +1496,17 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_drop_null_and_nan(
-        self, query: DropNullAndNan, expected_schema: Schema
+        self, query: DropNullAndNan | AutoDropNullAndNan, expected_schema: Schema
     ) -> None:
         """Test schema for drop_null_and_nan."""
-        schema = query.schema(self.catalog)
+        schema = QueryExprCompiler().query_schema(query, self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(
         "query,expected_schema",
         [
             (
-                DropInfinity(child=PrivateSource("private"), columns=tuple()),
+                AutoDropInfinity(child=PrivateSource("private")),
                 Schema(
                     {
                         "A": ColumnDescriptor(
@@ -1577,10 +1581,10 @@ class TestValidationWithNulls:
         ],
     )
     def test_schema_drop_infinity(
-        self, query: DropInfinity, expected_schema: Schema
+        self, query: DropInfinity | AutoDropInfinity, expected_schema: Schema
     ) -> None:
         """Test schema for drop_infinity."""
-        schema = query.schema(self.catalog)
+        schema = QueryExprCompiler().query_schema(query, self.catalog)
         assert schema == expected_schema
 
     @pytest.mark.parametrize(

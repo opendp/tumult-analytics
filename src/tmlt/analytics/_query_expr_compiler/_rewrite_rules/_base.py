@@ -11,6 +11,7 @@ from tmlt.core.measures import ApproxDP, PureDP, RhoZCDP
 from tmlt.analytics import AnalyticsInternalError
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoJoinPrivate,
     GroupByCount,
     JoinPrivate,
     PrivateSource,
@@ -52,7 +53,7 @@ def depth_first(
         if isinstance(expr, SingleChildQueryExpr):
             child = wrapped(expr.child)
             return func(replace(expr, child=child))
-        if isinstance(expr, JoinPrivate):
+        if isinstance(expr, (JoinPrivate, AutoJoinPrivate)):
             left = wrapped(expr.left_child)
             right = wrapped(expr.right_child)
             return func(replace(expr, left_child=left, right_child=right))

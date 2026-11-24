@@ -40,6 +40,7 @@ from tmlt.analytics import (
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._noise_info import NoiseInfo, _NoiseMechanism
 from tmlt.analytics._query_expr import (
+    AutoGroupByCountDistinct,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -71,6 +72,10 @@ from tmlt.analytics._query_expr import (
 from tmlt.analytics._query_expr_compiler._measurement_visitor import (
     MeasurementVisitor,
     _get_query_bounds,
+)
+from tmlt.analytics._query_expr_compiler._rewrite_rules import (
+    CompilationInfo,
+    resolve_columns,
 )
 from tmlt.analytics._schema import (
     ColumnDescriptor,
@@ -320,6 +325,7 @@ class TestMeasurementVisitor:
         self, query: QueryExpr, output_measure: Union[PureDP, RhoZCDP]
     ):
         """Run a query and check the schema of the result."""
+        query = resolve_columns(CompilationInfo(output_measure, self.catalog))(query)
         expected_column_types = query.schema(self.catalog).column_types
         self.visitor.output_measure = output_measure
         measurement, _ = query.accept(self.visitor)
@@ -338,6 +344,7 @@ class TestMeasurementVisitor:
     ):
         """Check the noise info for a query."""
         self.pick_noise_visitor.output_measure = output_measure
+        query = resolve_columns(CompilationInfo(output_measure, self.catalog))(query)
         _, noise_info = query.accept(self.pick_noise_visitor)
         assert noise_info == expected_noise_info
 
@@ -493,7 +500,7 @@ class TestMeasurementVisitor:
         "query,output_measure,noise_info",
         [
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
@@ -510,7 +517,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"B": [0, 1]}),
                     mechanism=CountDistinctMechanism.LAPLACE,
@@ -545,7 +552,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["zero"]}),
                     mechanism=CountDistinctMechanism.GAUSSIAN,
@@ -563,7 +570,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.DEFAULT,
@@ -580,7 +587,7 @@ class TestMeasurementVisitor:
                 ),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     mechanism=CountDistinctMechanism.LAPLACE,
@@ -1234,11 +1241,12 @@ class TestMeasurementVisitor:
                 JoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
+                    join_columns=("A",),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
                     truncation_strategy_right=TruncationStrategy.DropExcess(3),
                 )
             ),
-            (JoinPublic(child=PrivateSource("private"), public_table="public")),
+            (JoinPublic(PrivateSource("private"), "public", ("A", "B"))),
             (ReplaceNullAndNan(child=PrivateSource("private"))),
             (ReplaceInfExpr(child=PrivateSource("private"))),
             (DropNullAndNan(child=PrivateSource("private"))),

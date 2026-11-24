@@ -14,11 +14,23 @@ from tmlt.analytics import AnalyticsInternalError, KeySet
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
     AnalyticsDefault,
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoGetGroups,
+    AutoGroupByCountDistinct,
+    AutoJoinPrivate,
+    AutoReplaceInfinity,
     AutoReplaceNullAndNan,
+    DropInfinity,
+    DropNullAndNan,
+    GetGroups,
     GroupByBoundedSum,
+    GroupByCountDistinct,
+    JoinPrivate,
     PrivateSource,
     QueryExpr,
     Rename,
+    ReplaceInfinity,
     ReplaceNullAndNan,
 )
 from tmlt.analytics._query_expr_compiler import QueryExprCompiler
@@ -52,6 +64,11 @@ ID_SCHEMA_WITHOUT_NULLS = Schema(
         "value": ColumnDescriptor(ColumnType.DECIMAL, allow_inf=True),
         "label": ColumnType.VARCHAR,
     },
+    id_column="id",
+    id_space="ids",
+)
+ID_SCHEMA_WITHOUT_INFINITY = Schema(
+    {**ID_SCHEMA, "value": ColumnDescriptor(ColumnType.DECIMAL, allow_nan=True)},
     id_column="id",
     id_space="ids",
 )
@@ -113,6 +130,78 @@ def test_unresolved_lookups_raise():
         query=AutoReplaceNullAndNan(PrivateSource("private")),
         expected_query=ReplaceNullAndNan(PrivateSource("private")),
         expected_schema=GROUPING_SCHEMA,
+    ),
+    Case("drop_nulls_preserves_id_and_constraints")(
+        input_schemas={"private": ID_SCHEMA},
+        input_constraints={
+            "private": {MaxRowsPerID(10), MaxRowsPerGroupPerID("value", 2)}
+        },
+        query=AutoDropNullAndNan(PrivateSource("private")),
+        expected_query=DropNullAndNan(PrivateSource("private"), ("value", "label")),
+        expected_schema=ID_SCHEMA_WITHOUT_NULLS,
+        expected_constraints={MaxRowsPerID(10), MaxRowsPerGroupPerID("value", 2)},
+        warning_match="ID column 'id'",
+    ),
+    Case("drop_infinity")(
+        input_schemas={"private": ID_SCHEMA},
+        input_constraints={
+            "private": {MaxRowsPerID(10), MaxRowsPerGroupPerID("value", 2)}
+        },
+        query=AutoDropInfinity(PrivateSource("private")),
+        expected_query=DropInfinity(PrivateSource("private"), ("value",)),
+        expected_schema=ID_SCHEMA_WITHOUT_INFINITY,
+        expected_constraints={MaxRowsPerID(10), MaxRowsPerGroupPerID("value", 2)},
+    ),
+    Case("replace_infinity_drops_group_limit")(
+        input_schemas={"private": ID_SCHEMA},
+        input_constraints={
+            "private": {MaxRowsPerID(10), MaxRowsPerGroupPerID("value", 2)}
+        },
+        query=AutoReplaceInfinity(PrivateSource("private")),
+        expected_query=ReplaceInfinity(
+            PrivateSource("private"),
+            FrozenDict.from_dict(
+                {"value": (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)}
+            ),
+        ),
+        expected_schema=ID_SCHEMA_WITHOUT_INFINITY,
+        expected_constraints={MaxRowsPerID(10)},
+    ),
+    Case("join_resolves_both_children")(
+        input_schemas={"private": NULLABLE_INTEGER_SCHEMA},
+        query=AutoJoinPrivate(
+            AutoReplaceNullAndNan(PrivateSource("private")),
+            AutoReplaceNullAndNan(PrivateSource("private")),
+        ),
+        expected_query=JoinPrivate(
+            ReplaceNullAndNan(
+                PrivateSource("private"), FrozenDict.from_dict({"value": 0})
+            ),
+            ReplaceNullAndNan(
+                PrivateSource("private"), FrozenDict.from_dict({"value": 0})
+            ),
+            join_columns=("value",),
+        ),
+        expected_schema=Schema({"value": ColumnType.INTEGER}),
+    ),
+    Case("get_groups_excludes_id")(
+        input_schemas={"private": ID_SCHEMA},
+        query=AutoGetGroups(PrivateSource("private")),
+        expected_query=GetGroups(PrivateSource("private"), ("value", "label")),
+        expected_schema=Schema(
+            {"value": ID_SCHEMA["value"], "label": ID_SCHEMA["label"]}
+        ),
+    ),
+    Case("count_distinct_includes_id")(
+        input_schemas={"private": ID_SCHEMA},
+        query=AutoGroupByCountDistinct(PrivateSource("private"), KeySet.from_dict({})),
+        expected_query=GroupByCountDistinct(
+            PrivateSource("private"),
+            KeySet.from_dict({}),
+            ("id", "value", "label"),
+            core_mechanism=NoiseMechanism.GEOMETRIC,
+        ),
+        expected_schema=Schema({"count_distinct": ColumnType.INTEGER}),
     ),
     Case("bottom_up_resolution")(
         input_schemas={"private": NULLABLE_INTEGER_SCHEMA},

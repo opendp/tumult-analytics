@@ -35,6 +35,9 @@ from tmlt.core.utils.testing import assert_dataframe_equal
 from tmlt.analytics import KeySet, PureDPBudget, RhoZCDPBudget, TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoGroupByCountDistinct,
+    AutoJoinPrivate,
+    AutoJoinPublic,
     AutoReplaceNullAndNan,
     AverageMechanism,
     CountMechanism,
@@ -47,7 +50,6 @@ from tmlt.analytics._query_expr import (
     GroupByCount,
     GroupByCountDistinct,
     GroupByQuantile,
-    JoinPrivate,
     JoinPublic,
     Map,
     PrivateSource,
@@ -89,7 +91,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         pd.DataFrame({"total": [4]}),
     ),
     (
-        GroupByCountDistinct(
+        AutoGroupByCountDistinct(
             child=PrivateSource("private"),
             groupby_keys=KeySet.from_dict({}),
             output_column="total",
@@ -286,7 +288,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     ),
     (  # JoinPublic
         GroupByCount(
-            child=JoinPublic(child=PrivateSource("private"), public_table="public"),
+            child=AutoJoinPublic(child=PrivateSource("private"), public_table="public"),
             groupby_keys=KeySet.from_dict({"A+B": [0, 1, 2]}),
         ),
         pd.DataFrame({"A+B": [0, 1, 2], "count": [2, 2, 0]}),
@@ -305,7 +307,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     # Tests on less-common data types
     (
         GroupByCount(
-            JoinPublic(PrivateSource("private"), "dtypes"),
+            AutoJoinPublic(PrivateSource("private"), "dtypes"),
             KeySet.from_dict({"A": ["0", "1"]}),
         ),
         pd.DataFrame({"A": ["0", "1"], "count": [3, 1]}),
@@ -313,7 +315,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         GroupByCount(
             Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
+                AutoJoinPublic(PrivateSource("private"), "dtypes"),
                 "date < '2022-01-02'",
             ),
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -323,7 +325,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         GroupByCount(
             Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
+                AutoJoinPublic(PrivateSource("private"), "dtypes"),
                 "date = '2022-01-02'",
             ),
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -333,7 +335,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         GroupByCount(
             Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
+                AutoJoinPublic(PrivateSource("private"), "dtypes"),
                 "timestamp < '2022-01-01T12:40:00'",
             ),
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -343,7 +345,7 @@ QUERY_EXPR_COMPILER_TESTS = [
     (
         GroupByCount(
             Filter(
-                JoinPublic(PrivateSource("private"), "dtypes"),
+                AutoJoinPublic(PrivateSource("private"), "dtypes"),
                 "timestamp >= '2022-01-01T12:45:00'",
             ),
             KeySet.from_dict({"A": ["0", "1"]}),
@@ -354,7 +356,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         GroupByBoundedSum(
             AutoReplaceNullAndNan(
                 child=Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    AutoJoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"day": row["date"].day},
                     Schema({"day": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
@@ -371,7 +373,7 @@ QUERY_EXPR_COMPILER_TESTS = [
         GroupByBoundedSum(
             AutoReplaceNullAndNan(
                 child=Map(
-                    JoinPublic(PrivateSource("private"), "dtypes"),
+                    AutoJoinPublic(PrivateSource("private"), "dtypes"),
                     lambda row: {"minute": row["timestamp"].minute},
                     Schema({"minute": ColumnDescriptor(ColumnType.INTEGER)}),
                     augment=True,
@@ -572,7 +574,7 @@ class TestQueryExprCompiler:
         "query_expr,expected",
         [
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({}),
                     output_column="total",
@@ -589,7 +591,7 @@ class TestQueryExprCompiler:
                 pd.DataFrame({"distinct": [2]}),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict({"A": ["0", "1"]}),
                 ),
@@ -604,7 +606,7 @@ class TestQueryExprCompiler:
                 pd.DataFrame([["0", 2], ["1", 1]], columns=["A", "count_distinct"]),
             ),
             (
-                GroupByCountDistinct(
+                AutoGroupByCountDistinct(
                     child=PrivateSource("private"),
                     groupby_keys=KeySet.from_dict(GROUPBY_ONE_DICT),
                 ),
@@ -996,7 +998,7 @@ class TestQueryExprCompiler:
         ).fillna(0)
 
         transformation, reference, _constraints = self.compiler.build_transformation(
-            JoinPublic(PrivateSource("private"), public_sdf),
+            AutoJoinPublic(PrivateSource("private"), public_sdf),
             input_domain=self.input_domain,
             input_metric=self.input_metric,
             catalog=self.catalog,
@@ -1026,7 +1028,7 @@ class TestQueryExprCompiler:
             )
         )
         transformation, reference, _constraints = self.compiler.build_transformation(
-            JoinPrivate(
+            AutoJoinPrivate(
                 left_child=PrivateSource("private"),
                 right_child=PrivateSource("private_2"),
                 truncation_strategy_left=TruncationStrategy.DropExcess(3),
@@ -1063,7 +1065,7 @@ class TestQueryExprCompiler:
         "join_query,expected_output_stability",
         [
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
@@ -1072,7 +1074,7 @@ class TestQueryExprCompiler:
                 36,  # 3 * (2 * 3) + 3 * (2 * 3)
             ),
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
@@ -1081,7 +1083,7 @@ class TestQueryExprCompiler:
                 24,  # 3 * (2 * 3) + 1 * (2 * 3)
             ),
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(1),
@@ -1090,7 +1092,7 @@ class TestQueryExprCompiler:
                 12,  # 1 * (2 * 3) + 1 * (2 * 3)
             ),
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropExcess(3),
@@ -1099,7 +1101,7 @@ class TestQueryExprCompiler:
                 15,  # 3 * (1 * 3) + 1 * (2 * 3)
             ),
             (
-                JoinPrivate(
+                AutoJoinPrivate(
                     left_child=PrivateSource("private"),
                     right_child=PrivateSource("private_2"),
                     truncation_strategy_left=TruncationStrategy.DropNonUnique(),
@@ -1130,7 +1132,7 @@ class TestQueryExprCompiler:
         class Strategy(TruncationStrategy.Type):
             """An invalid truncation strategy."""
 
-        query = JoinPrivate(
+        query = AutoJoinPrivate(
             left_child=PrivateSource("private"),
             right_child=PrivateSource("private_2"),
             truncation_strategy_left=Strategy(),
