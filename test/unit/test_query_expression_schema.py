@@ -247,6 +247,26 @@ OUTPUT_SCHEMA_INVALID_QUERY_TESTS = [
             "otherwise it would drop the grouping column 'i'"
         ),
     ),
+    (  # Map reading a column that doesn't exist
+        Map(
+            child=PrivateSource("private"),
+            f=lambda row: {"C": str(row["bad"])},
+            schema_new_columns=Schema({"C": "VARCHAR"}),
+            augment=True,
+            input_column_types=FrozenDict.from_dict({"bad": (ColumnType.INTEGER,)}),
+        ),
+        r"Column 'bad' does not exist in this table, available columns are \[.*\]",
+    ),
+    (  # Map reading a column with a type it doesn't accept
+        Map(
+            child=PrivateSource("private"),
+            f=lambda row: {"C": str(row["T"])},
+            schema_new_columns=Schema({"C": "VARCHAR"}),
+            augment=True,
+            input_column_types=FrozenDict.from_dict({"T": (ColumnType.DATE,)}),
+        ),
+        "Column 'T' has type TIMESTAMP, but this query expects DATE",
+    ),
     (  # ReplaceNullAndNan with a column that doesn't exist
         ReplaceNullAndNan(
             child=PrivateSource("private"),
