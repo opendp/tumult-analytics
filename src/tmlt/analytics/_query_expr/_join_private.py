@@ -92,13 +92,9 @@ class JoinPrivate(QueryExpr):
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
 
-        The ordering of output columns are:
-
-        1. The join columns
-        2. Columns that are only in the left table
-        3. Columns that are only in the right table
-        4. Columns that are in both tables, but not included in the join columns. These
-           columns are included with _left and _right suffixes.
+        Columns that are in both tables but not in the join columns are included
+        with ``_left`` and ``_right`` suffixes. The order of the output columns is not
+        guaranteed.
         """
         left_schema = self.left_child.schema(catalog)
         right_schema = self.right_child.schema(catalog)
@@ -136,12 +132,12 @@ class JoinPrivate(QueryExpr):
             max_rows_per_id = next((c for c in cs if isinstance(c, MaxRowsPerID)), None)
             if max_rows_per_id:
                 stabilities.append(max_rows_per_id.max)
-            # When a MaxRowsPerGroupPerID constraint has a grouping column in
-            # the join columns, that also limits the duplication factor because
-            # each (ID, grouping column) value pair can only appear a limited
-            # number of times.
+            # When all the grouping columns of a MaxRowsPerGroupPerID constraint
+            # are in the join columns, that also limits the duplication factor
+            # because each (ID, grouping column(s)) value combination can only
+            # appear a limited number of times.
             for c in (c for c in cs if isinstance(c, MaxRowsPerGroupPerID)):
-                if c.grouping_column in join_cols:
+                if c.grouping_columns.issubset(join_cols):
                     stabilities.append(c.max)
             if not stabilities:
                 return None

@@ -36,10 +36,11 @@ class GetGroups(MeasurementQueryExpr):
     def _validate(self, input_schema: Schema):
         """Validation checks for this QueryExpr."""
         if self.columns:
-            nonexistent_columns = set(self.columns) - set(input_schema)
-            if nonexistent_columns:
+            missing_columns = [c for c in self.columns if c not in input_schema]
+            if missing_columns:
                 raise ValueError(
-                    f"Nonexistent columns in get_groups query: {nonexistent_columns}"
+                    f"Columns {missing_columns} passed to get_groups() are not in "
+                    f"the table. Available columns are {list(input_schema.keys())}."
                 )
 
     def schema(self, catalog: Catalog) -> Schema:

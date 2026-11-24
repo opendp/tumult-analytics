@@ -4,6 +4,7 @@
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
 import datetime
+import warnings
 from typing import Dict, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
@@ -157,7 +158,10 @@ class TestAddRows(TestTransformationVisitor):
             column_mapper=FrozenDict.from_dict({"column_that_does_not_exist": "asdf"}),
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError, match="Nonexistent columns in rename query"):
+        with pytest.raises(
+            ValueError,
+            match=r"Columns \['column_that_does_not_exist'\] passed to rename\(\)",
+        ):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
@@ -212,7 +216,10 @@ class TestAddRows(TestTransformationVisitor):
             columns=tuple(["column_that_does_not_exist"]),
             child=PrivateSource(source_id="rows1"),
         )
-        with pytest.raises(ValueError, match="Nonexistent columns in select query"):
+        with pytest.raises(
+            ValueError,
+            match=r"Columns \['column_that_does_not_exist'\] passed to select\(\)",
+        ):
             query.accept(self.visitor)
 
     @pytest.mark.parametrize(
@@ -738,6 +745,57 @@ class TestAddRows(TestTransformationVisitor):
         expected_df = pd.DataFrame(columns=["inf", "null", "nan", "group"])
 
         self._validate_result(transformation, reference, expected_df)
+
+    @pytest.mark.parametrize(
+        "query,match,expected_df",
+        [
+            (
+                ReplaceInfinity(child=PrivateSource("rows2")),
+                "nothing to replace",
+                pd.DataFrame([[0, "a"]], columns=["I", "field"]),
+            ),
+            (
+                DropInfExpr(child=PrivateSource("rows2")),
+                "nothing to drop",
+                pd.DataFrame([[0, "a"]], columns=["I", "field"]),
+            ),
+            (
+                # After ReplaceInfinity, no column can contain infinite values.
+                DropInfExpr(
+                    child=ReplaceInfinity(child=PrivateSource("rows_infs_nans"))
+                ),
+                "nothing to drop",
+                pd.DataFrame(
+                    [[0.0, "string", float("nan")], [0.0, None, 1.5]],
+                    columns=["inf", "null", "nan"],
+                ),
+            ),
+        ],
+    )
+    def test_visit_infinity_with_nothing_to_do(
+        self, query: QueryExpr, match: str, expected_df: DataFrame
+    ) -> None:
+        """Test that replacing/dropping infinities warns and keeps the table as is."""
+        with pytest.warns(UserWarning, match=match):
+            transformation, reference = query.accept(self.visitor)
+        self._validate_transform_basics(transformation, reference, query)
+        self._validate_result(transformation, reference, expected_df)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            ReplaceInfinity(child=PrivateSource("rows_infs_nans")),
+            DropInfExpr(child=PrivateSource("rows_infs_nans")),
+        ],
+    )
+    def test_visit_infinity_with_something_to_do_does_not_warn(
+        self, query: QueryExpr
+    ) -> None:
+        """Test that replacing/dropping infinities doesn't warn on DECIMAL columns."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            query.accept(self.visitor)
+        assert not [w for w in caught if "nothing to" in str(w.message)]
 
     def test_measurement_visits(self):
         """Test that visiting measurement queries raises an error."""

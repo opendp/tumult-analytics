@@ -40,6 +40,11 @@ class KeySet:
         If a column has null values dropped or replaced, then Analytics
         will raise an error if you use a KeySet that contains a null value for
         that column.
+
+    .. note::
+        KeySet columns must be of type ``INTEGER``, ``DATE`` or ``VARCHAR``, so
+        ``DECIMAL`` and ``TIMESTAMP`` columns cannot be grouped on directly. They
+        can be binned first with :meth:`~tmlt.analytics.QueryBuilder.bin_column`.
     """
 
     def __init__(self, op_tree: KeySetOp, columns: Sequence[str]):

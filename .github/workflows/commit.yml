@@ -21,7 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@32bc0f0057965be136de0d438858ee58af190015
       - run: uv run nox -s build
       - name: Archive packaged library
         uses: actions/upload-artifact@v4
@@ -38,14 +38,14 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Set up runner
-        uses: opendp/tumult-tools/actions/setup@0f3d49599e5824a9f407a6e2063990c1e0d4c2e8
+        uses: opendp/tumult-tools/actions/setup@32bc0f0057965be136de0d438858ee58af190015
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
       - name: Push docs
-        uses: opendp/tumult-tools/actions/push_docs@df58d56705007d8b7ad1b66280df7465afa15a49
+        uses: opendp/tumult-tools/actions/push_docs@32bc0f0057965be136de0d438858ee58af190015
         with:
           docs-repository: opendp/tumult-docs
           docs-repository-token: ${{ secrets.DOCS_REPO_PAT }}

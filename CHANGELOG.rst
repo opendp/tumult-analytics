@@ -11,13 +11,24 @@ Changelog
 Unreleased
 ----------
 
+Added
+~~~~~
+
+- Grouped truncations (:class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID`) now allow groups defined by multiple columns.
+
 Changed
 ~~~~~~~
 
 - Tumult Analytics now requires Tumult Core 0.20.
 - :meth:`~tmlt.analytics.QueryBuilder.average`, :meth:`~tmlt.analytics.QueryBuilder.stdev`, and :meth:`~tmlt.analytics.QueryBuilder.variance` now always use continuous Laplace or Gaussian noise, including on integer columns. This has a (minor) positive impact on utility, and mitigates integer overflow issues.
 - :meth:`~tmlt.analytics.QueryBuilder.sum` on an integer column with clamping bounds larger than ``2**23`` in absolute value is now computed on floating-point values, and returns a floating-point column, to avoid integer overflows.
+- Error messages for missing columns, and for :meth:`~tmlt.analytics.QueryBuilder.map` and :meth:`~tmlt.analytics.QueryBuilder.flat_map` without ``augment=True``, are now clearer.
 - :meth:`~tmlt.analytics.QueryBuilder.groupby` now accepts a list of column names (or a single column name) without enabling a feature flag. The group-by keys are then selected from the private data using differentially private partition selection, which requires an :class:`~tmlt.analytics.ApproxDPBudget`. The ``auto_partition_selection`` feature flag has been removed.
+
+Deprecated
+~~~~~~~~~~
+
+- The ``grouping_column`` argument and attribute of :class:`~tmlt.analytics.MaxGroupsPerID` and :class:`~tmlt.analytics.MaxRowsPerGroupPerID` are deprecated and will be removed in a future release; use ``grouping_columns`` instead.
 
 Fixed
 ~~~~~
@@ -25,6 +36,7 @@ Fixed
 - Fixed a bug in constraint propagation through the :meth:`~.join_private` query causing the wrong type of constraint to be produced.
 - :meth:`~tmlt.analytics.Session.partition_and_create` now raises an error, before spending any budget, when a split name is the name of a public table.
 - Sessions created by :meth:`~tmlt.analytics.Session.partition_and_create` now get their own copy of the public tables, so adding a public table to one of them, or to the parent Session, no longer affects the others.
+- :meth:`~tmlt.analytics.QueryBuilder.drop_infinity` and :meth:`~tmlt.analytics.QueryBuilder.replace_infinity` no longer raise an error when called without columns on a table with no DECIMAL columns they could change. They now warn that there is nothing to do and leave the table unchanged.
 
 
 .. _v0.21.0:
