@@ -611,7 +611,7 @@ other half of the epsilon is used to compute the counts.
 If you want to use the same group-by keys in several queries, you can instead
 use :meth:`~tmlt.analytics.QueryBuilder.get_groups` to collect a list of names
 from the private data once, and use them as the KeySet for subsequent queries.
-This way, the budget used to select the keys is only spent once.
+This way, the budget used to select the group-by keys is only spent once.
 
 .. testcode::
 
