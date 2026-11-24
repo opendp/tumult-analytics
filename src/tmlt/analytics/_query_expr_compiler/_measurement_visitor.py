@@ -660,11 +660,12 @@ class MeasurementVisitor(QueryExprVisitor):
             SumMechanism.LAPLACE,
             VarianceMechanism.LAPLACE,
         ):
-            warnings.warn(
+            self._replace_unused_delta(
+                epsilon,
+                delta,
                 "When using LAPLACE with an ApproxDPBudget, the delta value of "
-                "the budget will be replaced with zero."
+                "the budget will be replaced with zero",
             )
-            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
         elif mechanism in (
             AverageMechanism.DEFAULT,
             CountDistinctMechanism.DEFAULT,
@@ -673,12 +674,34 @@ class MeasurementVisitor(QueryExprVisitor):
             SumMechanism.DEFAULT,
             VarianceMechanism.DEFAULT,
         ):
-            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+            self._replace_unused_delta(
+                epsilon,
+                delta,
+                "This query does not use the delta value of the ApproxDPBudget, so "
+                "it will be replaced with zero",
+            )
         elif mechanism is None:
             # Quantile has no mechanism
-            self.adjusted_budget = ApproxDPBudget(epsilon, 0)
+            self._replace_unused_delta(
+                epsilon,
+                delta,
+                "Quantile queries do not use the delta value of the ApproxDPBudget, "
+                "so it will be replaced with zero",
+            )
         else:
             raise AnalyticsInternalError(f"Unknown mechanism {mechanism}.")
+
+    def _replace_unused_delta(self, epsilon: Any, delta: Any, reason: str) -> None:
+        """Set adjusted_budget to an ApproxDPBudget with no delta.
+
+        Warns if the requested delta was not zero, since it will not be spent.
+        """
+        if delta > 0:
+            warnings.warn(
+                f"{reason}, and only epsilon will be spent from the Session's "
+                "privacy budget."
+            )
+        self.adjusted_budget = ApproxDPBudget(epsilon, 0)
 
     def _validate_measurement(self, measurement: Measurement, mid_stability: sp.Expr):
         """Validate a measurement."""
