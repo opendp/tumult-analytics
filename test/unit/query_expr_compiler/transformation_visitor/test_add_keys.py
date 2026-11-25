@@ -498,7 +498,9 @@ class TestAddKeys(TestTransformationVisitor):
 
     def test_visit_replace_null_and_nan_empty(self):
         """An explicitly empty replacement map leaves ID-protected data unchanged."""
-        query = ReplaceNullAndNan(PrivateSource("ids_infs_nans"))
+        query = ReplaceNullAndNan(
+            PrivateSource("ids_infs_nans"), FrozenDict.from_dict({})
+        )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         self._validate_result(

@@ -34,7 +34,7 @@ from ._drop_infinity import _infinity_columns
 class ReplaceInfinity(SingleChildQueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
 
-    replace_with: FrozenDict = FrozenDict.from_dict({})
+    replace_with: FrozenDict
     """New values to replace with, by column. The first value for each column
     will be used to replace -infinity, and the second value will be used to
     replace +infinity.

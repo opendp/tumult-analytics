@@ -25,7 +25,7 @@ from ._base import (
 class DropInfinity(SingleChildQueryExpr):
     """Returns data with rows that contain +inf/-inf dropped."""
 
-    columns: Tuple[str, ...] = tuple()
+    columns: Tuple[str, ...]
     """Columns in which to look for infinite values. An empty tuple is a no-op."""
 
     def __post_init__(self) -> None:

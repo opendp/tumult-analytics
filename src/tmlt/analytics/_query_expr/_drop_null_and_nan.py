@@ -32,7 +32,7 @@ class DropNullAndNan(SingleChildQueryExpr):
         that contains null values.
     """
 
-    columns: Tuple[str, ...] = tuple()
+    columns: Tuple[str, ...]
     """Columns in which to look for nulls and NaNs. An empty tuple is a no-op."""
 
     def __post_init__(self) -> None:

@@ -128,7 +128,9 @@ def test_unresolved_lookups_raise():
     Case("replace_nulls_grouping_column_excluded")(
         input_schemas={"private": GROUPING_SCHEMA},
         query=AutoReplaceNullAndNan(PrivateSource("private")),
-        expected_query=ReplaceNullAndNan(PrivateSource("private")),
+        expected_query=ReplaceNullAndNan(
+            PrivateSource("private"), FrozenDict.from_dict({})
+        ),
         expected_schema=GROUPING_SCHEMA,
     ),
     Case("drop_nulls_preserves_id_and_constraints")(
@@ -218,7 +220,8 @@ def test_unresolved_lookups_raise():
                     PrivateSource("private"), FrozenDict.from_dict({"value": 0})
                 ),
                 FrozenDict.from_dict({"value": "renamed"}),
-            )
+            ),
+            FrozenDict.from_dict({}),
         ),
         expected_schema=Schema({"renamed": ColumnType.INTEGER}),
     ),

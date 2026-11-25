@@ -505,10 +505,10 @@ def test_transformation_query_exprs(query: QueryBuilder) -> None:
             child, lambda rows: [{"A": len(rows)}], Schema({"A": "INTEGER"})
         ),
         lambda child: AutoJoinPublic(child, "public"),
-        lambda child: ReplaceNullAndNan(child),  # noqa: PLW0108
-        lambda child: ReplaceInfinity(child),  # noqa: PLW0108
-        lambda child: DropNullAndNan(child),  # noqa: PLW0108
-        lambda child: DropInfinity(child),  # noqa: PLW0108
+        lambda child: ReplaceNullAndNan(child, FrozenDict.from_dict({})),
+        lambda child: ReplaceInfinity(child, FrozenDict.from_dict({})),
+        lambda child: DropNullAndNan(child, ()),
+        lambda child: DropInfinity(child, ()),
         lambda child: EnforceConstraint(child, MaxRowsPerID(1)),
         lambda child: GroupByCount(child, KeySet.from_dict({})),
         lambda child: AutoGroupByCountDistinct(child, KeySet.from_dict({})),

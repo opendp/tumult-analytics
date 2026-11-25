@@ -1247,10 +1247,10 @@ class TestMeasurementVisitor:
                 )
             ),
             (JoinPublic(PrivateSource("private"), "public", ("A", "B"))),
-            (ReplaceNullAndNan(child=PrivateSource("private"))),
-            (ReplaceInfExpr(child=PrivateSource("private"))),
-            (DropNullAndNan(child=PrivateSource("private"))),
-            (DropInfExpr(child=PrivateSource("private"))),
+            ReplaceNullAndNan(PrivateSource("private"), FrozenDict.from_dict({})),
+            ReplaceInfExpr(PrivateSource("private"), FrozenDict.from_dict({})),
+            DropNullAndNan(PrivateSource("private"), ()),
+            DropInfExpr(PrivateSource("private"), ()),
         ],
     )
     def test_visit_transformations(self, query: QueryExpr):

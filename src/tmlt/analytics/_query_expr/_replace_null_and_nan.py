@@ -46,7 +46,7 @@ class ReplaceNullAndNan(SingleChildQueryExpr):
         that contains null values.
     """
 
-    replace_with: FrozenDict = FrozenDict.from_dict({})
+    replace_with: FrozenDict
     """New values to replace with, by column.
 
     An empty dictionary leaves the input unchanged.
