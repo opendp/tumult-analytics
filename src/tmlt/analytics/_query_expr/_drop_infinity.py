@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
+import warnings
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -13,9 +14,10 @@ from tmlt.analytics._schema import ColumnDescriptor, ColumnType, Schema
 from tmlt.analytics.constraints import Constraint
 
 from ._base import (
+    AutoColumnQueryExpr,
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -23,15 +25,12 @@ from ._base import (
 class DropInfinity(SingleChildQueryExpr):
     """Returns data with rows that contain +inf/-inf dropped."""
 
-    columns: Tuple[str, ...] = tuple()
-    """Columns in which to look for and infinite values.
-
-    If this tuple is empty, *all* columns will be looked at - so if *any* column
-    contains an infinite value, that row will be dropped."""
+    columns: Tuple[str, ...]
+    """Columns in which to look for infinite values. An empty tuple is a no-op."""
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.columns, Tuple[str, ...])
 
     def _validate(self, input_schema: Schema):
@@ -70,23 +69,13 @@ class DropInfinity(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         self._validate(input_schema)
 
-        columns = self.columns
-        if len(columns) == 0:
-            columns = tuple(
-                name
-                for name, cd in input_schema.column_descs.items()
-                if cd.column_type == ColumnType.DECIMAL
-                and cd.allow_inf
-                and name not in (input_schema.grouping_column, input_schema.id_column)
-            )
-
         return Schema(
             {
                 name: ColumnDescriptor(
                     column_type=cd.column_type,
                     allow_null=cd.allow_null,
                     allow_nan=cd.allow_nan,
-                    allow_inf=(cd.allow_inf and name not in columns),
+                    allow_inf=(cd.allow_inf and name not in self.columns),
                 )
                 for name, cd in input_schema.column_descs.items()
             },
@@ -105,3 +94,34 @@ class DropInfinity(SingleChildQueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_drop_infinity(self)
+
+
+@dataclass(frozen=True)
+class AutoDropInfinity(AutoColumnQueryExpr, SingleChildQueryExpr):
+    """Drop rows with infinities in eligible columns."""
+
+    def __post_init__(self):
+        """Check the child expression."""
+        validate_child_is_transformation(self.child)
+
+    def resolve_columns(self, catalog: Catalog) -> DropInfinity:
+        """Select decimal columns that can contain infinities."""
+        columns = _infinity_columns(self.child.schema(catalog))
+        if not columns:
+            warnings.warn(
+                "drop_infinity() was called with no columns specified, and the table"
+                " has no eligible columns that can contain infinite values, so there"
+                " is nothing to drop."
+            )
+        return DropInfinity(self.child, columns)
+
+
+def _infinity_columns(schema: Schema) -> Tuple[str, ...]:
+    """Select the columns eligible for automatic infinity handling."""
+    return tuple(
+        name
+        for name, desc in schema.column_descs.items()
+        if desc.column_type == ColumnType.DECIMAL
+        and desc.allow_inf
+        and name not in (schema.grouping_column, schema.id_column)
+    )

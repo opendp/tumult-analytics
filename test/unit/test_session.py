@@ -48,7 +48,7 @@ from tmlt.core.metrics import (
 from tmlt.core.transformations.chaining import ChainTT
 from tmlt.core.transformations.spark_transformations.partition import PartitionByKeys
 from tmlt.core.utils.exact_number import ExactNumber
-from tmlt.core.utils.testing import assert_dataframe_equal
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 from typeguard import TypeCheckError
 
 from tmlt.analytics import (
@@ -2770,166 +2770,158 @@ def test_automatic_partition_null_keyset(query_expr: Query, expected_columns: Li
                 assert col in df_out.columns
 
 
-@pytest.mark.parametrize(
-    "name,query,expected_output,df,id_sess",
-    [
-        (
-            "Basic Query, varchar and int, no constraints",
-            QueryBuilder("private").count(name="Count"),
-            tabulate(
-                [["Count", "INTEGER", "False"]],
-                headers=["Column Name", "Column Type", "Nullable"],
-            ),
-            pd.DataFrame({"A": ["A", "B", "C"]}),
-            False,
+@parametrize(
+    Case("count")(
+        df=pd.DataFrame({"A": ["A", "B", "C"]}),
+        protected_change=AddOneRow(),
+        query=QueryBuilder("private").count(name="Count"),
+        expected_output=tabulate(
+            [["Count", "INTEGER", "False"]],
+            headers=["Column Name", "Column Type", "Nullable"],
         ),
-        (
-            "Basic Query, varchar and int, no constraints",
-            QueryBuilder("private")
-            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
-            .count(name="Count"),
-            tabulate(
-                [["A", "VARCHAR", "True"], ["Count", "INTEGER", "False"]],
-                headers=["Column Name", "Column Type", "Nullable"],
-            ),
-            pd.DataFrame({"A": ["A", "A", "B", "B", "C"], "B": [1, 2, 1, 2, 3]}),
-            False,
+    ),
+    Case("grouped_count")(
+        df=pd.DataFrame({"A": ["A", "A", "B", "B", "C"], "B": [1, 2, 1, 2, 3]}),
+        protected_change=AddOneRow(),
+        query=QueryBuilder("private")
+        .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+        .count(name="Count"),
+        expected_output=tabulate(
+            [["A", "VARCHAR", "True"], ["Count", "INTEGER", "False"]],
+            headers=["Column Name", "Column Type", "Nullable"],
         ),
-        (
-            "Basic Query, with constraints",
-            QueryBuilder("private").enforce(MaxRowsPerID(5)).count(name="Count"),
-            tabulate(
-                [["Count", "INTEGER", "False"]],
-                headers=[
-                    "Column Name",
-                    "Column Type",
-                    "Nullable",
-                ],
-            ),
-            pd.DataFrame({"A": ["A", "B", "C"]}),
-            True,
+    ),
+    Case("count_with_constraint")(
+        df=pd.DataFrame({"A": ["A", "B", "C"]}),
+        protected_change=AddRowsWithID(id_column="A"),
+        query=QueryBuilder("private").enforce(MaxRowsPerID(5)).count(name="Count"),
+        expected_output=tabulate(
+            [["Count", "INTEGER", "False"]],
+            headers=["Column Name", "Column Type", "Nullable"],
         ),
-        (
-            "Non-measurement Query, with ordered constraints",
-            QueryBuilder("private")
-            .enforce(MaxRowsPerGroupPerID("B", 1))
-            .enforce(MaxGroupsPerID("B", 4))
-            .enforce(MaxRowsPerID(3)),
-            (
-                "\t\t- MaxRowsPerID(max=3)\n\t\t"
-                "- MaxGroupsPerID(grouping_columns={'B'}, max=4)\n\t\t"
-                "- MaxRowsPerGroupPerID(grouping_columns={'B'}, max=1)"
-            ),
-            pd.DataFrame({"A": ["A", "B", "C"], "B": [1, 2, 3]}),
-            True,
+    ),
+    Case("ordered_constraints")(
+        df=pd.DataFrame({"A": ["A", "B", "C"], "B": [1, 2, 3]}),
+        protected_change=AddRowsWithID(id_column="A"),
+        query=QueryBuilder("private")
+        .enforce(MaxRowsPerGroupPerID("B", 1))
+        .enforce(MaxGroupsPerID("B", 4))
+        .enforce(MaxRowsPerID(3)),
+        expected_output=tabulate(
+            [
+                ["A", "VARCHAR", "True", "default_id_space", "True"],
+                ["B", "INTEGER", "False", "", "True"],
+            ],
+            headers=["Column Name", "Column Type", "ID Col", "ID Space", "Nullable"],
+        )
+        + (
+            "\n\tConstraints:\n"
+            "\t\t- MaxRowsPerID(max=3)\n"
+            "\t\t- MaxGroupsPerID(grouping_columns={'B'}, max=4)\n"
+            "\t\t- MaxRowsPerGroupPerID(grouping_columns={'B'}, max=1)"
         ),
-        (
-            "Basic Query with Decimal",
-            QueryBuilder("private")
-            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
-            .sum(column="B", name="sum", low=0, high=5.5),
-            tabulate(
-                [
-                    ["A", "VARCHAR", "True", "", ""],
-                    ["sum", "DECIMAL", "False", "False", "False"],
-                ],
-                headers=[
-                    "Column Name",
-                    "Column Type",
-                    "Nullable",
-                    "NaN Allowed",
-                    "Infinity Allowed",
-                ],
-            ),
-            pd.DataFrame(
-                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
-            ),
-            False,
+    ),
+    Case("grouped_decimal_sum")(
+        df=pd.DataFrame(
+            {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
         ),
-        (
-            "Groupby Query, with Decimal after enforce",
-            QueryBuilder("private")
-            .enforce(MaxRowsPerID(5))
-            .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
-            .sum(column="B", name="sum", low=0, high=5.5),
-            tabulate(
-                [
-                    ["A", "VARCHAR", "True", "", ""],
-                    ["sum", "DECIMAL", "False", "False", "False"],
-                ],
-                headers=[
-                    "Column Name",
-                    "Column Type",
-                    "Nullable",
-                    "NaN Allowed",
-                    "Infinity Allowed",
-                ],
-            ),
-            pd.DataFrame(
-                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
-            ),
-            True,
+        protected_change=AddOneRow(),
+        query=QueryBuilder("private")
+        .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+        .sum(column="B", name="sum", low=0, high=5.5),
+        expected_output=tabulate(
+            [
+                ["A", "VARCHAR", "True", "", ""],
+                ["sum", "DECIMAL", "False", "False", "False"],
+            ],
+            headers=[
+                "Column Name",
+                "Column Type",
+                "Nullable",
+                "NaN Allowed",
+                "Infinity Allowed",
+            ],
         ),
-        (
-            "Groupby Query, with Decimal after enforce",
-            QueryBuilder("private")
-            .map(
-                f=lambda row: {"new": row["B"] * 1.5},
-                new_column_types={"new": ColumnType.DECIMAL},
-                augment=True,
-            )
-            .enforce(MaxRowsPerID(5)),
-            tabulate(
-                [
-                    ["A", "VARCHAR", "True", "default_id_space", "True", "", ""],
-                    ["B", "DECIMAL", "False", "", "True", "True", "True"],
-                    ["new", "DECIMAL", "False", "", "True", "True", "True"],
-                ],
-                headers=[
-                    "Column Name",
-                    "Column Type",
-                    "ID Col",
-                    "ID Space",
-                    "Nullable",
-                    "NaN Allowed",
-                    "Infinity Allowed",
-                ],
-            ),
-            pd.DataFrame(
-                {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
-            ),
-            True,
+    ),
+    Case("grouped_decimal_sum_with_constraint")(
+        df=pd.DataFrame(
+            {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
         ),
-    ],
+        protected_change=AddRowsWithID(id_column="A"),
+        query=QueryBuilder("private")
+        .enforce(MaxRowsPerID(5))
+        .groupby(KeySet.from_dict({"A": ["A", "B", "C"]}))
+        .sum(column="B", name="sum", low=0, high=5.5),
+        expected_output=tabulate(
+            [
+                ["A", "VARCHAR", "True", "", ""],
+                ["sum", "DECIMAL", "False", "False", "False"],
+            ],
+            headers=[
+                "Column Name",
+                "Column Type",
+                "Nullable",
+                "NaN Allowed",
+                "Infinity Allowed",
+            ],
+        ),
+    ),
+    Case("decimal_map_with_constraint")(
+        df=pd.DataFrame(
+            {"A": ["A", "A", "B", "B", "C"], "B": [1.1, 2.1, 1.1, 2.1, 3.1]}
+        ),
+        protected_change=AddRowsWithID(id_column="A"),
+        query=QueryBuilder("private")
+        .map(
+            f=lambda row: {"new": row["B"] * 1.5},
+            new_column_types={"new": ColumnType.DECIMAL},
+            augment=True,
+        )
+        .enforce(MaxRowsPerID(5)),
+        expected_output=tabulate(
+            [
+                ["A", "VARCHAR", "True", "default_id_space", "True", "", ""],
+                ["B", "DECIMAL", "False", "", "True", "True", "True"],
+                ["new", "DECIMAL", "False", "", "True", "True", "True"],
+            ],
+            headers=[
+                "Column Name",
+                "Column Type",
+                "ID Col",
+                "ID Space",
+                "Nullable",
+                "NaN Allowed",
+                "Infinity Allowed",
+            ],
+        )
+        + "\n\tConstraints:\n\t\t- MaxRowsPerID(max=5)",
+    ),
+    Case("replace_nulls_with_automatic_columns")(
+        df=pd.DataFrame({"id": [1, 2], "value": pd.Series([None, 2], dtype=object)}),
+        protected_change=AddRowsWithID(id_column="id"),
+        query=QueryBuilder("private").enforce(MaxRowsPerID(5)).replace_null_and_nan(),
+        expected_output=tabulate(
+            [
+                ["id", "INTEGER", "True", "default_id_space", "True"],
+                ["value", "INTEGER", "False", "", "False"],
+            ],
+            headers=["Column Name", "Column Type", "ID Col", "ID Space", "Nullable"],
+        )
+        + "\n\tConstraints:\n\t\t- MaxRowsPerID(max=5)",
+    ),
 )
 def test_describe_query_obj(
-    spark: SparkSession,
-    name: str,
-    query: Query,
-    expected_output: str,
     df: pd.DataFrame,
-    id_sess: bool,
+    protected_change: ProtectedChange,
+    query: Query | QueryBuilder,
+    expected_output: str,
+    spark: SparkSession,
 ):
-    """Test :func:`_describe` with a QueryExpr, QueryBuilder, or table name."""
-    print("TEST NAME:", name)
-    sdf = spark.createDataFrame(df)
-
-    if id_sess:
-        sess = Session.from_dataframe(
-            privacy_budget=PureDPBudget(1),
-            source_id="private",
-            dataframe=sdf,
-            protected_change=AddRowsWithID(id_column="A"),
-        )
-        print("TESTING WITH ID SESSION")
-    else:
-        sess = Session.from_dataframe(
-            privacy_budget=PureDPBudget(1),
-            source_id="private",
-            dataframe=sdf,
-            protected_change=AddOneRow(),
-        )
-    table = sess._describe_query_obj(query._query_expr)
-    print("EXPECTED TABLE:\n", expected_output, "\n")
-    print("RESULT TABLE:\n", table)
-    assert expected_output in table
+    """Check the schema or constraints in a query's description."""
+    sess = Session.from_dataframe(
+        privacy_budget=PureDPBudget(1),
+        source_id="private",
+        dataframe=spark.createDataFrame(df),
+        protected_change=protected_change,
+    )
+    assert sess._describe_query_obj(query._query_expr) == expected_output

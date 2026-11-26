@@ -137,10 +137,11 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
                 PrivateSource("Q"),
                 TruncationStrategy.DropNonUnique(),
                 TruncationStrategy.DropNonUnique(),
+                join_columns=("column",),
             ),
             "JoinPrivate",
         ),
-        (JoinPublic(PrivateSource("P"), "Q"), "JoinPublic"),
+        (JoinPublic(PrivateSource("P"), "Q", ("column",)), "JoinPublic"),
         (
             ReplaceNullAndNan(
                 PrivateSource("P"), FrozenDict.from_dict({"column": "default"})
@@ -163,7 +164,7 @@ class QueryExprIdentifierVisitor(QueryExprVisitor):
         ),
         (GroupByCount(PrivateSource("P"), KeySet.from_dict({})), "GroupByCount"),
         (
-            GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({})),
+            GroupByCountDistinct(PrivateSource("P"), KeySet.from_dict({}), ("column",)),
             "GroupByCountDistinct",
         ),
         (

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Optional, Tuple, Union
 
@@ -16,11 +16,12 @@ from tmlt.analytics.config import config
 from tmlt.analytics.keyset import KeySet
 
 from ._base import (
+    AutoColumnQueryExpr,
     GroupedMeasurementQueryExpr,
     QueryExprVisitor,
-    _schema_for_groupby,
-    _validate_child_is_transformation,
-    _validate_groupby,
+    schema_for_groupby,
+    validate_child_is_transformation,
+    validate_groupby,
 )
 
 
@@ -43,41 +44,50 @@ class CountDistinctMechanism(Enum):
 
 
 @dataclass(frozen=True)
-class GroupByCountDistinct(GroupedMeasurementQueryExpr):
-    """Returns the count of distinct rows in each groupby domain value."""
+class _CountDistinctBase(GroupedMeasurementQueryExpr):
+    """Shared arguments for distinct counts."""
 
     groupby_keys: Union[KeySet, Tuple[str, ...]]
     """The keys, or columns list to collect keys from, to be grouped on."""
-    columns_to_count: Tuple[str, ...] = tuple()
-    """The columns that are compared when determining if two rows are distinct.
-
-    If empty, will count all distinct rows.
-    """
-    output_column: str = "count_distinct"
+    output_column: str = field(default="count_distinct", kw_only=True)
     """The name of the column to store the distinct counts in."""
-    mechanism: CountDistinctMechanism = CountDistinctMechanism.DEFAULT
+    mechanism: CountDistinctMechanism = field(
+        default=CountDistinctMechanism.DEFAULT, kw_only=True
+    )
     """Choice of noise mechanism.
 
     By DEFAULT, the framework automatically selects an appropriate mechanism.
     """
-    core_mechanism: Optional[NoiseMechanism] = None
+    core_mechanism: Optional[NoiseMechanism] = field(default=None, kw_only=True)
     """The Core mechanism used for this aggregation. Specified during compilation."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
         if isinstance(self.groupby_keys, tuple):
             config.features.auto_partition_selection.raise_if_disabled()
-        _validate_child_is_transformation(self.child)
-        check_type(self.columns_to_count, Tuple[str, ...])
+        validate_child_is_transformation(self.child)
         check_type(self.groupby_keys, (KeySet, Tuple[str, ...]))
         check_type(self.output_column, str)
         check_type(self.mechanism, CountDistinctMechanism)
 
+
+@dataclass(frozen=True)
+class GroupByCountDistinct(_CountDistinctBase):
+    """Returns the count of distinct rows in each groupby domain value."""
+
+    columns_to_count: Tuple[str, ...]
+    """The columns compared when determining if two rows are distinct."""
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        super().__post_init__()
+        check_type(self.columns_to_count, Tuple[str, ...])
+
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         input_schema = self.child.schema(catalog)
-        _validate_groupby(self, input_schema)
-        return _schema_for_groupby(
+        validate_groupby(self, input_schema)
+        return schema_for_groupby(
             self,
             input_schema,
             {
@@ -90,3 +100,19 @@ class GroupByCountDistinct(GroupedMeasurementQueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_groupby_count_distinct(self)
+
+
+@dataclass(frozen=True)
+class AutoGroupByCountDistinct(AutoColumnQueryExpr, _CountDistinctBase):
+    """Count distinct rows by comparing all input columns."""
+
+    def resolve_columns(self, catalog: Catalog) -> GroupByCountDistinct:
+        """Select all input columns for the distinct count."""
+        return GroupByCountDistinct(
+            self.child,
+            self.groupby_keys,
+            tuple(self.child.schema(catalog)),
+            output_column=self.output_column,
+            mechanism=self.mechanism,
+            core_mechanism=self.core_mechanism,
+        )

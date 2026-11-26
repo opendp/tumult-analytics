@@ -13,6 +13,7 @@ from tmlt.core.domains.spark_domains import (
     SparkDataFrameDomain,
     SparkFloatColumnDescriptor,
 )
+from tmlt.core.measures import PureDP
 from tmlt.core.metrics import IfGroupedBy, SymmetricDifference
 from tmlt.core.transformations.base import Transformation
 from tmlt.core.transformations.chaining import ChainTT
@@ -21,6 +22,9 @@ from tmlt.core.transformations.identity import Identity as IdentityTransformatio
 from tmlt.analytics import TruncationStrategy
 from tmlt.analytics._catalog import Catalog
 from tmlt.analytics._query_expr import (
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoReplaceInfinity,
     DropInfinity,
     DropNullAndNan,
     Filter,
@@ -34,6 +38,10 @@ from tmlt.analytics._query_expr import (
     ReplaceInfinity,
     ReplaceNullAndNan,
     Select,
+)
+from tmlt.analytics._query_expr_compiler._rewrite_rules import (
+    CompilationInfo,
+    resolve_columns,
 )
 from tmlt.analytics._query_expr_compiler._transformation_visitor import (
     TransformationVisitor,
@@ -300,7 +308,9 @@ class TestAddKeys(TestTransformationVisitor):
         [
             (
                 JoinPrivate(
-                    PrivateSource("ids1"), PrivateSource("ids2"), None, None, None
+                    PrivateSource("ids1"),
+                    PrivateSource("ids2"),
+                    join_columns=("id", "I"),
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -313,7 +323,7 @@ class TestAddKeys(TestTransformationVisitor):
                     PrivateSource("ids2"),
                     None,
                     None,
-                    tuple(["id"]),
+                    join_columns=("id",),
                 ),
                 pd.DataFrame(
                     [[1, "0", 0, 0, 0.1, DATE1, TIMESTAMP1, "a"]],
@@ -349,21 +359,21 @@ class TestAddKeys(TestTransformationVisitor):
                 PrivateSource("ids2"),
                 TruncationStrategy.DropExcess(1),
                 TruncationStrategy.DropExcess(1),
-                tuple(["id"]),
+                join_columns=("id",),
             ),
             JoinPrivate(
                 PrivateSource("ids1"),
                 PrivateSource("ids2"),
                 TruncationStrategy.DropExcess(1),
                 None,
-                tuple(["id"]),
+                join_columns=("id",),
             ),
             JoinPrivate(
                 PrivateSource("ids1"),
                 PrivateSource("ids2"),
                 None,
                 TruncationStrategy.DropExcess(1),
-                tuple(["id"]),
+                join_columns=("id",),
             ),
         ],
     )
@@ -382,7 +392,7 @@ class TestAddKeys(TestTransformationVisitor):
         "query,expected_df",
         [
             (
-                JoinPublic(PrivateSource("ids1"), "public", None),
+                JoinPublic(PrivateSource("ids1"), "public", ("S", "I")),
                 pd.DataFrame(
                     [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],
                     columns=["id", "S", "I", "F", "D", "T", "public"],
@@ -410,7 +420,7 @@ class TestAddKeys(TestTransformationVisitor):
         query = JoinPublic(
             PrivateSource("ids1"),
             self.visitor.catalog.public_tables["public"].dataframe,
-            None,
+            ("S", "I"),
         )
         expected_df = pd.DataFrame(
             [[1, "0", 0, 0.1, DATE1, TIMESTAMP1, "x"]],
@@ -424,7 +434,7 @@ class TestAddKeys(TestTransformationVisitor):
         "replace_with,expected_df",
         [
             (
-                {},
+                {"null": "", "nan": 0.0},
                 pd.DataFrame(
                     [[1, float("inf"), "string", 0.0], [1, float("-inf"), "", 1.5]],
                     columns=["id", "inf", "null", "nan"],
@@ -486,6 +496,25 @@ class TestAddKeys(TestTransformationVisitor):
             transformation.output_domain, reference
         )
 
+    def test_visit_replace_null_and_nan_empty(self):
+        """An explicitly empty replacement map leaves ID-protected data unchanged."""
+        query = ReplaceNullAndNan(
+            PrivateSource("ids_infs_nans"), FrozenDict.from_dict({})
+        )
+        transformation, reference = query.accept(self.visitor)
+        self._validate_transform_basics(transformation, reference, query)
+        self._validate_result(
+            transformation,
+            reference,
+            pd.DataFrame(
+                [
+                    [1, float("inf"), "string", float("nan")],
+                    [1, float("-inf"), None, 1.5],
+                ],
+                columns=["id", "inf", "null", "nan"],
+            ),
+        )
+
     @pytest.mark.parametrize(
         "replace_with,expected_df",
         [
@@ -509,8 +538,11 @@ class TestAddKeys(TestTransformationVisitor):
         self, replace_with: Dict[str, Tuple[float, float]], expected_df: DataFrame
     ):
         """Test generating transformations from a ReplaceInfinity."""
-        query = ReplaceInfinity(
-            PrivateSource("ids_infs_nans"), FrozenDict.from_dict(replace_with)
+        child = PrivateSource("ids_infs_nans")
+        query = (
+            ReplaceInfinity(child, FrozenDict.from_dict(replace_with))
+            if replace_with
+            else AutoReplaceInfinity(child).resolve_columns(self.catalog)
         )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
@@ -528,8 +560,8 @@ class TestAddKeys(TestTransformationVisitor):
     @pytest.mark.parametrize(
         "query,match",
         [
-            (ReplaceInfinity(PrivateSource("ids2")), "nothing to replace"),
-            (DropInfinity(PrivateSource("ids2")), "nothing to drop"),
+            (AutoReplaceInfinity(PrivateSource("ids2")), "nothing to replace"),
+            (AutoDropInfinity(PrivateSource("ids2")), "nothing to drop"),
         ],
     )
     def test_visit_infinity_with_nothing_to_do(
@@ -537,6 +569,7 @@ class TestAddKeys(TestTransformationVisitor):
     ) -> None:
         """Test that replacing/dropping infinities warns and keeps the table as is."""
         with pytest.warns(UserWarning, match=match):
+            query = resolve_columns(CompilationInfo(PureDP(), self.catalog))(query)
             transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
         expected_df = pd.DataFrame([[1, 0, "a"]], columns=["id", "I", "field"])
@@ -606,7 +639,12 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         expected_nan_cols: List[str],
     ) -> None:
         """Test generating transformations from a DropNullAndNan."""
-        query = DropNullAndNan(PrivateSource("ids"), tuple(query_columns))
+        child = PrivateSource("ids")
+        query = (
+            DropNullAndNan(child, tuple(query_columns))
+            if query_columns
+            else AutoDropNullAndNan(child).resolve_columns(self.catalog)
+        )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
 
@@ -633,7 +671,12 @@ class TestAddKeysNulls(TestTransformationVisitorNulls):
         self, query_columns: List[str], expected_inf_cols: List[str]
     ) -> None:
         """Test generating transformations from a DropInfinity."""
-        query = DropInfinity(PrivateSource("ids"), tuple(query_columns))
+        child = PrivateSource("ids")
+        query = (
+            DropInfinity(child, tuple(query_columns))
+            if query_columns
+            else AutoDropInfinity(child).resolve_columns(self.catalog)
+        )
         transformation, reference = query.accept(self.visitor)
         self._validate_transform_basics(transformation, reference, query)
 

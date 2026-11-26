@@ -17,7 +17,7 @@ from ._base import (
     QueryExprVisitor,
     Row,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -35,7 +35,7 @@ class FlatMapByID(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.f, Callable[[List[Row]], List[Row]])
         check_type(self.schema_new_columns, Schema)
         if self.schema_new_columns.grouping_column or self.schema_new_columns.id_column:
@@ -69,6 +69,10 @@ class FlatMapByID(SingleChildQueryExpr):
 
         id_column = input_schema.id_column
         new_columns = self.schema_new_columns.column_descs
+        if id_column is None:
+            raise AnalyticsInternalError(
+                "Validating FlatMapByID failed to require an ID column."
+            )
 
         for name in list(new_columns.keys()):
             new_columns[name] = replace(new_columns[name], allow_null=True)

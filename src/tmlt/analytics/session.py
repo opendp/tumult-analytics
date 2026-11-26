@@ -713,11 +713,12 @@ class Session:
         groupby_keys: Optional[Union[KeySet, Tuple[str, ...]]] = None,
     ) -> str:
         """Build a description of a query object."""
-        schema = QueryExprCompiler.query_schema(query_obj, self._catalog)
+        compiler = QueryExprCompiler(self._output_measure)
+        schema = compiler.query_schema(query_obj, self._catalog)
         description = _describe_schema(schema)
         constraints: Optional[FrozenSet[Constraint]] = None
         if not query_obj.is_measurement():
-            constraints = query_obj.constraints(self._catalog)
+            constraints = compiler.query_constraints(query_obj, self._catalog)
         if constraints:
             description += "\n\tConstraints:\n"
             constraints_strs = [

@@ -71,7 +71,7 @@ class QueryExpr(ABC):
     """
 
     @abstractmethod
-    def schema(self, catalog: Catalog) -> Any:
+    def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr."""
         raise NotImplementedError()
 
@@ -90,7 +90,7 @@ class QueryExpr(ABC):
         raise NotImplementedError()
 
 
-def _validate_child_is_transformation(child: QueryExpr):
+def validate_child_is_transformation(child: QueryExpr):
     """Validate that an object is a non-measurement query expression."""
     check_type(child, QueryExpr)
     if child.is_measurement():
@@ -109,6 +109,39 @@ class SingleChildQueryExpr(QueryExpr):
 
     child: QueryExpr
     """The QueryExpr used to generate the input table to this QueryExpr."""
+
+
+class AutoColumnQueryExpr(QueryExpr):
+    """An expression whose automatically selected columns must be resolved."""
+
+    @abstractmethod
+    def resolve_columns(self, catalog: Catalog) -> QueryExpr:
+        """Return an expression with explicit columns based on a specific catalog."""
+        raise NotImplementedError()
+
+    def schema(self, catalog: Catalog) -> Schema:
+        """Reject schema lookups until columns have been resolved."""
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before looking up the schema of "
+            f"{type(self).__qualname__}."
+        )
+
+    def constraints(self, catalog: Catalog) -> frozenset[Constraint]:
+        """Reject constraint lookups until columns have been resolved."""
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before looking up the constraints of "
+            f"{type(self).__qualname__}."
+        )
+
+    def accept(self, visitor: "QueryExprVisitor") -> Any:
+        """Dispatch methods on a visitor based on the QueryExpr type.
+
+        AutoColumnQueryExpr subtypes cannot be used with QueryExprVisitors, they
+        must have their columns resolved first.
+        """
+        raise AnalyticsInternalError(
+            f"Columns must be resolved before visiting {type(self).__qualname__}."
+        )
 
 
 class MeasurementQueryExpr(SingleChildQueryExpr):
@@ -139,10 +172,18 @@ class GroupedMeasurementQueryExpr(MeasurementQueryExpr):
         return self.groupby_keys
 
 
-def _validate_join(
+def common_join_columns(left_schema: Schema, right_schema: Schema) -> Tuple[str, ...]:
+    """Select common join columns in left-schema order."""
+    columns = tuple(column for column in left_schema if column in right_schema)
+    if not columns:
+        raise ValueError("Tables have no common columns to join on.")
+    return columns
+
+
+def validate_join(
     left_schema: Schema,
     right_schema: Schema,
-    join_columns: Optional[Tuple[str, ...]],
+    join_columns: Tuple[str, ...],
 ):
     """Validates that both tables can be joined by comparing their schemas.
 
@@ -159,15 +200,7 @@ def _validate_join(
             "if they have the same grouping column"
         )
 
-    if join_columns is not None and not join_columns:
-        # This error case should be caught when constructing the query
-        # expression, so it should never get here.
-        raise AnalyticsInternalError("Empty list of join columns provided.")
-
     common_columns = set(left_schema) & set(right_schema)
-    if join_columns is None and not common_columns:
-        raise ValueError("Tables have no common columns to join on")
-    join_columns = join_columns or tuple(common_columns)
     missing_columns = [c for c in join_columns if c not in common_columns]
     if missing_columns:
         raise ValueError(
@@ -184,10 +217,10 @@ def _validate_join(
             )
 
 
-def _schema_for_join(
+def schema_for_join(
     left_schema: Schema,
     right_schema: Schema,
-    join_columns: Optional[Tuple[str, ...]],
+    join_columns: Tuple[str, ...],
     join_id_space: Optional[str],
     how: str,
 ) -> Schema:
@@ -206,10 +239,6 @@ def _schema_for_join(
         how: The type of join to perform.
     """
     grouping_column = left_schema.grouping_column or right_schema.grouping_column
-    common_columns = set(left_schema) & set(right_schema)
-    join_columns = join_columns or tuple(
-        sorted(common_columns, key=list(left_schema).index)
-    )
 
     # Get the join schema from the Core convenience method
     output_domain = domain_after_join(
@@ -231,7 +260,7 @@ def _schema_for_join(
     )
 
 
-def _propagate_join_by_stability(
+def propagate_join_by_stability(
     c: Constraint,
     join_stability: Optional[int],
     overlapping_cols: Set[str],
@@ -288,14 +317,14 @@ class AnalyticsDefault:
     """
 
 
-def _valid_replacement_value(val: Any):
+def valid_replacement_value(val: Any):
     """Determine if a value is a valid replacement, independent of schema matching."""
     return val is not None and not (
         isinstance(val, float) and (math.isnan(val) or math.isinf(val))
     )
 
 
-def _validate_groupby(
+def validate_groupby(
     query: GroupedMeasurementQueryExpr,
     input_schema: Schema,
 ):
@@ -347,7 +376,7 @@ def _validate_groupby(
         )
 
 
-def _validate_measure_column(
+def validate_measure_column(
     query: Union[
         "GetBounds",
         "GroupByBoundedAverage",
@@ -386,7 +415,7 @@ def _validate_measure_column(
         )
 
 
-def _schema_for_groupby(
+def schema_for_groupby(
     query: GroupedMeasurementQueryExpr,
     input_schema: Schema,
     output_columns: Dict[str, ColumnDescriptor],

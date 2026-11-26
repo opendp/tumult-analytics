@@ -105,7 +105,7 @@ def test_replace_null_and_nan_raises_error(
 def test_replace_null_and_nan_raises_warning(session, query: QueryBuilder):
     """Tests that replace nulls/nans raises warning on IDs table with empty mapping."""
     with pytest.warns(
-        RuntimeWarning, match="the ID column may still contain null values."
+        RuntimeWarning, match="Replacing null values in the ID column"
     ):
         session.evaluate(
             query.clone().enforce(MaxRowsPerID(100)).replace_null_and_nan(None).count(),
@@ -122,7 +122,7 @@ def test_replace_null_and_nan_raises_warning(session, query: QueryBuilder):
 def test_drop_null_and_nan_raises_warning(session, query: QueryBuilder):
     """Tests that replace nulls/nans raises warning on IDs table with empty list."""
     with pytest.warns(
-        RuntimeWarning, match="the ID column may still contain null values."
+        RuntimeWarning, match="Dropping null values in the ID column"
     ):
         session.evaluate(
             query.clone().enforce(MaxRowsPerID(100)).drop_null_and_nan(None).count(),

@@ -20,7 +20,7 @@ from tmlt.analytics.constraints import (
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -33,7 +33,7 @@ class Select(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.columns, Tuple[str, ...])
         if len(self.columns) != len(set(self.columns)):
             raise ValueError(f"Column name appears more than once in {self.columns}")

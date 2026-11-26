@@ -21,7 +21,7 @@ from tmlt.analytics.constraints import (
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -39,7 +39,7 @@ class Rename(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.column_mapper, FrozenDict)
         check_type(dict(self.column_mapper), Dict[str, str])
         for k, v in self.column_mapper.items():

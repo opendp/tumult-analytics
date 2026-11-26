@@ -16,7 +16,7 @@ from tmlt.analytics.constraints import Constraint
 from ._base import (
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _validate_child_is_transformation,
+    validate_child_is_transformation,
 )
 
 
@@ -33,7 +33,7 @@ class Filter(SingleChildQueryExpr):
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.condition, str)
 
     def _validate(self, input_schema: Schema):

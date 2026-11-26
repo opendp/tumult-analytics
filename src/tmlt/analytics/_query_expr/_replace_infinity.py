@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 
@@ -19,30 +20,31 @@ from tmlt.analytics.constraints import (
 )
 
 from ._base import (
+    AnalyticsDefault,
+    AutoColumnQueryExpr,
     QueryExprVisitor,
     SingleChildQueryExpr,
-    _valid_replacement_value,
-    _validate_child_is_transformation,
+    valid_replacement_value,
+    validate_child_is_transformation,
 )
+from ._drop_infinity import _infinity_columns
 
 
 @dataclass(frozen=True)
 class ReplaceInfinity(SingleChildQueryExpr):
     """Returns data with +inf and -inf expressions replaced by defaults."""
 
-    replace_with: FrozenDict = FrozenDict.from_dict({})
+    replace_with: FrozenDict
     """New values to replace with, by column. The first value for each column
     will be used to replace -infinity, and the second value will be used to
     replace +infinity.
 
-    If this dictionary is empty, *all* columns of type DECIMAL will be changed,
-    with infinite values replaced with a default value (see the
-    :class:`~.AnalyticsDefault` class variables).
+    An empty dictionary leaves the input unchanged.
     """
 
     def __post_init__(self) -> None:
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.child)
+        validate_child_is_transformation(self.child)
         check_type(self.replace_with, FrozenDict)
         # Allow passing None as a replacement for the purposes of this check,
         # even though we disallow it later -- better consistency of error
@@ -52,11 +54,11 @@ class ReplaceInfinity(SingleChildQueryExpr):
         )
 
         for col, (lower, upper) in self.replace_with.items():
-            if not _valid_replacement_value(lower):
+            if not valid_replacement_value(lower):
                 raise ValueError(
                     f"Invalid lower replacement value {lower} for column '{col}'"
                 )
-            if not _valid_replacement_value(upper):
+            if not valid_replacement_value(upper):
                 raise ValueError(
                     f"Invalid upper replacement value {upper} for column '{col}'"
                 )
@@ -104,22 +106,13 @@ class ReplaceInfinity(SingleChildQueryExpr):
         input_schema = self.child.schema(catalog)
         self._validate(input_schema)
 
-        columns_to_change = list(self.replace_with.keys())
-        if len(columns_to_change) == 0:
-            columns_to_change = [
-                name
-                for name, cd in input_schema.column_descs.items()
-                if cd.column_type == ColumnType.DECIMAL
-                and cd.allow_inf
-                and name not in [input_schema.grouping_column, input_schema.id_column]
-            ]
         return Schema(
             {
                 name: ColumnDescriptor(
                     column_type=cd.column_type,
                     allow_null=cd.allow_null,
                     allow_nan=cd.allow_nan,
-                    allow_inf=(cd.allow_inf and name not in columns_to_change),
+                    allow_inf=(cd.allow_inf and name not in self.replace_with),
                 )
                 for name, cd in input_schema.column_descs.items()
             },
@@ -148,3 +141,36 @@ class ReplaceInfinity(SingleChildQueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_replace_infinity(self)
+
+
+@dataclass(frozen=True)
+class AutoReplaceInfinity(AutoColumnQueryExpr, SingleChildQueryExpr):
+    """Replace infinities in eligible columns with the decimal default."""
+
+    def __post_init__(self):
+        """Check the child expression."""
+        validate_child_is_transformation(self.child)
+
+    def resolve_columns(self, catalog: Catalog) -> ReplaceInfinity:
+        """Select eligible columns and their default replacement values.
+
+        Any DECIMAL-valued columns that allow infinite values in the input
+        schema are included, and both positive and negative infinities are
+        replaced with ``AnalyticsDefault.DECIMAL``.
+        """
+        columns = _infinity_columns(self.child.schema(catalog))
+        if not columns:
+            warnings.warn(
+                "replace_infinity() was called with no columns specified, and the"
+                " table has no eligible columns that can contain infinite values,"
+                " so there is nothing to replace."
+            )
+        return ReplaceInfinity(
+            self.child,
+            FrozenDict.from_dict(
+                {
+                    name: (AnalyticsDefault.DECIMAL, AnalyticsDefault.DECIMAL)
+                    for name in columns
+                }
+            ),
+        )

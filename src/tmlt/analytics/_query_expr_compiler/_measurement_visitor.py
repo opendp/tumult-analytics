@@ -257,7 +257,7 @@ def _generate_constrained_count_distinct(
     produce the same result and should run faster because it doesn't need to
     handle deduplicating the values.
     """
-    columns_to_count = set(query.columns_to_count or schema.columns)
+    columns_to_count = set(query.columns_to_count)
     if isinstance(query.groupby_keys, KeySet):
         groupby_columns = query.groupby_keys.dataframe().columns
     else:
@@ -770,17 +770,8 @@ class MeasurementVisitor(QueryExprVisitor):
 
         schema = expr.child.schema(self.catalog)
 
-        # Set the columns if no columns were provided.
-        if expr.columns:
-            columns = expr.columns
-        else:
-            columns = tuple(
-                col for col in schema.column_descs.keys() if col != schema.id_column
-            )
-
-        # Check if ID column is one of the columns in get_groups
-        # Note: if get_groups columns is None or empty, all of the columns in the table
-        # is used for partition selection, hence that needs to be checked as well
+        columns = expr.columns
+        # An ID-only table has no eligible columns for automatic group discovery.
         if schema.id_column and (not columns or (schema.id_column in columns)):
             raise RuntimeError(
                 "get_groups cannot be used on the privacy ID column"
@@ -1108,12 +1099,12 @@ class MeasurementVisitor(QueryExprVisitor):
         )
         # If not counting all columns, drop the ones that are neither counted
         # nor grouped on.
-        if expr.columns_to_count:
-            groupby_columns = list(expr.groupby_keys.schema().keys())  # type: ignore
+        retained_columns = set(expr.columns_to_count) | set(expr.groupby_columns)
+        if retained_columns != set(mid_domain.schema):
             transformation |= SelectTransformation(
                 mid_domain,
                 mid_metric,
-                list(set(list(expr.columns_to_count) + groupby_columns)),
+                sorted(retained_columns),
             )
             mid_domain = cast(SparkDataFrameDomain, transformation.output_domain)
             mid_metric = cast(

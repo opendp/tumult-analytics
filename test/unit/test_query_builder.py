@@ -23,6 +23,14 @@ from tmlt.analytics import (
     TruncationStrategy,
 )
 from tmlt.analytics._query_expr import (
+    AutoDropInfinity,
+    AutoDropNullAndNan,
+    AutoGetGroups,
+    AutoGroupByCountDistinct,
+    AutoJoinPrivate,
+    AutoJoinPublic,
+    AutoReplaceInfinity,
+    AutoReplaceNullAndNan,
     AverageMechanism,
     CountDistinctMechanism,
     CountMechanism,
@@ -79,16 +87,15 @@ def test_join_public(join_columns: Optional[List[str]]):
     assert isinstance(query, Query)
     query_expr = query._query_expr
 
-    if join_columns:
-        assert query_expr.child.join_columns == tuple(join_columns)  # type: ignore
-    else:
-        assert query_expr.child.join_columns is None  # type: ignore
-
     # Check query expression
     assert isinstance(query_expr, GroupByCount)
 
     join_expr = query_expr.child
-    assert isinstance(join_expr, JoinPublic)
+    if join_columns is None:
+        assert isinstance(join_expr, AutoJoinPublic)
+    else:
+        assert isinstance(join_expr, JoinPublic)
+        assert join_expr.join_columns == tuple(join_columns)
     assert join_expr.public_table == join_table
 
     root_expr = join_expr.child
@@ -110,16 +117,15 @@ def test_join_public_dataframe(spark, join_columns: Optional[List[str]]):
     assert isinstance(query, Query)
     query_expr = query._query_expr
 
-    if join_columns:
-        assert query_expr.child.join_columns == tuple(join_columns)  # type: ignore
-    else:
-        assert query_expr.child.join_columns is None  # type: ignore
-
     # Check query expression
     assert isinstance(query_expr, GroupByCount)
 
     join_expr = query_expr.child
-    assert isinstance(join_expr, JoinPublic)
+    if join_columns is None:
+        assert isinstance(join_expr, AutoJoinPublic)
+    else:
+        assert isinstance(join_expr, JoinPublic)
+        assert join_expr.join_columns == tuple(join_columns)
     assert isinstance(join_expr.public_table, DataFrame)
     assert_dataframe_equal(join_expr.public_table, join_table)
 
@@ -147,11 +153,11 @@ def test_join_private(join_columns: Optional[Sequence[str]]):
 
     assert isinstance(query_expr, GroupByCount)
     private_join_expr = query_expr.child
-    assert isinstance(private_join_expr, JoinPrivate)
-    if join_columns:
+    if join_columns is not None:
+        assert isinstance(private_join_expr, JoinPrivate)
         assert private_join_expr.join_columns == tuple(join_columns)
     else:
-        assert private_join_expr.join_columns is None
+        assert isinstance(private_join_expr, AutoJoinPrivate)
     assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
         1
     )
@@ -184,8 +190,7 @@ def test_join_private_str() -> None:
 
     assert isinstance(query_expr, GroupByCount)
     private_join_expr = query_expr.child
-    assert isinstance(private_join_expr, JoinPrivate)
-    assert private_join_expr.join_columns is None
+    assert isinstance(private_join_expr, AutoJoinPrivate)
     assert private_join_expr.truncation_strategy_left == TruncationStrategy.DropExcess(
         1
     )
@@ -672,7 +677,7 @@ def test_replace_null_and_nan(
     query_expr = query._query_expr
     assert isinstance(query_expr, GroupByCount)
     replace_expr = query_expr.child
-    assert isinstance(replace_expr, ReplaceNullAndNan)
+    assert isinstance(replace_expr, (AutoReplaceNullAndNan, ReplaceNullAndNan))
 
     root_expr = replace_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -685,9 +690,17 @@ def test_replace_null_and_nan(
         expected_replace_with = replace_with
 
     if expected_replace_with:
+        assert isinstance(replace_expr, ReplaceNullAndNan)
         assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
     else:
-        assert replace_expr.replace_with == FrozenDict.from_dict({})
+        assert isinstance(replace_expr, AutoReplaceNullAndNan)
+
+
+@pytest.mark.parametrize("replace_with", [False, ("a", "b"), {"a"}])
+def test_invalid_replace_null_and_nan(replace_with: Any) -> None:
+    """QueryBuilder.replace_null_and_nan rejects invalid parameters."""
+    with pytest.raises(TypeError, match="replace_with must be a mapping or None"):
+        root_builder().replace_null_and_nan(replace_with)
 
 
 @pytest.mark.parametrize(
@@ -711,16 +724,15 @@ def test_replace_infinity(
     # - `assert isinstance` tells mypy what type this has
     assert isinstance(query_expr, GroupByCount)
     replace_expr = query_expr.child
-    assert isinstance(replace_expr, ReplaceInfinity)
+    if replace_with:
+        assert isinstance(replace_expr, ReplaceInfinity)
+        assert replace_expr.replace_with == FrozenDict.from_dict(replace_with)
+    else:
+        assert isinstance(replace_expr, AutoReplaceInfinity)
 
     root_expr = replace_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
-
-    expected_replace_with: Dict[str, Tuple[float, float]] = {}
-    if replace_with is not None:
-        expected_replace_with = replace_with
-    assert replace_expr.replace_with == FrozenDict.from_dict(expected_replace_with)
 
 
 @pytest.mark.parametrize(
@@ -744,8 +756,11 @@ def test_drop_null_and_nan(
     assert isinstance(query_expr, GroupByCount)
 
     drop_expr = query_expr.child
-    assert isinstance(drop_expr, DropNullAndNan)
-    assert drop_expr.columns == expected_columns
+    if expected_columns:
+        assert isinstance(drop_expr, DropNullAndNan)
+        assert drop_expr.columns == expected_columns
+    else:
+        assert isinstance(drop_expr, AutoDropNullAndNan)
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -774,8 +789,11 @@ def test_drop_infinity(
     assert isinstance(query_expr, GroupByCount)
 
     drop_expr = query_expr.child
-    assert isinstance(drop_expr, DropInfinity)
-    assert drop_expr.columns == expected_columns
+    if expected_columns:
+        assert isinstance(drop_expr, DropInfinity)
+        assert drop_expr.columns == expected_columns
+    else:
+        assert isinstance(drop_expr, AutoDropInfinity)
 
     root_expr = drop_expr.child
     assert isinstance(root_expr, PrivateSource)
@@ -795,18 +813,32 @@ def test_drop_infinity(
 def test_get_groups(
     columns: Optional[List[str]], expected_columns: Tuple[str, ...]
 ) -> None:
-    """QueryBuilder.drop_infinity works as expected."""
+    """QueryBuilder.get_groups works as expected."""
     query = root_builder().get_groups(columns)
 
     assert isinstance(query, Query)
 
     query_expr = query._query_expr
-    assert isinstance(query_expr, GetGroups)
-    assert query_expr.columns == expected_columns
+    if expected_columns:
+        assert isinstance(query_expr, GetGroups)
+        assert query_expr.columns == expected_columns
+    else:
+        assert isinstance(query_expr, AutoGetGroups)
 
     root_expr = query_expr.child
     assert isinstance(root_expr, PrivateSource)
     assert root_expr.source_id == PRIVATE_ID
+
+
+@pytest.mark.parametrize(
+    "method", ["drop_null_and_nan", "drop_infinity", "get_groups", "count_distinct"]
+)
+@pytest.mark.parametrize("columns", [0, False])
+def test_column_selection_rejects_falsey_scalars(method: str, columns: object) -> None:
+    """A falsey non-iterable is not an empty column selection."""
+    select_columns = getattr(root_builder(), method)
+    with pytest.raises(TypeError):
+        select_columns(columns=columns)
 
 
 class _TestAggregationsData:
@@ -905,8 +937,11 @@ class TestAggregations:
         expected_output_column: str,
     ):
         """Confirm that a count_distinct query is constructed correctly."""
-        assert isinstance(query, GroupByCountDistinct)
-        assert query.columns_to_count == expected_columns
+        if expected_columns:
+            assert isinstance(query, GroupByCountDistinct)
+            assert query.columns_to_count == expected_columns
+        else:
+            assert isinstance(query, AutoGroupByCountDistinct)
         assert query.groupby_keys == expected_groupby_keys
         assert query.output_column == expected_output_column
 

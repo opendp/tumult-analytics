@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright Tumult Labs 2022-2025, and the Tumult Analytics Contributors 2025-present
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional, Tuple
 
 from typeguard import check_type
@@ -19,24 +19,20 @@ from tmlt.analytics.constraints import (
 from tmlt.analytics.truncation_strategy import TruncationStrategy
 
 from ._base import (
+    AutoColumnQueryExpr,
     QueryExpr,
     QueryExprVisitor,
-    _propagate_join_by_stability,
-    _schema_for_join,
-    _validate_child_is_transformation,
-    _validate_join,
+    common_join_columns,
+    propagate_join_by_stability,
+    schema_for_join,
+    validate_child_is_transformation,
+    validate_join,
 )
 
 
 @dataclass(frozen=True)
-class JoinPrivate(QueryExpr):
-    """Returns the join of two private tables.
-
-    Before performing the join, each table is truncated based on the corresponding
-    :class:`~tmlt.analytics.TruncationStrategy`.  For a more
-    detailed overview of ``JoinPrivate``'s behavior, see
-    :meth:`~tmlt.analytics.QueryBuilder.join_private`.
-    """
+class _JoinPrivateBase(QueryExpr):
+    """Shared arguments for private joins."""
 
     left_child: QueryExpr
     """The QueryExpr to join with right operand."""
@@ -46,13 +42,11 @@ class JoinPrivate(QueryExpr):
     """Truncation strategy to be used for the left table."""
     truncation_strategy_right: Optional[TruncationStrategy.Type] = None
     """Truncation strategy to be used for the right table."""
-    join_columns: Optional[Tuple[str, ...]] = None
-    """The columns used for joining the tables, or None to use all common columns."""
 
     def __post_init__(self):
         """Checks arguments to constructor."""
-        _validate_child_is_transformation(self.left_child)
-        _validate_child_is_transformation(self.right_child)
+        validate_child_is_transformation(self.left_child)
+        validate_child_is_transformation(self.right_child)
         check_type(
             self.truncation_strategy_left,
             Optional[TruncationStrategy.Type],
@@ -61,13 +55,23 @@ class JoinPrivate(QueryExpr):
             self.truncation_strategy_right,
             Optional[TruncationStrategy.Type],
         )
-        check_type(self.join_columns, Optional[Tuple[str, ...]])
 
-        if self.join_columns is not None:
-            if len(self.join_columns) == 0:
-                raise ValueError("Provided join columns must not be empty")
-            if len(self.join_columns) != len(set(self.join_columns)):
-                raise ValueError("Join columns must be distinct")
+
+@dataclass(frozen=True)
+class JoinPrivate(_JoinPrivateBase):
+    """Join two private tables using explicit columns and truncation strategies."""
+
+    join_columns: Tuple[str, ...] = field(kw_only=True)
+    """The columns used for joining the tables."""
+
+    def __post_init__(self):
+        """Checks arguments to constructor."""
+        super().__post_init__()
+        check_type(self.join_columns, Tuple[str, ...])
+        if not self.join_columns:
+            raise ValueError("Provided join columns must not be empty")
+        if len(self.join_columns) != len(set(self.join_columns)):
+            raise ValueError("Join columns must be distinct")
 
     def _validate(self, left_schema: Schema, right_schema: Schema):
         """Validation checks for this QueryExpr."""
@@ -87,7 +91,7 @@ class JoinPrivate(QueryExpr):
                 "Private joins between tables with the AddRowsWithID protected change"
                 " are only possible when both tables are in the same ID space"
             )
-        _validate_join(left_schema, right_schema, self.join_columns)
+        validate_join(left_schema, right_schema, self.join_columns)
 
     def schema(self, catalog: Catalog) -> Schema:
         """Returns the schema resulting from evaluating this QueryExpr.
@@ -99,7 +103,7 @@ class JoinPrivate(QueryExpr):
         left_schema = self.left_child.schema(catalog)
         right_schema = self.right_child.schema(catalog)
         self._validate(left_schema, right_schema)
-        return _schema_for_join(
+        return schema_for_join(
             left_schema=left_schema,
             right_schema=right_schema,
             join_columns=self.join_columns,
@@ -114,7 +118,7 @@ class JoinPrivate(QueryExpr):
         left_schema = self.left_child.schema(catalog)
         right_schema = self.right_child.schema(catalog)
         common_cols = set(left_schema) & set(right_schema)
-        join_cols = set(self.join_columns or common_cols)
+        join_cols = set(self.join_columns)
         overlapping_cols = common_cols - join_cols
 
         def max_join_stability(cs: frozenset[Constraint]) -> Optional[int]:
@@ -147,13 +151,13 @@ class JoinPrivate(QueryExpr):
         right_stability = max_join_stability(right_constraints)
 
         left_propagated = [
-            _propagate_join_by_stability(
+            propagate_join_by_stability(
                 c, right_stability, overlapping_cols, suffix="_left"
             )
             for c in left_constraints
         ]
         right_propagated = [
-            _propagate_join_by_stability(
+            propagate_join_by_stability(
                 c, left_stability, overlapping_cols, suffix="_right"
             )
             for c in right_constraints
@@ -165,3 +169,20 @@ class JoinPrivate(QueryExpr):
     def accept(self, visitor: "QueryExprVisitor") -> Any:
         """Visit this QueryExpr with visitor."""
         return visitor.visit_join_private(self)
+
+
+@dataclass(frozen=True)
+class AutoJoinPrivate(AutoColumnQueryExpr, _JoinPrivateBase):
+    """Join two private tables on their common columns."""
+
+    def resolve_columns(self, catalog: Catalog) -> JoinPrivate:
+        """Select all common join columns."""
+        return JoinPrivate(
+            self.left_child,
+            self.right_child,
+            self.truncation_strategy_left,
+            self.truncation_strategy_right,
+            join_columns=common_join_columns(
+                self.left_child.schema(catalog), self.right_child.schema(catalog)
+            ),
+        )

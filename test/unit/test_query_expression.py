@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BinaryType, StructField, StructType
-from tmlt.core.utils.testing import assert_dataframe_equal
+from tmlt.core.utils.testing import Case, assert_dataframe_equal, parametrize
 from typeguard import TypeCheckError
 
 from tmlt.analytics import (
@@ -22,6 +22,9 @@ from tmlt.analytics import (
     TruncationStrategy,
 )
 from tmlt.analytics._query_expr import (
+    AutoGroupByCountDistinct,
+    AutoJoinPrivate,
+    AutoJoinPublic,
     DropInfinity,
     DropNullAndNan,
     EnforceConstraint,
@@ -35,7 +38,6 @@ from tmlt.analytics._query_expr import (
     GroupByBoundedSum,
     GroupByBoundedVariance,
     GroupByCount,
-    GroupByCountDistinct,
     GroupByQuantile,
     JoinPrivate,
     JoinPublic,
@@ -243,7 +245,7 @@ def test_invalid_join_columns(join_columns: List[str], expected_error_msg: str):
             PrivateSource("private2"),
             TruncationStrategy.DropExcess(1),
             TruncationStrategy.DropExcess(1),
-            tuple(join_columns),
+            join_columns=tuple(join_columns),
         )
         with pytest.raises(ValueError, match=expected_error_msg):
             JoinPublic(PrivateSource("private"), "public", tuple(join_columns))
@@ -502,14 +504,14 @@ def test_transformation_query_exprs(query: QueryBuilder) -> None:
         lambda child: FlatMapByID(
             child, lambda rows: [{"A": len(rows)}], Schema({"A": "INTEGER"})
         ),
-        lambda child: JoinPublic(child, "public"),
-        lambda child: ReplaceNullAndNan(child),  # noqa: PLW0108
-        lambda child: ReplaceInfinity(child),  # noqa: PLW0108
-        lambda child: DropNullAndNan(child),  # noqa: PLW0108
-        lambda child: DropInfinity(child),  # noqa: PLW0108
+        lambda child: AutoJoinPublic(child, "public"),
+        lambda child: ReplaceNullAndNan(child, FrozenDict.from_dict({})),
+        lambda child: ReplaceInfinity(child, FrozenDict.from_dict({})),
+        lambda child: DropNullAndNan(child, ()),
+        lambda child: DropInfinity(child, ()),
         lambda child: EnforceConstraint(child, MaxRowsPerID(1)),
         lambda child: GroupByCount(child, KeySet.from_dict({})),
-        lambda child: GroupByCountDistinct(child, KeySet.from_dict({})),
+        lambda child: AutoGroupByCountDistinct(child, KeySet.from_dict({})),
         lambda child: GroupByQuantile(child, KeySet.from_dict({}), "A", 0.5, 0.0, 1.0),
         lambda child: GroupByBoundedSum(child, KeySet.from_dict({}), "A", 0.0, 1.0),
         lambda child: GroupByBoundedAverage(child, KeySet.from_dict({}), "A", 0.0, 1.0),
@@ -552,7 +554,7 @@ def test_join_private_measurement_children_rejected(
         AnalyticsInternalError,
         match="Measurement used as query expression child where only transformations are allowed",
     ):
-        JoinPrivate(left_child, right_child)
+        AutoJoinPrivate(left_child, right_child)
 
 
 @pytest.mark.parametrize("low,high", [(8.0, 10.0), (1, 10), (1.0, 10)])
@@ -662,7 +664,7 @@ def test_valid_drop_infinity(child: QueryExpr, columns: List[str]) -> None:
 def test_join_public_string_nan(spark):
     """Test that the string "NaN" is allowed in string-valued columns."""
     df = spark.createDataFrame(pd.DataFrame({"col": ["nan", "NaN", "NAN", "Nan"]}))
-    query_expr = JoinPublic(PrivateSource("a"), df)
+    query_expr = AutoJoinPublic(PrivateSource("a"), df)
     assert isinstance(query_expr.public_table, DataFrame)
     assert_dataframe_equal(query_expr.public_table, df)
 
@@ -674,7 +676,46 @@ def test_join_public_dataframe_validation_column_type(spark):
     df = spark.createDataFrame(data, schema)
 
     with pytest.raises(ValueError, match="^Unsupported Spark data type.*"):
-        JoinPublic(PrivateSource("a"), df)
+        AutoJoinPublic(PrivateSource("a"), df)
+
+
+@parametrize(
+    Case("empty-empty")(
+        df1=pd.DataFrame({"A": []}),
+        df2=pd.DataFrame({"A": []}),
+        expected=True,
+    ),
+    Case("empty-nonempty")(
+        df1=pd.DataFrame({"A": []}),
+        df2=pd.DataFrame({"A": [1]}),
+        expected=False,
+    ),
+    Case("nonempty-empty")(
+        df1=pd.DataFrame({"A": [1]}),
+        df2=pd.DataFrame({"A": []}),
+        expected=False,
+    ),
+    Case("equal")(
+        df1=pd.DataFrame({"A": [1]}),
+        df2=pd.DataFrame({"A": [1]}),
+        expected=True,
+    ),
+    Case("unequal")(
+        df1=pd.DataFrame({"A": [1]}),
+        df2=pd.DataFrame({"A": [2]}),
+        expected=False,
+    ),
+)
+def test_join_public_df_equality(
+    df1: pd.DataFrame, df2: pd.DataFrame, expected: bool, spark
+):
+    join1 = AutoJoinPublic(
+        PrivateSource("a"), spark.createDataFrame(df1, schema="A: long")
+    )
+    join2 = AutoJoinPublic(
+        PrivateSource("a"), spark.createDataFrame(df2, schema="A: long")
+    )
+    assert (join1 == join2) == expected
 
 
 @pytest.mark.parametrize(

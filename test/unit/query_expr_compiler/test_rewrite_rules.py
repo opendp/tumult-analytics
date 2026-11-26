@@ -118,6 +118,7 @@ def test_noise_selection_counts(
         child=BASE_EXPR,
         groupby_keys=KeySet.from_dict({}),
         mechanism=AggMech[query_mechanism],
+        **({"columns_to_count": ("col",)} if AggExpr is GroupByCountDistinct else {}),
     )
     info = CompilationInfo(output_measure=output_measure, catalog=catalog)
     got_expr = select_noise_mechanism(info)(expr)
@@ -303,6 +304,7 @@ def test_noise_selection_suppress_aggregates(
         ),
         Case()(
             expr=GroupByCountDistinct(
+                columns_to_count=("col",),
                 child=BASE_EXPR,
                 groupby_keys=KeySet.from_dict({}),
                 mechanism=CountDistinctMechanism.GAUSSIAN,
@@ -468,6 +470,7 @@ def test_special_value_handling_count_unaffected(
         child=BASE_EXPR,
         groupby_keys=KeySet.from_dict({}),
         mechanism=AggMech["DEFAULT"],
+        **({"columns_to_count": ("col",)} if AggExpr is GroupByCountDistinct else {}),
     )
     catalog = Catalog()
     catalog.add_private_table("private", {"col": col_desc}, constraints=[])
